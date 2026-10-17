@@ -1,0 +1,63 @@
+[project]
+name = "adam-agent"
+version = "0.0.1"
+description = "A small terminal chat client for learning agent engineering"
+requires-python = ">=3.11"
+dependencies = ["httpx>=0.28,<0.29"]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414",
+    "pytest>=8,<10",
+    "ruff>=0.17.1",
+    "pre-commit>=4.7,<5",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+indent-width = 4
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ruff.lint]
+select = [
+    "E4",     # 导入位置等基础规则
+    "E7",     # 语句写法
+    "E9",     # 部分基础错误
+    "F",      # 未定义名称、未使用导入等
+    "I",      # 导入排序
+    "UP",     # 使用 Python 3.11 支持的现代写法
+    "B",      # 常见易错模式
+    "TID252", # 限制相对导入
+    "ANN",    # 函数参数与返回值类型标注
+    "N",      # Python 命名惯例
+    "PGH004", # noqa 必须明确指定规则
+    "D200",   # 单行文档字符串写在同一行
+    "D205",   # 摘要与正文之间空一行
+    "D209",   # 多行文档字符串的结束引号独占一行
+    "D300",   # 文档字符串使用三双引号
+    "D419",   # 文档字符串不能为空
+]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.per-file-ignores]
+# 测试函数暂不强制类型标注。
+"tests/**/*.py" = ["ANN"]
+
+[tool.pyright]
+include = ["adam"]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+
+venvPath = "."
+venv = ".venv"
