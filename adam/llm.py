@@ -46,6 +46,12 @@ class LLMClient:
         return models
 
     def complete(self, messages: list[dict[str, str]], *, model: str | None = None) -> str:
+        """发送一次非流式请求，返回本项目支持的完整文本回答。
+
+        DeepSeek 请求字段与响应结构：
+        https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/
+        阅读 Request Body 和 Responses 中的 200 (No streaming) 部分。
+        """
         try:
             response = self.client.post(
                 self.config.base_url + "/chat/completions",
@@ -53,6 +59,7 @@ class LLMClient:
                 json={
                     "model": model if model is not None else self.config.model,
                     "messages": messages,
+                    # 一次返回完整 JSON；流式响应需要另一套增量解析逻辑。
                     "stream": False,
                 },
                 timeout=self.config.timeout_seconds,
@@ -69,19 +76,26 @@ class LLMClient:
             raise LLMError(f"HTTP {response.status_code}：{hint}。")
 
         try:
+            # choices 是候选回答列表；当前只读取第一项的 message.content。
             choice = response.json()["choices"][0]
             message = choice["message"]
             content = message["content"]
 
+            # stop 表示自然结束或命中停止序列；length 等原因可能意味着截断。
+            # tool_calls 是工具调用请求。它可以是合法响应，但当前项目尚不支持。
             if choice.get("finish_reason") != "stop" or message.get("tool_calls"):
                 raise LLMError("模型未返回完整文本回答；本轮不加入历史。")
 
+            # API 允许 content 为 null；本项目只接受 assistant 的非空文本。
+            # 这是当前功能范围的限制，不代表其他响应形式违反 API 协议。
             if (
                 message.get("role") != "assistant"
                 or not isinstance(content, str)
                 or not content.strip()
             ):
                 raise LLMError("模型返回空回答或不支持的消息格式。")
+        # 分别兜底 JSON 解码失败、字段缺失、空列表以及字段类型不符。
+        # 上面主动抛出的 LLMError 不属于这些类型，会原样交给 CLI 处理。
         except (ValueError, KeyError, IndexError, TypeError, AttributeError):
             raise LLMError("API 响应格式不符合 Chat Completions 协议。") from None
 
