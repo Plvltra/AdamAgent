@@ -1,9 +1,6 @@
-[llm]
-base_url = "https://api.deepseek.com"
-model = "deepseek-flash"
-timeout_seconds = 120
-system_prompt = "你是 Adam，一个友好的编程助手。"
+[storage]
+# Relative to this configuration file.
+db_path = "data/adam.db"
 
-# Exactly one: api_key_env OR api_key. Never commit a real key.
-api_key_env = "DEEPSEEK_API_KEY"
-# api_key = "replace-with-your-key"
+[chat]
+system_prompt = "你是 Adam，一个友好的编程助手。"

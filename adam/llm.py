@@ -2,7 +2,7 @@
 
 import httpx
 
-from adam.config import Config
+from adam.config import LLMConfig
 
 
 class LLMError(RuntimeError):
@@ -10,7 +10,7 @@ class LLMError(RuntimeError):
 
 
 class LLMClient:
-    def __init__(self, config: Config, client: httpx.Client) -> None:
+    def __init__(self, config: LLMConfig, client: httpx.Client) -> None:
         self.config = config
         self.client = client
 
