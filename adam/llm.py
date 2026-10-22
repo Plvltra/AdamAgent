@@ -75,6 +75,10 @@ class LLMClient:
             hint = hints.get(response.status_code, "服务返回错误，请检查配置或稍后重试")
             raise LLMError(f"HTTP {response.status_code}：{hint}。")
 
+        content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        if content_type == "text/event-stream":
+            raise LLMError("服务返回了流式响应，但当前客户端只支持非流式 JSON 回答。")
+
         try:
             # choices 是候选回答列表；当前只读取第一项的 message.content。
             choice = response.json()["choices"][0]

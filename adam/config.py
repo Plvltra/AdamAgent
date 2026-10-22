@@ -29,6 +29,7 @@ def load_llm_config(path: Path) -> LLMConfig:
 
     if data.keys() - {"llm"}:
         raise ConfigError("模型配置仅支持 [llm]，请对照 llm.example.toml。")
+
     section = data.get("llm")
     if not isinstance(section, dict):
         raise ConfigError("配置缺少 [llm] 表。")
@@ -100,23 +101,37 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, UnicodeError, tomllib.TOMLDecodeError):
         raise ConfigError(f"无法读取主配置 {path}，请检查文件存在且为有效 UTF-8 TOML。") from None
+
     if data.keys() - {"storage", "chat"}:
         raise ConfigError("主配置仅支持 [storage] 和 [chat]，请对照 config.example.toml。")
+
     storage = data.get("storage", {})
     chat = data.get("chat", {})
+
     if not isinstance(storage, dict) or storage.keys() - {"db_path"}:
         raise ConfigError("[storage] 仅支持 db_path。")
+
     if not isinstance(chat, dict) or chat.keys() - {"system_prompt"}:
         raise ConfigError("[chat] 仅支持 system_prompt。")
+
     db_value = storage.get("db_path", "data/adam.db")
     if not isinstance(db_value, str) or not db_value.strip() or "\0" in db_value:
         raise ConfigError("storage.db_path 必须是非空且不含空字符的路径字符串。")
+
     prompt = chat.get("system_prompt", "你是 Adam，一个友好的助手。")
     if not isinstance(prompt, str):
         raise ConfigError("chat.system_prompt 必须是字符串。")
+
     directory = path.resolve().parent
     db_path = Path(db_value)
     if not db_path.is_absolute():
         db_path = directory / db_path
-    llm = load_llm_config(llm_path if llm_path is not None else directory / "llm.toml")
-    return AppConfig(llm=llm, db_path=db_path, system_prompt=prompt)
+
+    model_config_path = llm_path if llm_path is not None else directory / "llm.toml"
+    llm = load_llm_config(model_config_path)
+
+    return AppConfig(
+        llm=llm,
+        db_path=db_path,
+        system_prompt=prompt,
+    )

@@ -233,3 +233,19 @@ def test_commands_do_not_reach_model_and_exit_stops_input():
     assert sum("未知命令" in line for line in output) == 2
     assert next(entries) == "unread"
     assert output[-1] == "再见。"
+
+
+def test_unexpected_stream_response_has_clear_error():
+    def handler(request):
+        assert json.loads(request.content)["stream"] is False
+        return httpx.Response(
+            200,
+            headers={"Content-Type": "text/event-stream; charset=utf-8"},
+            text='data: {"private": "secret-response"}\n\ndata: [DONE]\n\n',
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http:
+        client = LLMClient(LLMConfig("https://example.test", "model", "secret"), http)
+        with pytest.raises(LLMError, match="流式响应") as error:
+            client.complete([])
+    assert "secret" not in str(error.value)
