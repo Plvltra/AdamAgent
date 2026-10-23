@@ -91,7 +91,7 @@ def load_llm_config(path: Path) -> LLMConfig:
 @dataclass(frozen=True)
 class AppConfig:
     llm: LLMConfig
-    db_path: Path
+    sessions_dir: Path
     system_prompt: str
 
 
@@ -108,30 +108,42 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     storage = data.get("storage", {})
     chat = data.get("chat", {})
 
-    if not isinstance(storage, dict) or storage.keys() - {"db_path"}:
-        raise ConfigError("[storage] 仅支持 db_path。")
+    if isinstance(storage, dict) and "db_path" in storage:
+        raise ConfigError("storage.db_path 已移除，请改用 storage.sessions_dir。")
+    if not isinstance(storage, dict) or storage.keys() - {"sessions_dir"}:
+        raise ConfigError("[storage] 仅支持 sessions_dir。")
 
     if not isinstance(chat, dict) or chat.keys() - {"system_prompt"}:
         raise ConfigError("[chat] 仅支持 system_prompt。")
 
-    db_value = storage.get("db_path", "data/adam.db")
-    if not isinstance(db_value, str) or not db_value.strip() or "\0" in db_value:
-        raise ConfigError("storage.db_path 必须是非空且不含空字符的路径字符串。")
+    directory_value = storage.get("sessions_dir", "sessions")
+    if (
+        not isinstance(directory_value, str)
+        or not directory_value.strip()
+        or "\0" in directory_value
+    ):
+        raise ConfigError("storage.sessions_dir 必须是非空且不含空字符的路径字符串。")
 
     prompt = chat.get("system_prompt", "你是 Adam，一个友好的助手。")
     if not isinstance(prompt, str):
         raise ConfigError("chat.system_prompt 必须是字符串。")
 
     directory = path.resolve().parent
-    db_path = Path(db_value)
-    if not db_path.is_absolute():
-        db_path = directory / db_path
+    sessions_dir = Path(directory_value)
+    if not sessions_dir.is_absolute():
+        sessions_dir = directory / sessions_dir
 
     model_config_path = llm_path if llm_path is not None else directory / "llm.toml"
     llm = load_llm_config(model_config_path)
 
     return AppConfig(
         llm=llm,
-        db_path=db_path,
+        sessions_dir=sessions_dir,
         system_prompt=prompt,
     )
+
+
+def adam_home() -> Path:
+    """默认用户数据根；ADAM_HOME 可覆盖，空值回退默认目录。"""
+    value = os.environ.get("ADAM_HOME", "").strip()
+    return Path(value).expanduser().resolve() if value else Path.home() / ".adam"

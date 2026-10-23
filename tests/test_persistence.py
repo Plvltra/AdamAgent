@@ -1,5 +1,4 @@
 import json
-import sqlite3
 import sys
 
 import httpx
@@ -35,7 +34,7 @@ def make_client(requests):
 
 
 def test_reopen_resume_isolation_and_failed_switch(tmp_path):
-    path = tmp_path / "chat.db"
+    path = tmp_path / "sessions"
     requests = []
     with make_client(requests) as http, SessionStore(path) as store:
         entries = iter(["/new A", "one", "/new B", "two", "/sessions", "/exit"])
@@ -46,10 +45,12 @@ def test_reopen_resume_isolation_and_failed_switch(tmp_path):
             read=lambda _: next(entries),
             write=lambda _: None,
         )
-        assert len(store.list_sessions()) == 2
+        sessions = {s.title: s.session_id for s in store.list_sessions()}
+        first, second = sessions["A"], sessions["B"]
+        assert len(sessions) == 2
     output = []
     with make_client(requests) as http, SessionStore(path) as store:
-        entries = iter(["/resume 1", "/resume 999", "/resume abc", "three", "/exit"])
+        entries = iter([f"/resume {first}", "/resume ffffffff", "/resume abc", "three", "/exit"])
         chat(
             LLMClient(LLMConfig("https://example.test", "model", "secret"), http),
             "new prompt",
@@ -57,13 +58,13 @@ def test_reopen_resume_isolation_and_failed_switch(tmp_path):
             read=lambda _: next(entries),
             write=output.append,
         )
-        assert [m.content for m in store.load_messages(1)] == [
+        assert [m.content for m in store.load_messages(first)] == [
             "one",
             "answer:one",
             "three",
             "answer:three",
         ]
-        assert [m.content for m in store.load_messages(2)] == ["two", "answer:two"]
+        assert [m.content for m in store.load_messages(second)] == ["two", "answer:two"]
     assert requests[-1]["messages"] == [
         {"role": "system", "content": "old prompt"},
         {"role": "user", "content": "one"},
@@ -74,17 +75,15 @@ def test_reopen_resume_isolation_and_failed_switch(tmp_path):
     assert any("用法" in line for line in output)
 
 
-def test_save_failure_shows_reply_and_does_not_retry(tmp_path):
-    path = tmp_path / "chat.db"
+def test_save_failure_shows_reply_and_does_not_retry(tmp_path, monkeypatch):
+    path = tmp_path / "sessions"
     with SessionStore(path) as store:
         session_id = store.create_session("A", "")
-    connection = sqlite3.connect(path)
-    try:
-        connection.execute("""CREATE TRIGGER fail_save BEFORE INSERT ON messages
-            WHEN NEW.role = 'assistant' BEGIN SELECT RAISE(ABORT, 'test'); END""")
-        connection.commit()
-    finally:
-        connection.close()
+
+    def fail_save(*args):
+        raise OSError("injected")
+
+    monkeypatch.setattr(SessionStore, "append_turn", fail_save)
     requests = []
     output = []
     with make_client(requests) as http, SessionStore(path) as store:
@@ -103,7 +102,7 @@ def test_save_failure_shows_reply_and_does_not_retry(tmp_path):
     assert any("未保存" in line and "answer:one" in line for line in output)
 
 
-def test_main_creates_database_and_resumes(tmp_path, monkeypatch):
+def test_main_creates_session_and_resumes(tmp_path, monkeypatch):
     # 两次调用真实启动入口、两次关闭重开连接，只有 HTTP 和终端输入被替换。
     import adam.cli as cli
 
@@ -127,12 +126,14 @@ def test_main_creates_database_and_resumes(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "chat", interactive)
     monkeypatch.setattr(sys, "argv", ["adam", "--config", str(config)])
     assert main() == 0
+    with SessionStore(tmp_path / "sessions") as store:
+        first = store.list_sessions()[0].session_id
     config.write_text('[chat]\nsystem_prompt="changed"\n', encoding="utf-8")
-    monkeypatch.setattr(sys, "argv", ["adam", "--config", str(config), "--resume", "1"])
+    monkeypatch.setattr(sys, "argv", ["adam", "--config", str(config), "--resume", first])
     assert main() == 0
-    with SessionStore(tmp_path / "data" / "adam.db") as store:
+    with SessionStore(tmp_path / "sessions") as store:
         assert len(store.list_sessions()) == 1
-        assert [m.content for m in store.load_messages(1)] == [
+        assert [m.content for m in store.load_messages(first)] == [
             "first",
             "answer:first",
             "second",

@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import httpx
 import pytest
@@ -11,8 +12,7 @@ from adam.storage import SessionStore
 
 
 def chat(client, system_prompt, **kwargs):
-    # 旧交互测试也走存储接口，每次使用独立的内存 SQLite。
-    with SessionStore(Path(":memory:")) as store:
+    with TemporaryDirectory() as directory, SessionStore(Path(directory)) as store:
         run_chat(client, system_prompt, store, **kwargs)
 
 

@@ -1,17 +1,16 @@
 """终端交互；会话流程和数据库操作由各自模块负责。"""
 
 import argparse
-import sqlite3
 from collections.abc import Callable
 from enum import Enum, auto
 from pathlib import Path
 
 import httpx
 
-from adam.config import ConfigError, load_config
+from adam.config import ConfigError, adam_home, load_config
 from adam.conversation import Conversation, TurnSaveError
 from adam.llm import LLMClient, LLMError
-from adam.storage import SessionNotFoundError, SessionStore
+from adam.storage import SessionNotFoundError, SessionStore, StorageError, valid_session_id
 
 
 def show_session(conversation: Conversation, write: Callable[[str], None]) -> None:
@@ -63,13 +62,10 @@ def handle_command(
             marker = "*" if session == conversation.session else " "
             write(f"{marker} {session.session_id} — {session.title}")
     elif command == "/resume":
-        if len(parts) != 2 or not parts[1].isascii() or not parts[1].isdigit():
-            write("用法：/resume <正整数会话ID>")
+        if len(parts) != 2 or not valid_session_id(parts[1]):
+            write("用法：/resume <8 位小写十六进制会话ID>")
             return CommandResult.HANDLED
-        if len(parts[1]) > 19 or not 0 < int(parts[1]) <= 2**63 - 1:
-            write("会话 ID 超出有效范围。")
-            return CommandResult.HANDLED
-        session_id = int(parts[1])
+        session_id = parts[1]
         conversation.resume(session_id)
         show_session(conversation, write)
         for message in conversation.store.load_messages(session_id):
@@ -100,7 +96,7 @@ def chat(
     store: SessionStore,
     read: Callable[[str], str] = input,
     write: Callable[[str], None] = print,
-    resume_id: int | None = None,
+    resume_id: str | None = None,
 ) -> None:
     conversation = Conversation(store, client, system_prompt)
     if resume_id is not None:
@@ -134,39 +130,44 @@ def chat(
                 write(f"模型请求错误：{error}")
             except SessionNotFoundError as error:
                 write(str(error))
-            except sqlite3.Error:
-                write("数据库操作失败，请检查文件权限或是否被占用；未自动重试。")
+            except StorageError as error:
+                write(str(error))
+            except OSError:
+                write("会话文件操作失败，请检查路径和权限；未自动重试。")
     except (EOFError, KeyboardInterrupt):
         pass
+    finally:
+        store.close()
     write("再见。")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Adam 持久会话终端聊天")
-    parser.add_argument("--config", type=Path, default=Path("config.toml"))
+    parser.add_argument("--config", type=Path, default=adam_home() / "config.toml")
     parser.add_argument("--llm-config", type=Path, help="模型配置路径，默认主配置旁的 llm.toml")
-    parser.add_argument(
-        "--db", type=Path, help="覆盖 storage.db_path；相对路径以当前工作目录为基准"
-    )
-    parser.add_argument("--resume", type=int, help="启动时恢复指定会话 ID")
+    parser.add_argument("--resume", help="启动时恢复指定的 8 位会话 ID")
     args = parser.parse_args()
-    if args.resume is not None and not 0 < args.resume <= 2**63 - 1:
-        parser.error("--resume 必须是有效的正整数会话 ID")
+    if args.resume is not None and not valid_session_id(args.resume):
+        parser.error("--resume 必须是 8 位小写十六进制会话 ID")
     try:
         config = load_config(args.config, args.llm_config)
     except ConfigError as error:
         print(f"配置错误：{error}")
         return 2
-    db_path = args.db if args.db is not None else config.db_path
     try:
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        with SessionStore(db_path) as store, httpx.Client(follow_redirects=False) as http:
-            print(f"会话数据库：{db_path.resolve()}")
+        with (
+            SessionStore(config.sessions_dir) as store,
+            httpx.Client(follow_redirects=False) as http,
+        ):
+            print(f"会话目录：{config.sessions_dir}")
             chat(LLMClient(config.llm, http), config.system_prompt, store, resume_id=args.resume)
     except SessionNotFoundError as error:
         print(str(error))
         return 2
-    except (OSError, sqlite3.Error):
-        print("数据库无法创建、打开或读取，请检查路径、权限和数据库文件。")
+    except StorageError as error:
+        print(str(error))
+        return 2
+    except OSError:
+        print("会话目录无法创建、打开或读取，请检查路径和权限。")
         return 2
     return 0

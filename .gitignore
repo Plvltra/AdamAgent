@@ -227,3 +227,7 @@ __marimo__/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Local JSONL sessions when configured inside the project
+/sessions/
+/.adam/

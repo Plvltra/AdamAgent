@@ -1,6 +1,6 @@
 [storage]
 # Relative to this configuration file.
-db_path = "data/adam.db"
+sessions_dir = "sessions"
 
 [chat]
 system_prompt = "你是 Adam，一个友好的编程助手。"

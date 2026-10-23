@@ -1,6 +1,4 @@
-"""组织会话流程；数据库是已完成历史的来源。"""
-
-import sqlite3
+"""组织会话流程；会话文件是已完成历史的来源。"""
 
 from adam.llm import LLMClient
 from adam.storage import Session, SessionStore
@@ -26,8 +24,8 @@ class Conversation:
         session_id = self.store.create_session(title, self.system_prompt)
         return self.resume(session_id)
 
-    def resume(self, session_id: int) -> Session:
-        session = self.store.get_session(session_id)
+    def resume(self, session_id: str) -> Session:
+        session = self.store.select_session(session_id)
         self.store.load_messages(session_id)
         self.session = session
         return session
@@ -45,6 +43,6 @@ class Conversation:
         reply = self.client.complete(messages, model=self.model)
         try:
             self.store.append_turn(session.session_id, text, reply)
-        except sqlite3.Error as error:
+        except OSError as error:
             raise TurnSaveError(reply) from error
         return reply

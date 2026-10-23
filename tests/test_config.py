@@ -15,28 +15,28 @@ def test_paths_defaults_and_llm_override(tmp_path, monkeypatch):
     (directory / "llm.toml").write_text(LLM, encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     config = load_config(main)
-    assert config.db_path == directory / "data" / "adam.db"
+    assert config.sessions_dir == directory / "sessions"
     main.write_text(
-        '[storage]\ndb_path="history/custom.db"\n[chat]\nsystem_prompt=""', encoding="utf-8-sig"
+        '[storage]\nsessions_dir="history/custom"\n[chat]\nsystem_prompt=""', encoding="utf-8-sig"
     )
     alternate = tmp_path / "alternate.toml"
     alternate.write_text(LLM.replace('model="test"', 'model="other"'), encoding="utf-8")
     config = load_config(main, Path("alternate.toml"))
-    assert config.db_path == directory / "history" / "custom.db"
+    assert config.sessions_dir == directory / "history" / "custom"
     assert config.system_prompt == ""
     assert config.llm.model == "other"
-    absolute = (tmp_path / "absolute.db").as_posix()
-    main.write_text(f'[storage]\ndb_path="{absolute}"', encoding="utf-8")
-    assert load_config(main).db_path == Path(absolute)
+    absolute = (tmp_path / "absolute").as_posix()
+    main.write_text(f'[storage]\nsessions_dir="{absolute}"', encoding="utf-8")
+    assert load_config(main).sessions_dir == Path(absolute)
 
 
 @pytest.mark.parametrize(
     "content",
     [
-        '[storage]\ndb_path=""',
-        "[storage]\ndb_path=1",
+        '[storage]\nsessions_dir=""',
+        "[storage]\nsessions_dir=1",
         "[chat]\nsystem_prompt=42",
-        '[storage]\ndb_paths="x"',
+        '[storage]\nsessions_dirs="x"',
         "[chat]\nunknown=true",
         "storage=1",
         "chat=1",
@@ -61,25 +61,34 @@ def test_missing_config_files(tmp_path):
         load_config(main)
 
 
-def test_cli_overrides_database_and_llm(tmp_path, monkeypatch):
+def test_home_and_cli_llm_override(tmp_path, monkeypatch):
     import sys
 
     import adam.cli as cli
+    from adam.config import adam_home
 
-    main = tmp_path / "config.toml"
-    main.write_text('[storage]\ndb_path="unused.db"', encoding="utf-8")
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("ADAM_HOME", str(home))
+    assert adam_home() == home
+    (home / "config.toml").write_text('[storage]\nsessions_dir="history"', encoding="utf-8")
     (tmp_path / "alternate.toml").write_text(LLM, encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["adam", "--config", str(main), "--llm-config", "alternate.toml", "--db", "override.db"],
-    )
+    monkeypatch.setattr(sys, "argv", ["adam", "--llm-config", "alternate.toml"])
     calls = []
     monkeypatch.setattr(
         cli, "chat", lambda client, prompt, store, **kwargs: calls.append(client.config.model)
     )
     assert cli.main() == 0
     assert calls == ["test"]
-    assert (tmp_path / "override.db").is_file()
-    assert not (tmp_path / "unused.db").exists()
+    assert (home / "history").is_dir()
+    monkeypatch.delenv("ADAM_HOME")
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    assert adam_home() == tmp_path / ".adam"
+
+
+def test_old_database_setting_is_rejected(tmp_path):
+    main = tmp_path / "config.toml"
+    main.write_text('[storage]\ndb_path="old.db"', encoding="utf-8")
+    with pytest.raises(ConfigError, match="已移除"):
+        load_config(main)
