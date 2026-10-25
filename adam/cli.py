@@ -1,4 +1,4 @@
-"""终端交互；会话流程和数据库操作由各自模块负责。"""
+"""终端交互；会话流程和会话存储由各自模块负责。"""
 
 import argparse
 from collections.abc import Callable
@@ -7,10 +7,11 @@ from pathlib import Path
 
 import httpx
 
-from adam.config import ConfigError, adam_home, load_config
+from adam.config import AgentConfig, ConfigError, adam_home, load_config
 from adam.conversation import Conversation, TurnSaveError
 from adam.llm import LLMClient, LLMError
 from adam.storage import SessionNotFoundError, SessionStore, StorageError, valid_session_id
+from adam.tool_calls import PermissionConfig, ToolError, ToolLimits, ToolRegistry
 
 
 def show_session(conversation: Conversation, write: Callable[[str], None]) -> None:
@@ -97,8 +98,19 @@ def chat(
     read: Callable[[str], str] = input,
     write: Callable[[str], None] = print,
     resume_id: str | None = None,
+    workspace: Path | None = None,
+    permissions: PermissionConfig | None = None,
+    tool_limits: ToolLimits | None = None,
+    agent_config: AgentConfig | None = None,
 ) -> None:
-    conversation = Conversation(store, client, system_prompt)
+    conversation = Conversation(
+        store,
+        client,
+        system_prompt,
+        ToolRegistry(workspace or Path.cwd(), permissions, tool_limits),
+        agent_config,
+        write,
+    )
     if resume_id is not None:
         conversation.resume(resume_id)
     models: dict[str, str | None] | None = None
@@ -128,7 +140,7 @@ def chat(
                 write(str(error))
             except LLMError as error:
                 write(f"模型请求错误：{error}")
-            except SessionNotFoundError as error:
+            except (SessionNotFoundError, ToolError) as error:
                 write(str(error))
             except StorageError as error:
                 write(str(error))
@@ -145,6 +157,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Adam 持久会话终端聊天")
     parser.add_argument("--config", type=Path, default=adam_home() / "config.toml")
     parser.add_argument("--llm-config", type=Path, help="模型配置路径，默认主配置旁的 llm.toml")
+    parser.add_argument("--workspace", type=Path, default=Path.cwd(), help="工具工作目录")
     parser.add_argument("--resume", help="启动时恢复指定的 8 位会话 ID")
     args = parser.parse_args()
     if args.resume is not None and not valid_session_id(args.resume):
@@ -160,8 +173,17 @@ def main() -> int:
             httpx.Client(follow_redirects=False) as http,
         ):
             print(f"会话目录：{config.sessions_dir}")
-            chat(LLMClient(config.llm, http), config.system_prompt, store, resume_id=args.resume)
-    except SessionNotFoundError as error:
+            chat(
+                LLMClient(config.llm, http),
+                config.system_prompt,
+                store,
+                resume_id=args.resume,
+                workspace=args.workspace,
+                permissions=config.permissions,
+                tool_limits=config.tool_limits,
+                agent_config=config.agent,
+            )
+    except (SessionNotFoundError, ToolError) as error:
         print(str(error))
         return 2
     except StorageError as error:

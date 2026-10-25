@@ -18,7 +18,8 @@ def chat(client, system_prompt, **kwargs):
 
 def response(text="hello"):
     return {
-        "choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": text}}]
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+        "choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": text}}],
     }
 
 
@@ -32,7 +33,9 @@ def test_multiturn_failure_and_reset():
         assert request.url == "https://example.test/v1/chat/completions"
         assert request.headers["Authorization"] == "Bearer secret"
         if len(requests) == 2:
-            return httpx.Response(503, text="secret remote body")
+            return httpx.Response(
+                200, json={"usage": {"prompt_tokens": 10, "completion_tokens": 5}, "choices": []}
+            )
         return httpx.Response(200, json=response(f"reply{len(requests)}"))
 
     entries = iter([" ", "one", "failed", "two", "/new", "three", "/exit"])
@@ -56,7 +59,7 @@ def test_multiturn_failure_and_reset():
     ]
     assert all(r["stream"] is False for r in requests)
     assert "secret" not in "".join(output)
-    assert any("503" in line for line in output)
+    assert any("响应格式" in line for line in output)
 
 
 @pytest.mark.parametrize(
@@ -167,7 +170,9 @@ def test_model_switch_preserves_history_and_rejects_unknown():
         payload = json.loads(request.content)
         requests.append(payload)
         if payload["model"] == "pro":
-            return httpx.Response(503)
+            return httpx.Response(
+                200, json={"usage": {"prompt_tokens": 10, "completion_tokens": 5}, "choices": []}
+            )
         return httpx.Response(200, json=response())
 
     entries = iter(

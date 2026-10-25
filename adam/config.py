@@ -3,9 +3,13 @@
 import math
 import os
 import tomllib
-from dataclasses import dataclass, field
+from collections.abc import Collection
+from dataclasses import dataclass, field, fields
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
+
+from adam.tool_calls import PermissionConfig, ToolLimits
 
 
 class ConfigError(ValueError):
@@ -20,6 +24,16 @@ class LLMConfig:
     timeout_seconds: float = 120
 
 
+def checked_section(value: object, allowed: Collection[str], name: str) -> dict[str, Any]:
+    """校验配置表及未知字段，返回原表；错误包含字段名但不回显配置值。"""
+    if not isinstance(value, dict):
+        raise ConfigError(f"[{name}] 必须是配置表。")
+    unknown = value.keys() - set(allowed)
+    if unknown:
+        raise ConfigError(f"[{name}] 存在不支持的配置项：{', '.join(sorted(unknown))}。")
+    return value
+
+
 def load_llm_config(path: Path) -> LLMConfig:
     try:
         # utf-8-sig also accepts files saved with a Windows UTF-8 BOM.
@@ -27,16 +41,14 @@ def load_llm_config(path: Path) -> LLMConfig:
     except (OSError, UnicodeError, tomllib.TOMLDecodeError):
         raise ConfigError(f"无法读取模型配置 {path}，请检查文件存在且为有效 UTF-8 TOML。") from None
 
-    if data.keys() - {"llm"}:
-        raise ConfigError("模型配置仅支持 [llm]，请对照 llm.example.toml。")
+    checked_section(data, {"llm"}, "模型配置")
 
     section = data.get("llm")
     if not isinstance(section, dict):
         raise ConfigError("配置缺少 [llm] 表。")
 
     allowed = {"base_url", "model", "api_key", "api_key_env", "timeout_seconds"}
-    if section.keys() - allowed:
-        raise ConfigError("[llm] 中存在不支持的配置项，请对照 llm.example.toml。")
+    checked_section(section, allowed, "llm")
 
     def required_text(name: str) -> str:
         value = section.get(name)
@@ -89,10 +101,21 @@ def load_llm_config(path: Path) -> LLMConfig:
 
 
 @dataclass(frozen=True)
+class AgentConfig:
+    max_model_requests: int = 8
+    max_tool_calls: int = 16
+    max_session_tokens: int = 50000
+    max_output_tokens: int = 4096
+
+
+@dataclass(frozen=True)
 class AppConfig:
     llm: LLMConfig
     sessions_dir: Path
     system_prompt: str
+    agent: AgentConfig = field(default_factory=AgentConfig)
+    permissions: PermissionConfig = field(default_factory=PermissionConfig)
+    tool_limits: ToolLimits = field(default_factory=ToolLimits)
 
 
 def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
@@ -102,19 +125,12 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     except (OSError, UnicodeError, tomllib.TOMLDecodeError):
         raise ConfigError(f"无法读取主配置 {path}，请检查文件存在且为有效 UTF-8 TOML。") from None
 
-    if data.keys() - {"storage", "chat"}:
-        raise ConfigError("主配置仅支持 [storage] 和 [chat]，请对照 config.example.toml。")
-
+    checked_section(data, {"storage", "chat", "agent", "permissions", "tool_limits"}, "主配置")
     storage = data.get("storage", {})
-    chat = data.get("chat", {})
-
     if isinstance(storage, dict) and "db_path" in storage:
         raise ConfigError("storage.db_path 已移除，请改用 storage.sessions_dir。")
-    if not isinstance(storage, dict) or storage.keys() - {"sessions_dir"}:
-        raise ConfigError("[storage] 仅支持 sessions_dir。")
-
-    if not isinstance(chat, dict) or chat.keys() - {"system_prompt"}:
-        raise ConfigError("[chat] 仅支持 system_prompt。")
+    storage = checked_section(storage, {"sessions_dir"}, "storage")
+    chat = checked_section(data.get("chat", {}), {"system_prompt"}, "chat")
 
     directory_value = storage.get("sessions_dir", "sessions")
     if (
@@ -136,10 +152,41 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     model_config_path = llm_path if llm_path is not None else directory / "llm.toml"
     llm = load_llm_config(model_config_path)
 
+    agent_data = checked_section(
+        data.get("agent", {}), {item.name for item in fields(AgentConfig)}, "agent"
+    )
+    limit_data = checked_section(
+        data.get("tool_limits", {}), {item.name for item in fields(ToolLimits)}, "tool_limits"
+    )
+    permission_data = checked_section(
+        data.get("permissions", {}),
+        {item.name for item in fields(PermissionConfig)},
+        "permissions",
+    )
+    for section in (agent_data, limit_data):
+        for key, value in section.items():
+            if type(value) is not int or not 0 < value <= 100000000:
+                raise ConfigError(f"{key} 必须是合理范围内的正整数。")
+    roots = permission_data.get("additional_read_dirs", [])
+    if not isinstance(roots, list) or any(
+        not isinstance(root, str) or not root.strip() or "\0" in root for root in roots
+    ):
+        raise ConfigError("permissions.additional_read_dirs 必须是非空路径字符串数组。")
+    resolved_roots = []
+    for root in roots:
+        target = Path(root).expanduser()
+        resolved_roots.append(
+            (directory / target).resolve() if not target.is_absolute() else target.resolve()
+        )
+    if limit_data.get("max_result_chars", 8000) < 512:
+        raise ConfigError("tool_limits.max_result_chars 至少为512。")
     return AppConfig(
         llm=llm,
         sessions_dir=sessions_dir,
         system_prompt=prompt,
+        agent=AgentConfig(**agent_data),
+        permissions=PermissionConfig(additional_read_dirs=tuple(resolved_roots)),
+        tool_limits=ToolLimits(**limit_data),
     )
 
 

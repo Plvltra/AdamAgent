@@ -92,3 +92,53 @@ def test_old_database_setting_is_rejected(tmp_path):
     main.write_text('[storage]\ndb_path="old.db"', encoding="utf-8")
     with pytest.raises(ConfigError, match="已移除"):
         load_config(main)
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        "[agent]\nmax_model_requests=0",
+        "[agent]\nmax_tool_calls=true",
+        "[permissions]\nadditional_read_dirs=1",
+        "[tool_limits]\nmax_result_chars=1",
+        "[agent]\nunknown=1",
+    ],
+)
+def test_invalid_tool_and_agent_settings(tmp_path, extra):
+    main = tmp_path / "config.toml"
+    main.write_text(extra, encoding="utf-8")
+    (tmp_path / "llm.toml").write_text(LLM, encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_config(main)
+
+
+def test_tool_configuration_relative_roots(tmp_path):
+    main = tmp_path / "config.toml"
+    main.write_text(
+        '[permissions]\nadditional_read_dirs=["extra"]\n[agent]\nmax_session_tokens=100',
+        encoding="utf-8",
+    )
+    (tmp_path / "llm.toml").write_text(LLM, encoding="utf-8")
+    config = load_config(main)
+    assert config.permissions.additional_read_dirs == (tmp_path / "extra",)
+    assert config.agent.max_session_tokens == 100
+
+
+def test_example_config_is_loadable(tmp_path):
+    example = Path(__file__).resolve().parents[1] / "config.example.toml"
+    main = tmp_path / "config.toml"
+    main.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
+    (tmp_path / "llm.toml").write_text(LLM, encoding="utf-8")
+    config = load_config(main)
+    assert config.tool_limits.max_read_lines > 0
+    assert config.permissions.additional_read_dirs == ()
+
+
+def test_unknown_field_is_reported_without_value(tmp_path):
+    main = tmp_path / "config.toml"
+    main.write_text('[tool_limits]\nmax_result_char="private-value"', encoding="utf-8")
+    (tmp_path / "llm.toml").write_text(LLM, encoding="utf-8")
+    with pytest.raises(ConfigError) as error:
+        load_config(main)
+    assert "max_result_char" in str(error.value)
+    assert "private-value" not in str(error.value)

@@ -19,7 +19,7 @@ def test_roundtrip_layout_and_isolation(tmp_path):
     path = tmp_path / datetime.now().strftime("%Y/%m/%d") / f"{first}.jsonl"
     records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
     assert len(first) == 8
-    assert len(records) == 5
+    assert len(records) == 7
     assert records[0]["type"] == "session_meta"
     assert all(set(r) == {"type", "timestamp", "payload"} for r in records)
     assert records[1]["payload"]["turn_id"] == records[2]["payload"]["turn_id"]

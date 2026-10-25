@@ -18,6 +18,7 @@ def make_client(requests):
         return httpx.Response(
             200,
             json={
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
                 "choices": [
                     {
                         "finish_reason": "stop",
@@ -26,7 +27,7 @@ def make_client(requests):
                             "content": "answer:" + payload["messages"][-1]["content"],
                         },
                     }
-                ]
+                ],
             },
         )
 
@@ -83,7 +84,7 @@ def test_save_failure_shows_reply_and_does_not_retry(tmp_path, monkeypatch):
     def fail_save(*args):
         raise OSError("injected")
 
-    monkeypatch.setattr(SessionStore, "append_turn", fail_save)
+    monkeypatch.setattr(SessionStore, "append_messages", fail_save)
     requests = []
     output = []
     with make_client(requests) as http, SessionStore(path) as store:

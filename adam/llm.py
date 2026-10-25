@@ -1,12 +1,24 @@
 """Synchronous, non-streaming Chat Completions API transport."""
 
+from dataclasses import dataclass
+from typing import Any
+
 import httpx
 
 from adam.config import LLMConfig
+from adam.protocol import validate_assistant
 
 
 class LLMError(RuntimeError):
-    pass
+    def __init__(self, message: str, usage: tuple[int, int] | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage
+
+
+@dataclass(frozen=True)
+class Completion:
+    message: dict[str, Any]
+    usage: tuple[int, int] | None
 
 
 class LLMClient:
@@ -45,62 +57,82 @@ class LLMClient:
 
         return models
 
-    def complete(self, messages: list[dict[str, str]], *, model: str | None = None) -> str:
-        """发送一次非流式请求，返回本项目支持的完整文本回答。
+    def complete(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        model: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        max_tokens: int = 4096,
+    ) -> Completion:
+        """发送一次非流式请求，返回助手消息及服务端报告的 token 用量。
 
-        DeepSeek 请求字段与响应结构：
-        https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/
-        阅读 Request Body 和 Responses 中的 200 (No streaming) 部分。
+        Args:
+            messages: 按协议排列的上下文，包含已有工具结果和必要的推理字段。
+            model: 本次模型覆盖值；None 使用 LLMConfig 中的默认模型。
+            tools: 本次允许模型请求的工具说明；本方法不执行工具。
+            max_tokens: 本次输出 token 上限。
+
+        Returns:
+            Completion：普通回答或工具请求；usage 为输入/输出 token 数，
+            服务端未报告可靠用量时为 None。
+
+        Raises:
+            LLMError: 网络、HTTP 或协议错误；已解析的用量通过异常携带。
+
+        协议参考：https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/
         """
+        body: dict[str, Any] = {
+            "model": model or self.config.model,
+            "messages": messages,
+            # 一次返回完整 JSON；流式响应需要单独的增量解析逻辑。
+            "stream": False,
+            "max_tokens": max_tokens,
+        }
+        if tools:
+            body["tools"] = tools
         try:
             response = self.client.post(
                 self.config.base_url + "/chat/completions",
                 headers={"Authorization": f"Bearer {self.config.api_key}"},
-                json={
-                    "model": model if model is not None else self.config.model,
-                    "messages": messages,
-                    # 一次返回完整 JSON；流式响应需要另一套增量解析逻辑。
-                    "stream": False,
-                },
+                json=body,
                 timeout=self.config.timeout_seconds,
             )
         except httpx.TimeoutException:
-            raise LLMError("请求超时；未自动重试，可重新输入。") from None
+            raise LLMError("请求超时；用量未知，未自动重试。") from None
         except httpx.RequestError:
-            raise LLMError("网络连接失败，请检查网络、代理和 base_url。") from None
-
-        # Do not echo remote bodies or exception strings: they may contain credentials.
+            raise LLMError("网络连接失败；用量未知。") from None
+        # 不回显远端响应正文或原始异常，其中可能包含凭据。
         if not 200 <= response.status_code < 300:
-            hints = {401: "鉴权失败，请检查密钥", 403: "访问被拒绝", 429: "请求受限，请稍后再试"}
-            hint = hints.get(response.status_code, "服务返回错误，请检查配置或稍后重试")
-            raise LLMError(f"HTTP {response.status_code}：{hint}。")
-
-        content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
-        if content_type == "text/event-stream":
+            raise LLMError(f"HTTP {response.status_code}：请求失败；用量未知，未自动重试。")
+        if (
+            response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+            == "text/event-stream"
+        ):
             raise LLMError("服务返回了流式响应，但当前客户端只支持非流式 JSON 回答。")
-
+        usage = None
         try:
-            # choices 是候选回答列表；当前只读取第一项的 message.content。
-            choice = response.json()["choices"][0]
+            data = response.json()
+            raw_usage = data.get("usage", {})
+            if isinstance(raw_usage, dict):
+                inputs, outputs = raw_usage.get("prompt_tokens"), raw_usage.get("completion_tokens")
+                if type(inputs) is int and type(outputs) is int and inputs >= 0 and outputs >= 0:
+                    usage = (inputs, outputs)
+            # choices 是候选回答列表；当前只使用第一个候选。
+            choice = data["choices"][0]
             message = choice["message"]
-            content = message["content"]
-
-            # stop 表示自然结束或命中停止序列；length 等原因可能意味着截断。
-            # tool_calls 是工具调用请求。它可以是合法响应，但当前项目尚不支持。
-            if choice.get("finish_reason") != "stop" or message.get("tool_calls"):
-                raise LLMError("模型未返回完整文本回答；本轮不加入历史。")
-
-            # API 允许 content 为 null；本项目只接受 assistant 的非空文本。
-            # 这是当前功能范围的限制，不代表其他响应形式违反 API 协议。
-            if (
-                message.get("role") != "assistant"
-                or not isinstance(content, str)
-                or not content.strip()
-            ):
-                raise LLMError("模型返回空回答或不支持的消息格式。")
-        # 分别兜底 JSON 解码失败、字段缺失、空列表以及字段类型不符。
-        # 上面主动抛出的 LLMError 不属于这些类型，会原样交给 CLI 处理。
+            validate_assistant(message)
+            # 工具请求允许 content=None；length 等截断状态不能作为完整回答。
+            expected = "tool_calls" if message.get("tool_calls") else "stop"
+            if choice.get("finish_reason") != expected:
+                raise ValueError("unfinished response")
+            # 保留模型实际返回的推理字段，供后续工具请求按服务商协议回传。
+            clean = {
+                key: message[key]
+                for key in ("role", "content", "tool_calls", "reasoning_content")
+                if key in message
+            }
+            return Completion(clean, usage)
+        # JSON、字段和类型错误统一转换，但保留已经解析出的用量。
         except (ValueError, KeyError, IndexError, TypeError, AttributeError):
-            raise LLMError("API 响应格式不符合 Chat Completions 协议。") from None
-
-        return content
+            raise LLMError("模型响应格式无效或回答未完整结束；本轮不加入历史。", usage) from None

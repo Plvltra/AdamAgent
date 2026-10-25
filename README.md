@@ -1,6 +1,6 @@
 # Adam
 
-Python 终端多轮聊天。每个会话一个 JSONL 文件，支持新建、列出、恢复与运行时模型切换。
+Python 终端只读 Agent，支持模型自主调用文件与 Git 查询工具。每个会话一个 JSONL 文件，支持新建、列出、恢复与运行时模型切换。
 
 ## 安装与配置
 
@@ -48,6 +48,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `--config 路径`：覆盖主配置位置，相对路径以启动目录为基准。
 - `--llm-config 路径`：覆盖模型配置；未指定时读取主配置旁的 `llm.toml`。
 - `storage.sessions_dir`：默认 `sessions`，相对路径以主配置目录为基准。
+- `--workspace 路径`：指定工具工作目录，默认启动目录。
 - `--resume a3f9c821`：启动时恢复会话，精确匹配 8 位小写十六进制 ID。
 - 不提供 `--sessions-dir`；旧 `--db` 和 `storage.db_path` 已移除。
 - 两份配置缺失或无效会报错，不会静默采用其他文件。
@@ -68,16 +69,19 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 ## JSONL 格式与写入边界
 
 每行采用 `type`、UTC `timestamp`、`payload` 的统一结构。
-第一行 `session_meta` 保存格式版本 1、ID、标题和系统提示词；
-随后每条 `message` 保存 `turn_id`、`role` 和 `content`。
+第一行 `session_meta` 保存格式版本 2（不兼容 v1）、ID、标题和系统提示词；
+随后每条 `message` 保存 `turn_id` 和完整协议 `message`，包含 role/content、tool_calls、tool_call_id 及模型实际返回的 reasoning_content。
 目录使用会话创建时的本地年月日；跨天续聊仍写原文件。
 会话 ID 使用 8 位随机十六进制，创建时在根目录锁内检查冲突、独占创建文件。
 
-模型完整回答后才追加用户和助手两行，共享同一个 turn_id。
+模型给出最终回答后追加本轮完整消息链，并以 `turn_completed` 标记结束，共享同一个 turn_id。
+恢复时校验工具调用 ID 与结果一一配对。失败或达到限制的工具链不写入有效聊天历史。
 写入会 flush/fsync，可捕获的写入错误尝试截断回写入前长度；文件系统写入不等同于数据库事务。
 突然终止可能留下残缺行或半轮；加载时严格校验，损坏文件拒绝加载及继续追加。
 先备份再手工修复，不静默丢弃记录。完整写入后、界面显示前崩溃的回答可能已经保存，恢复时以文件为准。
-当前只接受完整的 user/assistant 配对；工具消息协议留待 V2 实现。
+`request_started` 和 `request_usage` 独立记录每次模型请求和用量；失败任务的已知用量也累计。
+未结束的请求、缺失用量和超时会使预算状态变为未知，恢复后不允许继续调用模型，需新建会话。
+旧 v1 文件明确报错，不迁移、不删除；请新建 v2 会话。旧文件会使 `/sessions` 列表报错，可由用户移到会话目录之外归档。
 
 选中会话后持有操作系统文件锁，切换成功或退出时释放；切换失败保留原会话。
 不同会话可分别使用；另一个进程选择被占用会话时立即报错。
@@ -92,7 +96,9 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `adam/storage.py`：JSONL 读写、格式校验和会话锁。
 - `adam/conversation.py`：加载历史、请求模型、保存成功轮次。
 - `adam/cli.py`：命令、输入循环和错误展示。
-- `adam/llm.py`：HTTP 请求及响应校验。
+- `adam/llm.py`：HTTP 请求及结构化助手响应、用量解析。
+- `adam/tool_calls/`：工具注册与参数验证、文件工具、Git 工具、权限与资源限制。
+- `adam/protocol.py`：助手工具请求与完整轮次的协议校验。
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
@@ -101,5 +107,56 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 
 测试使用临时目录和假 HTTP，不调用付费模型；覆盖跨启动恢复、配置位置、
 JSONL 损坏、写入故障回滚、会话隔离与跨进程锁释放。
-下一步先做 V2.1 只读文件工具，再接工具循环；持久化执行状态延后。
+V2 基础工具闭环已实现；下一小步为 JavaScript 编排，尚未实现。完整任务恢复仍留到后续。
 规划见 [练手 TODO](docs/agent-practice-todo.md) 和 [roadmap](docs/roadmap.md)。
+
+
+## 只读工具与循环
+
+工具模块提供 `list_directory`（分页列目录）、`find_files`（glob文件查找）、
+`read_file`（按行读取）、`search_text`（字面搜索）、`file_info`，以及
+`git_status`、`git_diff`（含 staged 参数）、`git_log`（最多50条）。
+模型看到 JSON Schema；参数必须满足类型、必填字段与额外字段约束。
+未知工具、坏参数和文件错误作为 `role=tool` 的 JSON 错误返回，模型可修正。
+同一响应的多个工具按顺序执行，每个返回对应 tool_call_id；超出工具预算则整批不执行。
+
+```powershell
+uv run python -m adam --workspace G:\Myself\Adam
+# 输入：找出模型配置在哪里加载，读取代码后解释错误处理，并给出路径与行号。
+# 输入：查看当前 Git 改动，概括改了什么。
+```
+
+相对工具路径以 workspace 为基准；绝对路径须在 workspace 或用户配置的
+`permissions.additional_read_dirs` 内。请求路径和解析后的真实路径都检查授权。
+搜索默认跳过 `.git`、`.venv`、`node_modules` 与缓存目录；本版使用固定跳过规则，
+不解释 `.gitignore`。忽略目录中的文件可用明确路径读取；目录联接/符号链接不递归。
+`.env*`、`llm.toml`、常见私钥和凭据目录另行拒绝，不能靠软链接绕过。
+这是应用层控制，不是 OS 沙箱，也不能识别所有文件里的秘密；工具内容会发送给模型。
+
+默认每次读取200行、单次结果8000字符、扫描5000项、扫描文件最大1MiB。
+超长行会截断，结果标记 truncated；分页结果包含继续位置。搜索最多50条匹配。
+Git需要普通仓库根目录，不支持worktree或外部共享对象目录；禁用外部diff/textconv、
+fsmonitor和hooks，并拒绝配置了过滤器的status/diff。Git diff检查已跟踪文件的路径权限，
+仓库包含被禁止读取的文件时拒绝diff。Git通过参数列表调用，无Shell拼接；每个查询有超时，
+输出写临时文件后限量读取，不把无限输出载入内存。Git提交说明本身仍可能包含用户写入的敏感文字。
+
+## 预算
+
+`config.example.toml` 包含全部默认配置。每个用户任务最多8次模型请求、16次工具调用，
+单次模型输出最多4096 token；每个session累计50000 token，包含每次重复发送的历史。
+这些值可在 `[agent]` 修改。达到阈值不再调用；最后一次请求可能超过阈值，
+它不是严格的账单封顶，也不对应固定人民币额度。
+请求有用量但回答无效时仍计入；没有可靠用量则持久标记未知并停止。
+已知预算耗尽可以提高配置额度后重启，未知预算不能通过提高额度消除。
+UI显示执行的工具名称与会话累计用量；不显示完整工具正文。
+
+验证仅使用假 HTTP 和临时仓库，不消耗真实模型额度；真实模型的选工具效果需手动验收。
+参考：[DeepSeek Tool Calls](https://api-docs.deepseek.com/guides/tool_calls/)、
+[Thinking Mode](https://api-docs.deepseek.com/guides/thinking_mode/)。
+
+
+编码与注释维护约定见 [AGENTS.md](AGENTS.md)。工具权限配置位于 `[permissions]`，
+资源限制位于 `[tool_limits]`，字段与默认值参见 `config.example.toml`。
+`scan_timeout_seconds` 在遍历目录时检查，不中断阻塞的文件 IO；
+`git_timeout_seconds` 限制每个 Git 子进程，一次工具调用可能运行多个查询。
+Git 路径清单大小由 `max_git_path_list_bytes` 单独限制。

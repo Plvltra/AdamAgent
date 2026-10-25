@@ -4,3 +4,24 @@ sessions_dir = "sessions"
 
 [chat]
 system_prompt = "你是 Adam，一个友好的编程助手。"
+
+[agent]
+max_model_requests = 8
+max_tool_calls = 16
+max_session_tokens = 50000
+max_output_tokens = 4096
+
+[permissions]
+# Additional user-approved directories; relative to this configuration file.
+additional_read_dirs = []
+
+[tool_limits]
+max_read_lines = 200
+max_result_chars = 8000
+max_scan_entries = 5000
+max_text_file_bytes = 1048576
+max_git_path_list_bytes = 1048576
+# Cooperative directory scan timeout; blocking file IO is not interrupted.
+scan_timeout_seconds = 5
+# Timeout for each Git subprocess, not the entire multi-command query.
+git_timeout_seconds = 5
