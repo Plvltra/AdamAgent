@@ -25,3 +25,6 @@ max_git_path_list_bytes = 1048576
 scan_timeout_seconds = 5
 # Timeout for each Git subprocess, not the entire multi-command query.
 git_timeout_seconds = 5
+
+# Default and maximum timeout for a user-approved command.
+command_timeout_seconds = 30

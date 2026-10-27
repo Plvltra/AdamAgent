@@ -1,12 +1,13 @@
 """组织会话流程；会话文件是已完成历史的来源。"""
 
+import secrets
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from adam.config import AgentConfig
 from adam.llm import Completion, LLMClient, LLMError
-from adam.storage import Session, SessionStore
+from adam.storage import Session, SessionStore, StorageError
 from adam.tool_calls import ToolRegistry
 
 
@@ -54,8 +55,13 @@ class Conversation:
 
         请求用量独立记账；失败轮次不加入有效历史。预算或协议错误抛出
         LLMError；回答生成后保存失败则抛出携带回答的 TurnSaveError。
+        未知命令状态抛出 StorageError，命令日志写入失败抛出 CommandLogError。
         """
         session = self.session or self.new(text[:40])
+        if any(
+            item["status"] == "unknown" for item in self.store.load_executions(session.session_id)
+        ):
+            raise StorageError("会话有结果未知的命令执行；请检查执行记录并新建会话，不自动重跑。")
         messages = self._load_context(session)
         turn: list[dict[str, Any]] = [{"role": "user", "content": text}]
         seen_call_ids: set[str] = set()
@@ -68,7 +74,7 @@ class Conversation:
                 return self._save_completed_turn(session.session_id, turn)
 
             self._check_tool_budget(session.session_id, step, calls, seen_call_ids)
-            turn.extend(self._execute_tool_calls(calls))
+            turn.extend(self._execute_tool_calls(session.session_id, calls))
             seen_call_ids.update(call["id"] for call in calls)
 
         raise LLMError("达到本轮请求上限。")
@@ -133,15 +139,35 @@ class Conversation:
         if any(call["id"] in seen_ids for call in calls):
             raise LLMError("模型重复使用工具调用ID，本轮停止。")
 
-    def _execute_tool_calls(self, calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _execute_tool_calls(
+        self, session_id: str, calls: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """按模型给出的顺序执行工具，返回带原始调用 ID 的 tool 消息。"""
         results = []
         for call in calls:
             function = call["function"]
             self.notify(f"工具> {function['name']}")
-            output = self.tool_registry.execute(function["name"], function["arguments"])
+            if function["name"] == "run_command":
+                output = self._execute_command(session_id, call)
+            else:
+                output = self.tool_registry.execute(function["name"], function["arguments"])
             results.append({"role": "tool", "tool_call_id": call["id"], "content": output})
         return results
+
+    def _execute_command(self, session_id: str, call: dict[str, Any]) -> str:
+        """关联本次工具调用 ID，独立落盘命令状态；日志失败会停止本轮。"""
+        execution_id = secrets.token_hex(16)
+
+        def record_execution(kind: str, payload: dict[str, Any]) -> None:
+            self.store.append_command_event(
+                session_id,
+                kind,
+                {**payload, "execution_id": execution_id, "tool_call_id": call["id"]},
+            )
+
+        return self.tool_registry.execute(
+            "run_command", call["function"]["arguments"], record_execution=record_execution
+        )
 
     def _save_completed_turn(self, session_id: str, turn: list[dict[str, Any]]) -> str:
         """提交包含工具轨迹的完整轮次并返回最终文本；保存失败时携带原回答。"""

@@ -1,6 +1,7 @@
 """终端交互；会话流程和会话存储由各自模块负责。"""
 
 import argparse
+import json
 from collections.abc import Callable
 from enum import Enum, auto
 from pathlib import Path
@@ -12,6 +13,7 @@ from adam.conversation import Conversation, TurnSaveError
 from adam.llm import LLMClient, LLMError
 from adam.storage import SessionNotFoundError, SessionStore, StorageError, valid_session_id
 from adam.tool_calls import PermissionConfig, ToolError, ToolLimits, ToolRegistry
+from adam.tool_calls.command_tools import CommandLogError, CommandRequest
 
 
 def show_session(conversation: Conversation, write: Callable[[str], None]) -> None:
@@ -91,6 +93,19 @@ def handle_command(
     return CommandResult.HANDLED
 
 
+def confirm_command(
+    command: CommandRequest, read: Callable[[str], str], write: Callable[[str], None]
+) -> bool:
+    """展示本次完整执行计划；仅明确输入 y 批准，其他输入、EOF 或取消均拒绝。"""
+    write(f"工作目录> {command.cwd}")
+    write("命令参数> " + json.dumps(command.argv, ensure_ascii=False))
+    write(f"超时> {command.timeout_seconds} 秒；执行能力由当前账户权限决定。")
+    try:
+        return read("允许本次执行？[y/N] ").strip().lower() == "y"
+    except (EOFError, KeyboardInterrupt):
+        return False
+
+
 def chat(
     client: LLMClient,
     system_prompt: str,
@@ -107,7 +122,12 @@ def chat(
         store,
         client,
         system_prompt,
-        ToolRegistry(workspace or Path.cwd(), permissions, tool_limits),
+        ToolRegistry(
+            workspace or Path.cwd(),
+            permissions,
+            tool_limits,
+            confirm_command=lambda command: confirm_command(command, read, write),
+        ),
         agent_config,
         write,
     )
@@ -137,6 +157,8 @@ def chat(
                 write(f"Adam> {reply}")
             except TurnSaveError as error:
                 write(f"Adam（未保存）> {error.reply}")
+                write(str(error))
+            except CommandLogError as error:
                 write(str(error))
             except LLMError as error:
                 write(f"模型请求错误：{error}")

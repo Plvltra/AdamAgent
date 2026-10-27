@@ -211,6 +211,29 @@ class SessionStore:
         data += record("turn_completed", {"turn_id": turn_id})
         self._append(session_id, data)
 
+    def append_command_event(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:
+        """独立保存命令开始、结束或拒绝事件，不依赖本轮模型最终回答成功。
+
+        payload 包含 execution_id 和 tool_call_id；同一执行只能结束一次。
+        写入失败必须停止执行流程，调用方不能将其当普通工具错误继续。
+        """
+        states = {item["execution_id"]: item for item in self.load_executions(session_id)}
+        self._apply_command_event(states, kind, payload)
+        self._append(session_id, record(kind, payload))
+
+    def load_executions(self, session_id: str) -> list[dict[str, Any]]:
+        """返回命令执行记录；只有开始事件的记录标为 unknown，不自动重放。
+
+        同一会话持有写锁，已记录的 started/finished 事件不会混入模型消息。
+        """
+        self._read(session_id)
+        states: dict[str, dict[str, Any]] = {}
+        for line in self._path(session_id).read_text(encoding="utf-8").splitlines():
+            entry = json.loads(line)
+            if entry["type"].startswith("command_"):
+                self._apply_command_event(states, entry["type"], entry["payload"])
+        return list(states.values())
+
     def _path(self, session_id: str) -> Path:
         """校验短 ID 并查找唯一文件；缺失抛出 SessionNotFoundError，重复抛出 StorageError。"""
         if not valid_session_id(session_id):
@@ -226,6 +249,7 @@ class SessionStore:
         """解析并验证事件日志，返回 (元信息, 完整消息, 已知 token 数, 用量未知标志)。
 
         request 事件独立累计；message 仅在 turn_completed 处提交。
+        command 事件校验开始/结束配对，但不加入模型上下文或 token 统计。
         未结算请求保留为未知用量，残缺消息或非法事件拒绝加载。
         """
         try:
@@ -258,11 +282,14 @@ class SessionStore:
             turn_id = ""
             completed: set[str] = set()
             requests: dict[str, bool] = {}
+            executions: dict[str, dict[str, Any]] = {}
             tokens = 0
             unknown = False
             for entry in entries[1:]:
                 kind, payload = entry["type"], entry["payload"]
-                if kind in {"request_started", "request_usage"}:
+                if kind in {"command_started", "command_finished", "command_denied"}:
+                    self._apply_command_event(executions, kind, payload)
+                elif kind in {"request_started", "request_usage"}:
                     request_id = payload["request_id"]
                     if not isinstance(request_id, str) or not request_id:
                         raise ValueError("invalid request")
@@ -323,6 +350,51 @@ class SessionStore:
             raise StorageError(
                 f"会话 {session_id} 格式损坏或尾部轮次不完整；拒绝加载和追加。"
             ) from None
+
+    @staticmethod
+    def _apply_command_event(
+        states: dict[str, dict[str, Any]], kind: str, payload: dict[str, Any]
+    ) -> None:
+        """验证命令事件配对并归并状态；缺少结束事件的执行保持 unknown。"""
+        execution_id = payload.get("execution_id")
+        if not isinstance(execution_id, str) or not execution_id:
+            raise ValueError("invalid execution id")
+        if not isinstance(payload.get("tool_call_id"), str) or not payload["tool_call_id"]:
+            raise ValueError("invalid tool call id")
+        if kind in {"command_started", "command_denied"}:
+            if execution_id in states:
+                raise ValueError("duplicate execution")
+            if (
+                not isinstance(payload.get("argv"), list)
+                or not all(isinstance(arg, str) for arg in payload["argv"])
+                or not payload["argv"]
+                or not isinstance(payload.get("cwd"), str)
+            ):
+                raise ValueError("invalid command")
+            if kind == "command_denied" and payload.get("status") != "denied":
+                raise ValueError("invalid denial")
+            states[execution_id] = {
+                **payload,
+                "status": "unknown" if kind == "command_started" else "denied",
+            }
+        elif kind == "command_finished":
+            previous = states.get(execution_id)
+            if previous is None or previous["status"] != "unknown":
+                raise ValueError("unmatched command finish")
+            if payload["tool_call_id"] != previous["tool_call_id"]:
+                raise ValueError("mismatched tool call")
+            if payload.get("status") not in {
+                "completed",
+                "timed_out",
+                "start_failed",
+                "interrupted",
+            }:
+                raise ValueError("invalid command status")
+            if payload.get("exit_code") is not None and type(payload["exit_code"]) is not int:
+                raise ValueError("invalid exit code")
+            states[execution_id] = {**previous, **payload}
+        else:
+            raise ValueError("unknown command event")
 
     def _append(self, session_id: str, data: bytes) -> None:
         """持锁追加并 flush/fsync；可捕获的写入异常尝试截断回原长度后重抛。

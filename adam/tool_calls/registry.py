@@ -6,6 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from adam.tool_calls.command_tools import CommandRequest, CommandTools, ExecutionRecorder
 from adam.tool_calls.file_tools import FileTools
 from adam.tool_calls.git_tools import GitTools
 from adam.tool_calls.policy import PathPolicy, PermissionConfig, ToolError, ToolLimits
@@ -29,6 +30,32 @@ def schema(
 
 PATH = ("string", "文件或目录路径；相对路径以工作目录为基准，绝对路径须已授权")
 SPECS = {
+    "run_command": {
+        "description": "执行通用程序及参数，需用户逐次确认。支持脚本、Git、构建等命令；"
+        "不隐式解释 shell 语法。读取 exit_code/stdout/stderr 判断结果，拒绝后不要重复请求。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "argv": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "description": "程序及参数数组，例如 [git, status, --short]；脚本用解释器执行",
+                },
+                "cwd": {
+                    "type": "string",
+                    "description": "执行目录，默认启动工作目录；相对该目录解析",
+                },
+                "timeout_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "可选超时秒数，不超过用户配置的命令超时上限",
+                },
+            },
+            "required": ["argv"],
+            "additionalProperties": False,
+        },
+    },
     "list_directory": schema(
         "列出直接子项，默认200项；offset可翻页。",
         {"path": PATH, "offset": ("integer", "从0开始")},
@@ -76,9 +103,12 @@ class ToolRegistry:
         workspace: Path,
         permissions: PermissionConfig | None = None,
         limits: ToolLimits | None = None,
+        *,
+        confirm_command: Callable[[CommandRequest], bool] | None = None,
     ) -> None:
         self.policy = PathPolicy(workspace, permissions or PermissionConfig())
         self.limits = limits or ToolLimits()
+        self.commands = CommandTools(self.policy, self.limits, confirm_command)
         files = FileTools(self.policy, self.limits)
         git = GitTools(self.policy, self.limits)
         self._handlers: dict[str, Callable[[Path, dict[str, Any]], dict[str, Any]]] = {
@@ -98,8 +128,14 @@ class ToolRegistry:
             {"type": "function", "function": {"name": name, **spec}} for name, spec in SPECS.items()
         ]
 
-    def execute(self, name: str, arguments: str) -> str:
-        """校验 JSON 参数并执行工具，返回有界 JSON 字符串；工具错误作为结果回传。"""
+    def execute(
+        self, name: str, arguments: str, *, record_execution: ExecutionRecorder | None = None
+    ) -> str:
+        """校验 JSON 参数并执行工具，返回有界 JSON 字符串；工具错误作为结果回传。
+
+        record_execution 接收命令状态事件，普通只读工具忽略该参数。
+        CommandLogError 不转换为普通工具结果，调用方应停止本轮以免自动重试。
+        """
         try:
             if name not in SPECS:
                 raise ToolError("未知工具。")
@@ -109,12 +145,15 @@ class ToolRegistry:
                 raise ToolError("参数必须为对象且不能包含未知字段。")
             if any(key not in args for key in params["required"]):
                 raise ToolError("缺少必填参数。")
-            types = {"string": str, "integer": int, "boolean": bool}
+            types = {"string": str, "integer": int, "boolean": bool, "array": list}
             for key, value in args.items():
                 if type(value) is not types[params["properties"][key]["type"]]:
                     raise ToolError(f"参数 {key} 类型错误。")
-            path = self.policy.resolve(args["path"])
-            result = self._handlers[name](path, args)
+            result = (
+                self.commands.run_command(args, record_execution)
+                if name == "run_command"
+                else self._handlers[name](self.policy.resolve(args["path"]), args)
+            )
             output = {"ok": True, **result}
         except (ToolError, OSError, ValueError, subprocess.SubprocessError) as error:
             # 操作系统异常可能包含敏感路径；只回传已控制的业务提示。
@@ -124,6 +163,8 @@ class ToolRegistry:
                 if isinstance(error, ToolError)
                 else "工具执行失败：文件编码、访问权限、Git或参数格式无效。",
             }
+        if name == "run_command" and "status" in output:
+            return self._encode_command(output)
         encoded = json.dumps(output, ensure_ascii=False)
         if len(encoded) > self.limits.max_result_chars:
             # 保证截断后仍为合法JSON；预览不再作为原始结构解析。
@@ -137,4 +178,14 @@ class ToolRegistry:
                 },
                 ensure_ascii=False,
             )
+        return encoded
+
+    def _encode_command(self, output: dict[str, Any]) -> str:
+        """裁剪命令输出时保留退出码和状态，避免模型误把截断预览当执行结果。"""
+        encoded = json.dumps(output, ensure_ascii=False)
+        while len(encoded) > self.limits.max_result_chars:
+            key = "stdout" if len(output["stdout"]) >= len(output["stderr"]) else "stderr"
+            output[key] = output[key][: len(output[key]) // 2]
+            output["truncated"] = True
+            encoded = json.dumps(output, ensure_ascii=False)
         return encoded

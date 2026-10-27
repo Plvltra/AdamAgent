@@ -13,7 +13,7 @@ class PermissionConfig:
 
 @dataclass(frozen=True)
 class ToolLimits:
-    """单次读取/结果限制；扫描为协作超时，Git 为每个子进程超时。"""
+    """单次读取/结果限制；扫描为协作超时，Git 和通用命令为子进程超时。"""
 
     max_read_lines: int = 200
     max_result_chars: int = 8000
@@ -22,6 +22,7 @@ class ToolLimits:
     max_git_path_list_bytes: int = 1048576
     scan_timeout_seconds: int = 5
     git_timeout_seconds: int = 5
+    command_timeout_seconds: int = 30
 
 
 class ToolError(ValueError):

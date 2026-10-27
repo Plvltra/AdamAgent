@@ -83,7 +83,7 @@ def test_search_read_answer_and_restore(tmp_path):
             conversation.resume(session_id)
             assert conversation.send("continue") == "continued"
             assert store.usage(session_id) == (48, False)
-    assert len(payloads[0]["tools"]) == 8
+    assert len(payloads[0]["tools"]) == 9
     assert payloads[0]["max_tokens"] == 4096
     assert payloads[1]["messages"][-2]["reasoning_content"] == "provider field"
     assert payloads[2]["messages"][-2]["tool_call_id"] == "read"

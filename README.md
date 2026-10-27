@@ -160,3 +160,10 @@ UI显示执行的工具名称与会话累计用量；不显示完整工具正文
 `scan_timeout_seconds` 在遍历目录时检查，不中断阻塞的文件 IO；
 `git_timeout_seconds` 限制每个 Git 子进程，一次工具调用可能运行多个查询。
 Git 路径清单大小由 `max_git_path_list_bytes` 单独限制。
+
+
+## 通用命令工具
+
+`run_command(argv, cwd, timeout_seconds)` 接受程序和参数列表，支持脚本、Git、构建等命令。
+每次展示完整执行计划，由用户输入 y 确认。返回退出码、有界输出、超时和耗时，独立保存执行记录。
+使用说明见 [通用命令工具](docs/command-tools.md)。
