@@ -148,6 +148,10 @@ def test_unknown_field_is_reported_without_value(tmp_path):
     "content",
     [
         "context=1",
+        "[context]\nauto_compact=1",
+        "[context]\ncompression_target_ratio=0.9",
+        "[context]\ncompression_target_ratio=nan",
+        "[context]\ncompression_target_ratio=true",
         "[context]\nprune_tool_results=1",
         "[context]\ncompression_trigger_ratio=nan",
         "[context]\ncompression_trigger_ratio=true",

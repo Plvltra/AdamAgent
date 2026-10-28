@@ -22,6 +22,9 @@ summary_max_output_tokens = 2048
 # Shrink old tool results only when estimated input pressure reaches this ratio.
 prune_tool_results = true
 compression_trigger_ratio = 0.8
+# At most one automatic summary per turn, counted against the model-request limit.
+auto_compact = true
+compression_target_ratio = 0.6
 tool_prune_threshold_chars = 4000
 tool_prune_head_chars = 1500
 tool_prune_tail_chars = 500

@@ -9,6 +9,7 @@ from typing import Any
 
 from adam.config import ContextConfig
 from adam.context import estimate_json_tokens
+from adam.context_pruning import prune_history
 from adam.errors import BudgetError, FailureCode
 from adam.history import Summary
 from adam.llm import Completion, LLMClient, LLMError
@@ -30,6 +31,7 @@ class CompactionPlan:
     source_turn_ids: list[str]
     previous_summary_id: str | None
     estimated_input_tokens: int
+    pruned_tools: tuple[dict[str, Any], ...] = ()
 
 
 class CompactionService:
@@ -45,9 +47,18 @@ class CompactionService:
         self.store, self.client, self.limits = store, client, limits
         self.check_budget = check_budget
 
-    def plan(self, session: Session) -> CompactionPlan | None:
-        """选择最早的一批完整旧轮次；无素材返回 None，首轮本身放不下则报预算错误。"""
+    def plan(
+        self, session: Session, *, prune_tools: bool = False, min_source_tokens: int | None = None
+    ) -> CompactionPlan | None:
+        """选择有界旧历史；自动模式可先缩旧工具，并在覆盖足够素材后停止。
+
+        min_source_tokens 是为接近压缩目标需要覆盖的估算量，不保证最终摘要大小。
+        无素材返回 None；首轮连同前一摘要放不下则报错，不分割工具链。
+        """
         history = self.store.load_turns(session.session_id)
+        pruned: tuple[dict[str, Any], ...] = ()
+        if prune_tools and self.limits.prune_tool_results:
+            history, pruned = prune_history(history, self.limits)
         previous = self.store.load_summary(session.session_id)
         covered = len(previous.covered_turn_ids) if previous else 0
         end = max(covered, len(history) - self.limits.retain_recent_turns)
@@ -55,9 +66,11 @@ class CompactionService:
         if not candidates:
             return None
         chosen = []
+        source_tokens = 0
         plan = None
         for turn in candidates:
             chosen.append(turn)
+            source_tokens += sum(estimate_json_tokens(message) for message in turn.messages)
             material = {
                 "session_constraints": session.system_prompt,
                 "previous_summary": previous.text if previous else None,
@@ -78,7 +91,12 @@ class CompactionService:
                 [item.turn_id for item in chosen],
                 previous.summary_id if previous else None,
                 tokens,
+                tuple(
+                    item for item in pruned if item["turn_id"] in {turn.turn_id for turn in chosen}
+                ),
             )
+            if min_source_tokens is not None and source_tokens >= min_source_tokens:
+                break
         if plan is None:
             raise BudgetError(
                 "最早待摘要轮次连同已有摘要放不进输入预算；未截断素材、未请求模型。",
@@ -93,6 +111,12 @@ class CompactionService:
         plan = self.plan(session)
         if plan is None:
             return None
+        return self.execute(session, model, plan, turn_id=turn_id)
+
+    def execute(
+        self, session: Session, model: str, plan: CompactionPlan, *, turn_id: str | None = None
+    ) -> Summary:
+        """执行已规划的一次请求；调用者先预留请求次数，来源在持久化边界再次校验。"""
         self.check_budget(session.session_id)
         operation_id = secrets.token_hex(16)
         self.store.append_compaction_event(
@@ -106,6 +130,7 @@ class CompactionService:
                 "previous_summary_id": plan.previous_summary_id,
                 "max_output_tokens": self.limits.summary_max_output_tokens,
                 "estimated_input_tokens": plan.estimated_input_tokens,
+                "pruned_tools": list(plan.pruned_tools),
             },
         )
         started = monotonic_ns()
@@ -139,7 +164,9 @@ class CompactionService:
             except Exception:
                 error.add_note("摘要失败状态未能保存；原始错误保留，重启后检查操作记录。")
             raise
-        return self.store.load_summary(session.session_id)
+        summary = self.store.load_summary(session.session_id)
+        assert summary is not None  # 完整提交事件已通过来源和状态校验。
+        return summary
 
     def _request(
         self, session_id: str, operation_id: str, model: str, plan: CompactionPlan

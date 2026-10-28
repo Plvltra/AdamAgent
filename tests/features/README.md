@@ -14,6 +14,8 @@
 | 工具调用与预算 | 模型请求工具、执行后回传、再回答；工具错误可修正；单批额度不足不执行；同轮 ID 唯一、跨轮可复用 | [test_tool_loop.py](test_tool_loop.py) |
 | 通用命令 | 确认后才产生副作用，拒绝不执行；退出码、超时、输出限制、环境变量隔离与执行日志符合契约 | [test_command_execution.py](test_command_execution.py) |
 | 终端角色与按需用量 | 默认不刷 token，/usage 不请求模型且跟随当前会话；颜色只影响前缀，重定向退回纯文本 | [test_terminal_interaction.py](test_terminal_interaction.py) |
+| V3.4b 自动摘要 | 自动触发、素材缩减、每轮一次、请求/消费共用限额、失败停止及受保护输入拦截 | [test_auto_compaction.py](test_auto_compaction.py) |
+| V3.4b 固定长对话对比 | 全量/选择/摘要的约束可见性、消息估算和模拟消费；不代表真实模型质量 | [test_context_evaluation.py](test_context_evaluation.py) |
 | V3.4a 旧工具结果缩减 | 真实文件工具结果仅在请求中缩减、来源与日志保留，无额外模型请求 | [test_tool_result_pruning.py](test_tool_result_pruning.py)；基础边界见 `../test_context_pruning.py` |
 | V3.3 手动摘要 | 分批来源、旧版本保留、消费、未知用量、近期保护、真实强杀恢复 | [test_compaction.py](test_compaction.py)、[test_process_crash.py](test_process_crash.py) |
 | V3.2 完整轮次选择 | 连续后缀、原日志保留、实际请求来源、重启一致、非法来源拒绝 | [test_context_selection.py](test_context_selection.py) |
@@ -105,6 +107,8 @@ V3.3 验收（2026-10-28）：新增 18 个用例，全量 **247 passed in 39.92
 
 V3.4a 验收（2026-10-28）：新增 11 个用例，全量 **258 passed in 41.60s**；覆盖压力/开关、近期保护、状态保留、共享列表与真实工具链，Ruff、Pyright 通过。
 
+V3.4b 验收（2026-10-28）：新增 14 个用例，全量 **272 passed in 49.41s**；Ruff、Pyright 通过。固定假模型对比结果及统计口径见 [上下文管理](../../docs/context-management.md)。
+
 ## 怎样运行
 
 在项目根目录使用项目虚拟环境：
@@ -129,4 +133,4 @@ pytest 已配置扫描整个 tests；现有 pre-commit 的 pytest 钩子会自�
 
 模型 HTTP 响应是预设的，测试不会消耗 API 额度；文件、JSONL、锁和部分子进程会在临时目录实际运行。故障测试在指定边界注入错误，验证程序停止或保留记录的行为。
 
-这些场景不能证明真实模型能正确决定是否使用工具，也不代替用户对配色的辨识体验。真实进程强杀已由专门测试覆盖；V2.3 按用户决定暂跳过；V3.4 自动压缩、文件编辑与流式取消等未实现功能的验收仍在 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。
+这些场景不能证明真实模型能正确决定是否使用工具，也不代替用户对配色的辨识体验。真实进程强杀已由专门测试覆盖；V2.3 按用户决定暂跳过；V3 的压缩流程已离线验收；文件编辑与流式取消等未实现功能的验收仍在 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。

@@ -71,6 +71,8 @@ def show_context(
         f"输入、余量与输出合计约 {context.budgeted_input_tokens + context.max_output_tokens} token。"
     )
     write("以上为近似估算和应用预算，不是模型窗口容量或实际计费；真实发送前会连同新输入重新检查。")
+    if limits.auto_compact:
+        write("自动摘要已开启；预览不会触发摘要，真实发送前可能先压缩旧历史。")
     if full:
         write(
             json.dumps(

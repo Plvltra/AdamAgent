@@ -1,6 +1,6 @@
 # 上下文管理
 
-更新日期：2026-10-28。V3.1/V3.2/V3.3 已实现；V3.4 方案已确认，按小步验收并提交。见 [架构](architecture.md) 和 [练手 TODO](agent-practice-todo.md)。
+更新日期：2026-10-28。V3.1～V3.4 已实现并完成离线工程验收。见 [架构](architecture.md) 和 [练手 TODO](agent-practice-todo.md)。
 
 ## 已实现：预览与整轮选择
 
@@ -22,6 +22,13 @@ max_input_tokens = 32768
 safety_margin_tokens = 2048
 retain_recent_turns = 2
 summary_max_output_tokens = 2048
+prune_tool_results = true
+auto_compact = true
+compression_trigger_ratio = 0.8
+compression_target_ratio = 0.6
+tool_prune_threshold_chars = 4000
+tool_prune_head_chars = 1500
+tool_prune_tail_chars = 500
 ```
 
 系统 + 选中历史 + 当前轮次 + 工具说明的估算，加安全余量，不能超过输入上限。输出由 `agent.max_output_tokens` 另计，默认 4096；输入上限加输出预留需适配所选模型，本版不查询模型真实窗口。
@@ -44,19 +51,40 @@ summary_max_output_tokens = 2048
 
 只处理近期保护范围外的成功轮次。保留 `ok/status/exit_code/error/stderr` 等状态与错误信息；如果保留这些信息后没有变短，则保留原结果。工具调用与结果 ID 不变，原始 JSONL 不改写。`request_started.context.pruned_tools` 记录来源、算法及长度，`/context` 显示缩减数。投影本身没有网络调用。
 
-## 后续自动摘要方案
+## 自动摘要（已实现）
 
-- 每次最多一次摘要请求；从最早未覆盖历史按整轮选择能放下的一批，与旧摘要合并。无旧历史不请求；不可拆分素材过大则报错。
-- 摘要独立记录开始、请求、消费、结果和结束；完整保存后才启用。原始历史不改写，失败保留上一份摘要，重启不自动重发。
-- V3.4：默认自动压缩，裁剪前估算占用达 80% 触发，目标约 60%。先缩旧工具结果，再必要时摘要，最后整轮选择；每轮最多一次自动摘要。
-- 工具结果超过 4000 字符才缩减，保留头尾约 2000 字符和定位标记；保护近期 2 轮与当前轮次，保留错误/退出码等信息。
-- 所有摘要计入会话消费；自动摘要计入本轮模型请求上限。用量未知继续沿用阻止消费规则；失败不自动重试。
-- 每步运行离线验收，不调用付费 API。长对话工程对比不能证明真实模型摘要无损。
+实际发送前先缩减旧工具结果；缩减后、整轮选择前的完整候选输入加余量仍达到 80% 时，尝试一次摘要。先检查系统提示、当前轮次和受保护历史是否能放下；这些内容本身超限时直接停止，避免花费一次无法解决问题的摘要请求。
+
+从最早未覆盖历史选择有界的连续整轮，与旧摘要合并，按约 60% 的目标规划素材。保护最近 2 轮，摘要输出预留按上限估算；整轮不可拆分、当前输入和实际摘要长度都会影响结果，60% 是规划目标，不保证达成。没有旧素材时不调用摘要；摘要素材本身放不下则明确报错。摘要后再选择历史并检查实际请求预算。
+
+每个用户轮次最多尝试一次自动摘要，包括工具循环期间；失败停止、不自动重试。摘要占用该轮最多 8 次模型请求中的一次，开始前至少保留一次后续回答请求。摘要用量和聊天用量一起计入会话累计限额；摘要后重新检查消费，不能因压缩绕过限额。用量未知仍阻止后续消费。
+
+摘要只有完整保存后才启用，并记录触发的 turn_id 及缩减素材来源。成功摘要可以在后续聊天失败时继续有效，因为它覆盖的是先前成功历史。原始记录保留，重启不重发。终端只显示简短的缩减或摘要提示，不增加逐次 token 输出。
+
+`auto_compact = false` 关闭自动模型摘要；`prune_tool_results = false` 单独关闭旧工具结果缩减。两者相互独立，手动 `/compact` 仍可使用。`/context` 只执行纯构造与预览，不触发摘要；真实发送加上新输入后的上下文可能不同。
 
 ## 验收
+
+V3.4b 的 `tests/features/test_auto_compaction.py` 覆盖自动触发、摘要素材缩减、请求/消费共用上限、当前工具结果超限、失败不重试、开关及不可缩减输入。2026-10-28 全量 **272 passed in 49.41s**，Ruff 与 Pyright 通过。
 
 `tests/features/test_compaction.py` 覆盖命令、分批摘要、来源合并、成本、失败保留、配置保护和诊断。`test_process_crash.py` 新增摘要请求中、半行写入、提交后真实强杀及全新进程恢复，验证只有提交完成的摘要生效。
 
 `tests/features/test_context_selection.py` 验证连续后缀、原日志保留、实际 HTTP 输入和诊断选择记录、重启一致及非法来源不落盘。`tests/test_context.py` 验证临界预算下整条工具链全留或全省略；V3.1 的预览、输入/工具说明超限和工具结果增长场景继续保留。
+
+## 固定长对话离线对比
+
+`tests/features/test_context_evaluation.py` 使用同一段“早期代号 ORION + 8 轮噪声”的历史，假模型仅根据可见材料返回代号或 unknown。可运行：
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/features/test_context_evaluation.py -q -s
+```
+
+| 策略 | 回答可见代号 | 模型请求数 | 最后聊天请求的消息估算 token | 模拟累计用量 |
+| --- | --- | --- | --- | --- |
+| 全量历史（加大预算） | ORION | 1 | 8404 | 8424 |
+| 整轮选择 | unknown | 1 | 7318 | 7338 |
+| 自动摘要后选择 | ORION | 2 | 2176 | 8768 |
+
+“消息估算”仅计算 messages，不含工具 Schema；模拟用量由假模型按消息估算和固定输出量生成，不是真实账单。该测试验证摘要素材含有早期约束、结果注入和记账流程。首次摘要使本次总消费更高，即使后续聊天输入变短；不能据此声称真实模型摘要无损或一定省钱。真实模型固定任务评估 V2.3 仍按用户决定跳过。
 
 DSH 参考：[会话日志与模型上下文](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session.md)、[摘要](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-basic/README.md)、[工具结果缩减](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/compaction/compaction-tool-result-pruner/README.md)。Adam 的整轮选择是练手简化，未复刻 DSH 插件机制。

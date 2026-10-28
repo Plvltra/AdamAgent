@@ -122,6 +122,8 @@ class ContextConfig:
     summary_max_output_tokens: int = 2048
     prune_tool_results: bool = True
     compression_trigger_ratio: float = 0.8
+    auto_compact: bool = True
+    compression_target_ratio: float = 0.6
     tool_prune_threshold_chars: int = 4000
     tool_prune_head_chars: int = 1500
     tool_prune_tail_chars: int = 500
@@ -142,13 +144,20 @@ class ContextConfig:
             or not 0 < self.summary_max_output_tokens <= 100000
         ):
             raise ConfigError("context.summary_max_output_tokens 必须是合理范围内的正整数。")
-        if type(self.prune_tool_results) is not bool:
-            raise ConfigError("context.prune_tool_results 必须是布尔值。")
+        if type(self.auto_compact) is not bool:
+            raise ConfigError("context.auto_compact 必须是布尔值。")
         if (
             type(self.compression_trigger_ratio) not in {int, float}
             or not 0 < self.compression_trigger_ratio < 1
         ):
             raise ConfigError("context.compression_trigger_ratio 必须在 0 和 1 之间。")
+        if (
+            type(self.compression_target_ratio) not in {int, float}
+            or not 0 < self.compression_target_ratio < self.compression_trigger_ratio
+        ):
+            raise ConfigError("context.compression_target_ratio 必须大于 0 且低于触发比例。")
+        if type(self.prune_tool_results) is not bool:
+            raise ConfigError("context.prune_tool_results 必须是布尔值。")
         if (
             any(
                 type(value) is not int or value < 0

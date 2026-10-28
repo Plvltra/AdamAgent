@@ -132,7 +132,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 
 业务功能点测试集中在 `tests/features/`，按会话、启动配置、工具循环、执行轨迹、终端交互和命令执行组织，见 [功能测试导航](tests/features/README.md)。基础校验保留在 `tests/test_config.py`、`tests/test_llm_config.py`、`tests/test_storage.py`、`tests/test_llm.py` 和 `tests/test_tools.py`。
 自动化使用临时目录和假 HTTP，不调用付费模型；覆盖跨启动恢复、配置位置、JSONL 损坏、写入故障回滚、会话隔离与跨进程锁释放。假 HTTP 验证工程流程，不代替真实模型的选工具和回答效果评估。`tests/features/test_process_crash.py` 另用本地 TCP 服务与独立进程验证强杀：请求中、消息写入中、完整提交后三个边界均经过全新进程恢复。
-V1.3 的状态、诊断和恢复已验收，V2.1/V2.2 基础工具闭环已实现；V2.3 按用户决定跳过，保留选做。V3.1/V3.2 已实现构造、预览、输入预算和完整轮次选择；V3.3 手动摘要和 V3.4 旧工具结果缩减已实现，下一步是自动压缩。
+V1.3 的状态、诊断和恢复已验收，V2.1/V2.2 基础工具闭环已实现；V2.3 按用户决定跳过，保留选做。V3.1～V3.4 已完成构造、预览、输入预算、整轮选择、手动摘要及自动压缩，并通过离线工程验收。下一主练习是 V4.1 可核对的文件修改。
 上下文压力达到配置阈值时，只缩减较旧工具结果的请求副本，保留来源、状态和错误；近期轮次及原始 JSONL 不变。JavaScript 编排不是必做前置。
 规划见 [练手 TODO](docs/agent-practice-todo.md) 和 [roadmap](docs/roadmap.md)。
 
@@ -183,11 +183,17 @@ max_input_tokens = 32768
 safety_margin_tokens = 2048
 retain_recent_turns = 2
 summary_max_output_tokens = 2048
+prune_tool_results = true
+auto_compact = true
+compression_trigger_ratio = 0.8
+compression_target_ratio = 0.6
 ```
 
 检查条件为“系统提示 + 成功历史 + 当前轮次 + 工具说明”的估算 token，再加 2048 安全余量，不超过 32768。输出沿用 `agent.max_output_tokens`（默认 4096）另计；输入上限加输出预留需适配所选模型的窗口，本版不自动查询模型容量。此预算独立于累计消费，不随 `/model` 自动变化。
 
 每次模型请求前重新检查，工具结果加入后同样生效。超限会保留失败输入与原因 `context_input_limit`，不发送该请求、不新增未知用量；仅省略未受保护的完整旧轮次，不截断系统提示、当前轮次和最近保留轮次。估算采用紧凑 JSON 的 UTF-8 字节长度，并非精确 tokenizer 或账单。操作示例与限制见 [上下文管理](docs/context-management.md)。
+
+默认先缩减旧工具结果，缩减后的候选输入加余量仍达到预算 80% 时自动摘要，目标约 60%；每轮最多一次，摘要同样计入 8 次模型请求及会话累计消费。最近 2 轮和当前轮次保持完整，无法缩减的输入直接停止。`auto_compact` 控制自动摘要，`prune_tool_results` 单独控制旧工具缩减；`/context` 只读预览不会触发摘要。
 
 终端显示执行的工具名称，默认不逐次打印用量；输入 `/usage` 查看会话累计值。隐藏显示不影响持久记账、额度限制或超限提示。
 

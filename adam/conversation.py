@@ -1,6 +1,7 @@
 """组织会话流程；会话文件是已完成历史的来源。"""
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic_ns
 from typing import Any
@@ -15,6 +16,15 @@ from adam.outcome import ExecutionOutcome
 from adam.storage import Session, SessionStore, StorageError
 from adam.tool_calls import ToolRegistry
 from adam.tool_calls.executor import ToolExecutor
+
+
+@dataclass
+class TurnProgress:
+    """本轮请求消费与自动压缩尝试；摘要同样占用模型请求次数。"""
+
+    model_requests: int = 0
+    summary_attempted: bool = False
+    pruning_announced: bool = False
 
 
 class Conversation:
@@ -112,20 +122,66 @@ class Conversation:
         turn: list[dict[str, Any]] = [{"role": "user", "content": text}]
         seen_call_ids: set[str] = set()
 
-        for step in range(self.limits.max_model_requests):
-            request_id, result = self._request_with_usage(
-                session.session_id, turn_id, self._build_context(session, turn)
-            )
+        progress = TurnProgress()
+        while progress.model_requests < self.limits.max_model_requests:
+            context = self._prepare_context(session, turn_id, turn, progress)
+            request_id, result = self._request_with_usage(session.session_id, turn_id, context)
+            progress.model_requests += 1
             turn.append(result.message)
             calls = result.message.get("tool_calls") or []
             if not calls:
                 return self._save_completed_turn(session.session_id, turn_id, turn, started_ns)
 
-            self._check_tool_budget(session.session_id, step, calls, seen_call_ids)
+            self._check_tool_budget(
+                session.session_id, progress.model_requests - 1, calls, seen_call_ids
+            )
             turn.extend(self.tool_executor.execute(session.session_id, turn_id, request_id, calls))
             seen_call_ids.update(call["id"] for call in calls)
 
         raise BudgetError("达到本轮请求上限。", code=FailureCode.REQUEST_LIMIT)
+
+    def _prepare_context(
+        self, session: Session, turn_id: str, turn: list[dict[str, Any]], progress: TurnProgress
+    ) -> RequestContext:
+        """先缩旧工具，再按压力摘要，最后使用整轮选择；预览不经过此有副作用入口。"""
+        self._check_session_budget(session.session_id)
+        context = self._build_context(session, turn)
+        # 受保护部分本身放不下时，先停止，避免花费一次无法解决问题的摘要请求。
+        context.ensure_within_budget()
+        limits = self.context_builder.limits
+        pressure = context.candidate_input_tokens + limits.safety_margin_tokens
+        if (
+            limits.auto_compact
+            and not progress.summary_attempted
+            and pressure >= limits.max_input_tokens * limits.compression_trigger_ratio
+        ):
+            progress.summary_attempted = True
+            service = CompactionService(self.store, self.client, limits, self._check_session_budget)
+            desired = max(
+                1,
+                int(
+                    pressure
+                    - limits.max_input_tokens * limits.compression_target_ratio
+                    + limits.summary_max_output_tokens
+                    - context.estimate.summary_tokens
+                ),
+            )
+            plan = service.plan(session, prune_tools=True, min_source_tokens=desired)
+            if plan is not None:
+                # 为摘要后的正式请求至少留一次额度；不花掉最后一次后才发现无法回答。
+                if progress.model_requests + 2 > self.limits.max_model_requests:
+                    raise BudgetError(
+                        "剩余请求次数不足以摘要并继续回答。", code=FailureCode.REQUEST_LIMIT
+                    )
+                service.execute(session, self.model, plan, turn_id=turn_id)
+                progress.model_requests += 1
+                context = self._build_context(session, turn)
+                self.notify("上下文> 已自动更新历史摘要；原始日志保留。")
+                progress.pruning_announced = True
+        if context.pruned_tools and not progress.pruning_announced:
+            self.notify("上下文> 已缩减旧工具结果；原始日志保留。")
+            progress.pruning_announced = True
+        return context
 
     def _compact(self, session: Session, turn_id: str | None = None) -> Summary | None:
         """委托独立摘要服务，复用累计消费检查；不把摘要加入普通问答历史。"""
@@ -219,7 +275,7 @@ class Conversation:
     def _check_tool_budget(
         self, session_id: str, step: int, calls: list[dict[str, Any]], seen_ids: set[str]
     ) -> None:
-        """执行整批工具前检查额度及重复 ID；step 为从零开始的模型请求序号。"""
+        """执行整批工具前检查额度及重复 ID；step 为从零开始的请求序号，包含自动摘要。"""
         # 没有下一次模型请求额度时，不执行无法用于生成最终回答的工具。
         if step + 1 >= self.limits.max_model_requests:
             raise BudgetError(

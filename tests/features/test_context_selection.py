@@ -36,7 +36,10 @@ def test_selection_is_contiguous_persistent_and_traceable(tmp_path):
             "system constraint",
             ToolRegistry(tmp_path),
             context_config=ContextConfig(
-                max_input_tokens=8192, safety_margin_tokens=0, retain_recent_turns=0
+                max_input_tokens=8192,
+                safety_margin_tokens=0,
+                retain_recent_turns=0,
+                auto_compact=False,
             ),
         )
         session_id = conversation.new().session_id
@@ -70,7 +73,10 @@ def test_selection_is_contiguous_persistent_and_traceable(tmp_path):
             "changed default",
             ToolRegistry(tmp_path),
             context_config=ContextConfig(
-                max_input_tokens=8192, safety_margin_tokens=0, retain_recent_turns=0
+                max_input_tokens=8192,
+                safety_margin_tokens=0,
+                retain_recent_turns=0,
+                auto_compact=False,
             ),
         )
         conversation.resume(session_id)

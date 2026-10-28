@@ -197,6 +197,10 @@ class SessionLog:
         owner = payload.get("turn_id")
         if kind == "compaction_started" and owner is not None:
             self._require_turn(payload)
+        if kind == "compaction_started":
+            self._validate_pruning(
+                payload.get("pruned_tools", []), payload.get("source_turn_ids", [])
+            )
         before = self.compactions.tokens
         self.compactions.apply(kind, payload, [turn.turn_id for turn in self.history_turns()])
         self.tokens += self.compactions.tokens - before
@@ -253,7 +257,13 @@ class SessionLog:
             raise ValueError("invalid context summary")
         if covered + omitted + selected != [turn.turn_id for turn in self.history_turns()]:
             raise ValueError("invalid context sources")
-        changes = context.get("pruned_tools", [])
+        self._validate_pruning(context.get("pruned_tools", []), selected)
+        for key in ("estimated_input_tokens", "original_history_tokens"):
+            if type(context.get(key)) is not int or context[key] < 0:
+                raise ValueError("invalid context estimate")
+
+    def _validate_pruning(self, changes: object, selected: list[str]) -> None:
+        """缩减来源必须对应本次素材中的真实完整工具结果；也供摘要素材校验使用。"""
         if not isinstance(changes, list):
             raise ValueError("invalid pruning records")
         seen = set()
@@ -280,9 +290,6 @@ class SessionLog:
                 or item["result_chars"] >= item["original_chars"]
             ):
                 raise ValueError("pruning must reduce output")
-        for key in ("estimated_input_tokens", "original_history_tokens"):
-            if type(context.get(key)) is not int or context[key] < 0:
-                raise ValueError("invalid context estimate")
 
     def _finish_request(self, kind: str, payload: dict[str, Any]) -> None:
         """请求状态与用量分别校验；只有有效模型响应才由调用方标记 succeeded。"""
