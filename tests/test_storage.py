@@ -19,7 +19,7 @@ def test_roundtrip_layout_and_isolation(tmp_path):
     path = tmp_path / datetime.now().strftime("%Y/%m/%d") / f"{first}.jsonl"
     records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
     assert len(first) == 8
-    assert len(records) == 7
+    assert len(records) == 9
     assert records[0]["type"] == "session_meta"
     assert all(set(r) == {"type", "timestamp", "payload"} for r in records)
     assert records[1]["payload"]["turn_id"] == records[2]["payload"]["turn_id"]
@@ -57,7 +57,8 @@ def test_half_turn_and_invalid_metadata(tmp_path):
         store.append_turn(session_id, "q", "a")
         path = next(tmp_path.glob("*/*/*/*.jsonl"))
         lines = path.read_bytes().splitlines(keepends=True)
-        path.write_bytes(b"".join(lines[:2]))
+        # 保留 turn_started 和首条 message，模拟完整消息块尚未提交。
+        path.write_bytes(b"".join(lines[:3]))
         with pytest.raises(StorageError):
             store.load_messages(session_id)
         meta = json.loads(lines[0])

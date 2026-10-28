@@ -1,3 +1,5 @@
+"""工具循环业务：模型选择工具、反馈错误、预算限制与恢复历史。"""
+
 import json
 
 import httpx
@@ -180,7 +182,8 @@ def test_unknown_usage_blocks_session_after_reopen(tmp_path, failure):
 def test_pending_request_after_crash_blocks_budget(tmp_path):
     with SessionStore(tmp_path) as store:
         session_id = store.create_session("test", "")
-        store.start_request(session_id, "test")
+        turn_id = store.start_turn(session_id, "unfinished")
+        store.start_request(session_id, turn_id, "test")
     with SessionStore(tmp_path) as store:
         assert store.usage(session_id) == (0, True)
 
@@ -204,10 +207,12 @@ def test_known_usage_after_invalid_response_is_counted(tmp_path):
 def test_storage_rejects_broken_tool_chain_and_old_format(tmp_path):
     with SessionStore(tmp_path) as store:
         session_id = store.create_session("test", "")
+        turn_id = store.start_turn(session_id, "hi")
         call = tool_response([("a", "read_file", "{}")])["choices"][0]["message"]
         with pytest.raises(ValueError):
             store.append_messages(
                 session_id,
+                turn_id,
                 [
                     {"role": "user", "content": "hi"},
                     call,
@@ -217,8 +222,8 @@ def test_storage_rejects_broken_tool_chain_and_old_format(tmp_path):
             )
         assert store.load_messages(session_id) == []
         path = next(tmp_path.glob("*/*/*/*.jsonl"))
-        value = json.loads(path.read_text(encoding="utf-8"))
-        value["payload"]["version"] = 1
+        value = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+        value["payload"]["version"] = 2
         path.write_text(json.dumps(value) + "\n", encoding="utf-8")
         with pytest.raises(StorageError, match="旧版"):
             store.get_session(session_id)
@@ -263,3 +268,94 @@ def test_duplicate_tool_ids_across_steps_stop_cleanly(tmp_path):
             conversation.send("loop")
         assert store.usage(conversation.session.session_id) == (24, False)
         assert store.load_messages(conversation.session.session_id) == []
+
+
+def test_directory_error_can_be_corrected_before_reading_file(tmp_path):
+    """假模型先访问错误目录，再根据错误反馈列目录并读取正确文件。"""
+    (tmp_path / "sample.txt").write_text("correct evidence", encoding="utf-8")
+    payloads = []
+    replies = iter(
+        [
+            tool_response([("bad", "list_directory", '{"path":"missing"}')]),
+            tool_response([("list", "list_directory", '{"path":"."}')]),
+            tool_response([("read", "read_file", '{"path":"sample.txt"}')]),
+            answer("located"),
+        ]
+    )
+
+    def handle(request):
+        payloads.append(json.loads(request.content))
+        return httpx.Response(200, json=next(replies))
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(handle)) as http,
+        SessionStore(tmp_path / "sessions") as store,
+    ):
+        conversation = make_conversation(store, http, tmp_path)
+        assert conversation.send("find evidence") == "located"
+        assert store.load_messages(conversation.session.session_id)[-1].content == "located"
+    assert json.loads(payloads[1]["messages"][-1]["content"])["ok"] is False
+    assert "sample.txt" in json.loads(payloads[2]["messages"][-1]["content"])["entries"]
+    assert "correct evidence" in payloads[3]["messages"][-1]["content"]
+
+
+def test_tool_batch_over_budget_executes_none(tmp_path, monkeypatch):
+    """模型一次要求两个工具但只剩一次额度时，整批都不能执行。"""
+    requests = []
+
+    def handle(request):
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json=tool_response(
+                [("first", "file_info", '{"path":"."}'), ("second", "file_info", '{"path":"."}')]
+            ),
+        )
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("An over-budget tool batch must execute nothing")
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(handle)) as http,
+        SessionStore(tmp_path / "sessions") as store,
+    ):
+        conversation = make_conversation(store, http, tmp_path, AgentConfig(max_tool_calls=1))
+        monkeypatch.setattr(conversation.tool_registry, "execute", forbidden)
+        with pytest.raises(LLMError):
+            conversation.send("inspect twice")
+        session_id = conversation.session.session_id
+        assert not any(e["type"] == "tool_started" for e in store.load_events(session_id))
+        assert store.load_messages(session_id) == []
+        assert store.usage(session_id) == (12, False)
+    assert len(requests) == 1
+
+
+def test_tool_call_id_can_repeat_in_different_successful_turns(tmp_path):
+    """同一会话不同轮次可以复用模型工具 ID，恢复时仍按轮次准确关联。"""
+    root = tmp_path / "sessions"
+    replies = iter(
+        [
+            tool_response([("same", "file_info", '{"path":"."}')]),
+            answer("first answer"),
+            tool_response([("same", "file_info", '{"path":"."}')]),
+            answer("second answer"),
+        ]
+    )
+    with (
+        httpx.Client(
+            transport=httpx.MockTransport(lambda _: httpx.Response(200, json=next(replies)))
+        ) as http,
+        SessionStore(root) as store,
+    ):
+        conversation = make_conversation(store, http, tmp_path)
+        assert conversation.send("first") == "first answer"
+        assert conversation.send("second") == "second answer"
+        session_id = conversation.session.session_id
+    with SessionStore(root) as store:
+        starts = [
+            e["payload"] for e in store.load_events(session_id) if e["type"] == "tool_started"
+        ]
+        assert [s["tool_call_id"] for s in starts] == ["same", "same"]
+        assert len({s["turn_id"] for s in starts}) == 2
+        assert len(store.load_messages(session_id)) == 8
+        assert store.load_messages(session_id)[-1].content == "second answer"

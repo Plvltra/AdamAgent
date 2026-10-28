@@ -1,3 +1,5 @@
+"""命令执行业务：批准、拒绝、超时、真实进程结果与执行记录。"""
+
 import json
 import sys
 
@@ -212,7 +214,19 @@ def test_execution_survives_later_model_failure(project, tmp_path):
             conversation.send("run tests")
         session_id = conversation.session.session_id
         assert store.load_messages(session_id) == []
-        assert store.load_executions(session_id)[0]["status"] == "completed"
+        execution = store.load_executions(session_id)[0]
+        assert execution["status"] == "completed"
+        path = next((tmp_path / "sessions").rglob(f"{session_id}.jsonl"))
+        events = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+        started_turn = next(e["payload"] for e in events if e["type"] == "turn_started")
+        requests = [e["payload"] for e in events if e["type"] == "request_started"]
+        assert len(requests) == 2
+        assert execution["turn_id"] == started_turn["turn_id"]
+        assert execution["request_id"] == requests[0]["request_id"]
+        assert all(r["turn_id"] == started_turn["turn_id"] for r in requests)
+        tool_events = [e["payload"] for e in events if e["type"].startswith("tool_")]
+        assert len(tool_events) == 2
+        assert all(e["tool_call_id"] == execution["tool_call_id"] for e in tool_events)
 
 
 def test_record_failure_prevents_spawn(project, monkeypatch):
@@ -231,10 +245,19 @@ def test_unknown_execution_blocks_replay_after_restart(project, tmp_path):
     root = tmp_path / "sessions"
     with SessionStore(root) as store:
         session_id = store.create_session("test", "")
+        turn_id = store.start_turn(session_id, "run command")
+        request_id = store.start_request(session_id, turn_id, "test")
+        store.finish_request(session_id, turn_id, request_id, (0, 0))
+        link = {"turn_id": turn_id, "request_id": request_id, "tool_call_id": "t"}
+        store.append_tool_event(
+            session_id,
+            "tool_started",
+            {**link, "name": "run_command", "arguments": '{"argv":["python"]}'},
+        )
         store.append_command_event(
             session_id,
             "command_started",
-            {"execution_id": "a", "tool_call_id": "t", "argv": ["python"], "cwd": str(project)},
+            {**link, "execution_id": "a", "argv": ["python"], "cwd": str(project)},
         )
     with (
         SessionStore(root) as store,
@@ -249,3 +272,112 @@ def test_unknown_execution_blocks_replay_after_restart(project, tmp_path):
         with pytest.raises(StorageError, match="结果未知"):
             conversation.send("try again")
         assert store.usage(session_id) == (0, False)
+
+
+@pytest.mark.parametrize("decision", ["y", "n"])
+def test_approval_controls_actual_file_side_effect(project, tmp_path, decision):
+    """同一写文件命令在批准时产生文件，在拒绝时没有副作用。"""
+    payloads = []
+    reply = tool_reply()
+    reply["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"] = json.dumps(
+        {
+            "argv": [
+                sys.executable,
+                "-c",
+                "from pathlib import Path; Path('effect.txt').write_text('executed', encoding='utf-8')",
+            ]
+        }
+    )
+
+    def handle(request):
+        if request.method == "GET":
+            return httpx.Response(200, json={"data": []})
+        payloads.append(json.loads(request.content))
+        return httpx.Response(200, json=reply if len(payloads) == 1 else final_reply())
+
+    inputs = iter(["write a marker", decision, "/exit"])
+    with (
+        httpx.Client(transport=httpx.MockTransport(handle)) as http,
+        SessionStore(tmp_path / "sessions") as store,
+    ):
+        chat(
+            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            "",
+            store,
+            read=lambda _: next(inputs),
+            write=lambda _: None,
+            workspace=project,
+        )
+        execution = store.load_executions(store.list_sessions()[0].session_id)[0]
+        assert execution["status"] == ("completed" if decision == "y" else "denied")
+    marker = project / "effect.txt"
+    assert marker.exists() is (decision == "y")
+    if decision == "y":
+        assert marker.read_text(encoding="utf-8") == "executed"
+    result = json.loads(payloads[1]["messages"][-1]["content"])
+    assert result["status"] == execution["status"]
+
+
+def test_finished_command_log_failure_blocks_reexecution(project, tmp_path, monkeypatch):
+    """进程已写文件但结束记录失败时，恢复后的未知状态阻止再次执行。"""
+    root = tmp_path / "sessions"
+    requests = []
+    reply = tool_reply()
+    reply["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"] = json.dumps(
+        {
+            "argv": [
+                sys.executable,
+                "-c",
+                "from pathlib import Path; p=Path('effect.txt'); p.write_text(p.read_text()+'once' if p.exists() else 'once')",
+            ]
+        }
+    )
+
+    def handle(request):
+        requests.append(request)
+        assert len(requests) == 1
+        return httpx.Response(200, json=reply)
+
+    with httpx.Client(transport=httpx.MockTransport(handle)) as http:
+        with SessionStore(root) as store:
+            append = store.append_command_event
+
+            def fail_finish(session_id, kind, payload):
+                if kind == "command_finished":
+                    raise OSError("finish record failed")
+                return append(session_id, kind, payload)
+
+            monkeypatch.setattr(store, "append_command_event", fail_finish)
+            conversation = Conversation(
+                store,
+                LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+                "",
+                ToolRegistry(project, confirm_command=lambda _: True),
+            )
+            with pytest.raises(CommandLogError):
+                conversation.send("write once")
+            session_id = conversation.session.session_id
+            assert store.load_executions(session_id)[0]["status"] == "unknown"
+        with SessionStore(root) as store:
+            conversation = Conversation(
+                store,
+                LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+                "",
+                ToolRegistry(project, confirm_command=lambda _: True),
+            )
+            conversation.resume(session_id)
+            with pytest.raises(StorageError):
+                conversation.send("continue")
+            assert store.load_messages(session_id) == []
+    assert (project / "effect.txt").read_text() == "once"
+    assert len(requests) == 1
+
+
+def test_command_does_not_inherit_unapproved_secret_variable(project, monkeypatch):
+    """父进程存在自定义密钥变量时，真实子进程仍只能看到允许继承的基础环境。"""
+    monkeypatch.setenv("ADAM_TEST_SECRET", "dummy-private-value")
+    result = invoke(
+        ToolRegistry(project, confirm_command=lambda _: True),
+        [sys.executable, "-c", "import os; print(os.environ.get('ADAM_TEST_SECRET', 'absent'))"],
+    )
+    assert result["exit_code"] == 0 and result["stdout"].strip() == "absent"

@@ -1,6 +1,5 @@
 """组织会话流程；会话文件是已完成历史的来源。"""
 
-import secrets
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -9,6 +8,7 @@ from adam.config import AgentConfig
 from adam.llm import Completion, LLMClient, LLMError
 from adam.storage import Session, SessionStore, StorageError
 from adam.tool_calls import ToolRegistry
+from adam.tool_calls.executor import ToolExecutor
 
 
 class TurnSaveError(RuntimeError):
@@ -37,6 +37,7 @@ class Conversation:
         self.tool_registry = tools or ToolRegistry(Path.cwd())
         self.limits = limits or AgentConfig()
         self.notify = notify or (lambda _: None)
+        self.tool_executor = ToolExecutor(store, self.tool_registry, self.notify)
 
     def new(self, title: str = "新对话") -> Session:
         """创建并选中新会话，返回会话元信息。"""
@@ -53,11 +54,13 @@ class Conversation:
     def send(self, text: str) -> str:
         """处理用户输入，完成模型与工具循环，返回已保存的最终回答。
 
-        请求用量独立记账；失败轮次不加入有效历史。预算或协议错误抛出
+        输入、请求和工具轨迹独立留痕；失败轮次不加入有效历史。预算或协议错误抛出
         LLMError；回答生成后保存失败则抛出携带回答的 TurnSaveError。
-        未知命令状态抛出 StorageError，命令日志写入失败抛出 CommandLogError。
+        工具诊断写入失败直接抛出 OSError 并停止；未知命令状态抛出 StorageError，
+        命令日志写入或关联校验失败抛出 CommandLogError。
         """
         session = self.session or self.new(text[:40])
+        turn_id = self.store.start_turn(session.session_id, text)
         if any(
             item["status"] == "unknown" for item in self.store.load_executions(session.session_id)
         ):
@@ -67,14 +70,16 @@ class Conversation:
         seen_call_ids: set[str] = set()
 
         for step in range(self.limits.max_model_requests):
-            result = self._request_with_usage(session.session_id, messages + turn)
+            request_id, result = self._request_with_usage(
+                session.session_id, turn_id, messages + turn
+            )
             turn.append(result.message)
             calls = result.message.get("tool_calls") or []
             if not calls:
-                return self._save_completed_turn(session.session_id, turn)
+                return self._save_completed_turn(session.session_id, turn_id, turn)
 
             self._check_tool_budget(session.session_id, step, calls, seen_call_ids)
-            turn.extend(self._execute_tool_calls(session.session_id, calls))
+            turn.extend(self.tool_executor.execute(session.session_id, turn_id, request_id, calls))
             seen_call_ids.update(call["id"] for call in calls)
 
         raise LLMError("达到本轮请求上限。")
@@ -95,14 +100,17 @@ class Conversation:
         if tokens >= self.limits.max_session_tokens:
             raise LLMError("会话 token 额度已用完，请提高配置额度或新建会话。")
 
-    def _request_with_usage(self, session_id: str, messages: list[dict[str, Any]]) -> Completion:
+    def _request_with_usage(
+        self, session_id: str, turn_id: str, messages: list[dict[str, Any]]
+    ) -> tuple[str, Completion]:
         """先持久登记请求，再调用 API 并结算用量；不自动重试。
 
-        成功返回包含可靠用量的 Completion；请求中断留下的未结算记录
+        返回本次 request_id 与包含可靠用量的 Completion，供工具关联来源请求。
+        turn_id 指向已记录的用户输入；请求中断留下的未结算记录
         会阻止恢复会话后继续消费。最终回答记账失败时保留回答供终端显示。
         """
         self._check_session_budget(session_id)
-        request_id = self.store.start_request(session_id, self.model)
+        request_id = self.store.start_request(session_id, turn_id, self.model)
         try:
             result = self.client.complete(
                 messages,
@@ -111,18 +119,18 @@ class Conversation:
                 max_tokens=self.limits.max_output_tokens,
             )
         except LLMError as error:
-            self.store.finish_request(session_id, request_id, error.usage)
+            self.store.finish_request(session_id, turn_id, request_id, error.usage)
             raise
 
         try:
-            self.store.finish_request(session_id, request_id, result.usage)
+            self.store.finish_request(session_id, turn_id, request_id, result.usage)
         except OSError as error:
             if not result.message.get("tool_calls"):
                 raise TurnSaveError(result.message["content"]) from error
             raise
         if result.usage is None:
             raise LLMError("API未返回可靠用量；预算统计不完整，本轮停止。")
-        return result
+        return request_id, result
 
     def _check_tool_budget(
         self, session_id: str, step: int, calls: list[dict[str, Any]], seen_ids: set[str]
@@ -137,41 +145,13 @@ class Conversation:
         if any(call["id"] in seen_ids for call in calls):
             raise LLMError("模型重复使用工具调用ID，本轮停止。")
 
-    def _execute_tool_calls(
-        self, session_id: str, calls: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        """按模型给出的顺序执行工具，返回带原始调用 ID 的 tool 消息。"""
-        results = []
-        for call in calls:
-            function = call["function"]
-            self.notify(f"工具> {function['name']}")
-            if function["name"] == "run_command":
-                output = self._execute_command(session_id, call)
-            else:
-                output = self.tool_registry.execute(function["name"], function["arguments"])
-            results.append({"role": "tool", "tool_call_id": call["id"], "content": output})
-        return results
-
-    def _execute_command(self, session_id: str, call: dict[str, Any]) -> str:
-        """关联本次工具调用 ID，独立落盘命令状态；日志失败会停止本轮。"""
-        execution_id = secrets.token_hex(16)
-
-        def record_execution(kind: str, payload: dict[str, Any]) -> None:
-            self.store.append_command_event(
-                session_id,
-                kind,
-                {**payload, "execution_id": execution_id, "tool_call_id": call["id"]},
-            )
-
-        return self.tool_registry.execute(
-            "run_command", call["function"]["arguments"], record_execution=record_execution
-        )
-
-    def _save_completed_turn(self, session_id: str, turn: list[dict[str, Any]]) -> str:
+    def _save_completed_turn(
+        self, session_id: str, turn_id: str, turn: list[dict[str, Any]]
+    ) -> str:
         """提交包含工具轨迹的完整轮次并返回最终文本；保存失败时携带原回答。"""
         reply = turn[-1]["content"]
         try:
-            self.store.append_messages(session_id, turn)
+            self.store.append_messages(session_id, turn_id, turn)
         except OSError as error:
             raise TurnSaveError(reply) from error
         return reply

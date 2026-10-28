@@ -1,3 +1,5 @@
+"""会话业务：新建、切换、跨启动恢复与保存失败反馈。"""
+
 import json
 import sys
 
@@ -142,3 +144,32 @@ def test_main_creates_session_and_resumes(tmp_path, monkeypatch):
         ]
     assert requests[-1]["messages"][0] == {"role": "system", "content": "system"}
     assert requests[-1]["messages"][1]["content"] == "first"
+
+
+def test_usage_save_failure_shows_unsaved_answer_and_preserves_unknown_budget(
+    tmp_path, monkeypatch
+):
+    """最终回答已生成但用量无法落盘时，用户仍看到回答，重开后保留未知预算。"""
+    root = tmp_path / "sessions"
+    requests = []
+    output = []
+
+    def fail_usage(*args):
+        raise OSError("usage record failed")
+
+    monkeypatch.setattr(SessionStore, "finish_request", fail_usage)
+    with make_client(requests) as http, SessionStore(root) as store:
+        inputs = iter(["question", "/exit"])
+        chat(
+            LLMClient(LLMConfig("https://example.test", "model", "secret"), http),
+            "",
+            store,
+            read=lambda _: next(inputs),
+            write=output.append,
+        )
+        session_id = store.list_sessions()[0].session_id
+    assert len(requests) == 1
+    assert any("未保存" in line and "answer:question" in line for line in output)
+    with SessionStore(root) as store:
+        assert store.load_messages(session_id) == []
+        assert store.usage(session_id) == (0, True)

@@ -13,6 +13,7 @@ from typing import Any, Self
 from filelock import FileLock, Timeout
 
 from adam.protocol import validate_turn
+from adam.session_log import SessionLog, UnsupportedLogVersionError, decode_records, parse_log
 
 
 @dataclass(frozen=True)
@@ -99,7 +100,7 @@ class SessionStore:
                 directory.mkdir(parents=True, exist_ok=True)
                 path = directory / f"{session_id}.jsonl"
                 payload = {
-                    "version": 2,
+                    "version": 3,
                     "id": session_id,
                     "title": title,
                     "system_prompt": system_prompt,
@@ -146,7 +147,7 @@ class SessionStore:
     def load_messages(self, session_id: str) -> list[Message]:
         """返回 session_id 的完整历史，消息按协议顺序排列。
 
-        Message.raw 保留工具调用与推理字段；文件含残缺轮次时抛出
+        Message.raw 保留工具调用与推理字段；文件含残缺的成功消息块时抛出
         StorageError，避免把不完整工具链发送给模型。
         """
         return self._read(session_id)[1]
@@ -159,18 +160,30 @@ class SessionStore:
         _, _, tokens, unknown = self._read(session_id)
         return tokens, unknown
 
-    def start_request(self, session_id: str, model: str) -> str:
-        """持久记录 session_id 的模型请求开始事件，返回用于结算的 request_id。"""
+    def start_turn(self, session_id: str, user_text: str) -> str:
+        """先保存用户输入并返回 turn_id；未完成轮次仅供诊断，不进入有效历史。"""
+        turn_id = secrets.token_hex(16)
+        self._append(
+            session_id, record("turn_started", {"turn_id": turn_id, "user_text": user_text})
+        )
+        return turn_id
+
+    def start_request(self, session_id: str, turn_id: str, model: str) -> str:
+        """登记属于 turn_id 的模型请求，返回结算与工具关联所需的 request_id。"""
         request_id = secrets.token_hex(16)
         self._append(
-            session_id, record("request_started", {"request_id": request_id, "model": model})
+            session_id,
+            record(
+                "request_started",
+                {"turn_id": turn_id, "request_id": request_id, "model": model},
+            ),
         )
         return request_id
 
     def finish_request(
-        self, session_id: str, request_id: str, usage: tuple[int, int] | None
+        self, session_id: str, turn_id: str, request_id: str, usage: tuple[int, int] | None
     ) -> None:
-        """追加请求用量；request_id 对应 start_request 返回的标识。
+        """追加同一轮次的请求用量；关联错误或重复结算在写入前抛出 ValueError。
 
         usage 是 (输入 token, 输出 token)；None 表示未知，不能按零处理。
         用量独立持久化，后续轮次失败也保留已消费记录。
@@ -180,6 +193,7 @@ class SessionStore:
             record(
                 "request_usage",
                 {
+                    "turn_id": turn_id,
                     "request_id": request_id,
                     "input_tokens": usage[0] if usage else None,
                     "output_tokens": usage[1] if usage else None,
@@ -188,37 +202,50 @@ class SessionStore:
         )
 
     def append_turn(self, session_id: str, user_text: str, assistant_text: str) -> None:
-        """将 user_text 和 assistant_text 作为一个完整普通问答保存到 session_id。"""
-        self.append_messages(
-            session_id,
-            [
-                {"role": "user", "content": user_text},
-                {"role": "assistant", "content": assistant_text},
-            ],
-        )
+        """保存一个普通问答；先登记输入，再提交消息，提交失败时诊断输入仍可能保留。"""
+        messages = [
+            {"role": "user", "content": user_text},
+            {"role": "assistant", "content": assistant_text},
+        ]
+        validate_turn(messages)
+        turn_id = self.start_turn(session_id, user_text)
+        self.append_messages(session_id, turn_id, messages)
 
-    def append_messages(self, session_id: str, messages: list[dict[str, Any]]) -> None:
-        """追加一轮完整协议消息及完成标记；messages 包括用户、工具轨迹与最终回答。
+    def append_messages(
+        self, session_id: str, turn_id: str, messages: list[dict[str, Any]]
+    ) -> None:
+        """向已开始的轮次追加完整消息与完成标记，成功后才能加载为有效历史。
 
+        messages 包括原始用户输入、工具轨迹和最终回答，须与诊断记录一致。
         校验失败抛出 ValueError；写入失败抛出 OSError，输入不会被修改。
         完成标记用于区分可恢复的完整历史和中断写入。
         """
         validate_turn(messages)
-        turn_id = secrets.token_hex(16)
         data = b"".join(
             record("message", {"turn_id": turn_id, "message": message}) for message in messages
         )
         data += record("turn_completed", {"turn_id": turn_id})
         self._append(session_id, data)
 
+    def append_tool_event(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:
+        """保存工具开始或结果事件，失败轮次也保留轨迹；不加入有效聊天历史。
+
+        payload 必须包含 turn_id、request_id 和 tool_call_id；开始事件带 name/arguments，
+        结束事件带实际回传的 output。关联错误在写入前抛出 ValueError。
+        """
+        if kind not in {"tool_started", "tool_finished"}:
+            raise ValueError("unknown tool event")
+        self._append(session_id, record(kind, payload))
+
     def append_command_event(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:
         """独立保存命令开始、结束或拒绝事件，不依赖本轮模型最终回答成功。
 
-        payload 包含 execution_id 和 tool_call_id；同一执行只能结束一次。
+        payload 包含 turn_id、request_id、execution_id 和 tool_call_id；
+        必须关联已开始的 run_command 工具，同一执行只能结束一次。
         写入失败必须停止执行流程，调用方不能将其当普通工具错误继续。
         """
-        states = {item["execution_id"]: item for item in self.load_executions(session_id)}
-        self._apply_command_event(states, kind, payload)
+        if kind not in {"command_started", "command_finished", "command_denied"}:
+            raise ValueError("unknown command event")
         self._append(session_id, record(kind, payload))
 
     def load_executions(self, session_id: str) -> list[dict[str, Any]]:
@@ -226,13 +253,11 @@ class SessionStore:
 
         同一会话持有写锁，已记录的 started/finished 事件不会混入模型消息。
         """
-        self._read(session_id)
-        states: dict[str, dict[str, Any]] = {}
-        for line in self._path(session_id).read_text(encoding="utf-8").splitlines():
-            entry = json.loads(line)
-            if entry["type"].startswith("command_"):
-                self._apply_command_event(states, entry["type"], entry["payload"])
-        return list(states.values())
+        return list(self._read_log(session_id).executions.values())
+
+    def load_events(self, session_id: str) -> list[dict[str, Any]]:
+        """返回按落盘顺序排列的完整事件，供诊断使用；损坏文件仍拒绝读取。"""
+        return self._read_log(session_id).events
 
     def _path(self, session_id: str) -> Path:
         """校验短 ID 并查找唯一文件；缺失抛出 SessionNotFoundError，重复抛出 StorageError。"""
@@ -246,164 +271,47 @@ class SessionStore:
         return paths[0]
 
     def _read(self, session_id: str) -> tuple[Session, list[Message], int, bool]:
-        """解析并验证事件日志，返回 (元信息, 完整消息, 已知 token 数, 用量未知标志)。
+        """返回元信息、成功历史、已知 token 数及未知用量标志；诊断输入不进入消息。"""
+        log = self._read_log(session_id)
+        session = Session(session_id, log.metadata["title"], log.metadata["system_prompt"])
+        messages = [
+            Message(
+                f"{turn_id}:{position}",
+                session_id,
+                position,
+                message["role"],
+                message.get("content") or "",
+                message,
+            )
+            for position, (turn_id, message) in enumerate(log.messages)
+        ]
+        return session, messages, log.tokens, log.unknown_usage
 
-        request 事件独立累计；message 仅在 turn_completed 处提交。
-        command 事件校验开始/结束配对，但不加入模型上下文或 token 统计。
-        未结算请求保留为未知用量，残缺消息或非法事件拒绝加载。
+    def _read_log(self, session_id: str) -> SessionLog:
+        """解析并校验事件关联；请求独立计费，成功消息只在 turn_completed 处提交。
+
+        未结算请求保持未知用量，工具和命令事件不直接加入模型历史。
+        诊断轮次可以未完成；残缺行、半个成功消息块或非法关联拒绝加载。
         """
         try:
-            raw = self._path(session_id).read_bytes()
-            if not raw.endswith(b"\n"):
-                raise ValueError("missing newline")
-            entries = [json.loads(line) for line in raw.decode("utf-8").splitlines()]
-            for entry in entries:
-                if (
-                    not isinstance(entry, dict)
-                    or not isinstance(entry.get("timestamp"), str)
-                    or not isinstance(entry.get("payload"), dict)
-                ):
-                    raise ValueError("invalid record")
-            meta = entries[0]
-            data = meta["payload"]
-            if (
-                meta.get("type") != "session_meta"
-                or type(data.get("version")) is not int
-                or data["version"] != 2
-            ):
-                raise StorageError("不支持旧版或未知会话格式；请 /new 创建新会话。")
-            if data.get("id") != session_id or not all(
-                isinstance(data.get(key), str) for key in ("title", "system_prompt")
-            ):
-                raise ValueError("invalid metadata")
-            session = Session(session_id, data["title"], data["system_prompt"])
-            messages: list[Message] = []
-            pending_messages: list[dict[str, Any]] = []
-            turn_id = ""
-            completed: set[str] = set()
-            requests: dict[str, bool] = {}
-            executions: dict[str, dict[str, Any]] = {}
-            tokens = 0
-            unknown = False
-            for entry in entries[1:]:
-                kind, payload = entry["type"], entry["payload"]
-                if kind in {"command_started", "command_finished", "command_denied"}:
-                    self._apply_command_event(executions, kind, payload)
-                elif kind in {"request_started", "request_usage"}:
-                    request_id = payload["request_id"]
-                    if not isinstance(request_id, str) or not request_id:
-                        raise ValueError("invalid request")
-                    if kind == "request_started":
-                        if request_id in requests:
-                            raise ValueError("duplicate request")
-                        requests[request_id] = False
-                    else:
-                        if request_id not in requests or requests[request_id]:
-                            raise ValueError("unmatched usage")
-                        requests[request_id] = True
-                        inputs, outputs = payload["input_tokens"], payload["output_tokens"]
-                        if inputs is None and outputs is None:
-                            unknown = True
-                        elif (
-                            type(inputs) is int
-                            and type(outputs) is int
-                            and inputs >= 0
-                            and outputs >= 0
-                        ):
-                            tokens += inputs + outputs
-                        else:
-                            raise ValueError("invalid usage")
-                elif kind == "message":
-                    current = payload["turn_id"]
-                    if not isinstance(current, str) or not current or current in completed:
-                        raise ValueError("invalid turn")
-                    if pending_messages and current != turn_id:
-                        raise ValueError("incomplete turn")
-                    turn_id = current
-                    message = payload["message"]
-                    if not isinstance(message, dict):
-                        raise ValueError("invalid message")
-                    pending_messages.append(message)
-                elif kind == "turn_completed":
-                    if not pending_messages or payload["turn_id"] != turn_id:
-                        raise ValueError("unmatched completion")
-                    validate_turn(pending_messages)
-                    for message in pending_messages:
-                        messages.append(
-                            Message(
-                                f"{turn_id}:{len(messages)}",
-                                session_id,
-                                len(messages),
-                                message["role"],
-                                message.get("content") or "",
-                                message,
-                            )
-                        )
-                    completed.add(turn_id)
-                    pending_messages = []
-                else:
-                    raise ValueError("unknown event")
-            if pending_messages:
-                raise ValueError("incomplete turn")
-            return session, messages, tokens, unknown or not all(requests.values())
+            return parse_log(self._path(session_id).read_bytes(), session_id)
+        except UnsupportedLogVersionError:
+            raise StorageError("不支持旧版或未知会话格式；请 /new 创建新会话。") from None
         except (ValueError, KeyError, IndexError, TypeError, AttributeError):
             raise StorageError(
                 f"会话 {session_id} 格式损坏或尾部轮次不完整；拒绝加载和追加。"
             ) from None
 
-    @staticmethod
-    def _apply_command_event(
-        states: dict[str, dict[str, Any]], kind: str, payload: dict[str, Any]
-    ) -> None:
-        """验证命令事件配对并归并状态；缺少结束事件的执行保持 unknown。"""
-        execution_id = payload.get("execution_id")
-        if not isinstance(execution_id, str) or not execution_id:
-            raise ValueError("invalid execution id")
-        if not isinstance(payload.get("tool_call_id"), str) or not payload["tool_call_id"]:
-            raise ValueError("invalid tool call id")
-        if kind in {"command_started", "command_denied"}:
-            if execution_id in states:
-                raise ValueError("duplicate execution")
-            if (
-                not isinstance(payload.get("argv"), list)
-                or not all(isinstance(arg, str) for arg in payload["argv"])
-                or not payload["argv"]
-                or not isinstance(payload.get("cwd"), str)
-            ):
-                raise ValueError("invalid command")
-            if kind == "command_denied" and payload.get("status") != "denied":
-                raise ValueError("invalid denial")
-            states[execution_id] = {
-                **payload,
-                "status": "unknown" if kind == "command_started" else "denied",
-            }
-        elif kind == "command_finished":
-            previous = states.get(execution_id)
-            if previous is None or previous["status"] != "unknown":
-                raise ValueError("unmatched command finish")
-            if payload["tool_call_id"] != previous["tool_call_id"]:
-                raise ValueError("mismatched tool call")
-            if payload.get("status") not in {
-                "completed",
-                "timed_out",
-                "start_failed",
-                "interrupted",
-            }:
-                raise ValueError("invalid command status")
-            if payload.get("exit_code") is not None and type(payload["exit_code"]) is not int:
-                raise ValueError("invalid exit code")
-            states[execution_id] = {**previous, **payload}
-        else:
-            raise ValueError("unknown command event")
-
     def _append(self, session_id: str, data: bytes) -> None:
         """持锁追加并 flush/fsync；可捕获的写入异常尝试截断回原长度后重抛。
 
         data 是完整 JSONL 字节块。进程崩溃不保证回滚，恢复时由 _read
-        检测残缺记录；已有损坏文件禁止继续追加。
+        检测残缺记录；已有损坏文件禁止继续追加。新事件关联在持锁后先验证，
+        校验失败抛出 ValueError 且不触碰文件，不能污染原有日志。
         """
         self.select_session(session_id)
-        self._read(session_id)
+        log = self._read_log(session_id)
+        log.extend(decode_records(data))
         with self._path(session_id).open("r+b") as file:
             file.seek(0, os.SEEK_END)
             start = file.tell()

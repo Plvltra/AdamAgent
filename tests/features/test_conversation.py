@@ -1,3 +1,5 @@
+"""聊天业务：多轮上下文、模型切换、终端指令与退出。"""
+
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -6,8 +8,8 @@ import httpx
 import pytest
 
 from adam.cli import chat as run_chat
-from adam.config import ConfigError, LLMConfig, load_llm_config
-from adam.llm import LLMClient, LLMError
+from adam.config import LLMConfig
+from adam.llm import LLMClient
 from adam.storage import SessionStore
 
 
@@ -62,43 +64,6 @@ def test_multiturn_failure_and_reset():
     assert any("响应格式" in line for line in output)
 
 
-@pytest.mark.parametrize(
-    "payload",
-    [
-        {},
-        {"choices": []},
-        {"choices": [None]},
-        response(""),
-        {
-            "choices": [
-                {"finish_reason": "length", "message": {"role": "assistant", "content": "partial"}}
-            ]
-        },
-    ],
-)
-def test_invalid_responses(payload):
-    with httpx.Client(
-        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=payload))
-    ) as http:
-        with pytest.raises(LLMError):
-            LLMClient(LLMConfig("https://example.test", "model", "secret"), http).complete([])
-
-
-def test_timeout_is_not_retried():
-    count = 0
-
-    def handler(request):
-        nonlocal count
-        count += 1
-        raise httpx.ReadTimeout("secret", request=request)
-
-    with httpx.Client(transport=httpx.MockTransport(handler)) as http:
-        with pytest.raises(LLMError, match="超时") as error:
-            LLMClient(LLMConfig("https://example.test", "model", "secret"), http).complete([])
-    assert count == 1
-    assert "secret" not in str(error.value)
-
-
 @pytest.mark.parametrize("signal", [EOFError, KeyboardInterrupt])
 def test_exit_signal(signal):
     def read(_):
@@ -109,51 +74,6 @@ def test_exit_signal(signal):
         client = LLMClient(LLMConfig("https://example.test", "model", "secret"), http)
         chat(client, "", read=read, write=output.append)
     assert output[-1] == "再见。"
-
-
-BASE = '[llm]\nbase_url = "https://example.test/v1/"\nmodel = "test"\n'
-
-
-def test_config_modes(tmp_path, monkeypatch):
-    path = tmp_path / "config.toml"
-    path.write_text(BASE + 'api_key_env = "ADAM_TEST_KEY"\n', encoding="utf-8-sig")
-    monkeypatch.setenv("ADAM_TEST_KEY", "environment-secret")
-    config = load_llm_config(path)
-    assert config.api_key == "environment-secret"
-    assert config.base_url == "https://example.test/v1"
-    assert "environment-secret" not in repr(config)
-    path.write_text(BASE + 'api_key = "literal-secret"\n', encoding="utf-8")
-    assert load_llm_config(path).api_key == "literal-secret"
-
-
-@pytest.mark.parametrize(
-    "extra",
-    [
-        "",
-        'api_key = ""',
-        'api_key = "secret"\napi_key_env = "TEST"',
-        'api_key_env = "ADAM_MISSING_KEY"',
-        'api_key = "secret"\ntimeout_seconds = -1',
-        'api_key = "secret"\ntimeout_seconds = true',
-        'api_key = "secret"\ntimeout_seconds = nan',
-        'api_key = "secret"\nsystem_prompt = 42',
-        'api_key = "secret"\ntimeout = 30',
-    ],
-)
-def test_config_errors(tmp_path, monkeypatch, extra):
-    monkeypatch.delenv("ADAM_MISSING_KEY", raising=False)
-    path = tmp_path / "config.toml"
-    path.write_text(BASE + extra, encoding="utf-8")
-    with pytest.raises(ConfigError):
-        load_llm_config(path)
-
-
-def test_malformed_toml_does_not_expose_secret(tmp_path):
-    path = tmp_path / "config.toml"
-    path.write_text(BASE + 'api_key = "secret', encoding="utf-8")
-    with pytest.raises(ConfigError) as error:
-        load_llm_config(path)
-    assert "secret" not in str(error.value)
 
 
 def test_model_switch_preserves_history_and_rejects_unknown():
@@ -238,19 +158,3 @@ def test_commands_do_not_reach_model_and_exit_stops_input():
     assert sum("未知命令" in line for line in output) == 2
     assert next(entries) == "unread"
     assert output[-1] == "再见。"
-
-
-def test_unexpected_stream_response_has_clear_error():
-    def handler(request):
-        assert json.loads(request.content)["stream"] is False
-        return httpx.Response(
-            200,
-            headers={"Content-Type": "text/event-stream; charset=utf-8"},
-            text='data: {"private": "secret-response"}\n\ndata: [DONE]\n\n',
-        )
-
-    with httpx.Client(transport=httpx.MockTransport(handler)) as http:
-        client = LLMClient(LLMConfig("https://example.test", "model", "secret"), http)
-        with pytest.raises(LLMError, match="流式响应") as error:
-            client.complete([])
-    assert "secret" not in str(error.value)

@@ -73,19 +73,22 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 ## JSONL 格式与写入边界
 
 每行采用 `type`、UTC `timestamp`、`payload` 的统一结构。
-第一行 `session_meta` 保存格式版本 2（不兼容 v1）、ID、标题和系统提示词；
+第一行 `session_meta` 保存格式版本 3（不兼容 v1/v2）、ID、标题和系统提示词；
 随后每条 `message` 保存 `turn_id` 和完整协议 `message`，包含 role/content、tool_calls、tool_call_id 及模型实际返回的 reasoning_content。
 目录使用会话创建时的本地年月日；跨天续聊仍写原文件。
 会话 ID 使用 8 位随机十六进制，创建时在根目录锁内检查冲突、独占创建文件。
 
-模型给出最终回答后追加本轮完整消息链，并以 `turn_completed` 标记结束，共享同一个 turn_id。
-恢复时校验工具调用 ID 与结果一一配对。失败或达到限制的工具链不写入有效聊天历史。
+用户提交时先写 `turn_started`，保存 turn_id 与原始输入。本轮所有 request_started/request_usage 关联这个 turn_id。
+每次工具处理前写 tool_started，返回后写 tool_finished，关联 turn_id、request_id、tool_call_id，保留原始参数与实际回传结果。命令另保留 command_* 事件，记录确认和进程边界。
+模型给出最终回答后追加本轮完整消息链，并以 `turn_completed` 标记结束，沿用输入时生成的 turn_id。
+恢复时校验轮次、请求与工具关联，成功消息中的工具调用和结果须与执行记录一致。失败或达到限制的轮次仍保留诊断记录，但不写入有效聊天历史。
+只有完整消息块及 turn_completed 写入后才算可恢复的成功对话；request_usage 仅表示用量结算，tool_finished 仅表示取得工具结果，不保证业务成功。
 写入会 flush/fsync，可捕获的写入错误尝试截断回写入前长度；文件系统写入不等同于数据库事务。
 突然终止可能留下残缺行或半轮；加载时严格校验，损坏文件拒绝加载及继续追加。
 先备份再手工修复，不静默丢弃记录。完整写入后、界面显示前崩溃的回答可能已经保存，恢复时以文件为准。
 `request_started` 和 `request_usage` 独立记录每次模型请求和用量；失败任务的已知用量也累计。
 未结束的请求、缺失用量和超时会使预算状态变为未知，恢复后不允许继续调用模型，需新建会话。
-旧 v1 文件明确报错，不迁移、不删除；请新建 v2 会话。旧文件会使 `/sessions` 列表报错，可由用户移到会话目录之外归档。
+旧 v1/v2 文件明确报错，不迁移、不删除；请新建 v3 会话。旧文件仍会使 `/sessions` 列表报错：可自行归档到会话目录之外，或将 `storage.sessions_dir` 配置为新的目录。
 
 选中会话后持有操作系统文件锁，切换成功或退出时释放；切换失败保留原会话。
 不同会话可分别使用；另一个进程选择被占用会话时立即报错。
@@ -94,25 +97,32 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 
 旧 SQLite 数据不迁移、不删除，新版本不读写它们。
 
+本版完成 V1.3.1 关联与留痕，完整请求/轮次状态、停止原因、耗时、诊断命令和自动中断处理仍待后续实现。只有开始事件可用于定位未结算步骤，不能据此判断业务成功或准确停止原因。事件说明和验收步骤见 [会话执行轨迹](docs/session-tracing.md)。
+
 ## 代码与验证
 
+模块架构图与职责边界见 [当前系统架构](docs/architecture.md)。
+
 - `adam/config.py`：用户目录、TOML 加载与校验。
-- `adam/storage.py`：JSONL 读写、格式校验和会话锁。
+- `adam/storage.py`：JSONL 读写与会话锁。
+- `adam/session_log.py`：事件格式与轮次、请求、工具关联校验。
 - `adam/conversation.py`：加载历史、请求模型、保存成功轮次。
 - `adam/cli.py`：命令、输入循环和错误展示。
 - `adam/terminal.py`：角色标签、颜色及纯文本退化。
 - `adam/llm.py`：HTTP 请求及结构化助手响应、用量解析。
 - `adam/tool_calls/`：工具注册与参数验证、文件工具、Git 工具、权限与资源限制。
+- `adam/tool_calls/executor.py`：所有工具的执行协调与独立轨迹记录。
 - `adam/protocol.py`：助手工具请求与完整轮次的协议校验。
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m pytest tests/features -v
 .\.venv\Scripts\python.exe -m pre_commit run --all-files
 ```
 
-测试使用临时目录和假 HTTP，不调用付费模型；覆盖跨启动恢复、配置位置、
-JSONL 损坏、写入故障回滚、会话隔离与跨进程锁释放。
-V2.1/V2.2 基础工具闭环已实现，V2.3 固定评估尚未完成。下一项先补齐 V1.3 请求状态与中断恢复，再完成 V2.3，之后进入 V3 上下文管理。JavaScript 编排不是必做前置。
+业务功能点测试集中在 `tests/features/`，按会话、启动配置、工具循环、执行轨迹、终端交互和命令执行组织，见 [功能测试导航](tests/features/README.md)。基础校验保留在 `tests/test_config.py`、`tests/test_llm_config.py`、`tests/test_storage.py`、`tests/test_llm.py` 和 `tests/test_tools.py`。
+自动化使用临时目录和假 HTTP，不调用付费模型；覆盖跨启动恢复、配置位置、JSONL 损坏、写入故障回滚、会话隔离与跨进程锁释放。假 HTTP 验证工程流程，不代替真实模型的选工具和回答效果评估。
+V2.1/V2.2 基础工具闭环已实现，V2.3 固定评估尚未完成。V1.3.1 关联与留痕已通过自动化验收，下一项为 V1.3.2 请求/轮次状态与结束原因，再补查询和中断恢复验收；完成 V1.3 后继续 V2.3 与 V3 上下文管理。JavaScript 编排不是必做前置。
 规划见 [练手 TODO](docs/agent-practice-todo.md) 和 [roadmap](docs/roadmap.md)。
 
 

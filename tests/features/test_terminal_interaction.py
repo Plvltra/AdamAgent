@@ -145,9 +145,10 @@ def test_usage_unknown_preserves_known_total_without_request(tmp_path):
     inputs = iter(["/usage", "/exit"])
     with make_http(requests) as http, SessionStore(tmp_path / "sessions") as store:
         session_id = store.create_session("usage", "")
-        known = store.start_request(session_id, "test")
-        store.finish_request(session_id, known, (10, 5))
-        store.start_request(session_id, "test")
+        turn_id = store.start_turn(session_id, "usage")
+        known = store.start_request(session_id, turn_id, "test")
+        store.finish_request(session_id, turn_id, known, (10, 5))
+        store.start_request(session_id, turn_id, "test")
         chat(
             LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
             "",
@@ -184,3 +185,60 @@ def test_resume_uses_same_role_labels(tmp_path, interactive_terminal):
     assert role_prefix("user") + "old user" in shown
     assert role_prefix("assistant") + "old answer" in shown
     assert all(request.method != "POST" for request in requests)
+
+
+def test_usage_follows_selected_session_and_survives_restart(tmp_path):
+    """A/B 消费用量不同；切换及重启后 /usage 仍显示当前会话自己的累计值。"""
+    root = tmp_path / "sessions"
+    requests = []
+    shown = []
+    inputs = iter(
+        [
+            "/new A",
+            "one",
+            "/usage",
+            "/new B",
+            "two",
+            "three",
+            "/usage",
+            "resume_A",
+            "/usage",
+            "/exit",
+        ]
+    )
+    with make_http(requests) as http, SessionStore(root) as store:
+
+        def read(_):
+            text = next(inputs)
+            if text == "resume_A":
+                session = next(s for s in store.list_sessions() if s.title == "A")
+                return f"/resume {session.session_id}"
+            return text
+
+        chat(
+            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            "",
+            store,
+            read=read,
+            write=shown.append,
+        )
+        sessions = {s.title: s.session_id for s in store.list_sessions()}
+        assert store.usage(sessions["A"]) == (15, False)
+        assert store.usage(sessions["B"]) == (30, False)
+    totals = [
+        line.split("累计 ", 1)[1].split("/", 1)[0] for line in shown if line.startswith("用量>")
+    ]
+    assert totals == ["15", "30", "15"]
+    shown.clear()
+    inputs = iter(["/usage", "/exit"])
+    with make_http(requests) as http, SessionStore(root) as store:
+        chat(
+            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            "",
+            store,
+            read=lambda _: next(inputs),
+            write=shown.append,
+            resume_id=sessions["B"],
+        )
+    assert any("会话累计 30/" in line for line in shown)
+    assert sum(r.method == "POST" for r in requests) == 3

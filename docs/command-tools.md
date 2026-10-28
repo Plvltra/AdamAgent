@@ -20,16 +20,18 @@
 - completed/ok 表示进程正常结束，业务是否成功还须结合 exit_code/stdout/stderr。
 - 输出受 max_result_chars 限制，裁剪时保留状态和退出码，持续排空 stdout/stderr。
 - 只继承基础环境变量，使用 UTF-8；其他变量可在显式启动的脚本内设置。参数和输出会被记录，勿放入密钥。
-- 执行日志独立保存；只有开始事件的执行恢复为 unknown，阻止自动重跑。
+- 执行日志独立保存；只有 command_started、缺少 command_finished 的执行恢复为 unknown，阻止自动重跑。
+- v3 中所有工具都有 tool_started/tool_finished，关联 turn_id、request_id、tool_call_id；命令额外保留 command_* 及 execution_id。tool_started 仅表示进入处理，实际进程边界看 command_*。
 - 确认不是系统沙箱，进程拥有当前账户权限；读取工具的路径授权不限制命令内部行为。
 - 超时/取消时尽力清理进程树并回收直接子进程，不保证处理主动脱离进程树的进程。
 
-阅读顺序：command_tools.py → registry.py → cli.py → conversation.py → storage.py。
-测试见 tests/test_commands.py：不同程序、脚本参数、工作目录、失败、拒绝、超时、输出截断及恢复。
+阅读顺序：command_tools.py → registry.py → executor.py → conversation.py → storage.py / session_log.py；终端确认入口在 cli.py。
+关联规则和失败示例见 [会话执行轨迹](session-tracing.md)。
+测试见 tests/features/test_command_execution.py：不同程序、脚本参数、工作目录、失败、拒绝、超时、输出截断及恢复。
 
 ## 阶段归属与验收状态
 
 本工具属于 V4.2 提前完成的基础能力，不表示 V1.3、V2.3 或 V4 整阶段完成。
 自动化覆盖本地进程与模拟模型闭环；用户已反馈成功、拒绝、失败三种真实模型回答，
 仍需在固定评估中核对工具返回值和会话日志。文件编辑与修改后重跑测试闭环尚未实现。
-下一项先补齐 V1.3 请求状态与中断恢复，完整任务状态见 [练手 TODO](agent-practice-todo.md)。
+V1.3.1 已补充关联与全部工具留痕；自动化验收通过后，下一项为 V1.3.2 状态与结束原因，再完成查询和重启处理，完整任务状态见 [练手 TODO](agent-practice-todo.md)。
