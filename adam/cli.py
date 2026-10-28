@@ -7,11 +7,13 @@ from enum import Enum, auto
 from pathlib import Path
 
 import httpx
+from colorama import just_fix_windows_console
 
 from adam.config import AgentConfig, ConfigError, adam_home, load_config
 from adam.conversation import Conversation, TurnSaveError
 from adam.llm import LLMClient, LLMError
 from adam.storage import SessionNotFoundError, SessionStore, StorageError, valid_session_id
+from adam.terminal import role_prefix
 from adam.tool_calls import PermissionConfig, ToolError, ToolLimits, ToolRegistry
 from adam.tool_calls.command_tools import CommandLogError, CommandRequest
 
@@ -39,6 +41,18 @@ def show_model(
         write("模型 ID 尚未验证；将按此 ID 发起请求。")
 
 
+def show_usage(conversation: Conversation, write: Callable[[str], None]) -> None:
+    """按需显示当前会话的已知用量与额度；不创建会话或发起模型请求。"""
+    session = conversation.session
+    if session is None:
+        write("尚未创建会话，用量：0 token。")
+        return
+    total, unknown = conversation.store.usage(session.session_id)
+    write(f"用量> 会话累计 {total}/{conversation.limits.max_session_tokens} token")
+    if unknown:
+        write("以上仅为已知用量；统计不完整，当前会话不能继续请求模型。")
+
+
 def handle_command(
     text: str,
     conversation: Conversation,
@@ -57,6 +71,11 @@ def handle_command(
         conversation.new(parts[1] if len(parts) == 2 else "新对话")
         show_session(conversation, write)
         write("已新建会话，原会话仍保留。")
+    elif command == "/usage":
+        if len(parts) != 1:
+            write("用法：/usage")
+        else:
+            show_usage(conversation, write)
     elif command == "/sessions":
         sessions = conversation.store.list_sessions()
         if not sessions:
@@ -72,7 +91,7 @@ def handle_command(
         conversation.resume(session_id)
         show_session(conversation, write)
         for message in conversation.store.load_messages(session_id):
-            write(f"{message.role}> {message.content}")
+            write(role_prefix(message.role) + message.content)
     elif command == "/model":
         if len(parts) == 1:
             show_model(conversation, models, write)
@@ -89,7 +108,7 @@ def handle_command(
             write("已切换后续请求的模型；保留历史，仅本次运行有效。")
             show_model(conversation, models, write)
     else:
-        write("未知命令，请使用 /new、/sessions、/resume、/model 或 /exit。")
+        write("未知命令，请使用 /new、/sessions、/resume、/model、/usage 或 /exit。")
     return CommandResult.HANDLED
 
 
@@ -135,7 +154,7 @@ def chat(
         conversation.resume(resume_id)
     models: dict[str, str | None] | None = None
 
-    write("Adam — /new [名称]、/sessions、/resume <ID>、/model、/exit；成功轮次自动保存。")
+    write("Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/exit；成功轮次自动保存。")
     show_session(conversation, write)
     try:
         try:
@@ -144,7 +163,7 @@ def chat(
             write("模型目录暂时无法获取，仍可继续聊天。")
         show_model(conversation, models, write)
         while True:
-            text = read("你> ").strip()
+            text = read(role_prefix("user")).strip()
             if not text:
                 continue
             try:
@@ -154,9 +173,9 @@ def chat(
                 if result is CommandResult.HANDLED:
                     continue
                 reply = conversation.send(text)
-                write(f"Adam> {reply}")
+                write(role_prefix("assistant") + reply)
             except TurnSaveError as error:
-                write(f"Adam（未保存）> {error.reply}")
+                write(role_prefix("assistant", unsaved=True) + error.reply)
                 write(str(error))
             except CommandLogError as error:
                 write(str(error))
@@ -176,6 +195,7 @@ def chat(
 
 
 def main() -> int:
+    just_fix_windows_console()
     parser = argparse.ArgumentParser(description="Adam 持久会话终端聊天")
     parser.add_argument("--config", type=Path, default=adam_home() / "config.toml")
     parser.add_argument("--llm-config", type=Path, help="模型配置路径，默认主配置旁的 llm.toml")

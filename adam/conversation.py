@@ -122,8 +122,6 @@ class Conversation:
             raise
         if result.usage is None:
             raise LLMError("API未返回可靠用量；预算统计不完整，本轮停止。")
-        total, _ = self.store.usage(session_id)
-        self.notify(f"用量> 会话累计 {total}/{self.limits.max_session_tokens} token")
         return result
 
     def _check_tool_budget(

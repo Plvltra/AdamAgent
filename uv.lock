@@ -7,6 +7,7 @@ name = "adam-agent"
 version = "0.0.1"
 source = { virtual = "." }
 dependencies = [
+    { name = "colorama" },
     { name = "filelock" },
     { name = "httpx" },
 ]
@@ -21,6 +22,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "colorama", specifier = ">=0.4.6,<0.5" },
     { name = "filelock", specifier = ">=3.16,<4" },
     { name = "httpx", specifier = ">=0.28,<0.29" },
 ]
