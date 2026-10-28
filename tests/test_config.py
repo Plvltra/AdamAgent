@@ -148,6 +148,10 @@ def test_unknown_field_is_reported_without_value(tmp_path):
     "content",
     [
         "context=1",
+        "[context]\nretain_recent_turns=-1",
+        "[context]\nretain_recent_turns=true",
+        "[context]\nsummary_max_output_tokens=0",
+        "[context]\nsummary_max_output_tokens=true",
         "[context]\nmax_input_tokens=true",
         "[context]\nmax_input_tokens=0",
         "[context]\nsafety_margin_tokens=-1",

@@ -43,6 +43,11 @@ class PartialWriter:
         self.file.close()
 
     def write(self, data):
+        if b'"type": "compaction_completed"' in data:
+            self.file.write(data[: len(data) // 2])
+            self.file.flush()
+            os.fsync(self.file.fileno())
+            hold()
         if b'"type": "turn_completed"' in data:
             boundary = data.index(b"\n") + 1 + 12
             self.file.write(data[:boundary])
@@ -52,7 +57,7 @@ class PartialWriter:
         return self.file.write(data)
 
 
-if mode == "run" and phase == "message_write":
+if mode == "run" and phase in {"message_write", "compact_write"}:
     original_open = Path.open
 
     def partial_open(path, mode="r", *args, **kwargs):
@@ -68,11 +73,14 @@ with (
     conversation = Conversation(store, LLMClient(LLMConfig(url, "test", "test-only-key"), http), "")
     conversation.resume(session_id)
     if mode == "run":
-        conversation.send("new question")
+        if phase.startswith("compact_"):
+            conversation.compact()
+        else:
+            conversation.send("new question")
         hold()  # after_commit：真实完整提交已完成，尚未展示回答。
     else:
         blocked = False
-        if phase == "request":
+        if phase in {"request", "compact_request"}:
             try:
                 conversation.send("budget must block")
             except BudgetError:

@@ -7,7 +7,7 @@ from typing import Any
 
 from adam.config import ContextConfig
 from adam.errors import BudgetError, FailureCode
-from adam.history import HistoryTurn
+from adam.history import HistoryTurn, Summary
 
 
 @dataclass(frozen=True)
@@ -18,10 +18,17 @@ class ContextEstimate:
     history_tokens: int
     turn_tokens: int
     tools_tokens: int
+    summary_tokens: int = 0
 
     @property
     def input_tokens(self) -> int:
-        return self.system_tokens + self.history_tokens + self.turn_tokens + self.tools_tokens
+        return (
+            self.system_tokens
+            + self.history_tokens
+            + self.turn_tokens
+            + self.tools_tokens
+            + self.summary_tokens
+        )
 
 
 @dataclass(frozen=True)
@@ -37,11 +44,13 @@ class RequestContext:
     selected_turn_ids: tuple[str, ...]
     omitted_turn_ids: tuple[str, ...]
     original_history_tokens: int
+    summary: Summary | None = None
 
     def selection_record(self) -> dict[str, Any]:
         """返回实际请求的选择依据；不含认证信息，不是完整 HTTP 请求快照。"""
         return {
             "strategy": "recent_turns_v1",
+            "summary_id": self.summary.summary_id if self.summary else None,
             "selected_turn_ids": list(self.selected_turn_ids),
             "omitted_turn_ids": list(self.omitted_turn_ids),
             "estimated_input_tokens": self.estimate.input_tokens,
@@ -81,13 +90,19 @@ class ContextBuilder:
         history: list[HistoryTurn],
         current_turn: list[dict[str, Any]],
         tools: list[dict[str, Any]],
+        summary: Summary | None = None,
     ) -> RequestContext:
         """返回独立的输入副本及组成估算；保留顺序、工具配对和服务商推理字段。
 
         history 仅接收完整成功轮次；current_turn 包含最新输入及工具链，预览时为空。
-        从最新轮次往前选择，放不下即停止，不跳过中间轮次。系统提示与本轮不截断。
+        先保留摘要与配置指定的近期轮次；其余从新往旧取连续后缀，放不下即停止。
+        系统提示、本轮及近期保护轮次不截断；摘要仅作为历史资料，不提升指令权限。
         预算覆盖完整工具 JSON Schema，不包含认证头、URL 或密钥。
         """
+        covered = len(summary.covered_turn_ids) if summary else 0
+        history = history[covered:]
+        summary_messages = [summary.message()] if summary else []
+        summary_tokens = sum(estimate_json_tokens(message) for message in summary_messages)
         system = [{"role": "system", "content": system_prompt}] if system_prompt else []
         system_tokens = sum(estimate_json_tokens(message) for message in system)
         turn_tokens = sum(estimate_json_tokens(message) for message in current_turn)
@@ -101,19 +116,24 @@ class ContextBuilder:
             - system_tokens
             - turn_tokens
             - tools_tokens
+            - summary_tokens
         )
         start = len(history)
-        for size in reversed(sizes):
-            if size > remaining:
+        protected_start = max(0, len(history) - self.limits.retain_recent_turns)
+        for index in range(len(sizes) - 1, -1, -1):
+            size = sizes[index]
+            if size > remaining and index < protected_start:
                 break
             remaining -= size
             start -= 1
         selected = history[start:]
         messages = [message for turn in selected for message in turn.messages]
-        estimate = ContextEstimate(system_tokens, sum(sizes[start:]), turn_tokens, tools_tokens)
+        estimate = ContextEstimate(
+            system_tokens, sum(sizes[start:]), turn_tokens, tools_tokens, summary_tokens
+        )
         return RequestContext(
             model=model,
-            messages=deepcopy(system + messages + current_turn),
+            messages=deepcopy(system + summary_messages + messages + current_turn),
             tools=deepcopy(tools),
             max_output_tokens=self.max_output_tokens,
             estimate=estimate,
@@ -121,6 +141,7 @@ class ContextBuilder:
             selected_turn_ids=tuple(turn.turn_id for turn in selected),
             omitted_turn_ids=tuple(turn.turn_id for turn in history[:start]),
             original_history_tokens=sum(sizes),
+            summary=summary,
         )
 
 

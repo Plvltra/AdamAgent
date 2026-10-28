@@ -77,6 +77,11 @@ def handle_command(
             write("用法：/usage")
         else:
             show_usage(conversation, write)
+    elif command == "/compact":
+        if len(parts) != 1:
+            write("用法：/compact")
+        else:
+            conversation.compact()
     elif command == "/context":
         option = parts[1] if len(parts) == 2 else ""
         if option not in {"", "full"}:
@@ -115,7 +120,9 @@ def handle_command(
             write("已切换后续请求的模型；保留历史，仅本次运行有效。")
             show_model(conversation, models, write)
     else:
-        write("未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context 或 /exit。")
+        write(
+            "未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context、/compact 或 /exit。"
+        )
     return CommandResult.HANDLED
 
 
@@ -166,7 +173,7 @@ def chat(
         models: dict[str, str | None] | None = None
 
         write(
-            "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/exit；成功轮次自动保存。"
+            "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/compact、/exit；成功轮次自动保存。"
         )
         show_session(conversation, write)
         try:

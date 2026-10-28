@@ -206,3 +206,12 @@ Conversation.send 负责轮次异常收尾，_run_turn 保留模型与工具循�
 ## 旧会话
 
 v4 明确拒绝旧 v1/v2/v3，不自动迁移或删除。旧文件留在当前会话目录会使 `/sessions` 报错；可自行将旧文件归档到会话目录之外，或者把 `config.toml` 中的 `storage.sessions_dir` 改为新的目录，再新建会话。程序不会代替用户移动旧数据。
+
+## V3.3 独立摘要事件
+
+- compaction_started 保存 operation_id、可选触发 turn_id、模型、来源轮次、前一摘要 ID、请求输入估算与输出上限；成功写入后才调用 API。
+- compaction_usage 在同一事件结算该请求的终态与用量；请求成功不表示摘要已经提交。
+- compaction_completed 保存完整摘要及成功终态，只有此事件使新摘要生效；compaction_finished 只允许失败/中断。
+- 摘要操作不生成普通用户消息或成功问答。原始 message 保留，后续请求只通过摘要 ID 引用其历史替代视图。
+- 未结算摘要请求和缺失用量纳入会话未知消费。session_recovered 在有遗留摘要时增加 compaction_ids，关闭状态，不重发或猜测费用；较早 v4 的恢复事件仍可读。
+- 独立诊断报告新增 compactions 列表，显示素材来源、请求及操作状态、耗时和用量。新事件沿用 v4 扩展，旧程序不保证能够读取。

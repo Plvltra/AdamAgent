@@ -118,6 +118,8 @@ class ContextConfig:
 
     max_input_tokens: int = 32768
     safety_margin_tokens: int = 2048
+    retain_recent_turns: int = 2
+    summary_max_output_tokens: int = 2048
 
     def __post_init__(self) -> None:
         """拒绝非法计数和耗尽输入预算的余量；直接构造与 TOML 加载规则一致。"""
@@ -128,6 +130,13 @@ class ContextConfig:
             or not 0 <= self.safety_margin_tokens < self.max_input_tokens
         ):
             raise ConfigError("context.safety_margin_tokens 必须是小于输入上限的非负整数。")
+        if type(self.retain_recent_turns) is not int or not 0 <= self.retain_recent_turns <= 1000:
+            raise ConfigError("context.retain_recent_turns 必须是 0 到 1000 的整数。")
+        if (
+            type(self.summary_max_output_tokens) is not int
+            or not 0 < self.summary_max_output_tokens <= 100000
+        ):
+            raise ConfigError("context.summary_max_output_tokens 必须是合理范围内的正整数。")
 
 
 @dataclass(frozen=True)

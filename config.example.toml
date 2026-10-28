@@ -16,6 +16,9 @@ max_output_tokens = 4096
 max_input_tokens = 32768
 # Estimated input + safety margin must fit within max_input_tokens.
 safety_margin_tokens = 2048
+# Recent turns remain verbatim; /compact summarizes older turns in one bounded request.
+retain_recent_turns = 2
+summary_max_output_tokens = 2048
 
 [permissions]
 # Additional user-approved directories; relative to this configuration file.

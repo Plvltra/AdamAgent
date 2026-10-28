@@ -45,11 +45,15 @@ def show_context(
     write(
         f"估算输入：{estimate.input_tokens} token"
         f"（系统 {estimate.system_tokens}，历史 {estimate.history_tokens}，"
-        f"本轮 {estimate.turn_tokens}，工具说明 {estimate.tools_tokens}）。"
+        f"本轮 {estimate.turn_tokens}，工具说明 {estimate.tools_tokens}，摘要 {estimate.summary_tokens}）。"
     )
     write(
         f"历史：保留 {len(context.selected_turn_ids)} 轮，省略 {len(context.omitted_turn_ids)} 轮；原始日志保留。"
     )
+    if context.summary is not None:
+        write(
+            f"摘要：{context.summary.summary_id}；覆盖 {len(context.summary.covered_turn_ids)} 轮。"
+        )
     if context.omitted_turn_ids:
         write("省略范围：" + context.omitted_turn_ids[0] + " … " + context.omitted_turn_ids[-1])
     if context.selected_turn_ids:

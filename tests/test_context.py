@@ -94,7 +94,9 @@ def test_tool_turn_is_selected_whole_at_boundary(include):
     ]
     full = build(history=messages)
     limits = ContextConfig(
-        max_input_tokens=full.estimate.input_tokens + 10 - (not include), safety_margin_tokens=10
+        max_input_tokens=full.estimate.input_tokens + 10 - (not include),
+        safety_margin_tokens=10,
+        retain_recent_turns=0,
     )
     selected = ContextBuilder(limits, 4096).build(
         model="test",

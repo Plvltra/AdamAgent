@@ -68,7 +68,7 @@ def wait_for_boundary(process, ready, arrived, phase):
     """用服务端收到请求/子进程写入标志同步，不靠固定睡眠猜测到达位置。"""
     deadline = time.monotonic() + 15
     while time.monotonic() < deadline:
-        if arrived.is_set() and (phase == "request" or ready.exists()):
+        if arrived.is_set() and (phase in {"request", "compact_request"} or ready.exists()):
             return
         if process.poll() is not None:
             _, stderr = process.communicate(timeout=3)
@@ -152,3 +152,76 @@ def test_real_request_kill_and_restart(tmp_path, local_api, phase):
         else:
             assert request["status"] == "succeeded" and request["reason"] == "completed"
             assert report["recoveries"][0]["payload"]["uncommitted_messages"] == 1
+
+
+@pytest.mark.parametrize("phase", ["compact_request", "compact_write", "compact_commit"])
+def test_summary_process_kill_and_restart(tmp_path, local_api, phase):
+    """沿用真实本地 HTTP，在摘要请求、半行写入、完成标记后强杀并启动新进程。"""
+    url, arrived, calls, control = local_api
+    control["hold_response"] = phase == "compact_request"
+    root = tmp_path / "sessions"
+    with SessionStore(root) as store:
+        session_id = store.create_session("summary crash", "")
+        for index in range(5):
+            store.append_turn(session_id, f"old {index}", "answer")
+    path = next(root.rglob("*.jsonl"))
+    original = path.read_bytes()
+    ready = tmp_path / "ready"
+    project = Path(__file__).resolve().parents[2]
+    worker = Path(__file__).parent / "support" / "crash_worker.py"
+    env = {**os.environ, "PYTHONPATH": str(project), "PYTHONIOENCODING": "utf-8"}
+    args = [sys.executable, str(worker), "run", str(root), session_id, url, phase, str(ready)]
+    process = subprocess.Popen(
+        args,
+        cwd=project,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    try:
+        wait_for_boundary(process, ready, arrived, phase)
+        process.kill()
+        process.communicate(timeout=5)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.communicate(timeout=5)
+    before_restart = path.read_bytes()
+    assert before_restart.startswith(original)
+    assert before_restart.endswith(b"\n") == (phase != "compact_write")
+    args[2] = "resume"
+    restarted = subprocess.run(
+        args,
+        cwd=project,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    assert restarted.returncode == 0, restarted.stderr
+    result = json.loads(restarted.stdout)
+    report = result["report"]
+    operation = report["compactions"][0]
+    assert len(calls) == 1 and "tools" not in calls[0]
+    assert len(result["history"]) == 10
+    assert report["unknown_usage"] == (phase == "compact_request")
+    assert report["known_tokens"] == (0 if phase == "compact_request" else 7)
+    assert operation["status"] == ("succeeded" if phase == "compact_commit" else "interrupted")
+    assert operation["request"]["status"] == (
+        "interrupted" if phase == "compact_request" else "succeeded"
+    )
+    with SessionStore(root) as store:
+        summary = store.load_summary(session_id)
+        assert (summary is not None) == (phase == "compact_commit")
+    if phase == "compact_commit":
+        assert report["recoveries"] == [] and path.read_bytes() == before_restart
+    else:
+        assert len(report["recoveries"]) == 1
+        assert [item.read_bytes() for item in path.parent.glob("*.bak")] == [before_restart]
+    if phase == "compact_request":
+        assert result["blocked"]

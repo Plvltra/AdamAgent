@@ -5,9 +5,11 @@ from pathlib import Path
 from time import monotonic_ns
 from typing import Any
 
+from adam.compaction import CompactionService
 from adam.config import AgentConfig, ContextConfig
 from adam.context import ContextBuilder, RequestContext
 from adam.errors import BudgetError, FailureCode, TurnSaveError
+from adam.history import Summary
 from adam.llm import Completion, LLMClient, LLMError
 from adam.outcome import ExecutionOutcome
 from adam.storage import Session, SessionStore, StorageError
@@ -76,6 +78,20 @@ class Conversation:
             )
             raise
 
+    def compact(self) -> Summary | None:
+        """手动压缩当前会话；无会话或无旧历史不请求模型，不创建空会话。"""
+        if self.session is None:
+            self.notify("没有当前会话，无需摘要。")
+            return None
+        summary = self._compact(self.session)
+        if summary is None:
+            self.notify("没有可摘要的旧轮次。")
+        else:
+            self.notify(
+                f"上下文> 已保存摘要，累计覆盖 {len(summary.covered_turn_ids)} 轮；原始日志保留。"
+            )
+        return summary
+
     def preview_context(self) -> RequestContext:
         """预览当前会话的下一次基础输入；不创建会话、请求模型或修改日志。
 
@@ -111,6 +127,13 @@ class Conversation:
 
         raise BudgetError("达到本轮请求上限。", code=FailureCode.REQUEST_LIMIT)
 
+    def _compact(self, session: Session, turn_id: str | None = None) -> Summary | None:
+        """委托独立摘要服务，复用累计消费检查；不把摘要加入普通问答历史。"""
+        service = CompactionService(
+            self.store, self.client, self.context_builder.limits, self._check_session_budget
+        )
+        return service.compact(session, self.model, turn_id=turn_id)
+
     def _build_context(self, session: Session | None, turn: list[dict[str, Any]]) -> RequestContext:
         """读取成功历史并委托构造；预览与每次真实请求共用，工具结果加入后重新估算。"""
         history = self.store.load_turns(session.session_id) if session is not None else []
@@ -120,6 +143,7 @@ class Conversation:
             history=history,
             current_turn=turn,
             tools=self.tool_registry.definitions(),
+            summary=self.store.load_summary(session.session_id) if session is not None else None,
         )
 
     def _check_session_budget(self, session_id: str) -> None:

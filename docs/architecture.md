@@ -2,9 +2,9 @@
 
 最近核对：2026-10-28
 
-本次核对范围：V3.2 完整轮次选择、来源记录、诊断投影与重启一致性。
+本次核对范围：V3.3 独立摘要操作、记账、有效版本、真实强杀恢复与近期轮次保护。
 
-核对结论：新增 history.py 的 HistoryTurn，共享完整轮次数据；存储提供分组，context 选择连续后缀。request_started 增加可选 context 来源记录，由 SessionLog 校验并由诊断展示；旧 v4 可读。摘要尚未接入。
+核对结论：CompactionService 规划/执行一次无工具摘要，CompactionLog 独立校验操作；SessionLog 合并消费与恢复目标。Summary 完整提交后参与 ContextBuilder，原消息不变；旧 v4 可读。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -20,6 +20,14 @@ flowchart TD
     CLI --> CONV["conversation.py<br/>轮次收尾、模型—工具循环"]
     CLI -->|"会话列表、历史与用量查询"| STORE["storage.py<br/>会话持久化与读取"]
 
+    CONV --> COMPACT["compaction.py<br/>规划与执行摘要"]
+    COMPACT --> STORE
+    COMPACT --> LLM
+    COMPACT --> CONFIG
+    COMPACT --> HISTORY
+    LOG --> CLOG["compaction_log.py<br/>摘要提交、消费与恢复投影"]
+    CLOG --> HISTORY
+    CLOG --> OUTCOME
     CONV --> CONTEXT["context.py<br/>构造上下文、组成估算、输入预算"]
     CONTEXT --> HISTORY["history.py<br/>完整成功轮次数据"]
     STORE --> HISTORY
@@ -86,7 +94,9 @@ flowchart TD
 | [config.py](../adam/config.py) | `AppConfig`、`LLMConfig`、`AgentConfig`、`ContextConfig` | 加载并校验运行配置，区分模型连接、循环/消费限额及单次输入预算 |
 | [conversation.py](../adam/conversation.py) | `Conversation` | 管理当前会话，读取成功历史并委托上下文构造，组织请求、工具与提交；分别记录请求与轮次终态 |
 | [context.py](../adam/context.py) | `ContextBuilder`、`RequestContext`、`ContextEstimate` | 按完整轮次选择连续历史后缀，估算输入、检查上限并提供来源记录；不改写原始消息 |
-| [history.py](../adam/history.py) | `HistoryTurn` | 存储与上下文共享的成功轮次身份和完整协议消息 |
+| [history.py](../adam/history.py) | `HistoryTurn`、`Summary` | 成功轮次及有效摘要的共享数据 |
+| [compaction.py](../adam/compaction.py) | `CompactionService`、`CompactionPlan` | 规划有界素材、无工具摘要、独立结算并提交；不修改原历史 |
+| [compaction_log.py](../adam/compaction_log.py) | `CompactionLog` | 校验摘要来源与状态，仅完整提交激活摘要；恢复不猜未知用量 |
 | [llm.py](../adam/llm.py) | `LLMClient`、`Completion` | 访问模型服务，将一次请求转换为模型消息和用量；模型消息也可能是工具请求 |
 | [protocol.py](../adam/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
 | [storage.py](../adam/storage.py) | `SessionStore`、`Session`、`Message` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
@@ -110,7 +120,7 @@ flowchart TD
 - **配置与执行：** 配置对象描述权限、额度和限制，各业务模块负责实际执行检查。
 - **失败处理：** 可反馈的工具错误交回模型；命令日志无法可靠保存等错误会终止本轮。已知失败实现 AgentError 契约，CLI 委托 terminal.show_failure 展示；终端 IO 故障和意外程序错误不会被当成业务失败吞掉。
 
-当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态、结束原因与耗时。独立开发诊断与持锁中断恢复已实现，真实进程强杀验收已完成，不计划增加轮次诊断聊天命令。上下文构造、预览与完整轮次选择已实现；摘要与流式响应尚未实现，不应在现有架构图中画成已接入的组件。
+当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态、结束原因与耗时。独立开发诊断与持锁中断恢复已实现，真实进程强杀验收已完成，不计划增加轮次诊断聊天命令。上下文构造、预览与完整轮次选择已实现；手动摘要已实现，自动压缩与流式响应尚未实现，不应在现有架构图中画成已接入的组件。
 
 ## 公开错误契约
 

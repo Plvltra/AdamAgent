@@ -4,6 +4,7 @@ import json
 from itertools import groupby
 from typing import Any
 
+from adam.compaction_log import CompactionLog
 from adam.history import HistoryTurn
 from adam.outcome import outcome_details
 from adam.protocol import validate_turn
@@ -83,6 +84,7 @@ class SessionLog:
         self.requests: dict[str, dict[str, Any]] = {}
         self.tools: dict[tuple[str, str], dict[str, Any]] = {}
         self.executions: dict[str, dict[str, Any]] = {}
+        self.compactions = CompactionLog()
         self.tokens = 0
         self._unknown_usage = False
         self._pending_turn = ""
@@ -91,8 +93,10 @@ class SessionLog:
     @property
     def unknown_usage(self) -> bool:
         """未知用量或未结算请求均阻止继续消费，不将缺失记录解释为零。"""
-        return self._unknown_usage or any(
-            not request["settled"] for request in self.requests.values()
+        return (
+            self._unknown_usage
+            or self.compactions.unknown_usage
+            or any(not request["settled"] for request in self.requests.values())
         )
 
     def extend(self, entries: list[dict[str, Any]], *, allow_pending: bool = False) -> None:
@@ -103,6 +107,10 @@ class SessionLog:
         allow_pending 仅用于恢复规划；未提交消息仍须通过结构及关联校验。
         """
         handlers = {
+            "compaction_started": self._apply_compaction,
+            "compaction_usage": self._apply_compaction,
+            "compaction_completed": self._apply_compaction,
+            "compaction_finished": self._apply_compaction,
             "turn_started": self._start_turn,
             "request_started": self._apply_request,
             "request_usage": self._apply_request,
@@ -154,6 +162,11 @@ class SessionLog:
                 list(key) for key, value in self.tools.items() if value["status"] == "in_progress"
             ],
             "uncommitted_messages": len(self._pending_messages),
+            **(
+                {"compaction_ids": self.compactions.pending_ids()}
+                if self.compactions.pending_ids()
+                else {}
+            ),
         }
 
     def _recover(self, kind: str, payload: dict[str, Any]) -> None:
@@ -174,9 +187,19 @@ class SessionLog:
             self.requests[request_id].update(details)
         for turn_id, call_id in targets["tool_keys"]:
             self.tools[(turn_id, call_id)].update(details)
+        self.compactions.recover(details)
         # 完整物理记录留在 events；无提交标记的消息不能成为成功历史。
         self._pending_messages = []
         self._pending_turn = ""
+
+    def _apply_compaction(self, kind: str, payload: dict[str, Any]) -> None:
+        """摘要使用独立操作，不伪造聊天；已知消费并入会话累计值。"""
+        owner = payload.get("turn_id")
+        if kind == "compaction_started" and owner is not None:
+            self._require_turn(payload)
+        before = self.compactions.tokens
+        self.compactions.apply(kind, payload, [turn.turn_id for turn in self.history_turns()])
+        self.tokens += self.compactions.tokens - before
 
     def _start_turn(self, kind: str, payload: dict[str, Any]) -> None:
         turn_id = self._identifier(payload, "turn_id")
@@ -217,13 +240,18 @@ class SessionLog:
         request["settled"] = True
 
     def _validate_context(self, context: object) -> None:
-        """选择记录须是已提交历史的连续后缀；旧请求可没有该字段。"""
+        """校验摘要覆盖前缀与未覆盖历史的连续后缀；旧请求可没有选择字段。"""
         if not isinstance(context, dict) or context.get("strategy") != "recent_turns_v1":
             raise ValueError("invalid context strategy")
         selected, omitted = context.get("selected_turn_ids"), context.get("omitted_turn_ids")
         if not isinstance(selected, list) or not isinstance(omitted, list):
             raise ValueError("invalid context ranges")
-        if omitted + selected != [turn.turn_id for turn in self.history_turns()]:
+        summary = self.compactions.summary
+        summary_id = context.get("summary_id")
+        covered = list(summary.covered_turn_ids) if summary_id is not None and summary else []
+        if summary_id is not None and (summary is None or summary.summary_id != summary_id):
+            raise ValueError("invalid context summary")
+        if covered + omitted + selected != [turn.turn_id for turn in self.history_turns()]:
             raise ValueError("invalid context sources")
         for key in ("estimated_input_tokens", "original_history_tokens"):
             if type(context.get(key)) is not int or context[key] < 0:

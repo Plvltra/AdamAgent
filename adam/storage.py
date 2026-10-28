@@ -15,7 +15,7 @@ from typing import Any, Self
 from filelock import FileLock, Timeout
 
 from adam.errors import AgentError, FailureCode
-from adam.history import HistoryTurn
+from adam.history import HistoryTurn, Summary
 from adam.outcome import ExecutionOutcome
 from adam.protocol import validate_turn
 from adam.session_log import (
@@ -189,10 +189,25 @@ class SessionStore:
         """按提交顺序返回完整成功轮次；不通过消息 ID 推测分组，不包含失败输入。"""
         return self._read_log(session_id).history_turns()
 
+    def load_summary(self, session_id: str) -> Summary | None:
+        """返回最近完整提交的摘要；失败或中断的候选摘要不生效。"""
+        return self._read_log(session_id).compactions.summary
+
+    def append_compaction_event(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:
+        """追加独立摘要操作；复用持锁、关联校验与失败回滚，不修改原消息。"""
+        if kind not in {
+            "compaction_started",
+            "compaction_usage",
+            "compaction_completed",
+            "compaction_finished",
+        }:
+            raise ValueError("invalid compaction event")
+        self._append(session_id, record(kind, payload))
+
     def usage(self, session_id: str) -> tuple[int, bool]:
         """返回 (已知累计 token 数, 是否存在未知用量或未结算请求)。
 
-        统计包含失败轮次的请求，不只统计已保存的成功对话。
+        统计包含失败轮次和独立摘要请求，不只统计已保存的成功对话。
         """
         _, _, tokens, unknown = self._read(session_id)
         return tokens, unknown

@@ -62,6 +62,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `/usage`：查看当前会话累计 token 与上限；统计不完整时显示说明，不发起模型请求。
 - `/context`：查看下一次请求的基础上下文组成与输入预算；不含尚未输入的新问题。
 - `/context full`：在概览下展开完整消息与工具说明，不请求模型、不修改会话；不是最近请求快照。
+- `/compact`：用当前模型摘要较早历史；一次最多一条无工具请求，计入消费，原始消息保留。
 - `/exit`、Ctrl+C 或输入结束：退出并释放会话锁。
 
 角色前缀使用加粗青色 `你>` 与加粗亮黄色 `Adam>`，正文保持终端默认颜色；恢复历史与未保存回答沿用同一样式。角色文字始终保留，避免仅靠颜色辨认。
@@ -131,7 +132,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 
 业务功能点测试集中在 `tests/features/`，按会话、启动配置、工具循环、执行轨迹、终端交互和命令执行组织，见 [功能测试导航](tests/features/README.md)。基础校验保留在 `tests/test_config.py`、`tests/test_llm_config.py`、`tests/test_storage.py`、`tests/test_llm.py` 和 `tests/test_tools.py`。
 自动化使用临时目录和假 HTTP，不调用付费模型；覆盖跨启动恢复、配置位置、JSONL 损坏、写入故障回滚、会话隔离与跨进程锁释放。假 HTTP 验证工程流程，不代替真实模型的选工具和回答效果评估。`tests/features/test_process_crash.py` 另用本地 TCP 服务与独立进程验证强杀：请求中、消息写入中、完整提交后三个边界均经过全新进程恢复。
-V1.3 的状态、诊断和恢复已验收，V2.1/V2.2 基础工具闭环已实现；V2.3 按用户决定跳过，保留选做。V3.1/V3.2 已实现构造、预览、输入预算和完整轮次选择；下一步是已确认的 V3.3 手动摘要及 V3.4 自动压缩。JavaScript 编排不是必做前置。
+V1.3 的状态、诊断和恢复已验收，V2.1/V2.2 基础工具闭环已实现；V2.3 按用户决定跳过，保留选做。V3.1/V3.2 已实现构造、预览、输入预算和完整轮次选择；V3.3 手动摘要已实现，下一步是 V3.4 旧工具结果缩减与自动压缩。JavaScript 编排不是必做前置。
 规划见 [练手 TODO](docs/agent-practice-todo.md) 和 [roadmap](docs/roadmap.md)。
 
 
@@ -179,11 +180,13 @@ fsmonitor和hooks，并拒绝配置了过滤器的status/diff。Git diff检查�
 [context]
 max_input_tokens = 32768
 safety_margin_tokens = 2048
+retain_recent_turns = 2
+summary_max_output_tokens = 2048
 ```
 
 检查条件为“系统提示 + 成功历史 + 当前轮次 + 工具说明”的估算 token，再加 2048 安全余量，不超过 32768。输出沿用 `agent.max_output_tokens`（默认 4096）另计；输入上限加输出预留需适配所选模型的窗口，本版不自动查询模型容量。此预算独立于累计消费，不随 `/model` 自动变化。
 
-每次模型请求前重新检查，工具结果加入后同样生效。超限会保留失败输入与原因 `context_input_limit`，不发送该请求、不新增未知用量；仅省略完整旧轮次，不截断系统提示或当前轮次。估算采用紧凑 JSON 的 UTF-8 字节长度，并非精确 tokenizer 或账单。操作示例与限制见 [上下文管理](docs/context-management.md)。
+每次模型请求前重新检查，工具结果加入后同样生效。超限会保留失败输入与原因 `context_input_limit`，不发送该请求、不新增未知用量；仅省略未受保护的完整旧轮次，不截断系统提示、当前轮次和最近保留轮次。估算采用紧凑 JSON 的 UTF-8 字节长度，并非精确 tokenizer 或账单。操作示例与限制见 [上下文管理](docs/context-management.md)。
 
 终端显示执行的工具名称，默认不逐次打印用量；输入 `/usage` 查看会话累计值。隐藏显示不影响持久记账、额度限制或超限提示。
 

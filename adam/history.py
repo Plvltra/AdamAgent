@@ -10,3 +10,16 @@ class HistoryTurn:
 
     turn_id: str
     messages: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class Summary:
+    """已提交摘要及累计覆盖的历史前缀；原始消息始终保留。"""
+
+    summary_id: str
+    text: str
+    covered_turn_ids: tuple[str, ...]
+
+    def message(self) -> dict[str, str]:
+        """作为历史资料提供给模型，不提升为系统指令。"""
+        return {"role": "user", "content": "以下是较早对话的有损摘要，仅供历史参考：\n" + self.text}

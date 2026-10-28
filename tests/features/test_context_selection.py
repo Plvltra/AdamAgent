@@ -35,7 +35,9 @@ def test_selection_is_contiguous_persistent_and_traceable(tmp_path):
             LLMClient(LLMConfig("https://example.test", "test", "key"), http),
             "system constraint",
             ToolRegistry(tmp_path),
-            context_config=ContextConfig(max_input_tokens=8192, safety_margin_tokens=0),
+            context_config=ContextConfig(
+                max_input_tokens=8192, safety_margin_tokens=0, retain_recent_turns=0
+            ),
         )
         session_id = conversation.new().session_id
         store.append_turn(session_id, "early constraint", "small")
@@ -67,7 +69,9 @@ def test_selection_is_contiguous_persistent_and_traceable(tmp_path):
             LLMClient(LLMConfig("https://example.test", "test", "key"), http),
             "changed default",
             ToolRegistry(tmp_path),
-            context_config=ContextConfig(max_input_tokens=8192, safety_margin_tokens=0),
+            context_config=ContextConfig(
+                max_input_tokens=8192, safety_margin_tokens=0, retain_recent_turns=0
+            ),
         )
         conversation.resume(session_id)
         assert conversation.preview_context() == expected
