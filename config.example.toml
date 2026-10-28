@@ -8,6 +8,8 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 [agent]
 max_model_requests = 8
 max_tool_calls = 16
+# 每轮专用编辑工具的尝试次数；参数错误和冲突也计数。
+max_edit_attempts = 3
 max_session_tokens = 50000
 max_output_tokens = 4096
 

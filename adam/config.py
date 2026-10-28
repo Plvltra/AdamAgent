@@ -110,6 +110,7 @@ class AgentConfig:
     max_tool_calls: int = 16
     max_session_tokens: int = 50000
     max_output_tokens: int = 4096
+    max_edit_attempts: int = 3
 
 
 @dataclass(frozen=True)

@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：V4.1c 模型编辑工具、独立编辑状态、拒绝即停止及真实进程中断恢复。
+本次核对范围：V4.2a 每轮编辑尝试限额与真实命令反馈闭环。
 
-核对结论：Registry 已注册 replace_text，ToolExecutor 记录编辑边界并在拒绝后停止；SessionLog 委托 EditLog 校验状态。未知命令/编辑阻止续聊和手动摘要，恢复不重做。
+核对结论：模块结构不变；Conversation 为每轮创建 ToolBudget，ToolExecutor 在派发前消费编辑额度，跨批共用，错误也计数。通用命令结果由模型解释，不引入项目专用测试工具。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -44,7 +44,7 @@ flowchart TD
     CONV --> LLM["llm.py<br/>访问模型服务"]
     CLI -->|"查询模型目录"| LLM
     LLM --> API["远端 LLM"]
-    CONV --> EXEC["tool_calls/executor.py<br/>组织工具执行并记录轨迹"]
+    CONV --> EXEC["tool_calls/executor.py<br/>工具额度、执行与轨迹"]
     CONV -->|"获取工具说明"| REG["tool_calls/registry.py<br/>工具目录、参数校验与分派"]
     EXEC --> REG
     REG --> TOOLS["file_tools.py / git_tools.py / command_tools.py / edit_tools.py<br/>具体执行能力"]
@@ -117,7 +117,7 @@ flowchart TD
 | [storage.py](../adam/storage.py) | `SessionStore`、`Session`、`Message` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
 | [edit_log.py](../adam/edit_log.py) | `EditLog` | 编辑状态纯投影；未开始计划恢复为 not_started，写入未知结果不猜测 |
 | [session_log.py](../adam/session_log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，重建状态、有效历史及用量，规划并回放恢复事件；自身不访问文件 |
-| [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor` | 组织工具执行，将轨迹关联到轮次与请求，并形成回传模型的工具消息 |
+| [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor`、`ToolBudget` | 编辑尝试计数、组织工具执行，将轨迹关联到轮次与请求，并形成回传模型的工具消息 |
 | [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，校验参数、分派调用并统一结果格式 |
 | [tool_calls/text_file.py](../adam/tool_calls/text_file.py) | `TextSnapshot`、`read_snapshot` | 同一次读取的完整字节、UTF-8 文本和版本 |
 | [tool_calls/edit_tools.py](../adam/tool_calls/edit_tools.py) | `EditTools` | 规划前检查写入权限，批准后复查版本，以同目录临时文件替换；不提供跨程序事务 |

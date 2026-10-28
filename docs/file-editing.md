@@ -35,6 +35,7 @@ EditTools.prepare 校验独立写权限并返回计划；replace_text 将这个�
 模型调用 `replace_text(path, old_text, new_text, expected_version)`。CLI 注入逐次 diff 确认，工具参数仍经过统一 Schema 校验。模型读取和修改之间版本不一致即拒绝生成计划；批准后冲突返回 conflict，模型需重新读取。
 
 日志沿用 v4 扩展，旧 v4 仍可读取，旧程序不保证读取新编辑事件：
+
 - edit_planned：父轮次、请求、工具与 edit_id，完整 diff、路径、原版本和目标版本；表示候选修改，尚未批准或写入。
 - edit_started：批准已取得，开始记录成功后才进入文件写入；此后无结束事件就保持 unknown。
 - edit_finished：applied / denied / conflict / failed、耗时和受控错误；applied 的 after_version 必须等于计划目标。
@@ -44,5 +45,13 @@ EditTools.prepare 校验独立写权限并返回计划；replace_text 将这个�
 拒绝命令或编辑后，拒绝结果先落盘，然后终止本轮剩余工具及模型请求；这取代此前“拒绝命令后继续请求模型”的行为。此前动作保留，不自动回滚。下一条用户输入可以继续。
 
 四个真实子进程强杀边界：计划后、开始后、替换后但结果未存、结果已存但轮次未提交。新进程恢复验证文件字节、状态、用量、备份和不重做；这些测试使用本地 HTTP，不消耗模型费用。
+
+## V4.2a：有限修正（已实现）
+
+`[agent].max_edit_attempts = 3` 默认限制每轮专用 replace_text 尝试。派发前占额度，参数错误、版本冲突和失败均计数；第四次不写 tool_started、不确认、不修改，整轮以 edit_limit 停止。已完成的修改保留，新输入重新计数。模型请求、总工具次数和会话 token 限制同时有效。
+
+这不是“最多修复三个 bug”，也不限制获批通用命令内部写了几次文件。通用命令仍拥有当前账户权限。程序无法从任意命令的退出码推断项目测试语义；模型读取输出决定继续修改或回答，程序负责硬性额度、确认和未知结果的停止。
+
+`tests/features/test_repair_loop.py` 用假模型调用真实本地 Python 检查：首次断言失败，读取失败输出后提出 diff，获批修改，重测得到退出 0 和预期输出；拒绝则停止。另验证连续失败/成功修改达到限额，以及同批、跨请求和下一轮重置。
 
 验收入口：[文件编辑业务测试](../tests/features/test_file_editing.py)。覆盖中文、引号、BOM、LF/CRLF、版本失效、无副作用失败及 diff。

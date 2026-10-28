@@ -134,7 +134,17 @@ def test_example_config_is_loadable(tmp_path):
     (tmp_path / "llm.toml").write_text(LLM, encoding="utf-8")
     config = load_config(main)
     assert config.tool_limits.max_read_lines > 0
+    assert config.agent.max_edit_attempts == 3
     assert config.permissions.additional_read_dirs == ()
+
+
+@pytest.mark.parametrize("value", ["0", "true", "-1"])
+def test_invalid_edit_attempt_limit(tmp_path, value):
+    main = tmp_path / "config.toml"
+    main.write_text(f"[agent]\nmax_edit_attempts={value}", encoding="utf-8")
+    (tmp_path / "llm.toml").write_text(LLM, encoding="utf-8")
+    with pytest.raises(ConfigError, match="max_edit_attempts"):
+        load_config(main)
 
 
 def test_unknown_field_is_reported_without_value(tmp_path):

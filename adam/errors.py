@@ -15,6 +15,7 @@ class FailureCode(StrEnum):
     BUDGET_EXHAUSTED = "budget_exhausted"
     REQUEST_LIMIT = "request_limit"
     TOOL_LIMIT = "tool_limit"
+    EDIT_LIMIT = "edit_limit"
     SESSION_TOKEN_LIMIT = "session_token_limit"
     CONTEXT_INPUT_LIMIT = "context_input_limit"
     USAGE_UNKNOWN = "usage_unknown"

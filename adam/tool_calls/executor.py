@@ -3,12 +3,29 @@
 import json
 import secrets
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
-from adam.errors import ApprovalDeniedError, EditLogError
+from adam.errors import ApprovalDeniedError, BudgetError, EditLogError, FailureCode
 from adam.storage import SessionStore, StorageError
 from adam.tool_calls.command_tools import CommandLogError
 from adam.tool_calls.registry import ToolRegistry
+
+
+@dataclass
+class ToolBudget:
+    """单轮专用编辑额度；每次派发前占用，参数错误或写入失败也不退还。"""
+
+    max_edit_attempts: int
+    edit_attempts: int = 0
+
+    def consume(self, name: str) -> None:
+        """超限时在开始记录、确认与文件操作之前停止；普通工具不消耗编辑额度。"""
+        if name != "replace_text":
+            return
+        if self.edit_attempts >= self.max_edit_attempts:
+            raise BudgetError("达到本轮编辑尝试次数上限。", code=FailureCode.EDIT_LIMIT)
+        self.edit_attempts += 1
 
 
 class ToolExecutor:
@@ -30,15 +47,18 @@ class ToolExecutor:
         turn_id: str,
         request_id: str,
         calls: list[dict[str, Any]],
+        budget: ToolBudget,
     ) -> list[dict[str, Any]]:
         """串行执行 calls，返回与调用 ID 配对的 tool 消息。
 
         turn_id 和 request_id 指向产生这些工具调用的轮次与模型请求。
+        budget 在同轮各批工具间共用，编辑超限时保留先前已执行结果并停止。
         开始记录写入后才执行，结果落盘后才返回；存储错误通过 AgentError 契约向上抛，
         禁止模型在执行轨迹无法保存时继续行动；拒绝结果保存后立即停止本批和本轮。
         """
         results = []
         for call in calls:
+            budget.consume(call["function"]["name"])
             link = {
                 "turn_id": turn_id,
                 "request_id": request_id,

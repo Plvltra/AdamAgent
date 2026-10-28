@@ -15,7 +15,7 @@ from adam.llm import Completion, LLMClient, LLMError
 from adam.outcome import ExecutionOutcome
 from adam.storage import Session, SessionStore, StorageError
 from adam.tool_calls import ToolRegistry
-from adam.tool_calls.executor import ToolExecutor
+from adam.tool_calls.executor import ToolBudget, ToolExecutor
 
 
 @dataclass
@@ -119,6 +119,7 @@ class Conversation:
         seen_call_ids: set[str] = set()
 
         progress = TurnProgress()
+        tool_budget = ToolBudget(self.limits.max_edit_attempts)
         while progress.model_requests < self.limits.max_model_requests:
             context = self._prepare_context(session, turn_id, turn, progress)
             request_id, result = self._request_with_usage(session.session_id, turn_id, context)
@@ -131,7 +132,11 @@ class Conversation:
             self._check_tool_budget(
                 session.session_id, progress.model_requests - 1, calls, seen_call_ids
             )
-            turn.extend(self.tool_executor.execute(session.session_id, turn_id, request_id, calls))
+            turn.extend(
+                self.tool_executor.execute(
+                    session.session_id, turn_id, request_id, calls, tool_budget
+                )
+            )
             seen_call_ids.update(call["id"] for call in calls)
 
         raise BudgetError("达到本轮请求上限。", code=FailureCode.REQUEST_LIMIT)
