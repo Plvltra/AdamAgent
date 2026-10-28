@@ -72,8 +72,9 @@ class Conversation:
         回答生成后保存失败为携带 partial_reply 的 TurnSaveError。
         请求与轮次分别收尾，保存稳定原因码和单调时钟耗时；原始异常继续传播。
         轮次耗时从输入登记完成算到终态生成，包含工具及中间落盘，不含终态自身写入。
-        工具诊断写入失败或未知命令状态为 StorageError；命令日志写入或关联失败
-        为 CommandLogError，均停止本轮。意外的程序错误继续向上传播。
+        工具诊断写入失败或未知副作用为 StorageError；命令/编辑日志失败
+        为 CommandLogError / EditLogError；用户拒绝为 ApprovalDeniedError，均停止本轮。
+        意外的程序错误继续向上传播。
         """
         session = self.session or self.new(text[:40])
         turn_id = self.store.start_turn(session.session_id, text)
@@ -93,6 +94,7 @@ class Conversation:
         if self.session is None:
             self.notify("没有当前会话，无需摘要。")
             return None
+        self._check_execution_state(self.session.session_id)
         summary = self._compact(self.session)
         if summary is None:
             self.notify("没有可摘要的旧轮次。")
@@ -112,13 +114,7 @@ class Conversation:
 
     def _run_turn(self, session: Session, turn_id: str, text: str, started_ns: int) -> str:
         """运行已登记轮次；started_ns 为本进程计时起点，完整消息提交成功后才返回。"""
-        if any(
-            item["status"] == "unknown" for item in self.store.load_executions(session.session_id)
-        ):
-            raise StorageError(
-                "会话有结果未知的命令执行；请检查执行记录并新建会话，不自动重跑。",
-                code=FailureCode.EXECUTION_UNKNOWN,
-            )
+        self._check_execution_state(session.session_id)
         turn: list[dict[str, Any]] = [{"role": "user", "content": text}]
         seen_call_ids: set[str] = set()
 
@@ -139,6 +135,15 @@ class Conversation:
             seen_call_ids.update(call["id"] for call in calls)
 
         raise BudgetError("达到本轮请求上限。", code=FailureCode.REQUEST_LIMIT)
+
+    def _check_execution_state(self, session_id: str) -> None:
+        """命令或文件修改结果未知时禁止继续调用模型；只读诊断仍可使用。"""
+        operations = self.store.load_executions(session_id) + self.store.load_edits(session_id)
+        if any(item["status"] == "unknown" for item in operations):
+            raise StorageError(
+                "会话有结果未知的命令或文件修改；请检查记录并新建会话，不自动重做。",
+                code=FailureCode.EXECUTION_UNKNOWN,
+            )
 
     def _prepare_context(
         self, session: Session, turn_id: str, turn: list[dict[str, Any]], progress: TurnProgress

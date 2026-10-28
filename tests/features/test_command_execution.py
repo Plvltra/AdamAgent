@@ -181,15 +181,23 @@ def test_cli_model_tool_loop_and_restore(project, tmp_path, decision):
         client = LLMClient(LLMConfig("https://example.test", "test", "secret"), http)
         shown = []
         chat(client, "", store, read=lambda _: next(inputs), write=shown.append, workspace=project)
-    returned = json.loads(payloads[1]["messages"][-1]["content"])
-    assert returned["status"] == ("completed" if decision == "y" else "denied")
+    expected = "completed" if decision == "y" else "denied"
+    assert len(payloads) == (2 if decision == "y" else 1)
+    if decision == "y":
+        assert json.loads(payloads[1]["messages"][-1]["content"])["status"] == expected
+    else:
+        assert any("本轮已停止" in line for line in shown)
     with SessionStore(tmp_path / "sessions") as store:
         session = store.list_sessions()[0]
         executions = store.load_executions(session.session_id)
         assert len(executions) == 1
-        assert executions[0]["status"] == returned["status"]
+        assert executions[0]["status"] == expected
         assert executions[0]["tool_call_id"] == "command1"
-        assert store.load_messages(session.session_id)[-1].content == "Command completed."
+        history = store.load_messages(session.session_id)
+        if decision == "y":
+            assert history[-1].content == "Command completed."
+        else:
+            assert history == []
 
 
 def test_execution_survives_later_model_failure(project, tmp_path):
@@ -314,8 +322,9 @@ def test_approval_controls_actual_file_side_effect(project, tmp_path, decision):
     assert marker.exists() is (decision == "y")
     if decision == "y":
         assert marker.read_text(encoding="utf-8") == "executed"
-    result = json.loads(payloads[1]["messages"][-1]["content"])
-    assert result["status"] == execution["status"]
+    assert len(payloads) == (2 if decision == "y" else 1)
+    if decision == "y":
+        assert json.loads(payloads[1]["messages"][-1]["content"])["status"] == "completed"
 
 
 def test_finished_command_log_failure_blocks_reexecution(project, tmp_path, monkeypatch):

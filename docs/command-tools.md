@@ -16,7 +16,7 @@
 - cwd 默认启动工作目录，可以指定其他目录；终端展示绝对目录并逐次确认。
 - shell=False，不隐式解释管道和重定向；需要时显式调用 powershell.exe、cmd.exe 等。
 - tool_limits.command_timeout_seconds 默认 30 秒，也是单次请求的最大超时。
-- 只有输入 y 才执行。状态区分 completed、denied、timed_out、start_failed。
+- 只有输入 y 才执行。状态区分 completed、denied、timed_out、start_failed。拒绝结果落盘后停止本轮剩余工具及模型请求；下一条用户输入可继续。
 - completed/ok 表示进程正常结束，业务是否成功还须结合 exit_code/stdout/stderr。
 - 输出受 max_result_chars 限制，裁剪时保留状态和退出码，持续排空 stdout/stderr。
 - 只继承基础环境变量，使用 UTF-8；其他变量可在显式启动的脚本内设置。参数和输出会被记录，勿放入密钥。
@@ -33,5 +33,5 @@
 
 本工具属于 V4.2 提前完成的基础能力，不表示 V1.3、V2.3 或 V4 整阶段完成。
 自动化覆盖本地进程与模拟模型闭环；用户已反馈成功、拒绝、失败三种真实模型回答，
-文件编辑与修改后重跑测试闭环尚未实现。V1.3 和 V3 已完成工程验收，V2.3 固定评估仍跳过。
+V4.1 文件编辑已实现，修改后重跑测试及最终事实报告仍在 V4.2 推进。V1.3 和 V3 已完成工程验收，V2.3 固定评估仍跳过。
 后续按 V4.1a 修改计划、V4.1b 确认写入、V4.1c 模型接入与留痕、V4.2a 有限修正、V4.2b 整体验收推进；通用命令继续复用，完整任务状态见 [练手 TODO](agent-practice-todo.md)。

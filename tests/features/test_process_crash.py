@@ -30,12 +30,35 @@ def local_api():
             arrived.set()
             if control["hold_response"]:
                 release.wait(20)
+            message = {"role": "assistant", "content": "network answer"}
+            if "edit_file" in control:
+                name, arguments = "read_file", {"path": control["edit_file"]}
+                if len(calls) == 2:
+                    name = "replace_text"
+                    arguments.update(
+                        old_text="old",
+                        new_text="new",
+                        expected_version=json.loads(calls[-1]["messages"][-1]["content"])[
+                            "version"
+                        ],
+                    )
+                message = {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": f"edit-chain-{len(calls)}",
+                            "type": "function",
+                            "function": {"name": name, "arguments": json.dumps(arguments)},
+                        }
+                    ],
+                }
             body = json.dumps(
                 {
                     "choices": [
                         {
-                            "finish_reason": "stop",
-                            "message": {"role": "assistant", "content": "network answer"},
+                            "finish_reason": "tool_calls" if message.get("tool_calls") else "stop",
+                            "message": message,
                         }
                     ],
                     "usage": {"prompt_tokens": 5, "completion_tokens": 2},
@@ -225,3 +248,58 @@ def test_summary_process_kill_and_restart(tmp_path, local_api, phase):
         assert [item.read_bytes() for item in path.parent.glob("*.bak")] == [before_restart]
     if phase == "compact_request":
         assert result["blocked"]
+
+
+@pytest.mark.parametrize(
+    "phase,status,changed",
+    [
+        ("edit_plan", "not_started", False),
+        ("edit_started", "unknown", False),
+        ("edit_after_replace", "unknown", True),
+        ("edit_committed", "applied", True),
+    ],
+)
+def test_edit_process_kill_and_restart(tmp_path, local_api, phase, status, changed):
+    """真实请求经读取与编辑后强杀；新进程恢复不能猜测替换是否完成。"""
+    url, arrived, calls, control = local_api
+    target = tmp_path / "sample.txt"
+    target.write_bytes(b"old\n")
+    control["edit_file"] = str(target)
+    root, ready = tmp_path / "sessions", tmp_path / "ready"
+    with SessionStore(root) as store:
+        session_id = store.create_session("edit crash", "")
+    path = next(root.rglob("*.jsonl"))
+    project = Path(__file__).resolve().parents[2]
+    worker = Path(__file__).parent / "support" / "crash_worker.py"
+    env = {**os.environ, "PYTHONPATH": str(project), "PYTHONIOENCODING": "utf-8"}
+    args = [sys.executable, str(worker), "run", str(root), session_id, url, phase, str(ready)]
+    options = dict(
+        cwd=project,
+        env=env,
+        text=True,
+        encoding="utf-8",
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **options)
+    try:
+        wait_for_boundary(process, ready, arrived, phase)
+        process.kill()
+        process.communicate(timeout=5)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.communicate(timeout=5)
+    before_restart = path.read_bytes()
+    assert target.read_bytes() == (b"new\n" if changed else b"old\n")
+    args[2] = "resume"
+    restarted = subprocess.run(args, capture_output=True, timeout=15, **options)
+    assert restarted.returncode == 0, restarted.stderr
+    result = json.loads(restarted.stdout)
+    report = result["report"]
+    assert report["turns"][0]["edits"][0]["status"] == status
+    assert report["turns"][0]["status"] == "interrupted"
+    assert result["history"] == [] and not report["unknown_usage"]
+    assert result["blocked"] is (status == "unknown")
+    assert len(calls) == 2 and report["known_tokens"] == 14
+    assert target.read_bytes() == (b"new\n" if changed else b"old\n")
+    assert [item.read_bytes() for item in path.parent.glob("*.bak")] == [before_restart]

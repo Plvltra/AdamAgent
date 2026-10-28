@@ -6,6 +6,7 @@ import tempfile
 from collections.abc import Callable
 from hashlib import sha256
 from pathlib import Path
+from time import monotonic_ns
 from typing import Any
 
 from adam.tool_calls.edit_plan import EditConflictError, EditPlan, plan_edit
@@ -35,18 +36,52 @@ class EditTools:
             self.limits.max_text_file_bytes,
         )
 
-    def replace_text(self, args: dict[str, Any]) -> dict[str, Any]:
-        """只执行明确批准的计划；未提供确认回调时拒绝，返回实际执行状态。"""
+    def replace_text(
+        self, args: dict[str, Any], record: Callable[[str, dict[str, Any]], None] | None = None
+    ) -> dict[str, Any]:
+        """记录计划后确认；开始记录成功才写入，结果记录成功才回传。
+
+        没有确认回调则拒绝。编辑日志失败向上传播，未知结果不标记失败或自动重试。
+        本地组件可不传 recorder；模型执行由 ToolExecutor 提供持久化回调。
+        """
         plan = self.prepare(args)
-        if self.confirm is None or not self.confirm(plan):
-            return {"status": "denied", "path": str(plan.path)}
-        self.apply(plan)
-        return {
-            "status": "applied",
+        target_version = sha256(plan.candidate).hexdigest()
+        details = {
             "path": str(plan.path),
             "before_version": plan.before_version,
-            "after_version": sha256(plan.candidate).hexdigest(),
+            "target_version": target_version,
+            "diff": plan.diff,
         }
+        if record:
+            record("edit_planned", details)
+        started = monotonic_ns()
+        result: dict[str, Any] = {"path": str(plan.path), "after_version": None, "error": None}
+        if self.confirm is None or not self.confirm(plan):
+            result["status"] = "denied"
+        else:
+            # 文件和日志不是一个事务；开始后未记录结束时一律保留 unknown。
+            if record:
+                record("edit_started", {})
+            try:
+                self.apply(plan)
+            except ToolError as error:
+                result.update(
+                    status="conflict" if isinstance(error, EditConflictError) else "failed",
+                    ok=False,
+                    error=str(error),
+                )
+                if record is None:
+                    raise
+            else:
+                result.update(
+                    status="applied",
+                    before_version=plan.before_version,
+                    after_version=target_version,
+                )
+        result["duration_ms"] = max(0, (monotonic_ns() - started) // 1_000_000)
+        if record:
+            record("edit_finished", result)
+        return result
 
     def apply(self, plan: EditPlan) -> None:
         """写入已批准的计划；冲突或替换前 IO 失败保留原文件。

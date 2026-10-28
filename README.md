@@ -132,7 +132,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 
 业务功能点测试集中在 `tests/features/`，按会话、启动配置、工具循环、执行轨迹、终端交互和命令执行组织，见 [功能测试导航](tests/features/README.md)。基础校验保留在 `tests/test_config.py`、`tests/test_llm_config.py`、`tests/test_storage.py`、`tests/test_llm.py` 和 `tests/test_tools.py`。
 自动化使用临时目录和假 HTTP，不调用付费模型；覆盖跨启动恢复、配置位置、JSONL 损坏、写入故障回滚、会话隔离与跨进程锁释放。假 HTTP 验证工程流程，不代替真实模型的选工具和回答效果评估。`tests/features/test_process_crash.py` 另用本地 TCP 服务与独立进程验证强杀：请求中、消息写入中、完整提交后三个边界均经过全新进程恢复。
-V1.3 的状态、诊断和恢复已验收，V2.1/V2.2 基础工具闭环已实现；V2.3 按用户决定跳过，保留选做。V3.1～V3.4 已完成构造、预览、输入预算、整轮选择、手动摘要及自动压缩，并通过离线工程验收。下一主练习是 V4.1 可核对的文件修改。
+V1.3 的状态、诊断和恢复已验收，V2.1/V2.2 基础工具闭环已实现；V2.3 按用户决定跳过，保留选做。V3.1～V3.4 已完成构造、预览、输入预算、整轮选择、手动摘要及自动压缩，并通过离线工程验收。V4.1 文件修改已实现；下一步是 V4.2 的有限编辑与执行事实报告。
 上下文压力达到配置阈值时，只缩减较旧工具结果的请求副本，保留来源、状态和错误；近期轮次及原始 JSONL 不变。JavaScript 编排不是必做前置。
 规划见 [练手 TODO](docs/agent-practice-todo.md) 和 [roadmap](docs/roadmap.md)。
 
@@ -165,6 +165,12 @@ Git需要普通仓库根目录，不支持worktree或外部共享对象目录；
 fsmonitor和hooks，并拒绝配置了过滤器的status/diff。Git diff检查已跟踪文件的路径权限，
 仓库包含被禁止读取的文件时拒绝diff。Git通过参数列表调用，无Shell拼接；每个查询有超时，
 输出写临时文件后限量读取，不把无限输出载入内存。Git提交说明本身仍可能包含用户写入的敏感文字。
+
+## 文件修改
+
+`replace_text` 修改已有 UTF-8 文件的一处精确匹配；模型先通过 read_file 获取版本，用户逐次确认完整 diff 后才写入。独立写授权位于 permissions.additional_write_dirs，默认工作目录；版本冲突要求重新读取，原编码 BOM/换行形式保留。
+
+拒绝命令或编辑会停止本轮；写入结果未知时阻止续聊和手动摘要，不自动重做。使用和故障行为见 [文件修改与验证](docs/file-editing.md)。
 
 ## 预算
 

@@ -5,6 +5,7 @@ from itertools import groupby
 from typing import Any
 
 from adam.compaction_log import CompactionLog
+from adam.edit_log import EditLog
 from adam.history import HistoryTurn
 from adam.outcome import outcome_details
 from adam.protocol import validate_turn
@@ -85,6 +86,7 @@ class SessionLog:
         self.tools: dict[tuple[str, str], dict[str, Any]] = {}
         self.executions: dict[str, dict[str, Any]] = {}
         self.compactions = CompactionLog()
+        self.edits = EditLog()
         self.tokens = 0
         self._unknown_usage = False
         self._pending_turn = ""
@@ -118,6 +120,9 @@ class SessionLog:
             "turn_finished": self._finish_turn,
             "tool_started": self._apply_tool,
             "tool_finished": self._apply_tool,
+            "edit_planned": self._apply_edit,
+            "edit_started": self._apply_edit,
+            "edit_finished": self._apply_edit,
             "command_started": self._apply_command,
             "command_finished": self._apply_command,
             "command_denied": self._apply_command,
@@ -162,6 +167,7 @@ class SessionLog:
                 list(key) for key, value in self.tools.items() if value["status"] == "in_progress"
             ],
             "uncommitted_messages": len(self._pending_messages),
+            **({"edit_ids": self.edits.pending_ids()} if self.edits.pending_ids() else {}),
             **(
                 {"compaction_ids": self.compactions.pending_ids()}
                 if self.compactions.pending_ids()
@@ -188,6 +194,7 @@ class SessionLog:
         for turn_id, call_id in targets["tool_keys"]:
             self.tools[(turn_id, call_id)].update(details)
         self.compactions.recover(details)
+        self.edits.recover()
         # 完整物理记录留在 events；无提交标记的消息不能成为成功历史。
         self._pending_messages = []
         self._pending_turn = ""
@@ -335,6 +342,7 @@ class SessionLog:
                 "finished": False,
                 "status": "in_progress",
                 "execution_id": None,
+                "edit_id": None,
             }
             return
         tool = self._require_tool(payload)
@@ -343,7 +351,29 @@ class SessionLog:
         execution_id = tool["execution_id"]
         if execution_id is not None and self.executions[execution_id]["status"] == "unknown":
             raise ValueError("command has no final result")
+        edit_id = tool.get("edit_id")
+        if edit_id is not None and self.edits.operations[edit_id]["status"] in {
+            "planned",
+            "unknown",
+        }:
+            raise ValueError("edit has no final result")
         tool.update(output=payload["output"], finished=True, status="finished")
+
+    def _apply_edit(self, kind: str, payload: dict[str, Any]) -> None:
+        """编辑事件只能属于已开始的 replace_text；具体状态由 EditLog 校验。"""
+        self._require_turn(payload)
+        self._require_request(payload)
+        tool = self._require_tool(payload)
+        if tool["name"] != "replace_text" or tool["finished"]:
+            raise ValueError("invalid edit parent")
+        edit_id = self._identifier(payload, "edit_id")
+        if kind == "edit_planned":
+            if tool.get("edit_id") is not None:
+                raise ValueError("duplicate edit for tool")
+        elif tool.get("edit_id") != edit_id:
+            raise ValueError("mismatched edit id")
+        self.edits.apply(kind, payload)
+        tool["edit_id"] = edit_id
 
     def _apply_command(self, kind: str, payload: dict[str, Any]) -> None:
         """命令事件属于已开始的 run_command 工具；缺少结束事件时保持 unknown。"""

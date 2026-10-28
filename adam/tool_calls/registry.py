@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from adam.tool_calls.command_tools import CommandRequest, CommandTools, ExecutionRecorder
+from adam.tool_calls.edit_plan import EditPlan
+from adam.tool_calls.edit_tools import EditTools
 from adam.tool_calls.file_tools import FileTools
 from adam.tool_calls.git_tools import GitTools
 from adam.tool_calls.policy import PathPolicy, PermissionConfig, ToolError, ToolLimits
@@ -30,6 +32,16 @@ def schema(
 
 PATH = ("string", "文件或目录路径；相对路径以工作目录为基准，绝对路径须已授权")
 SPECS = {
+    "replace_text": schema(
+        "修改已有UTF-8文件的一处精确匹配。先read_file取得version，用户确认diff后才写入；拒绝后停止。",
+        {
+            "path": PATH,
+            "old_text": ("string", "唯一匹配的旧文本，不能为空"),
+            "new_text": ("string", "替换文本，可为空"),
+            "expected_version": ("string", "read_file返回的完整文件version，必须原样传回"),
+        },
+        ["path", "old_text", "new_text", "expected_version"],
+    ),
     "run_command": {
         "description": "执行通用程序及参数，需用户逐次确认。支持脚本、Git、构建等命令；"
         "不隐式解释 shell 语法。读取 exit_code/stdout/stderr 判断结果，拒绝后不要重复请求。",
@@ -105,10 +117,12 @@ class ToolRegistry:
         limits: ToolLimits | None = None,
         *,
         confirm_command: Callable[[CommandRequest], bool] | None = None,
+        confirm_edit: Callable[[EditPlan], bool] | None = None,
     ) -> None:
         self.policy = PathPolicy(workspace, permissions or PermissionConfig())
         self.limits = limits or ToolLimits()
         self.commands = CommandTools(self.policy, self.limits, confirm_command)
+        self.edits = EditTools(self.policy, self.limits, confirm_edit)
         files = FileTools(self.policy, self.limits)
         git = GitTools(self.policy, self.limits)
         self._handlers: dict[str, Callable[[Path, dict[str, Any]], dict[str, Any]]] = {
@@ -129,12 +143,17 @@ class ToolRegistry:
         ]
 
     def execute(
-        self, name: str, arguments: str, *, record_execution: ExecutionRecorder | None = None
+        self,
+        name: str,
+        arguments: str,
+        *,
+        record_execution: ExecutionRecorder | None = None,
+        record_edit: ExecutionRecorder | None = None,
     ) -> str:
         """校验 JSON 参数并执行工具，返回有界 JSON 字符串；工具错误作为结果回传。
 
-        record_execution 接收命令状态事件，普通只读工具忽略该参数。
-        CommandLogError 不转换为普通工具结果，调用方应停止本轮以免自动重试。
+        record_execution 和 record_edit 接收命令与编辑事件，只读工具忽略这些参数。
+        CommandLogError / EditLogError 不转换为普通结果，调用方应停止以免自动重试。
         """
         try:
             if name not in SPECS:
@@ -149,11 +168,12 @@ class ToolRegistry:
             for key, value in args.items():
                 if type(value) is not types[params["properties"][key]["type"]]:
                     raise ToolError(f"参数 {key} 类型错误。")
-            result = (
-                self.commands.run_command(args, record_execution)
-                if name == "run_command"
-                else self._handlers[name](self.policy.resolve(args["path"]), args)
-            )
+            if name == "run_command":
+                result = self.commands.run_command(args, record_execution)
+            elif name == "replace_text":
+                result = self.edits.replace_text(args, record_edit)
+            else:
+                result = self._handlers[name](self.policy.resolve(args["path"]), args)
             output = {"ok": True, **result}
         except (ToolError, OSError, ValueError, subprocess.SubprocessError) as error:
             # 操作系统异常可能包含敏感路径；只回传已控制的业务提示。
@@ -173,6 +193,7 @@ class ToolRegistry:
                 {
                     "ok": output["ok"],
                     **({"version": output["version"]} if "version" in output else {}),
+                    **({"status": output["status"]} if "status" in output else {}),
                     "truncated": True,
                     "preview": preview,
                     "hint": "请缩小范围或分段读取。",

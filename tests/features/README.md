@@ -1,6 +1,6 @@
 # 业务功能测试任务
 
-更新日期：2026-10-28
+更新日期：2026-10-29
 
 这里按用户可见的能力组织自动化验收。功能模块改名后，仍能按“会话恢复”“命令执行”等业务名称找到对应测试。每个文件包含可独立运行的 pytest 场景；参数化场景展开为多个用例。
 
@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| V4.1c 模型编辑与恢复 | 真实工具闭环、拒绝停止、日志失败与伪造关联拒绝、四个强杀边界 | [test_edit_tool_loop.py](test_edit_tool_loop.py)、[test_process_crash.py](test_process_crash.py) |
 | V4.1a/b 文件修改 | 版本、唯一匹配、字节保真、diff 批准、独立权限、外部冲突及写入失败 | [test_file_editing.py](test_file_editing.py) |
 | 多轮聊天与模型切换 | 历史正确传递，新会话隔离；切换模型保留历史；终端指令不作为用户问题发给模型 | [test_conversation.py](test_conversation.py) |
 | 配置启动 | 两份 TOML 与命令行覆盖可用；主配置或模型配置错误时在创建 HTTP 客户端前停止 | [test_startup_configuration.py](test_startup_configuration.py)、[test_session_lifecycle.py](test_session_lifecycle.py) |

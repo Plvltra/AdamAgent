@@ -1,9 +1,11 @@
 """执行模型请求的工具并独立记录轨迹，后续模型失败也保留执行证据。"""
 
+import json
 import secrets
 from collections.abc import Callable
 from typing import Any
 
+from adam.errors import ApprovalDeniedError, EditLogError
 from adam.storage import SessionStore, StorageError
 from adam.tool_calls.command_tools import CommandLogError
 from adam.tool_calls.registry import ToolRegistry
@@ -33,7 +35,7 @@ class ToolExecutor:
 
         turn_id 和 request_id 指向产生这些工具调用的轮次与模型请求。
         开始记录写入后才执行，结果落盘后才返回；存储错误通过 AgentError 契约向上抛，
-        禁止模型在执行轨迹无法保存时继续行动。
+        禁止模型在执行轨迹无法保存时继续行动；拒绝结果保存后立即停止本批和本轮。
         """
         results = []
         for call in calls:
@@ -44,10 +46,12 @@ class ToolExecutor:
             }
             output = self._execute_call(session_id, link, call["function"])
             results.append({"role": "tool", "tool_call_id": call["id"], "content": output})
+            if json.loads(output).get("status") == "denied":
+                raise ApprovalDeniedError("已拒绝本次动作，本轮已停止；此前完成的动作保留。")
         return results
 
     def _execute_call(self, session_id: str, link: dict[str, str], function: dict[str, Any]) -> str:
-        """保留原始参数和实际回传结果；命令还记录审批及进程执行边界。"""
+        """保留参数和回传结果；命令及编辑独立记录批准与副作用边界。"""
         self.store.append_tool_event(
             session_id,
             "tool_started",
@@ -68,10 +72,23 @@ class ToolExecutor:
                 # 日志关联错误不能被注册表当成模型参数错误后继续执行。
                 raise CommandLogError("命令执行日志校验失败；已停止本轮，未自动重试。") from error
 
+        def record_edit(kind: str, payload: dict[str, Any]) -> None:
+            try:
+                self.store.append_edit_event(
+                    session_id, kind, {**payload, **link, "edit_id": execution_id}
+                )
+            except (StorageError, ValueError) as error:
+                raise EditLogError(
+                    "编辑日志保存失败；实际结果可能未知，已停止且不自动重做。"
+                ) from error
+
         self.notify(f"工具> {function['name']}")
-        # 通用开始事件表示进入工具处理；命令的审批与进程结果另由 command_* 记录。
+        # 通用开始事件表示进入工具处理；命令和编辑的批准/副作用边界分别由 command_* / edit_* 记录。
         output = self.registry.execute(
-            function["name"], function["arguments"], record_execution=record_command
+            function["name"],
+            function["arguments"],
+            record_execution=record_command,
+            record_edit=record_edit,
         )
         self.store.append_tool_event(session_id, "tool_finished", {**link, "output": output})
         return output

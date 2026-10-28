@@ -1,10 +1,10 @@
 # Adam 系统架构
 
-最近核对：2026-10-28
+最近核对：2026-10-29
 
-本次核对范围：V4.1b 独立写权限、diff 确认、版本复查和同目录临时替换；模型接入仍待 V4.1c。
+本次核对范围：V4.1c 模型编辑工具、独立编辑状态、拒绝即停止及真实进程中断恢复。
 
-核对结论：EditTools 组合 PathPolicy、快照和计划，执行获批的确定内容；CLI 提供确认展示函数。读写授权分离，文件替换前复查权限和版本，尚未注册模型编辑工具。
+核对结论：Registry 已注册 replace_text，ToolExecutor 记录编辑边界并在拒绝后停止；SessionLog 委托 EditLog 校验状态。未知命令/编辑阻止续聊和手动摘要，恢复不重做。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -27,6 +27,7 @@ flowchart TD
     COMPACT --> HISTORY
     COMPACT -->|"素材估算"| CONTEXT
     COMPACT -->|"自动摘要素材缩减"| PRUNE
+    LOG --> EDITLOG["edit_log.py<br/>编辑计划、写入状态与恢复投影"]
     LOG --> CLOG["compaction_log.py<br/>摘要提交、消费与恢复投影"]
     CLOG --> HISTORY
     CLOG --> OUTCOME
@@ -46,7 +47,7 @@ flowchart TD
     CONV --> EXEC["tool_calls/executor.py<br/>组织工具执行并记录轨迹"]
     CONV -->|"获取工具说明"| REG["tool_calls/registry.py<br/>工具目录、参数校验与分派"]
     EXEC --> REG
-    REG --> TOOLS["file_tools.py / git_tools.py / command_tools.py<br/>具体执行能力"]
+    REG --> TOOLS["file_tools.py / git_tools.py / command_tools.py / edit_tools.py<br/>具体执行能力"]
 
     CONV --> STORE
     EXEC -->|"保存执行记录"| STORE
@@ -75,15 +76,16 @@ flowchart TD
     F --> SNAP["text_file.py<br/>有界文本快照与版本"]
     PLAN["edit_plan.py<br/>纯替换计划与 diff"] --> SNAP
     PLAN -.-> P
+    R --> EDIT
     EDIT["edit_tools.py<br/>确认与可靠文件替换"] --> PLAN
     EDIT --> SNAP
     EDIT -.-> P
     EDIT -->|"确认回调"| UI
     R --> G["git_tools.py<br/>状态、差异与提交查询"]
     R --> C["command_tools.py<br/>执行外部程序并收集结果"]
-    C -->|"请求用户确认"| UI["cli.py<br/>展示命令计划，取得 y/N"]
+    C -->|"请求用户确认"| UI["cli.py<br/>展示命令或 diff，取得 y/N"]
 
-    R -.-> P["policy.py<br/>路径规则、读取权限与资源限制"]
+    R -.-> P["policy.py<br/>路径规则、读写权限与资源限制"]
     F -.-> P
     G -.-> P
     C -.-> P
@@ -91,7 +93,7 @@ flowchart TD
 
 `PathPolicy` 分别检查读取和写入范围；读取授权不赋予写入权限，专用编辑禁止 .git、凭据及链接路径。通用命令单独展示具体命令和工作目录，请用户逐次确认；批准后的程序按当前系统账户权限运行，额外读取目录配置不是命令进程的沙箱边界。
 
-`ToolExecutor` 负责调用所属轮次、请求和执行轨迹；`ToolRegistry` 负责工具目录、参数校验与分派；具体工具负责动作本身。命令工具通过记录回调把进程边界交给执行协调层保存，通过确认回调取得用户决定。
+`ToolExecutor` 负责调用所属轮次、请求和执行轨迹；`ToolRegistry` 负责工具目录、参数校验与分派；具体工具负责动作本身。命令和编辑通过记录回调把副作用边界交给协调层保存，通过确认回调取得用户决定。拒绝结果保存后停止同批剩余调用及本轮请求；失败输入不进入有效历史。
 
 ## 模块与抽象职责
 
@@ -113,6 +115,7 @@ flowchart TD
 | [llm.py](../adam/llm.py) | `LLMClient`、`Completion` | 访问模型服务，将一次请求转换为模型消息和用量；模型消息也可能是工具请求 |
 | [protocol.py](../adam/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
 | [storage.py](../adam/storage.py) | `SessionStore`、`Session`、`Message` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
+| [edit_log.py](../adam/edit_log.py) | `EditLog` | 编辑状态纯投影；未开始计划恢复为 not_started，写入未知结果不猜测 |
 | [session_log.py](../adam/session_log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，重建状态、有效历史及用量，规划并回放恢复事件；自身不访问文件 |
 | [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor` | 组织工具执行，将轨迹关联到轮次与请求，并形成回传模型的工具消息 |
 | [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，校验参数、分派调用并统一结果格式 |

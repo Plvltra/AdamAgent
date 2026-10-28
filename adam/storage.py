@@ -333,6 +333,16 @@ class SessionStore:
             raise ValueError("unknown command event")
         self._append(session_id, record(kind, payload))
 
+    def append_edit_event(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:
+        """保存编辑计划/写入开始/结果，关联父轮次、请求和工具；失败必须停止执行。"""
+        if kind not in {"edit_planned", "edit_started", "edit_finished"}:
+            raise ValueError("unknown edit event")
+        self._append(session_id, record(kind, payload))
+
+    def load_edits(self, session_id: str) -> list[dict[str, Any]]:
+        """返回编辑证据；unknown 不能因恢复而被当成未执行或成功。"""
+        return list(self._read_log(session_id).edits.operations.values())
+
     def load_executions(self, session_id: str) -> list[dict[str, Any]]:
         """返回命令执行记录；只有开始事件的记录标为 unknown，不自动重放。
 

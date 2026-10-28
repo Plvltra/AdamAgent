@@ -22,6 +22,8 @@ class FailureCode(StrEnum):
     REQUEST_SAVE_FAILED = "request_save_failed"
     STORAGE_ERROR = "storage_error"
     COMMAND_LOG_ERROR = "command_log_error"
+    EDIT_LOG_ERROR = "edit_log_error"
+    APPROVAL_DENIED = "approval_denied"
     EXECUTION_UNKNOWN = "execution_unknown"
     INTERNAL_ERROR = "internal_error"
     INTERRUPTED = "interrupted"
@@ -52,6 +54,18 @@ class AgentError(Exception):
         self.partial_reply = partial_reply
         self.code = code if code is not None else self.code
         self.http_status = http_status
+
+
+class EditLogError(AgentError):
+    """编辑记录失败后停止，不能将未知副作用当作可重试参数错误。"""
+
+    code = FailureCode.EDIT_LOG_ERROR
+
+
+class ApprovalDeniedError(AgentError):
+    """用户拒绝当前动作，终止本轮剩余工具与模型请求。"""
+
+    code = FailureCode.APPROVAL_DENIED
 
 
 class BudgetError(AgentError):

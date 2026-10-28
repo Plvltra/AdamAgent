@@ -174,6 +174,7 @@ def chat(
                 permissions,
                 tool_limits,
                 confirm_command=lambda command: confirm_command(command, read, write),
+                confirm_edit=lambda plan: confirm_edit(plan, read, write),
             ),
             agent_config,
             write,

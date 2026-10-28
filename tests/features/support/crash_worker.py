@@ -13,7 +13,9 @@ from adam.conversation import Conversation
 from adam.diagnostics import read_report
 from adam.errors import BudgetError
 from adam.llm import LLMClient
-from adam.storage import SessionStore
+from adam.storage import SessionStore, StorageError
+from adam.tool_calls import ToolRegistry
+from adam.tool_calls.edit_tools import EditTools
 
 mode, root_text, session_id, url, phase, ready_text = sys.argv[1:]
 root, ready = Path(root_text), Path(ready_text)
@@ -70,9 +72,36 @@ with (
     SessionStore(root) as store,
     httpx.Client(trust_env=False) as http,
 ):
-    conversation = Conversation(store, LLMClient(LLMConfig(url, "test", "test-only-key"), http), "")
+    conversation = Conversation(
+        store,
+        LLMClient(LLMConfig(url, "test", "test-only-key"), http),
+        "",
+        ToolRegistry(root.parent, confirm_edit=lambda _: True),
+    )
     conversation.resume(session_id)
     if mode == "run":
+        if phase.startswith("edit_"):
+            original_append_edit = store.append_edit_event
+
+            def append_edit(session_id, kind, payload):
+                original_append_edit(session_id, kind, payload)
+                boundary = {
+                    "edit_plan": "edit_planned",
+                    "edit_started": "edit_started",
+                    "edit_committed": "edit_finished",
+                }.get(phase)
+                if kind == boundary:
+                    hold()
+
+            store.append_edit_event = append_edit
+            if phase == "edit_after_replace":
+                original_apply = EditTools.apply
+
+                def apply_and_hold(self, plan):
+                    original_apply(self, plan)
+                    hold()
+
+                EditTools.apply = apply_and_hold
         if phase.startswith("compact_"):
             conversation.compact()
         else:
@@ -80,10 +109,10 @@ with (
         hold()  # after_commit：真实完整提交已完成，尚未展示回答。
     else:
         blocked = False
-        if phase in {"request", "compact_request"}:
+        if phase in {"request", "compact_request", "edit_started", "edit_after_replace"}:
             try:
                 conversation.send("budget must block")
-            except BudgetError:
+            except (BudgetError, StorageError):
                 blocked = True
         print(
             json.dumps(

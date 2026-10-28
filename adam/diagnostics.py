@@ -46,6 +46,9 @@ def read_report(path: Path) -> dict[str, Any]:
                     if value["turn_id"] == turn_id
                 ],
                 "tools": [value for value in log.tools.values() if value["turn_id"] == turn_id],
+                "edits": [
+                    value for value in log.edits.operations.values() if value["turn_id"] == turn_id
+                ],
                 "commands": [
                     value for value in log.executions.values() if value["turn_id"] == turn_id
                 ],
