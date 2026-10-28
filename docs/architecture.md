@@ -2,9 +2,9 @@
 
 最近核对：2026-10-28
 
-本次核对范围：统一业务错误契约、存储 IO 转换边界、终端失败展示、初始化与聊天循环的清理范围及相关业务验收。
+本次核对范围：V1.3 第 2 项的请求/轮次状态、异常收尾、成功提交边界与业务验收。
 
-核对结论：新增 errors.py 公共契约，CLI 统一处理 AgentError，terminal.py 按公共信息展示失败；额度错误与模型请求错误分别表达。现有组装与会话调用关系保持，启动组装拆分尚未实施。
+核对结论：模块依赖无新增；Conversation.send 管理轮次收尾，_run_turn 组织模型与工具循环；SessionStore 保存终态，SessionLog 校验转换并重建状态。格式升级 v4。结束原因、耗时、开发诊断入口和自动中断恢复尚未实施。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -17,7 +17,7 @@ flowchart TD
     ENTRY["__main__.py<br/>程序入口"] --> CLI["cli.py<br/>启动组装、用户交互、指令处理"]
     CLI --> CONFIG["config.py<br/>加载与校验配置"]
     CLI --> TERMINAL["terminal.py<br/>角色样式与统一失败展示"]
-    CLI --> CONV["conversation.py<br/>组织会话与模型—工具循环"]
+    CLI --> CONV["conversation.py<br/>轮次收尾、模型—工具循环"]
     CLI -->|"会话列表、历史与用量查询"| STORE["storage.py<br/>会话持久化与读取"]
 
     CONV --> LLM["llm.py<br/>访问模型服务"]
@@ -31,7 +31,7 @@ flowchart TD
     CONV --> STORE
     EXEC -->|"保存执行记录"| STORE
     STORE --> FILE["会话 JSONL 文件"]
-    STORE --> LOG["session_log.py<br/>解释事件、校验关联、整理历史与用量"]
+    STORE --> LOG["session_log.py<br/>校验关联与状态、整理历史与用量"]
 
     LLM -.->|"校验模型消息"| PROTOCOL["protocol.py<br/>消息与完整轮次的共同规则"]
     STORE -.->|"校验待保存轮次"| PROTOCOL
@@ -69,11 +69,11 @@ flowchart TD
 | [terminal.py](../adam/terminal.py) | `role_prefix`、`show_failure` | 展示角色样式、业务失败说明及未保存回答；不判断具体底层错误类型 |
 | [errors.py](../adam/errors.py) | `AgentError`、`BudgetError`、`TurnSaveError` | 定义可展示的失败说明和可选未保存回答，保持界面错误接口稳定 |
 | [config.py](../adam/config.py) | `AppConfig`、`LLMConfig`、`AgentConfig` | 加载并校验运行配置，区分整体应用、模型连接及对话循环额度 |
-| [conversation.py](../adam/conversation.py) | `Conversation` | 管理当前会话，组织历史、模型请求、工具循环、额度检查和最终回答提交 |
+| [conversation.py](../adam/conversation.py) | `Conversation` | 管理当前会话，组织历史、模型请求、工具循环、额度检查和最终回答提交；分别记录请求与轮次终态 |
 | [llm.py](../adam/llm.py) | `LLMClient`、`Completion` | 访问模型服务，将一次请求转换为模型消息和用量；模型消息也可能是工具请求 |
 | [protocol.py](../adam/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
 | [storage.py](../adam/storage.py) | `SessionStore`、`Session`、`Message` | 管理会话文件、锁和读写，提供会话身份及已提交消息 |
-| [session_log.py](../adam/session_log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，整理有效历史及用量；自身不访问文件 |
+| [session_log.py](../adam/session_log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，重建请求与轮次状态、有效历史及用量；自身不访问文件 |
 | [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor` | 组织工具执行，将轨迹关联到轮次与请求，并形成回传模型的工具消息 |
 | [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，校验参数、分派调用并统一结果格式 |
 | [tool_calls/file_tools.py](../adam/tool_calls/file_tools.py) | `FileTools` | 文件系统查询、搜索与读取能力 |
@@ -92,7 +92,7 @@ flowchart TD
 - **配置与执行：** 配置对象描述权限、额度和限制，各业务模块负责实际执行检查。
 - **失败处理：** 可反馈的工具错误交回模型；命令日志无法可靠保存等错误会终止本轮。已知失败实现 AgentError 契约，CLI 委托 terminal.show_failure 展示；终端 IO 故障和意外程序错误不会被当成业务失败吞掉。
 
-当前已有轮次、请求和工具关联留痕；完整请求/轮次状态、结束原因、诊断命令和自动中断恢复仍属于后续任务。上下文裁剪与流式响应也尚未实现，不应在现有架构图中画成已接入的组件。
+当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态。结束原因、耗时、独立开发诊断入口和自动中断恢复仍属于后续任务，不计划增加轮次诊断聊天命令。上下文裁剪与流式响应也尚未实现，不应在现有架构图中画成已接入的组件。
 
 ## 公开错误契约
 
@@ -118,7 +118,14 @@ flowchart TD
 - 同一次失败不因公共契约而自动重试。未识别的程序错误继续传播；终端输出自身的 OSError 也不会被误报为会话文件失败。chat 的清理范围覆盖组件初始化、会话恢复与交互循环，初始界面或回答展示失败时均释放会话锁。
 - 对公开存储接口做故障替身时使用 StorageError；模拟真实文件系统故障时在 IO 边界注入 OSError，验证实际转换、回滚和原因链。
 
-本次统一的是公开异常契约与界面展示，CLI 的组件组装和直接存储查询仍存在；它们的职责拆分属于后续工程改进。该改动没有新增持久化错误状态，也不等同于完成 V1.3.2。
+本次统一的是公开异常契约与界面展示，CLI 的组件组装和直接存储查询仍存在；它们的职责拆分属于后续工程改进。本次第 2 项在该契约之上新增状态持久化；结束原因与耗时仍待实现，V1.3.2 尚未整体完成。
+
+## 请求与轮次状态边界
+
+- 开始事件建立 in_progress；request_finished 独立记录请求终态，和用量记录在同一块追加。响应有效而用量缺失时，请求可成功，整轮因预算统计不完整停止。
+- 轮次成功只来自完整 message 块与 turn_completed 的成功提交；不能用独立状态事件跳过消息校验。turn_finished 只允许 failed / interrupted。
+- Conversation 捕获失败后尽力保存终态，再传播原异常；KeyboardInterrupt / SystemExit 等退出信号记录 interrupted。失败日志本身出错只给原异常增加受控附注，不遮蔽最初失败。
+- 强制终止或持续写入失败可能留下进行中记录。当前不自动恢复、截断或重发；这部分按第 5 项另行实现。
 
 ## 文档维护
 

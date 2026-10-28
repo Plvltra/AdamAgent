@@ -85,6 +85,13 @@ def test_read_tool_trace_survives_and_success_uses_original_turn(tmp_path, last_
         assert all(r["turn_id"] == turn_id for r in requests)
         usages = [e["payload"] for e in events if e["type"] == "request_usage"]
         assert len(usages) == 2 and all(r["turn_id"] == turn_id for r in usages)
+        finished = [e["payload"] for e in events if e["type"] == "request_finished"]
+        assert [item["status"] for item in finished] == [
+            "succeeded",
+            "failed" if last_request_fails else "succeeded",
+        ]
+        assert [item["request_id"] for item in finished] == [r["request_id"] for r in requests]
+        assert all(item["turn_id"] == turn_id for item in finished)
         tool_start = next(e["payload"] for e in events if e["type"] == "tool_started")
         tool_end = next(e["payload"] for e in events if e["type"] == "tool_finished")
         assert tool_start["name"] == "read_file"
@@ -98,6 +105,8 @@ def test_read_tool_trace_survives_and_success_uses_original_turn(tmp_path, last_
         completed = [e for e in events if e["type"] == "turn_completed"]
         if last_request_fails:
             assert completed == [] and store.load_messages(session_id) == []
+            assert events[-1]["type"] == "turn_finished"
+            assert events[-1]["payload"] == {"turn_id": turn_id, "status": "failed"}
             assert store.usage(session_id) == (12, True)
         else:
             assert len(completed) == 1 and completed[0]["payload"]["turn_id"] == turn_id
@@ -291,12 +300,13 @@ def test_unfinished_turn_is_readable_and_does_not_imply_unknown_usage(tmp_path):
         )
 
 
-def test_v2_session_is_rejected_without_rewriting(tmp_path):
+@pytest.mark.parametrize("version", [1, 2, 3])
+def test_old_session_is_rejected_without_rewriting(tmp_path, version):
     with SessionStore(tmp_path) as store:
         session_id = store.create_session("old", "")
         path = next(tmp_path.rglob(f"{session_id}.jsonl"))
         meta = json.loads(path.read_text(encoding="utf-8"))
-        meta["payload"]["version"] = 2
+        meta["payload"]["version"] = version
         path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
         original = path.read_bytes()
         with pytest.raises(StorageError, match="旧版"):

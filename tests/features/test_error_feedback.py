@@ -89,6 +89,10 @@ def test_budget_stop_is_not_reported_as_model_failure(tmp_path):
         session_id = store.list_sessions()[0].session_id
         assert [message.content for message in store.load_messages(session_id)] == ["first", "done"]
         assert store.usage(session_id) == (12, False)
+        events = store.load_events(session_id)
+        assert events[-1]["type"] == "turn_finished"
+        assert events[-1]["payload"]["status"] == "failed"
+        assert len([e for e in events if e["type"] == "request_started"]) == 1
     assert len(requests) == 1
     assert any("执行受限" in line and "额度" in line for line in output)
     assert not any("模型请求错误" in line for line in output)
@@ -156,7 +160,12 @@ def test_final_answer_disk_failure_is_visible_without_retry(tmp_path, monkeypatc
     with SessionStore(root) as store:
         assert store.load_messages(session_id) == []
         assert store.usage(session_id) == (12, False)
-        assert not any(event["type"] == "turn_completed" for event in store.load_events(session_id))
+        events = store.load_events(session_id)
+        assert not any(event["type"] == "turn_completed" for event in events)
+        request = next(e["payload"] for e in events if e["type"] == "request_finished")
+        assert request["status"] == "succeeded"
+        assert events[-1]["type"] == "turn_finished"
+        assert events[-1]["payload"]["status"] == "failed"
 
 
 @pytest.mark.parametrize("phase", ["initial", "answer"])

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from filelock import FileLock, Timeout
 
@@ -119,7 +119,7 @@ class SessionStore:
                 directory.mkdir(parents=True, exist_ok=True)
                 path = directory / f"{session_id}.jsonl"
                 payload = {
-                    "version": 3,
+                    "version": 4,
                     "id": session_id,
                     "title": title,
                     "system_prompt": system_prompt,
@@ -202,25 +202,41 @@ class SessionStore:
         return request_id
 
     def finish_request(
-        self, session_id: str, turn_id: str, request_id: str, usage: tuple[int, int] | None
+        self,
+        session_id: str,
+        turn_id: str,
+        request_id: str,
+        usage: tuple[int, int] | None,
+        *,
+        status: Literal["succeeded", "failed", "interrupted"] = "succeeded",
     ) -> None:
-        """追加同一轮次的请求用量；关联错误或重复结算在写入前抛出 ValueError。
+        """在同一追加块内保存请求用量和终态；非法关联或重复结束抛出 ValueError。
 
         usage 是 (输入 token, 输出 token)；None 表示未知，不能按零处理。
-        用量独立持久化，后续轮次失败也保留已消费记录。
+        status 描述模型请求本身，与后续整轮结果独立；有效响应缺少用量时仍可成功。
+        可捕获的写入失败回滚整个块；后续轮次失败不会删除已落盘的消费记录。
         """
-        self._append(
-            session_id,
-            record(
-                "request_usage",
-                {
-                    "turn_id": turn_id,
-                    "request_id": request_id,
-                    "input_tokens": usage[0] if usage else None,
-                    "output_tokens": usage[1] if usage else None,
-                },
-            ),
+        link = {"turn_id": turn_id, "request_id": request_id}
+        data = record(
+            "request_usage",
+            {
+                **link,
+                "input_tokens": usage[0] if usage else None,
+                "output_tokens": usage[1] if usage else None,
+            },
         )
+        data += record("request_finished", {**link, "status": status})
+        self._append(session_id, data)
+
+    def finish_turn(
+        self, session_id: str, turn_id: str, status: Literal["failed", "interrupted"]
+    ) -> None:
+        """保存失败或中断的轮次终态，不提交消息；成功必须经过 append_messages。
+
+        重复结束或未知轮次抛出 ValueError。存储失败时日志保留最后已落盘的状态，
+        调用方应保留原始业务异常，不伪造已经保存的终态。
+        """
+        self._append(session_id, record("turn_finished", {"turn_id": turn_id, "status": status}))
 
     def append_turn(self, session_id: str, user_text: str, assistant_text: str) -> None:
         """保存一个普通问答；先登记输入，再提交消息，提交失败时诊断输入仍可能保留。"""

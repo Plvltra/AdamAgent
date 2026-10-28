@@ -1,4 +1,4 @@
-"""JSONL v3 事件校验与关联；诊断记录和有效模型历史分别归并。"""
+"""JSONL v4 事件校验与状态投影；诊断记录和有效模型历史分别归并。"""
 
 import json
 from typing import Any
@@ -27,14 +27,14 @@ def decode_records(raw: bytes) -> list[dict[str, Any]]:
 
 
 def parse_log(raw: bytes, session_id: str) -> "SessionLog":
-    """校验 v3 元信息及全部事件；不完整诊断记录可读，半个成功消息块不可读。"""
+    """校验 v4 元信息及全部事件；不完整诊断记录可读，半个成功消息块不可读。"""
     entries = decode_records(raw)
     meta = entries[0]
     data = meta["payload"]
     if (
         meta["type"] != "session_meta"
         or type(data.get("version")) is not int
-        or data["version"] != 3
+        or data["version"] != 4
     ):
         raise UnsupportedLogVersionError("unsupported session version")
     if data.get("id") != session_id or not all(
@@ -58,8 +58,7 @@ class SessionLog:
         self.metadata = metadata
         self.events: list[dict[str, Any]] = []
         self.messages: list[tuple[str, dict[str, Any]]] = []
-        self.turns: dict[str, str] = {}
-        self.completed: set[str] = set()
+        self.turns: dict[str, dict[str, Any]] = {}
         self.requests: dict[str, dict[str, Any]] = {}
         self.tools: dict[tuple[str, str], dict[str, Any]] = {}
         self.executions: dict[str, dict[str, Any]] = {}
@@ -85,6 +84,8 @@ class SessionLog:
             "turn_started": self._start_turn,
             "request_started": self._apply_request,
             "request_usage": self._apply_request,
+            "request_finished": self._finish_request,
+            "turn_finished": self._finish_turn,
             "tool_started": self._apply_tool,
             "tool_finished": self._apply_tool,
             "command_started": self._apply_command,
@@ -108,7 +109,7 @@ class SessionLog:
         turn_id = self._identifier(payload, "turn_id")
         if turn_id in self.turns or not isinstance(payload.get("user_text"), str):
             raise ValueError("invalid or duplicate turn")
-        self.turns[turn_id] = payload["user_text"]
+        self.turns[turn_id] = {"user_text": payload["user_text"], "status": "in_progress"}
 
     def _apply_request(self, kind: str, payload: dict[str, Any]) -> None:
         """同轮请求只可开始、结算一次；用量未知与轮次是否完成分别维护。"""
@@ -117,10 +118,15 @@ class SessionLog:
         if kind == "request_started":
             if request_id in self.requests or not isinstance(payload.get("model"), str):
                 raise ValueError("invalid or duplicate request")
-            self.requests[request_id] = {"turn_id": turn_id, "settled": False}
+            self.requests[request_id] = {
+                "turn_id": turn_id,
+                "model": payload["model"],
+                "settled": False,
+                "status": "in_progress",
+            }
             return
         request = self._require_request(payload)
-        if request["settled"]:
+        if request["settled"] or request["status"] != "in_progress":
             raise ValueError("duplicate usage")
         inputs, outputs = payload.get("input_tokens"), payload.get("output_tokens")
         if "input_tokens" not in payload or "output_tokens" not in payload:
@@ -133,10 +139,33 @@ class SessionLog:
             raise ValueError("invalid usage")
         request["settled"] = True
 
+    def _finish_request(self, kind: str, payload: dict[str, Any]) -> None:
+        """请求状态与用量分别校验；只有有效模型响应才由调用方标记 succeeded。"""
+        self._require_turn(payload)
+        request = self._require_request(payload)
+        status = payload.get("status")
+        if (
+            request["status"] != "in_progress"
+            or not request["settled"]
+            or status not in {"succeeded", "failed", "interrupted"}
+        ):
+            raise ValueError("invalid request transition")
+        request["status"] = status
+
+    def _finish_turn(self, kind: str, payload: dict[str, Any]) -> None:
+        """失败或中断关闭诊断轮次；成功只能由完整消息块的提交标记产生。"""
+        turn_id = self._require_turn(payload)
+        status = payload.get("status")
+        if status not in {"failed", "interrupted"}:
+            raise ValueError("invalid turn transition")
+        self.turns[turn_id]["status"] = status
+
     def _apply_tool(self, kind: str, payload: dict[str, Any]) -> None:
         """工具 ID 在轮次内唯一；结束记录必须与开始时的请求和轮次一致。"""
         turn_id = self._require_turn(payload)
-        self._require_request(payload)
+        request = self._require_request(payload)
+        if request["status"] != "succeeded":
+            raise ValueError("tool requires a successful request")
         call_id = self._identifier(payload, "tool_call_id")
         key = (turn_id, call_id)
         if kind == "tool_started":
@@ -216,13 +245,14 @@ class SessionLog:
         if not self._pending_messages or self._pending_turn != turn_id:
             raise ValueError("unmatched completion")
         validate_turn(self._pending_messages)
-        if self._pending_messages[0]["content"] != self.turns[turn_id]:
+        if self._pending_messages[0]["content"] != self.turns[turn_id]["user_text"]:
             raise ValueError("mismatched user input")
         if any(
-            request["turn_id"] == turn_id and not request["settled"]
+            request["turn_id"] == turn_id
+            and (not request["settled"] or request["status"] != "succeeded")
             for request in self.requests.values()
         ):
-            raise ValueError("unsettled request")
+            raise ValueError("request did not succeed")
         turn_tools = {key[1]: tool for key, tool in self.tools.items() if key[0] == turn_id}
         seen: set[str] = set()
         for message in self._pending_messages[1:]:
@@ -240,14 +270,14 @@ class SessionLog:
         if seen != set(turn_tools):
             raise ValueError("uncommitted tool trace")
         self.messages.extend((turn_id, message) for message in self._pending_messages)
-        self.completed.add(turn_id)
+        self.turns[turn_id]["status"] = "succeeded"
         self._pending_messages = []
         self._pending_turn = ""
 
     def _require_turn(self, payload: dict[str, Any]) -> str:
         turn_id = self._identifier(payload, "turn_id")
-        if turn_id not in self.turns or turn_id in self.completed:
-            raise ValueError("unknown or completed turn")
+        if turn_id not in self.turns or self.turns[turn_id]["status"] != "in_progress":
+            raise ValueError("unknown or finished turn")
         return turn_id
 
     def _require_request(self, payload: dict[str, Any]) -> dict[str, Any]:

@@ -21,7 +21,7 @@
 - 输出受 max_result_chars 限制，裁剪时保留状态和退出码，持续排空 stdout/stderr。
 - 只继承基础环境变量，使用 UTF-8；其他变量可在显式启动的脚本内设置。参数和输出会被记录，勿放入密钥。
 - 执行日志独立保存；只有 command_started、缺少 command_finished 的执行恢复为 unknown，阻止自动重跑。
-- v3 中所有工具都有 tool_started/tool_finished，关联 turn_id、request_id、tool_call_id；命令额外保留 command_* 及 execution_id。tool_started 仅表示进入处理，实际进程边界看 command_*。
+- 当前 v4 保留 v3 引入的全部工具留痕：所有工具都有 tool_started/tool_finished，关联 turn_id、request_id、tool_call_id；命令额外保留 command_* 及 execution_id。tool_started 仅表示进入处理，实际进程边界看 command_*。
 - 确认不是系统沙箱，进程拥有当前账户权限；读取工具的路径授权不限制命令内部行为。
 - 超时/取消时尽力清理进程树并回收直接子进程，不保证处理主动脱离进程树的进程。
 

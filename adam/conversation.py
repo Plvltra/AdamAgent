@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from adam.config import AgentConfig
 from adam.errors import BudgetError, TurnSaveError
@@ -50,11 +50,24 @@ class Conversation:
         输入、请求和工具轨迹独立留痕；失败轮次不加入有效历史。
         已知失败遵循 AgentError 契约：预算问题为 BudgetError，模型问题为 LLMError；
         回答生成后保存失败为携带 partial_reply 的 TurnSaveError。
+        请求与轮次分别收尾；用户中断记 interrupted，其余异常记 failed，再原样传播。
         工具诊断写入失败或未知命令状态为 StorageError；命令日志写入或关联失败
         为 CommandLogError，均停止本轮。意外的程序错误继续向上传播。
         """
         session = self.session or self.new(text[:40])
         turn_id = self.store.start_turn(session.session_id, text)
+        try:
+            return self._run_turn(session, turn_id, text)
+        except BaseException as error:
+            status = self._failure_status(error)
+            self._save_failure(
+                lambda: self.store.finish_turn(session.session_id, turn_id, status),
+                error,
+            )
+            raise
+
+    def _run_turn(self, session: Session, turn_id: str, text: str) -> str:
+        """运行已登记轮次的模型与工具循环；只有完整消息提交成功才返回回答。"""
         if any(
             item["status"] == "unknown" for item in self.store.load_executions(session.session_id)
         ):
@@ -100,8 +113,9 @@ class Conversation:
         """先持久登记请求，再调用 API 并结算用量；不自动重试。
 
         返回本次 request_id 与包含可靠用量的 Completion，供工具关联来源请求。
-        turn_id 指向已记录的用户输入；请求中断留下的未结算记录
-        会阻止恢复会话后继续消费。最终回答记账失败时保留回答供终端显示。
+        turn_id 指向已记录的用户输入；有效响应先记请求成功，缺少用量时整轮仍停止。
+        中断或未知用量会阻止继续消费。最终回答记账失败时保留回答供终端显示；
+        失败收尾不遮蔽原始异常，尚未实现崩溃后的自动状态修复。
         """
         self._check_session_budget(session_id)
         request_id = self.store.start_request(session_id, turn_id, self.model)
@@ -112,8 +126,15 @@ class Conversation:
                 tools=self.tool_registry.definitions(),
                 max_tokens=self.limits.max_output_tokens,
             )
-        except LLMError as error:
-            self.store.finish_request(session_id, turn_id, request_id, error.usage)
+        except BaseException as error:
+            usage = error.usage if isinstance(error, LLMError) else None
+            status = self._failure_status(error)
+            self._save_failure(
+                lambda: self.store.finish_request(
+                    session_id, turn_id, request_id, usage, status=status
+                ),
+                error,
+            )
             raise
 
         try:
@@ -149,3 +170,17 @@ class Conversation:
         except StorageError as error:
             raise TurnSaveError(reply) from error
         return reply
+
+    @staticmethod
+    def _failure_status(error: BaseException) -> Literal["failed", "interrupted"]:
+        """区分普通失败与 KeyboardInterrupt / SystemExit 等进程退出信号。"""
+        return "failed" if isinstance(error, Exception) else "interrupted"
+
+    @staticmethod
+    def _save_failure(save: Callable[[], None], original: BaseException) -> None:
+        """尽力保存失败状态；日志故障不能覆盖最初的模型、工具或程序异常。"""
+        try:
+            save()
+        except Exception:
+            # 磁盘持续不可写时无法再可靠记录终态；附注不带原始系统或服务端详情。
+            original.add_note("执行状态保存失败，日志可能仍显示进行中；未自动重试。")

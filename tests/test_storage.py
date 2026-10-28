@@ -142,3 +142,60 @@ def test_id_collision_and_missing_session(tmp_path, monkeypatch):
         for session_id in ["ffffffff", "../bad", "1"]:
             with pytest.raises(SessionNotFoundError):
                 store.select_session(session_id)
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        "duplicate_request",
+        "duplicate_turn",
+        "success_without_messages",
+        "complete_failed_request",
+        "request_after_finished_turn",
+        "tool_after_failed_request",
+    ],
+)
+def test_invalid_state_transition_keeps_log_unchanged(tmp_path, action):
+    """终态不可重复或逆转，成功轮次和工具调用不能来自失败的模型请求。"""
+    with SessionStore(tmp_path) as store:
+        session_id = store.create_session("states", "")
+        turn_id = store.start_turn(session_id, "question")
+        request_id = store.start_request(session_id, turn_id, "test")
+        store.finish_request(session_id, turn_id, request_id, (1, 2), status="failed")
+        if action in {"duplicate_turn", "request_after_finished_turn"}:
+            store.finish_turn(session_id, turn_id, "failed")
+        path = next(tmp_path.glob("*/*/*/*.jsonl"))
+        original = path.read_bytes()
+        with pytest.raises(ValueError):
+            if action == "duplicate_request":
+                store.finish_request(session_id, turn_id, request_id, (1, 2))
+            elif action == "duplicate_turn":
+                store.finish_turn(session_id, turn_id, "interrupted")
+            elif action == "success_without_messages":
+                store.finish_turn(session_id, turn_id, "succeeded")
+            elif action == "request_after_finished_turn":
+                store.start_request(session_id, turn_id, "test")
+            elif action == "tool_after_failed_request":
+                store.append_tool_event(
+                    session_id,
+                    "tool_started",
+                    {
+                        "turn_id": turn_id,
+                        "request_id": request_id,
+                        "tool_call_id": "file1",
+                        "name": "file_info",
+                        "arguments": '{"path":"."}',
+                    },
+                )
+            else:
+                store.append_messages(
+                    session_id,
+                    turn_id,
+                    [
+                        {"role": "user", "content": "question"},
+                        {"role": "assistant", "content": "done"},
+                    ],
+                )
+        assert path.read_bytes() == original
+        assert store.usage(session_id) == (3, False)
+        assert store.load_messages(session_id) == []
