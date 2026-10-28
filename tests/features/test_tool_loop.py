@@ -7,6 +7,7 @@ import pytest
 
 from adam.config import AgentConfig, LLMConfig
 from adam.conversation import Conversation
+from adam.errors import BudgetError
 from adam.llm import LLMClient, LLMError
 from adam.storage import SessionStore, StorageError
 from adam.tool_calls import ToolRegistry
@@ -141,7 +142,7 @@ def test_loop_limits_keep_usage_not_partial_history(tmp_path, limits, expected):
         SessionStore(tmp_path / "s") as store,
     ):
         conversation = make_conversation(store, http, tmp_path, limits)
-        with pytest.raises(LLMError):
+        with pytest.raises(BudgetError):
             conversation.send("loop")
         session_id = conversation.session.session_id
         assert store.load_messages(session_id) == []
@@ -173,7 +174,7 @@ def test_unknown_usage_blocks_session_after_reopen(tmp_path, failure):
         with SessionStore(tmp_path / "s") as store:
             conversation = make_conversation(store, http, tmp_path)
             conversation.resume(session_id)
-            with pytest.raises(LLMError, match="不完整"):
+            with pytest.raises(BudgetError, match="不完整"):
                 conversation.send("no retry")
             assert store.load_messages(session_id) == []
     assert count == 1
@@ -249,7 +250,7 @@ def test_session_budget_persists_and_final_answer_can_cross_threshold(tmp_path):
                 store, http, tmp_path, AgentConfig(max_session_tokens=10)
             )
             conversation.resume(session_id)
-            with pytest.raises(LLMError, match="额度"):
+            with pytest.raises(BudgetError, match="额度"):
                 conversation.send("blocked")
             assert store.usage(session_id) == (17, False)
     assert count == 1
@@ -321,7 +322,7 @@ def test_tool_batch_over_budget_executes_none(tmp_path, monkeypatch):
     ):
         conversation = make_conversation(store, http, tmp_path, AgentConfig(max_tool_calls=1))
         monkeypatch.setattr(conversation.tool_registry, "execute", forbidden)
-        with pytest.raises(LLMError):
+        with pytest.raises(BudgetError):
             conversation.send("inspect twice")
         session_id = conversation.session.session_id
         assert not any(e["type"] == "tool_started" for e in store.load_events(session_id))

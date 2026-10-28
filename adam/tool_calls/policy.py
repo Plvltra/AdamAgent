@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from adam.errors import AgentError
+
 
 @dataclass(frozen=True)
 class PermissionConfig:
@@ -25,7 +27,7 @@ class ToolLimits:
     command_timeout_seconds: int = 30
 
 
-class ToolError(ValueError):
+class ToolError(AgentError):
     """可以安全回传给模型的工具参数或权限错误。"""
 
 
@@ -33,10 +35,13 @@ class PathPolicy:
     """同时检查请求路径和解析后的真实路径，阻止越界和凭据读取。"""
 
     def __init__(self, workspace: Path, permissions: PermissionConfig) -> None:
-        self.workspace = workspace.resolve()
-        self.roots = (self.workspace, *(p.resolve() for p in permissions.additional_read_dirs))
-        if not self.workspace.is_dir():
-            raise ToolError("工作目录不存在或不是目录。")
+        try:
+            self.workspace = workspace.resolve()
+            self.roots = (self.workspace, *(p.resolve() for p in permissions.additional_read_dirs))
+            if not self.workspace.is_dir():
+                raise ToolError("工作目录不存在或不是目录。")
+        except OSError as error:
+            raise ToolError("工具工作目录或额外读取目录无法访问，请检查路径和权限。") from error
 
     def resolve(self, value: str, *, must_exist: bool = True) -> Path:
         """返回已授权的绝对路径；must_exist=False 允许检查 Git 中已删除的路径。"""

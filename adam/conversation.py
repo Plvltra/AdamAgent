@@ -5,18 +5,11 @@ from pathlib import Path
 from typing import Any
 
 from adam.config import AgentConfig
+from adam.errors import BudgetError, TurnSaveError
 from adam.llm import Completion, LLMClient, LLMError
 from adam.storage import Session, SessionStore, StorageError
 from adam.tool_calls import ToolRegistry
 from adam.tool_calls.executor import ToolExecutor
-
-
-class TurnSaveError(RuntimeError):
-    """模型已回答，但本轮未能保存。"""
-
-    def __init__(self, reply: str) -> None:
-        super().__init__("本轮保存失败，未加入历史；未自动重新请求模型。")
-        self.reply = reply
 
 
 class Conversation:
@@ -54,10 +47,11 @@ class Conversation:
     def send(self, text: str) -> str:
         """处理用户输入，完成模型与工具循环，返回已保存的最终回答。
 
-        输入、请求和工具轨迹独立留痕；失败轮次不加入有效历史。预算或协议错误抛出
-        LLMError；回答生成后保存失败则抛出携带回答的 TurnSaveError。
-        工具诊断写入失败直接抛出 OSError 并停止；未知命令状态抛出 StorageError，
-        命令日志写入或关联校验失败抛出 CommandLogError。
+        输入、请求和工具轨迹独立留痕；失败轮次不加入有效历史。
+        已知失败遵循 AgentError 契约：预算问题为 BudgetError，模型问题为 LLMError；
+        回答生成后保存失败为携带 partial_reply 的 TurnSaveError。
+        工具诊断写入失败或未知命令状态为 StorageError；命令日志写入或关联失败
+        为 CommandLogError，均停止本轮。意外的程序错误继续向上传播。
         """
         session = self.session or self.new(text[:40])
         turn_id = self.store.start_turn(session.session_id, text)
@@ -82,7 +76,7 @@ class Conversation:
             turn.extend(self.tool_executor.execute(session.session_id, turn_id, request_id, calls))
             seen_call_ids.update(call["id"] for call in calls)
 
-        raise LLMError("达到本轮请求上限。")
+        raise BudgetError("达到本轮请求上限。")
 
     def _load_context(self, session: Session) -> list[dict[str, Any]]:
         """组装系统提示与完整历史，保留工具调用和服务商推理字段。"""
@@ -96,9 +90,9 @@ class Conversation:
         """用量未知或累计额度耗尽时停止，避免静默漏记后继续请求。"""
         tokens, unknown = self.store.usage(session_id)
         if unknown:
-            raise LLMError("会话预算统计不完整（用量未知或请求中断）；请新建会话，不自动重发。")
+            raise BudgetError("会话预算统计不完整（用量未知或请求中断）；请新建会话，不自动重发。")
         if tokens >= self.limits.max_session_tokens:
-            raise LLMError("会话 token 额度已用完，请提高配置额度或新建会话。")
+            raise BudgetError("会话 token 额度已用完，请提高配置额度或新建会话。")
 
     def _request_with_usage(
         self, session_id: str, turn_id: str, messages: list[dict[str, Any]]
@@ -124,7 +118,7 @@ class Conversation:
 
         try:
             self.store.finish_request(session_id, turn_id, request_id, result.usage)
-        except OSError as error:
+        except StorageError as error:
             if not result.message.get("tool_calls"):
                 raise TurnSaveError(result.message["content"]) from error
             raise
@@ -138,9 +132,9 @@ class Conversation:
         """执行整批工具前检查额度及重复 ID；step 为从零开始的模型请求序号。"""
         # 没有下一次模型请求额度时，不执行无法用于生成最终回答的工具。
         if step + 1 >= self.limits.max_model_requests:
-            raise LLMError("达到本轮模型请求次数上限，工具链未加入有效历史。")
+            raise BudgetError("达到本轮模型请求次数上限，工具链未加入有效历史。")
         if len(seen_ids) + len(calls) > self.limits.max_tool_calls:
-            raise LLMError("达到本轮工具调用次数上限，工具链未加入有效历史。")
+            raise BudgetError("达到本轮工具调用次数上限，工具链未加入有效历史。")
         self._check_session_budget(session_id)
         if any(call["id"] in seen_ids for call in calls):
             raise LLMError("模型重复使用工具调用ID，本轮停止。")
@@ -152,6 +146,6 @@ class Conversation:
         reply = turn[-1]["content"]
         try:
             self.store.append_messages(session_id, turn_id, turn)
-        except OSError as error:
+        except StorageError as error:
             raise TurnSaveError(reply) from error
         return reply

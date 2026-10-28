@@ -6,12 +6,15 @@ from typing import Any
 import httpx
 
 from adam.config import LLMConfig
+from adam.errors import AgentError
 from adam.protocol import validate_assistant
 
 
-class LLMError(RuntimeError):
+class LLMError(AgentError):
+    """模型通信或响应失败；已取得的用量仍由会话流程结算。"""
+
     def __init__(self, message: str, usage: tuple[int, int] | None = None) -> None:
-        super().__init__(message)
+        super().__init__(f"模型请求错误：{message}")
         self.usage = usage
 
 

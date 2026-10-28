@@ -1,9 +1,12 @@
-"""终端角色样式；颜色只用于展示，不进入模型消息或会话记录。"""
+"""终端角色样式与公共失败展示；颜色不进入模型消息或会话记录。"""
 
 import os
 import sys
+from collections.abc import Callable
 
 from colorama import Fore, Style
+
+from adam.errors import AgentError
 
 
 def role_prefix(role: str, *, unsaved: bool = False) -> str:
@@ -26,3 +29,10 @@ def role_prefix(role: str, *, unsaved: bool = False) -> str:
         color = Fore.CYAN if role == "user" else Fore.YELLOW
         return f"{Style.BRIGHT}{color}{label}{Style.RESET_ALL} "
     return label + " "
+
+
+def show_failure(error: AgentError, write: Callable[[str], None] = print) -> None:
+    """按公共契约展示失败及未保存回答；不判断底层异常类型，也不决定恢复或重试。"""
+    if error.partial_reply is not None:
+        write(role_prefix("assistant", unsaved=True) + error.partial_reply)
+    write(error.user_message)

@@ -108,7 +108,8 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `adam/session_log.py`：事件格式与轮次、请求、工具关联校验。
 - `adam/conversation.py`：加载历史、请求模型、保存成功轮次。
 - `adam/cli.py`：命令、输入循环和错误展示。
-- `adam/terminal.py`：角色标签、颜色及纯文本退化。
+- `adam/terminal.py`：角色标签、颜色、纯文本退化及统一失败展示。
+- `adam/errors.py`：公开业务失败契约，包含可展示说明与可选的未保存回答。
 - `adam/llm.py`：HTTP 请求及结构化助手响应、用量解析。
 - `adam/tool_calls/`：工具注册与参数验证、文件工具、Git 工具、权限与资源限制。
 - `adam/tool_calls/executor.py`：所有工具的执行协调与独立轨迹记录。
@@ -119,6 +120,8 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 .\.venv\Scripts\python.exe -m pytest tests/features -v
 .\.venv\Scripts\python.exe -m pre_commit run --all-files
 ```
+
+已知业务失败统一遵循 `AgentError`，CLI 仅通过公共契约展示提示和未保存回答。额度停止使用“执行受限”提示，模型通信或响应失败使用“模型请求错误”提示；底层失败不会因此自动重试。原始存储 IO 错误在存储边界转换，终端自身故障和意外程序错误继续传播。
 
 业务功能点测试集中在 `tests/features/`，按会话、启动配置、工具循环、执行轨迹、终端交互和命令执行组织，见 [功能测试导航](tests/features/README.md)。基础校验保留在 `tests/test_config.py`、`tests/test_llm_config.py`、`tests/test_storage.py`、`tests/test_llm.py` 和 `tests/test_tools.py`。
 自动化使用临时目录和假 HTTP，不调用付费模型；覆盖跨启动恢复、配置位置、JSONL 损坏、写入故障回滚、会话隔离与跨进程锁释放。假 HTTP 验证工程流程，不代替真实模型的选工具和回答效果评估。

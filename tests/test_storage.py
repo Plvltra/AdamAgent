@@ -84,8 +84,11 @@ def test_save_failure_rolls_back(tmp_path, monkeypatch):
             real_fsync(fd)
 
         monkeypatch.setattr(os, "fsync", fail_once)
-        with pytest.raises(OSError, match="injected"):
+        with pytest.raises(StorageError, match="会话文件操作失败") as caught:
             store.append_turn(session_id, "not saved", "reply")
+        assert isinstance(caught.value.__cause__, OSError)
+        assert str(caught.value.__cause__) == "injected"
+        assert "injected" not in caught.value.user_message
         assert store.load_messages(session_id) == original
         store.append_turn(session_id, "retry", "ok")
         assert len(store.load_messages(session_id)) == 4

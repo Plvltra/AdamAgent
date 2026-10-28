@@ -134,7 +134,7 @@ def test_failed_input_is_diagnostic_only_in_next_turn(tmp_path):
 
 def test_input_record_failure_prevents_model_request(tmp_path, monkeypatch):
     def fail(*args):
-        raise OSError("input record failed")
+        raise StorageError("input record failed")
 
     monkeypatch.setattr(SessionStore, "start_turn", fail)
     with (
@@ -143,7 +143,7 @@ def test_input_record_failure_prevents_model_request(tmp_path, monkeypatch):
         ) as http,
         SessionStore(tmp_path / "sessions") as store,
     ):
-        with pytest.raises(OSError, match="input record failed"):
+        with pytest.raises(StorageError, match="input record failed"):
             make_conversation(store, http, tmp_path).send("question")
 
 
@@ -167,7 +167,7 @@ def test_tool_journal_failure_stops_before_further_actions(tmp_path, monkeypatch
 
         def append_or_fail(session_id, kind, payload):
             if kind == failed_event:
-                raise OSError("tool record failed")
+                raise StorageError("tool record failed")
             return append(session_id, kind, payload)
 
         def execute(name, arguments, **kwargs):
@@ -176,7 +176,7 @@ def test_tool_journal_failure_stops_before_further_actions(tmp_path, monkeypatch
 
         monkeypatch.setattr(store, "append_tool_event", append_or_fail)
         monkeypatch.setattr(conversation.tool_registry, "execute", execute)
-        with pytest.raises(OSError, match="tool record failed"):
+        with pytest.raises(StorageError, match="tool record failed"):
             conversation.send("read")
         assert len(requests) == 1
         assert executions == ([] if failed_event == "tool_started" else ["read_file"])

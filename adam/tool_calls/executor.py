@@ -4,7 +4,7 @@ import secrets
 from collections.abc import Callable
 from typing import Any
 
-from adam.storage import SessionStore
+from adam.storage import SessionStore, StorageError
 from adam.tool_calls.command_tools import CommandLogError
 from adam.tool_calls.registry import ToolRegistry
 
@@ -32,7 +32,7 @@ class ToolExecutor:
         """串行执行 calls，返回与调用 ID 配对的 tool 消息。
 
         turn_id 和 request_id 指向产生这些工具调用的轮次与模型请求。
-        开始记录写入后才执行，结果落盘后才返回；存储错误直接向上抛，
+        开始记录写入后才执行，结果落盘后才返回；存储错误通过 AgentError 契约向上抛，
         禁止模型在执行轨迹无法保存时继续行动。
         """
         results = []
@@ -60,6 +60,10 @@ class ToolExecutor:
                 self.store.append_command_event(
                     session_id, kind, {**payload, **link, "execution_id": execution_id}
                 )
+            except StorageError as error:
+                raise CommandLogError(
+                    "命令执行日志保存失败；执行状态可能未知，未自动重试。"
+                ) from error
             except ValueError as error:
                 # 日志关联错误不能被注册表当成模型参数错误后继续执行。
                 raise CommandLogError("命令执行日志校验失败；已停止本轮，未自动重试。") from error

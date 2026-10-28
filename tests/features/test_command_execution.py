@@ -344,7 +344,7 @@ def test_finished_command_log_failure_blocks_reexecution(project, tmp_path, monk
 
             def fail_finish(session_id, kind, payload):
                 if kind == "command_finished":
-                    raise OSError("finish record failed")
+                    raise StorageError("结束记录保存失败")
                 return append(session_id, kind, payload)
 
             monkeypatch.setattr(store, "append_command_event", fail_finish)

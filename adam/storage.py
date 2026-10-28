@@ -4,6 +4,8 @@ import json
 import os
 import re
 import secrets
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,6 +14,7 @@ from typing import Any, Self
 
 from filelock import FileLock, Timeout
 
+from adam.errors import AgentError
 from adam.protocol import validate_turn
 from adam.session_log import SessionLog, UnsupportedLogVersionError, decode_records, parse_log
 
@@ -33,12 +36,21 @@ class Message:
     raw: dict[str, Any]
 
 
-class StorageError(OSError):
+class StorageError(AgentError):
     """会话占用、格式损坏或写入失败。"""
 
 
-class SessionNotFoundError(LookupError):
+class SessionNotFoundError(AgentError):
     """指定会话不存在。"""
+
+
+@contextmanager
+def _storage_io() -> Iterator[None]:
+    """仅在存储操作边界转换系统 IO 错误，保留原因链；程序错误和用户中断继续传播。"""
+    try:
+        yield
+    except OSError as error:
+        raise StorageError("会话文件操作失败，请检查路径、权限和磁盘空间；未自动重试。") from error
 
 
 def valid_session_id(value: str) -> bool:
@@ -53,8 +65,13 @@ def record(kind: str, payload: dict[str, object]) -> bytes:
 
 
 class SessionStore:
-    """当前选中会话持有写锁；切换成功或关闭时释放，不跨线程共享实例。"""
+    """当前选中会话持有写锁；切换成功或关闭时释放，不跨线程共享实例。
 
+    文件与锁操作的系统错误在本模块转换为 StorageError；错误提示不泄露原始异常。
+    日志关联校验失败仍抛出 ValueError，调用方不能把内部契约错误当作普通 IO 失败。
+    """
+
+    @_storage_io()
     def __init__(self, path: Path) -> None:
         """建立会话根目录及锁目录；path 是按日期存储 JSONL 的根路径。"""
         self.root = path.resolve()
@@ -74,6 +91,7 @@ class SessionStore:
     ) -> None:
         self.close()
 
+    @_storage_io()
     def close(self) -> None:
         """释放当前会话锁；可重复调用。"""
         if self._lock is not None:
@@ -81,11 +99,12 @@ class SessionStore:
         self._lock = None
         self._active_id = None
 
+    @_storage_io()
     def create_session(self, title: str, system_prompt: str) -> str:
         """创建只有元信息的会话，返回 8 位短 ID；不自动选中。
 
         title 为展示名称，system_prompt 为本会话固定系统提示。
-        ID 分配受跨进程锁保护；目录或写入失败抛出 OSError/StorageError。
+        ID 分配受跨进程锁保护；目录或写入失败抛出 StorageError。
         """
         # 根目录锁保证跨日期、跨进程生成的短 ID 不重复。
         try:
@@ -113,6 +132,7 @@ class SessionStore:
             raise StorageError("其他进程正在创建会话，请稍后重试。") from None
         return session_id
 
+    @_storage_io()
     def select_session(self, session_id: str) -> Session:
         """获取指定会话的写锁并返回元信息；切换成功后释放旧锁。
 
@@ -140,6 +160,7 @@ class SessionStore:
         """读取 session_id 对应的元信息；验证完整文件，但不切换当前会话。"""
         return self._read(session_id)[0]
 
+    @_storage_io()
     def list_sessions(self) -> list[Session]:
         """按文件路径顺序返回全部会话元信息；遇到损坏文件时抛出 StorageError。"""
         return [self.get_session(path.stem) for path in sorted(self.root.glob("*/*/*/*.jsonl"))]
@@ -217,7 +238,7 @@ class SessionStore:
         """向已开始的轮次追加完整消息与完成标记，成功后才能加载为有效历史。
 
         messages 包括原始用户输入、工具轨迹和最终回答，须与诊断记录一致。
-        校验失败抛出 ValueError；写入失败抛出 OSError，输入不会被修改。
+        校验失败抛出 ValueError；写入失败抛出 StorageError，输入不会被修改。
         完成标记用于区分可恢复的完整历史和中断写入。
         """
         validate_turn(messages)
@@ -259,6 +280,7 @@ class SessionStore:
         """返回按落盘顺序排列的完整事件，供诊断使用；损坏文件仍拒绝读取。"""
         return self._read_log(session_id).events
 
+    @_storage_io()
     def _path(self, session_id: str) -> Path:
         """校验短 ID 并查找唯一文件；缺失抛出 SessionNotFoundError，重复抛出 StorageError。"""
         if not valid_session_id(session_id):
@@ -287,6 +309,7 @@ class SessionStore:
         ]
         return session, messages, log.tokens, log.unknown_usage
 
+    @_storage_io()
     def _read_log(self, session_id: str) -> SessionLog:
         """解析并校验事件关联；请求独立计费，成功消息只在 turn_completed 处提交。
 
@@ -302,11 +325,13 @@ class SessionStore:
                 f"会话 {session_id} 格式损坏或尾部轮次不完整；拒绝加载和追加。"
             ) from None
 
+    @_storage_io()
     def _append(self, session_id: str, data: bytes) -> None:
         """持锁追加并 flush/fsync；可捕获的写入异常尝试截断回原长度后重抛。
 
         data 是完整 JSONL 字节块。进程崩溃不保证回滚，恢复时由 _read
-        检测残缺记录；已有损坏文件禁止继续追加。新事件关联在持锁后先验证，
+        检测残缺记录；系统 IO 错误经 _storage_io 转为 StorageError。
+        已有损坏文件禁止继续追加。新事件关联在持锁后先验证，
         校验失败抛出 ValueError 且不触碰文件，不能污染原有日志。
         """
         self.select_session(session_id)

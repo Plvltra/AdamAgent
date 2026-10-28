@@ -11,12 +11,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO
 
+from adam.errors import AgentError
 from adam.tool_calls.policy import PathPolicy, ToolError, ToolLimits
 
 ExecutionRecorder = Callable[[str, dict[str, Any]], None]
 
 
-class CommandLogError(RuntimeError):
+class CommandLogError(AgentError):
     """执行日志写入失败；停止本轮，避免把未知执行状态当作可重试错误。"""
 
 

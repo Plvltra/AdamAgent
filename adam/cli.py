@@ -9,13 +9,14 @@ from pathlib import Path
 import httpx
 from colorama import just_fix_windows_console
 
-from adam.config import AgentConfig, ConfigError, adam_home, load_config
-from adam.conversation import Conversation, TurnSaveError
-from adam.llm import LLMClient, LLMError
-from adam.storage import SessionNotFoundError, SessionStore, StorageError, valid_session_id
-from adam.terminal import role_prefix
-from adam.tool_calls import PermissionConfig, ToolError, ToolLimits, ToolRegistry
-from adam.tool_calls.command_tools import CommandLogError, CommandRequest
+from adam.config import AgentConfig, adam_home, load_config
+from adam.conversation import Conversation
+from adam.errors import AgentError
+from adam.llm import LLMClient
+from adam.storage import SessionStore, valid_session_id
+from adam.terminal import role_prefix, show_failure
+from adam.tool_calls import PermissionConfig, ToolLimits, ToolRegistry
+from adam.tool_calls.command_tools import CommandRequest
 
 
 def show_session(conversation: Conversation, write: Callable[[str], None]) -> None:
@@ -137,29 +138,32 @@ def chat(
     tool_limits: ToolLimits | None = None,
     agent_config: AgentConfig | None = None,
 ) -> None:
-    conversation = Conversation(
-        store,
-        client,
-        system_prompt,
-        ToolRegistry(
-            workspace or Path.cwd(),
-            permissions,
-            tool_limits,
-            confirm_command=lambda command: confirm_command(command, read, write),
-        ),
-        agent_config,
-        write,
-    )
-    if resume_id is not None:
-        conversation.resume(resume_id)
-    models: dict[str, str | None] | None = None
-
-    write("Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/exit；成功轮次自动保存。")
-    show_session(conversation, write)
+    """运行终端交互；已知失败按 AgentError 展示，意外错误传播并释放会话锁。"""
     try:
+        conversation = Conversation(
+            store,
+            client,
+            system_prompt,
+            ToolRegistry(
+                workspace or Path.cwd(),
+                permissions,
+                tool_limits,
+                confirm_command=lambda command: confirm_command(command, read, write),
+            ),
+            agent_config,
+            write,
+        )
+        if resume_id is not None:
+            conversation.resume(resume_id)
+        models: dict[str, str | None] | None = None
+
+        write(
+            "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/exit；成功轮次自动保存。"
+        )
+        show_session(conversation, write)
         try:
             models = client.list_models()
-        except LLMError:
+        except AgentError:
             write("模型目录暂时无法获取，仍可继续聊天。")
         show_model(conversation, models, write)
         while True:
@@ -174,19 +178,8 @@ def chat(
                     continue
                 reply = conversation.send(text)
                 write(role_prefix("assistant") + reply)
-            except TurnSaveError as error:
-                write(role_prefix("assistant", unsaved=True) + error.reply)
-                write(str(error))
-            except CommandLogError as error:
-                write(str(error))
-            except LLMError as error:
-                write(f"模型请求错误：{error}")
-            except (SessionNotFoundError, ToolError) as error:
-                write(str(error))
-            except StorageError as error:
-                write(str(error))
-            except OSError:
-                write("会话文件操作失败，请检查路径和权限；未自动重试。")
+            except AgentError as error:
+                show_failure(error, write)
     except (EOFError, KeyboardInterrupt):
         pass
     finally:
@@ -195,6 +188,7 @@ def chat(
 
 
 def main() -> int:
+    """组装并启动应用；正常退出返回 0，传播到启动边界的已知失败返回 2。"""
     just_fix_windows_console()
     parser = argparse.ArgumentParser(description="Adam 持久会话终端聊天")
     parser.add_argument("--config", type=Path, default=adam_home() / "config.toml")
@@ -206,8 +200,8 @@ def main() -> int:
         parser.error("--resume 必须是 8 位小写十六进制会话 ID")
     try:
         config = load_config(args.config, args.llm_config)
-    except ConfigError as error:
-        print(f"配置错误：{error}")
+    except AgentError as error:
+        show_failure(error)
         return 2
     try:
         with (
@@ -225,13 +219,7 @@ def main() -> int:
                 tool_limits=config.tool_limits,
                 agent_config=config.agent,
             )
-    except (SessionNotFoundError, ToolError) as error:
-        print(str(error))
-        return 2
-    except StorageError as error:
-        print(str(error))
-        return 2
-    except OSError:
-        print("会话目录无法创建、打开或读取，请检查路径和权限。")
+    except AgentError as error:
+        show_failure(error)
         return 2
     return 0

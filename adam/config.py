@@ -9,11 +9,15 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from adam.errors import AgentError
 from adam.tool_calls import PermissionConfig, ToolLimits
 
 
-class ConfigError(ValueError):
-    pass
+class ConfigError(AgentError):
+    """配置无法使用；提示只包含受控字段信息。"""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(f"配置错误：{message}")
 
 
 @dataclass(frozen=True)
