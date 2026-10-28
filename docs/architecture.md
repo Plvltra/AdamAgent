@@ -2,9 +2,9 @@
 
 最近核对：2026-10-28
 
-本次核对范围：V3.4b 自动摘要、共享请求/消费上限、预览与发送边界、离线对比及 V3 完成状态。
+本次核对范围：V4 剩余工作拆分为五个小任务，核对已实现的通用命令与待实现的编辑能力。
 
-核对结论：Conversation 在真实发送前依据候选输入压力委托 CompactionService；TurnProgress 统一计数并限制每轮一次自动摘要。摘要规划复用 context_pruning，来源仍由 SessionLog 校验；预览只走 ContextBuilder，不请求模型。
+核对结论：本次仅调整任务规划，架构无变化。现有 V3 上下文管理和 run_command 保持原状；V4 文件编辑与有限修正仍未实现，不加入当前关系图。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
