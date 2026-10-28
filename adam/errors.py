@@ -25,6 +25,7 @@ class FailureCode(StrEnum):
     INTERNAL_ERROR = "internal_error"
     INTERRUPTED = "interrupted"
     PROCESS_EXIT = "process_exit"
+    RESTART_RECOVERY = "restart_recovery"
 
 
 class AgentError(Exception):

@@ -2,9 +2,9 @@
 
 最近核对：2026-10-28
 
-本次核对范围：V1.3 第 4 项独立只读诊断入口、日志查询及验收。
+本次核对范围：V1.3 第 5 项持锁恢复、备份替换、未提交消息校验及验收。
 
-核对结论：新增 diagnostics.py，直接读取 JSONL 并复用 SessionLog 校验和投影，不依赖聊天、模型客户端或 SessionStore 的写入操作。原因与计时关系保持不变；自动中断恢复尚未实施。
+核对结论：模块依赖不变，恢复职责由现有模块承担：SessionStore 新获锁后备份并原子替换；SessionLog 规划尾部恢复、校验恢复事件并更新状态；protocol 复用消息前缀规则。diagnostics 保持只读，报告增加恢复记录。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -30,7 +30,7 @@ flowchart TD
 
     CONV --> STORE
     EXEC -->|"保存执行记录"| STORE
-    STORE --> FILE["会话 JSONL 文件"]
+    STORE --> FILE["会话 JSONL 文件与恢复备份"]
     DIAG["diagnostics.py<br/>独立只读报告"] -->|读取快照| FILE
     DIAG --> LOG
     STORE --> LOG["session_log.py<br/>校验关联与状态、整理历史与用量"]
@@ -80,8 +80,8 @@ flowchart TD
 | [conversation.py](../adam/conversation.py) | `Conversation` | 管理当前会话，组织历史、模型请求、工具循环、额度检查和最终回答提交；分别记录请求与轮次终态 |
 | [llm.py](../adam/llm.py) | `LLMClient`、`Completion` | 访问模型服务，将一次请求转换为模型消息和用量；模型消息也可能是工具请求 |
 | [protocol.py](../adam/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
-| [storage.py](../adam/storage.py) | `SessionStore`、`Session`、`Message` | 管理会话文件、锁和读写，提供会话身份及已提交消息 |
-| [session_log.py](../adam/session_log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，重建请求与轮次状态、有效历史及用量；自身不访问文件 |
+| [storage.py](../adam/storage.py) | `SessionStore`、`Session`、`Message` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
+| [session_log.py](../adam/session_log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，重建状态、有效历史及用量，规划并回放恢复事件；自身不访问文件 |
 | [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor` | 组织工具执行，将轨迹关联到轮次与请求，并形成回传模型的工具消息 |
 | [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，校验参数、分派调用并统一结果格式 |
 | [tool_calls/file_tools.py](../adam/tool_calls/file_tools.py) | `FileTools` | 文件系统查询、搜索与读取能力 |
@@ -100,7 +100,7 @@ flowchart TD
 - **配置与执行：** 配置对象描述权限、额度和限制，各业务模块负责实际执行检查。
 - **失败处理：** 可反馈的工具错误交回模型；命令日志无法可靠保存等错误会终止本轮。已知失败实现 AgentError 契约，CLI 委托 terminal.show_failure 展示；终端 IO 故障和意外程序错误不会被当成业务失败吞掉。
 
-当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态、结束原因与耗时。独立开发诊断入口已实现，自动中断恢复仍属于后续任务，不计划增加轮次诊断聊天命令。上下文裁剪与流式响应也尚未实现，不应在现有架构图中画成已接入的组件。
+当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态、结束原因与耗时。独立开发诊断与持锁中断恢复已实现，真实进程强杀验收仍待完成，不计划增加轮次诊断聊天命令。上下文裁剪与流式响应也尚未实现，不应在现有架构图中画成已接入的组件。
 
 ## 公开错误契约
 
@@ -138,7 +138,8 @@ flowchart TD
 - 轮次成功只来自完整 message 块与 turn_completed 的成功提交；不能用独立状态事件跳过消息校验。turn_finished 只允许 failed / interrupted。
 - Conversation 捕获失败后尽力保存终态，再传播原异常；KeyboardInterrupt / SystemExit 等退出信号记录 interrupted。失败日志本身出错只给原异常增加受控附注，不遮蔽最初失败。
 - 原因与耗时通过 ExecutionOutcome 统一表达；Conversation 只负责在执行边界取单调时钟差，不在 CLI 增加错误类别分支。成功详情与完整消息同块保存，失败详情不含原始异常或远端正文。
-- 强制终止或持续写入失败可能留下进行中记录。当前不自动恢复、截断或重发；这部分按第 5 项另行实现。
+- 新获会话写锁后，SessionStore 先备份原始字节，再用临时文件替换完整恢复结果；SessionLog 拒绝中间损坏，校验残留消息前缀并回放 session_recovered。完整物理记录不删除，未提交消息不成为历史。
+- 恢复仅关闭缺少结束记录的操作，不推断真实请求结果、未知用量或未知命令结果，不自动重发。恢复失败保留原文件和原会话锁，重复重开不重复恢复。
 
 ## 文档维护
 

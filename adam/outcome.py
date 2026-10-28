@@ -43,7 +43,11 @@ class ExecutionOutcome:
         if not isinstance(self.message, str) or not self.message:
             raise ValueError("missing failure message")
         code = FailureCode(self.reason)
-        interrupted = code in {FailureCode.INTERRUPTED, FailureCode.PROCESS_EXIT}
+        interrupted = code in {
+            FailureCode.INTERRUPTED,
+            FailureCode.PROCESS_EXIT,
+            FailureCode.RESTART_RECOVERY,
+        }
         expected = "interrupted" if interrupted else "failed"
         if self.status != expected:
             raise ValueError("reason does not match status")

@@ -27,8 +27,8 @@ def decode_records(raw: bytes) -> list[dict[str, Any]]:
     return entries
 
 
-def parse_log(raw: bytes, session_id: str) -> "SessionLog":
-    """校验 v4 元信息及全部事件；不完整诊断记录可读，半个成功消息块不可读。"""
+def parse_log(raw: bytes, session_id: str, *, allow_pending: bool = False) -> "SessionLog":
+    """校验 v4 及关联；allow_pending 仅供持锁恢复读取未提交消息，不加入有效历史。"""
     entries = decode_records(raw)
     meta = entries[0]
     data = meta["payload"]
@@ -44,12 +44,30 @@ def parse_log(raw: bytes, session_id: str) -> "SessionLog":
         raise ValueError("invalid metadata")
     log = SessionLog(data)
     log.events.append(meta)
-    log.extend(entries[1:])
+    log.extend(entries[1:], allow_pending=allow_pending)
     return log
 
 
+def prepare_recovery(raw: bytes, session_id: str) -> tuple[bytes, "SessionLog"]:
+    """规划尾部恢复，不访问文件；完整前缀有损坏时拒绝，不能借恢复吞掉非法事件。
+
+    只允许清理未换行且 JSON/UTF-8 不完整的尾行；完整 JSON 缺换行则补齐后校验。
+    半个成功消息块按合法前缀校验，完整行仍保留，后续由恢复事件关闭而非进入历史。
+    """
+    complete = raw
+    if raw and not raw.endswith(b"\n"):
+        boundary = raw.rfind(b"\n") + 1
+        try:
+            json.loads(raw[boundary:])
+        except (ValueError, UnicodeError):
+            complete = raw[:boundary]
+        else:
+            complete = raw + b"\n"
+    return complete, parse_log(complete, session_id, allow_pending=True)
+
+
 class SessionLog:
-    """一次读取的事件投影；不访问文件，不推断失败原因或自动结束遗留操作。
+    """一次读取的事件投影；不访问文件，只依照明确的恢复事件关闭遗留操作。
 
     messages 只包含提交完成的历史；turns、requests、tools、executions 保留诊断关联。
     每次读取重新构建，避免内存状态先于持久化成功而被误用。
@@ -75,11 +93,12 @@ class SessionLog:
             not request["settled"] for request in self.requests.values()
         )
 
-    def extend(self, entries: list[dict[str, Any]]) -> None:
-        """逐条验证关联并更新投影；完整批次不能留下半个成功消息块。
+    def extend(self, entries: list[dict[str, Any]], *, allow_pending: bool = False) -> None:
+        """逐条验证关联并更新投影；常规追加不能留下半个成功消息块。
 
         未完成 turn_started/tool_started 属于诊断，不加入待提交消息，因此允许重开读取。
         调用方仅在本方法成功后将整个批次写入文件；失败时丢弃此投影。
+        allow_pending 仅用于恢复规划；未提交消息仍须通过结构及关联校验。
         """
         handlers = {
             "turn_started": self._start_turn,
@@ -94,17 +113,61 @@ class SessionLog:
             "command_denied": self._apply_command,
             "message": self._apply_message,
             "turn_completed": self._complete_turn,
+            "session_recovered": self._recover,
         }
         for entry in entries:
             kind, payload = entry["type"], entry["payload"]
             if kind not in handlers:
                 raise ValueError("unknown event")
-            if self._pending_messages and kind not in {"message", "turn_completed"}:
+            if self._pending_messages and kind not in {
+                "message",
+                "turn_completed",
+                "session_recovered",
+            }:
                 raise ValueError("interleaved message block")
             handlers[kind](kind, payload)
             self.events.append(entry)
         if self._pending_messages:
-            raise ValueError("incomplete turn")
+            if not allow_pending:
+                raise ValueError("incomplete turn")
+            self._validate_pending(complete=False)
+
+    def recovery_targets(self) -> dict[str, Any]:
+        """返回尚无结束记录的操作；已记录失败的轮次不被恢复改成中断。"""
+        return {
+            "turn_ids": [
+                key for key, value in self.turns.items() if value["status"] == "in_progress"
+            ],
+            "request_ids": [
+                key for key, value in self.requests.items() if value["status"] == "in_progress"
+            ],
+            "tool_keys": [
+                list(key) for key, value in self.tools.items() if value["status"] == "in_progress"
+            ],
+            "uncommitted_messages": len(self._pending_messages),
+        }
+
+    def _recover(self, kind: str, payload: dict[str, Any]) -> None:
+        """回放持锁恢复结果；不猜请求用量、命令执行结果，不提交残留消息。"""
+        targets = self.recovery_targets()
+        if any(payload.get(key) != value for key, value in targets.items()):
+            raise ValueError("mismatched recovery targets")
+        if payload.get("status") != "interrupted" or payload.get("reason") != "restart_recovery":
+            raise ValueError("invalid recovery outcome")
+        details = outcome_details(payload, "interrupted")
+        if details["duration_ms"] is not None:
+            raise ValueError("recovery duration is unknown")
+        if self._pending_messages:
+            self._validate_pending(complete=False)
+        for turn_id in targets["turn_ids"]:
+            self.turns[turn_id].update(details)
+        for request_id in targets["request_ids"]:
+            self.requests[request_id].update(details)
+        for turn_id, call_id in targets["tool_keys"]:
+            self.tools[(turn_id, call_id)].update(details)
+        # 完整物理记录留在 events；无提交标记的消息不能成为成功历史。
+        self._pending_messages = []
+        self._pending_turn = ""
 
     def _start_turn(self, kind: str, payload: dict[str, Any]) -> None:
         turn_id = self._identifier(payload, "turn_id")
@@ -182,6 +245,7 @@ class SessionLog:
             self.tools[key] = {
                 **payload,
                 "finished": False,
+                "status": "in_progress",
                 "execution_id": None,
             }
             return
@@ -191,7 +255,7 @@ class SessionLog:
         execution_id = tool["execution_id"]
         if execution_id is not None and self.executions[execution_id]["status"] == "unknown":
             raise ValueError("command has no final result")
-        tool.update(output=payload["output"], finished=True)
+        tool.update(output=payload["output"], finished=True, status="finished")
 
     def _apply_command(self, kind: str, payload: dict[str, Any]) -> None:
         """命令事件属于已开始的 run_command 工具；缺少结束事件时保持 unknown。"""
@@ -250,7 +314,17 @@ class SessionLog:
         details = outcome_details(payload, "succeeded")
         if not self._pending_messages or self._pending_turn != turn_id:
             raise ValueError("unmatched completion")
-        validate_turn(self._pending_messages)
+        self._validate_pending(complete=True)
+        self.messages.extend((turn_id, message) for message in self._pending_messages)
+        self.turns[turn_id].update(details)
+        self.turns[turn_id]["status"] = "succeeded"
+        self._pending_messages = []
+        self._pending_turn = ""
+
+    def _validate_pending(self, *, complete: bool) -> None:
+        """提交与恢复共用消息校验；恢复只允许缺少后缀，已出现的证据仍须一致。"""
+        turn_id = self._pending_turn
+        validate_turn(self._pending_messages, allow_partial=not complete)
         if self._pending_messages[0]["content"] != self.turns[turn_id]["user_text"]:
             raise ValueError("mismatched user input")
         if any(
@@ -273,13 +347,8 @@ class SessionLog:
                 tool = turn_tools.get(message["tool_call_id"])
                 if tool is None or not tool["finished"] or message["content"] != tool["output"]:
                     raise ValueError("mismatched tool output")
-        if seen != set(turn_tools):
+        if complete and seen != set(turn_tools):
             raise ValueError("uncommitted tool trace")
-        self.messages.extend((turn_id, message) for message in self._pending_messages)
-        self.turns[turn_id].update(details)
-        self.turns[turn_id]["status"] = "succeeded"
-        self._pending_messages = []
-        self._pending_turn = ""
 
     def _require_turn(self, payload: dict[str, Any]) -> str:
         turn_id = self._identifier(payload, "turn_id")

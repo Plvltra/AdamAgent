@@ -18,6 +18,7 @@
 | V1.3 第 2 项请求/轮次状态 | 请求成功不等于轮次成功；已知用量独立、中断收尾、原始异常保留 | [test_execution_states.py](test_execution_states.py)、[test_error_feedback.py](test_error_feedback.py) |
 | V1.3 第 3 项原因与耗时 | 两次请求和整轮分别计时；API、预算、中断和保存失败的原因准确，原始错误内容不入日志 | [test_execution_outcomes.py](test_execution_outcomes.py)、[test_tool_loop.py](test_tool_loop.py)、[test_error_feedback.py](test_error_feedback.py) |
 | V1.3 第 4 项开发诊断 | 只读报告关联输入、请求、工具和失败详情；真实模块入口、未知字段和无效文件不产生写入 | [test_diagnostics.py](test_diagnostics.py) |
+| V1.3 第 5 项持锁恢复 | 备份后修复尾行、保留完整记录、状态不误判、未知用量/命令不重跑；失败保留原文件和旧锁 | [test_restart_recovery.py](test_restart_recovery.py) |
 | V1.3.1 执行轨迹 | 失败也保留输入/请求/全部工具结果；关联正确，日志失败停止后续动作，诊断不污染成功历史 | [test_execution_trace.py](test_execution_trace.py) |
 
 这里也保留直接验证业务边界的场景，例如命令超时、请求额度耗尽；不强求每个场景都从 CLI 启动。
@@ -78,6 +79,8 @@ V1.3.1 与测试整理验收：原有 125 个用例保留，补充 11 个用例�
 
 第 4 项新增 5 个业务场景，定向 **5 passed**；Ruff 与 Pyright 通过，全量回归随本项提交检查执行。
 
+第 5 项新增 17 个恢复业务场景，全量 **204 passed in 27.87s**；Ruff 与 Pyright 通过。这里手工制造遗留记录及 IO 故障；真实进程强杀属于下一项。
+
 ## 怎样运行
 
 在项目根目录使用项目虚拟环境：
@@ -102,4 +105,4 @@ pytest 已配置扫描整个 tests；现有 pre-commit 的 pytest 钩子会自�
 
 模型 HTTP 响应是预设的，测试不会消耗 API 额度；文件、JSONL、锁和部分子进程会在临时目录实际运行。故障测试在指定边界注入错误，验证程序停止或保留记录的行为。
 
-这些场景不能证明真实模型能正确决定是否使用工具，也不能代替真实进程强制终止验收或用户对配色的辨识体验。V1.3 第 5、6 项、V3、文件编辑与流式取消等未实现功能的验收仍在 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。
+这些场景不能证明真实模型能正确决定是否使用工具，也不能代替真实进程强制终止验收或用户对配色的辨识体验。V1.3 第 6 项、V3、文件编辑与流式取消等未实现功能的验收仍在 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。

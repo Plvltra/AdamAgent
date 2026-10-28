@@ -17,7 +17,13 @@ from filelock import FileLock, Timeout
 from adam.errors import AgentError, FailureCode
 from adam.outcome import ExecutionOutcome
 from adam.protocol import validate_turn
-from adam.session_log import SessionLog, UnsupportedLogVersionError, decode_records, parse_log
+from adam.session_log import (
+    SessionLog,
+    UnsupportedLogVersionError,
+    decode_records,
+    parse_log,
+    prepare_recovery,
+)
 
 
 @dataclass(frozen=True)
@@ -140,7 +146,8 @@ class SessionStore:
         """获取指定会话的写锁并返回元信息；切换成功后释放旧锁。
 
         session_id 必须对应有效会话；不存在抛出 SessionNotFoundError，
-        被占用或损坏抛出 StorageError，失败时保留原会话锁。
+        新获锁后先备份并恢复遗留状态及残缺尾行，再读取历史，不自动重发。
+        被占用、中间损坏或恢复失败抛出 StorageError，失败时保留原会话锁。
         """
         if session_id == self._active_id:
             return self.get_session(session_id)
@@ -151,6 +158,7 @@ class SessionStore:
         except Timeout:
             raise StorageError(f"会话 {session_id} 已被其他进程占用。") from None
         try:
+            self._recover_session(session_id)
             session = self.get_session(session_id)
         except BaseException:
             lock.release()
@@ -308,6 +316,57 @@ class SessionStore:
     def load_events(self, session_id: str) -> list[dict[str, Any]]:
         """返回按落盘顺序排列的完整事件，供诊断使用；损坏文件仍拒绝读取。"""
         return self._read_log(session_id).events
+
+    def _recover_session(self, session_id: str) -> None:
+        """仅在新取得写锁后恢复；先持久备份，再以同目录临时文件原子替换。
+
+        恢复前校验全部完整记录。备份或替换失败时不改原文件；已生成备份保留。
+        原子替换防止读者看到半份修复结果，但不承诺断电时的目录项持久性。
+        """
+        path = self._path(session_id)
+        original = path.read_bytes()
+        try:
+            complete, log = prepare_recovery(original, session_id)
+            targets = log.recovery_targets()
+            if complete == original and not any(targets.values()):
+                return
+            backup = path.with_name(path.name + "." + secrets.token_hex(8) + ".bak")
+            outcome = ExecutionOutcome(
+                "interrupted",
+                FailureCode.RESTART_RECOVERY.value,
+                message="上次缺少完整结束记录；恢复时标记中断，未重发请求或重跑工具。",
+            )
+            repaired = complete + record(
+                "session_recovered",
+                {
+                    **targets,
+                    **outcome.payload(),
+                    "tail_repaired": complete != original,
+                    "backup_file": backup.name,
+                },
+            )
+            parse_log(repaired, session_id)
+        except UnsupportedLogVersionError:
+            raise StorageError("不支持旧版或未知会话格式；请 /new 创建新会话。") from None
+        except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+            raise StorageError("会话格式不受支持或完整记录已损坏；未自动修复。") from None
+        with backup.open("xb") as file:
+            file.write(original)
+            file.flush()
+            os.fsync(file.fileno())
+        temporary = backup.with_suffix(".recovery.tmp")
+        try:
+            with temporary.open("xb") as file:
+                file.write(repaired)
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temporary, path)
+        finally:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                # 替换失败时保留原日志和备份；临时文件清理失败不遮蔽原始异常。
+                pass
 
     @_storage_io()
     def _path(self, session_id: str) -> Path:

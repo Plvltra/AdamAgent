@@ -57,6 +57,7 @@ def read_report(path: Path) -> dict[str, Any]:
         "known_tokens": log.tokens,
         "unknown_usage": log.unknown_usage,
         "turns": turns,
+        "recoveries": [event for event in log.events if event["type"] == "session_recovered"],
     }
 
 

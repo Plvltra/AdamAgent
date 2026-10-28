@@ -37,14 +37,15 @@ def validate_assistant(message: dict[str, Any]) -> None:
         raise ValueError("empty answer")
 
 
-def validate_turn(messages: list[dict[str, Any]]) -> None:
+def validate_turn(messages: list[dict[str, Any]], *, allow_partial: bool = False) -> None:
     """校验完整轮次，无效时抛出 ValueError；不修改输入。
 
     要求以用户消息开始、以最终回答结束，工具结果按调用顺序完整配对，
-    同一轮次内的工具调用 ID 不重复。
+    同一轮次内的工具调用 ID 不重复。allow_partial 仅供中断恢复校验尚未提交的前缀，
+    允许缺少末尾回答或工具结果，但不放松已有消息的顺序和结构要求。
     """
     if (
-        len(messages) < 2
+        len(messages) < (1 if allow_partial else 2)
         or messages[0].get("role") != "user"
         or not isinstance(messages[0].get("content"), str)
     ):
@@ -71,5 +72,5 @@ def validate_turn(messages: list[dict[str, Any]]) -> None:
                 seen.add(call["id"])
                 pending.append(call["id"])
             final = not calls
-    if pending or not final:
+    if (pending or not final) and not allow_partial:
         raise ValueError("unfinished turn")

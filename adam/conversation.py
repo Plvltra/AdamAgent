@@ -129,7 +129,7 @@ class Conversation:
         turn_id 指向已记录的用户输入；有效响应先记请求成功，缺少用量时整轮仍停止。
         中断或未知用量会阻止继续消费。最终回答记账失败时保留回答供终端显示；
         请求耗时只包含完整模型调用及响应解析，不含开始与结算日志写入。
-        失败收尾不遮蔽原始异常，尚未实现崩溃后的自动状态修复。
+        失败收尾不遮蔽原始异常；崩溃遗留状态由下次取得会话写锁时恢复。
         """
         self._check_session_budget(session_id)
         request_id = self.store.start_request(session_id, turn_id, self.model)
