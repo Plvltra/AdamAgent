@@ -2,9 +2,9 @@
 
 最近核对：2026-10-28
 
-本次核对范围：V1.3 第 3 项的结束原因、请求与轮次计时、终态字段校验及业务验收。
+本次核对范围：V1.3 第 4 项独立只读诊断入口、日志查询及验收。
 
-核对结论：新增 outcome.py，集中表达并校验结束信息；errors.py 提供稳定原因码。Conversation 测量请求与轮次耗时，SessionStore 写入终态，SessionLog 复用相同字段校验。仍使用 v4。开发诊断入口和自动中断恢复尚未实施。
+核对结论：新增 diagnostics.py，直接读取 JSONL 并复用 SessionLog 校验和投影，不依赖聊天、模型客户端或 SessionStore 的写入操作。原因与计时关系保持不变；自动中断恢复尚未实施。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -31,6 +31,8 @@ flowchart TD
     CONV --> STORE
     EXEC -->|"保存执行记录"| STORE
     STORE --> FILE["会话 JSONL 文件"]
+    DIAG["diagnostics.py<br/>独立只读报告"] -->|读取快照| FILE
+    DIAG --> LOG
     STORE --> LOG["session_log.py<br/>校验关联与状态、整理历史与用量"]
     CONV --> OUTCOME["outcome.py<br/>结束原因、耗时与受控错误"]
     STORE --> OUTCOME
@@ -72,6 +74,7 @@ flowchart TD
 | [cli.py](../adam/cli.py) | `main`、`chat`、`handle_command` | 组装组件，处理输入和斜杠指令，展示结果与错误，取得命令确认 |
 | [terminal.py](../adam/terminal.py) | `role_prefix`、`show_failure` | 展示角色样式、业务失败说明及未保存回答；不判断具体底层错误类型 |
 | [errors.py](../adam/errors.py) | `AgentError`、`FailureCode`、`BudgetError`、`TurnSaveError` | 定义可展示说明、可选未保存回答及稳定失败类别，保持界面错误接口稳定 |
+| [diagnostics.py](../adam/diagnostics.py) | `read_report`、`main` | 只读单个日志快照，按轮次输出请求和工具详情；不请求模型、不修复文件 |
 | [outcome.py](../adam/outcome.py) | `ExecutionOutcome`、`outcome_details` | 表达请求或轮次的终态、原因和已测耗时；写入和回放共用字段校验，不负责计时或 IO |
 | [config.py](../adam/config.py) | `AppConfig`、`LLMConfig`、`AgentConfig` | 加载并校验运行配置，区分整体应用、模型连接及对话循环额度 |
 | [conversation.py](../adam/conversation.py) | `Conversation` | 管理当前会话，组织历史、模型请求、工具循环、额度检查和最终回答提交；分别记录请求与轮次终态 |
@@ -97,7 +100,7 @@ flowchart TD
 - **配置与执行：** 配置对象描述权限、额度和限制，各业务模块负责实际执行检查。
 - **失败处理：** 可反馈的工具错误交回模型；命令日志无法可靠保存等错误会终止本轮。已知失败实现 AgentError 契约，CLI 委托 terminal.show_failure 展示；终端 IO 故障和意外程序错误不会被当成业务失败吞掉。
 
-当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态、结束原因与耗时。独立开发诊断入口和自动中断恢复仍属于后续任务，不计划增加轮次诊断聊天命令。上下文裁剪与流式响应也尚未实现，不应在现有架构图中画成已接入的组件。
+当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态、结束原因与耗时。独立开发诊断入口已实现，自动中断恢复仍属于后续任务，不计划增加轮次诊断聊天命令。上下文裁剪与流式响应也尚未实现，不应在现有架构图中画成已接入的组件。
 
 ## 公开错误契约
 
