@@ -109,6 +109,17 @@ def test_failed_check_edit_and_recheck(tmp_path, approve):
                 conversation.send("修复加法，并运行项目检查")
         turn = read_report(next(store.root.rglob("*.jsonl")))["turns"][0]
         assert turn["status"] == ("succeeded" if approve else "failed")
+        facts = conversation.execution_report()
+        assert facts is not None
+        assert [item.kind for item in facts.actions] == (
+            ["run_command", "replace_text", "run_command"]
+            if approve
+            else ["run_command", "replace_text"]
+        )
+        assert facts.actions[0].exit_code != 0
+        assert facts.actions[1].status == ("applied" if approve else "denied")
+        if approve:
+            assert facts.actions[2].exit_code == 0
         assert len(requests) == (5 if approve else 3)
         assert len(approvals) == 1
         assert ("return a + b" in source.read_text()) == approve
@@ -172,6 +183,9 @@ def test_edit_attempt_limit_stops_before_fourth_and_resets_next_turn(tmp_path, v
         with pytest.raises(BudgetError) as caught:
             conversation.send("repeat")
         assert caught.value.code == "edit_limit"
+        facts = conversation.execution_report()
+        assert facts is not None and facts.reason == "edit_limit"
+        assert len(facts.actions) == 3
         assert len(requests) == (1 if batch else 4)
         turn = read_report(next(store.root.rglob("*.jsonl")))["turns"][0]
         assert turn["reason"] == "edit_limit" and len(turn["tools"]) == 3
@@ -181,3 +195,5 @@ def test_edit_attempt_limit_stops_before_fourth_and_resets_next_turn(tmp_path, v
         turns = read_report(next(store.root.rglob("*.jsonl")))["turns"]
         assert len(turns[1]["tools"]) == 1
         assert source.read_bytes() == (b"4" if valid else b"0")
+        conversation.new()
+        assert conversation.execution_report() is None

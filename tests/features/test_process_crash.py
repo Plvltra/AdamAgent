@@ -297,6 +297,9 @@ def test_edit_process_kill_and_restart(tmp_path, local_api, phase, status, chang
     result = json.loads(restarted.stdout)
     report = result["report"]
     assert report["turns"][0]["edits"][0]["status"] == status
+    with SessionStore(root) as store:
+        facts = store.execution_report(session_id, report["turns"][0]["turn_id"])
+        assert facts.status == "interrupted" and facts.actions[0].status == status
     assert report["turns"][0]["status"] == "interrupted"
     assert result["history"] == [] and not report["unknown_usage"]
     assert result["blocked"] is (status == "unknown")

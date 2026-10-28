@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| V4.2b 执行事实报告 | CLI 正常/失败/拒绝/超时/未知结果、读取失败、回答保存失败；不采信模型自述、不污染历史 | [test_execution_report.py](test_execution_report.py)、[test_repair_loop.py](test_repair_loop.py)、[test_process_crash.py](test_process_crash.py) |
 | V4.2a 有限修正 | 真实检查失败后编辑重测、拒绝停止、同批/跨请求计数及新轮重置 | [test_repair_loop.py](test_repair_loop.py) |
 | V4.1c 模型编辑与恢复 | 真实工具闭环、拒绝停止、日志失败与伪造关联拒绝、四个强杀边界 | [test_edit_tool_loop.py](test_edit_tool_loop.py)、[test_process_crash.py](test_process_crash.py) |
 | V4.1a/b 文件修改 | 版本、唯一匹配、字节保真、diff 批准、独立权限、外部冲突及写入失败 | [test_file_editing.py](test_file_editing.py) |

@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：V4.2a 每轮编辑尝试限额与真实命令反馈闭环。
+本次核对范围：V4.2b 执行事实报告、终端正常/失败展示，以及完整 V4 故障验收。
 
-核对结论：模块结构不变；Conversation 为每轮创建 ToolBudget，ToolExecutor 在派发前消费编辑额度，跨批共用，错误也计数。通用命令结果由模型解释，不引入项目专用测试工具。
+核对结论：新增 execution_report.py，从同一日志快照生成执行事实；SessionStore 读取，Conversation 提供本轮查询接口，terminal 展示。CLI 不解释底层命令/编辑状态；报告不写入聊天历史，也不把进程退出 0 当作测试通过。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -16,7 +16,7 @@
 flowchart TD
     ENTRY["__main__.py<br/>程序入口"] --> CLI["cli.py<br/>启动组装、用户交互、指令处理"]
     CLI --> CONFIG["config.py<br/>加载与校验配置"]
-    CLI --> TERMINAL["terminal.py<br/>角色、失败与上下文展示"]
+    CLI --> TERMINAL["terminal.py<br/>角色、失败、上下文与执行事实展示"]
     CLI --> CONV["conversation.py<br/>轮次收尾、模型—工具循环"]
     CLI -->|"会话列表、历史与用量查询"| STORE["storage.py<br/>会话持久化与读取"]
 
@@ -55,6 +55,10 @@ flowchart TD
     DIAG["diagnostics.py<br/>独立只读报告"] -->|读取快照| FILE
     DIAG --> LOG
     STORE --> LOG["session_log.py<br/>校验关联与状态、整理历史与用量"]
+    STORE --> REPORT["execution_report.py<br/>从日志提取本轮执行事实"]
+    REPORT --> LOG
+    CONV -.->|"返回执行事实"| REPORT
+    TERMINAL -.->|"展示 ExecutionReport"| REPORT
     CONV --> OUTCOME["outcome.py<br/>结束原因、耗时与受控错误"]
     STORE --> OUTCOME
     LOG -.->|"校验终态字段"| OUTCOME
@@ -101,7 +105,8 @@ flowchart TD
 | --- | --- | --- |
 | [__main__.py](../adam/__main__.py) | 程序入口 | 将 `python -m adam` 交给 CLI 启动 |
 | [cli.py](../adam/cli.py) | `main`、`chat`、`handle_command` | 组装组件，处理输入和斜杠指令，展示结果与错误，取得命令确认 |
-| [terminal.py](../adam/terminal.py) | `role_prefix`、`show_failure`、`show_context` | 展示角色、业务失败及上下文组成/全文；不读取会话或请求模型 |
+| [terminal.py](../adam/terminal.py) | `role_prefix`、`show_failure`、`show_context`、`show_execution_report` | 展示角色、失败、上下文和执行事实；不读取会话或请求模型 |
+| [execution_report.py](../adam/execution_report.py) | `ActionFact`、`ExecutionReport`、`build_execution_report` | 从已校验日志提取执行顺序、状态、版本和退出码；不解释模型的测试结论 |
 | [errors.py](../adam/errors.py) | `AgentError`、`FailureCode`、`BudgetError`、`TurnSaveError` | 定义可展示说明、可选未保存回答及稳定失败类别，保持界面错误接口稳定 |
 | [diagnostics.py](../adam/diagnostics.py) | `read_report`、`main` | 只读单个日志快照，按轮次输出请求和工具详情；不请求模型、不修复文件 |
 | [outcome.py](../adam/outcome.py) | `ExecutionOutcome`、`outcome_details` | 表达请求或轮次的终态、原因和已测耗时；写入和回放共用字段校验，不负责计时或 IO |
@@ -137,6 +142,7 @@ flowchart TD
 - **摘要与循环：** `Conversation._prepare_context` 只在真实发送时按压力规划摘要；`TurnProgress` 记录本轮请求数和尝试状态。`CompactionService` 处理单次摘要、消费及提交；`CompactionLog` 只解释持久化状态。摘要后重新构造输入并检查预算，失败不重试。
 - **协议与日志：** `protocol.py` 检查消息结构和工具配对；`session_log.py` 检查持久化事件的关联，并识别完整提交的历史。它们不验证回答事实是否正确。
 - **日志与文件：** `SessionLog` 解释事件含义；`SessionStore` 负责文件访问和持久化。失败轮次可以留下诊断记录，但不会因此进入模型的有效历史。
+- **事实与表述：** Conversation 只记住本次运行最近轮次的标识，SessionStore 从同一份快照提取事实；恢复后的历史轮次仍可由存储接口读取。未知副作用不能因回答失败、重启或读取失败而推断为未执行。报告不进入模型历史，纯聊天不刷执行信息。
 - **配置与执行：** 配置对象描述权限、额度和限制，各业务模块负责实际执行检查。
 - **失败处理：** 可反馈的工具错误交回模型；命令日志无法可靠保存等错误会终止本轮。已知失败实现 AgentError 契约，CLI 委托 terminal.show_failure 展示；终端 IO 故障和意外程序错误不会被当成业务失败吞掉。
 

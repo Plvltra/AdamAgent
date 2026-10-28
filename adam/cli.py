@@ -14,7 +14,7 @@ from adam.conversation import Conversation
 from adam.errors import AgentError
 from adam.llm import LLMClient
 from adam.storage import SessionStore, valid_session_id
-from adam.terminal import role_prefix, show_context, show_failure
+from adam.terminal import role_prefix, show_context, show_execution_report, show_failure
 from adam.tool_calls import PermissionConfig, ToolLimits, ToolRegistry
 from adam.tool_calls.command_tools import CommandRequest
 from adam.tool_calls.edit_plan import EditPlan
@@ -150,6 +150,30 @@ def confirm_edit(plan: EditPlan, read: Callable[[str], str], write: Callable[[st
         return False
 
 
+def show_turn_report(conversation: Conversation, write: Callable[[str], None]) -> None:
+    """通过会话接口取得执行事实；日志读取故障不掩盖原始失败，终端写入异常仍传播。"""
+    try:
+        report = conversation.execution_report()
+    except AgentError:
+        write("执行记录> 日志无法读取，实际结果无法确认；请检查会话文件，未自动重做。")
+        return
+    show_execution_report(report, write)
+
+
+def send_message(conversation: Conversation, text: str, write: Callable[[str], None]) -> None:
+    """展示回答或已知失败后附执行事实；中断也展示记录，再交外层退出。"""
+    try:
+        reply = conversation.send(text)
+    except AgentError as error:
+        show_failure(error, write)
+    except (KeyboardInterrupt, EOFError):
+        show_turn_report(conversation, write)
+        raise
+    else:
+        write(role_prefix("assistant") + reply)
+    show_turn_report(conversation, write)
+
+
 def chat(
     client: LLMClient,
     system_prompt: str,
@@ -203,8 +227,7 @@ def chat(
                     break
                 if result is CommandResult.HANDLED:
                     continue
-                reply = conversation.send(text)
-                write(role_prefix("assistant") + reply)
+                send_message(conversation, text, write)
             except AgentError as error:
                 show_failure(error, write)
     except (EOFError, KeyboardInterrupt):

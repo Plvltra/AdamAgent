@@ -1,4 +1,4 @@
-"""终端角色、失败与上下文展示；颜色不进入模型消息或会话记录。"""
+"""终端角色、失败、上下文与执行事实展示；颜色不进入模型消息或会话记录。"""
 
 import json
 import os
@@ -9,6 +9,7 @@ from colorama import Fore, Style
 
 from adam.context import RequestContext
 from adam.errors import AgentError
+from adam.execution_report import ExecutionReport
 
 
 def role_prefix(role: str, *, unsaved: bool = False) -> str:
@@ -79,6 +80,39 @@ def show_context(
                 {"messages": context.messages, "tools": context.tools}, ensure_ascii=False, indent=2
             )
         )
+
+
+def show_execution_report(
+    report: ExecutionReport | None, write: Callable[[str], None] = print
+) -> None:
+    """展示已记录动作，不把退出 0 当成测试通过；纯聊天不额外刷执行信息。"""
+    if report is None or not report.has_tools:
+        return
+    if not report.actions:
+        write("执行记录> 本轮未记录文件修改或命令执行；未确认测试结果。")
+        return
+    write("执行记录> 以下由程序根据日志生成；测试结论还需核对具体命令及输出。")
+    labels = {
+        "applied": "已修改",
+        "denied": "已拒绝，未执行",
+        "conflict": "版本冲突，未修改",
+        "failed": "修改失败",
+        "not_started": "未开始",
+        "unknown": "结果未知，需人工核对",
+        "completed": "进程已结束",
+        "timed_out": "超时，未正常完成",
+        "start_failed": "启动失败",
+        "interrupted": "已中断，可能有部分副作用",
+    }
+    for action in report.actions:
+        label = labels.get(action.status, action.status)
+        details = f"；退出码 {action.exit_code}" if action.exit_code is not None else ""
+        if action.after_version is not None:
+            details += f"；版本 {action.before_version} → {action.after_version}"
+        write(f"  {action.kind}：{action.target} — {label}{details}")
+    if report.status != "succeeded":
+        write(f"  本轮未完成回答提交；停止原因：{report.reason or '尚无结束记录'}。")
+    write("  命令退出 0 只表示进程正常结束，不自动等于测试通过；修改记录也不代表已验证。")
 
 
 def show_failure(error: AgentError, write: Callable[[str], None] = print) -> None:

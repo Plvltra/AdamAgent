@@ -10,6 +10,7 @@ from adam.compaction import CompactionService
 from adam.config import AgentConfig, ContextConfig
 from adam.context import ContextBuilder, RequestContext
 from adam.errors import BudgetError, FailureCode, TurnSaveError
+from adam.execution_report import ExecutionReport
 from adam.history import Summary
 from adam.llm import Completion, LLMClient, LLMError
 from adam.outcome import ExecutionOutcome
@@ -43,6 +44,7 @@ class Conversation:
         self.client = client
         self.system_prompt = system_prompt
         self.session: Session | None = None
+        self._last_turn: tuple[str, str] | None = None
         self.model = client.config.model
         self.tool_registry = tools or ToolRegistry(Path.cwd())
         self.limits = limits or AgentConfig()
@@ -62,6 +64,7 @@ class Conversation:
         session = self.store.select_session(session_id)
         self.store.load_messages(session_id)
         self.session = session
+        self._last_turn = None
         return session
 
     def send(self, text: str) -> str:
@@ -76,8 +79,10 @@ class Conversation:
         为 CommandLogError / EditLogError；用户拒绝为 ApprovalDeniedError，均停止本轮。
         意外的程序错误继续向上传播。
         """
+        self._last_turn = None
         session = self.session or self.new(text[:40])
         turn_id = self.store.start_turn(session.session_id, text)
+        self._last_turn = (session.session_id, turn_id)
         started_ns = monotonic_ns()
         try:
             return self._run_turn(session, turn_id, text, started_ns)
@@ -88,6 +93,15 @@ class Conversation:
                 error,
             )
             raise
+
+    def execution_report(self) -> ExecutionReport | None:
+        """读取本次运行最近一次输入的事实；未成功登记输入或切换会话后返回 None。
+
+        已失败的轮次也可查询；不重新执行工具、不加入模型历史，读取失败抛 StorageError。
+        """
+        if self._last_turn is None:
+            return None
+        return self.store.execution_report(*self._last_turn)
 
     def compact(self) -> Summary | None:
         """手动压缩当前会话；无会话或无旧历史不请求模型，不创建空会话。"""

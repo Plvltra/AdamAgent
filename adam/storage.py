@@ -15,6 +15,7 @@ from typing import Any, Self
 from filelock import FileLock, Timeout
 
 from adam.errors import AgentError, FailureCode
+from adam.execution_report import ExecutionReport, build_execution_report
 from adam.history import HistoryTurn, Summary
 from adam.outcome import ExecutionOutcome
 from adam.protocol import validate_turn
@@ -338,6 +339,10 @@ class SessionStore:
         if kind not in {"edit_planned", "edit_started", "edit_finished"}:
             raise ValueError("unknown edit event")
         self._append(session_id, record(kind, payload))
+
+    def execution_report(self, session_id: str, turn_id: str) -> ExecutionReport:
+        """从同一份日志快照生成指定轮次的执行事实；读取失败遵循 StorageError 契约。"""
+        return build_execution_report(self._read_log(session_id), turn_id)
 
     def load_edits(self, session_id: str) -> list[dict[str, Any]]:
         """返回编辑证据；unknown 不能因恢复而被当成未执行或成功。"""
