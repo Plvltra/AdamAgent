@@ -1,8 +1,10 @@
 """JSONL v4 事件校验与状态投影；诊断记录和有效模型历史分别归并。"""
 
 import json
+from itertools import groupby
 from typing import Any
 
+from adam.history import HistoryTurn
 from adam.outcome import outcome_details
 from adam.protocol import validate_turn
 
@@ -132,6 +134,13 @@ class SessionLog:
                 raise ValueError("incomplete turn")
             self._validate_pending(complete=False)
 
+    def history_turns(self) -> list[HistoryTurn]:
+        """按完整提交边界分组；仅已验证的成功消息成为候选上下文。"""
+        return [
+            HistoryTurn(turn_id, [message for _, message in items])
+            for turn_id, items in groupby(self.messages, key=lambda item: item[0])
+        ]
+
     def recovery_targets(self) -> dict[str, Any]:
         """返回尚无结束记录的操作；已记录失败的轮次不被恢复改成中断。"""
         return {
@@ -182,7 +191,11 @@ class SessionLog:
         if kind == "request_started":
             if request_id in self.requests or not isinstance(payload.get("model"), str):
                 raise ValueError("invalid or duplicate request")
+            context = payload.get("context")
+            if context is not None:
+                self._validate_context(context)
             self.requests[request_id] = {
+                **({"context": context} if context is not None else {}),
                 "turn_id": turn_id,
                 "model": payload["model"],
                 "settled": False,
@@ -202,6 +215,19 @@ class SessionLog:
         else:
             raise ValueError("invalid usage")
         request["settled"] = True
+
+    def _validate_context(self, context: object) -> None:
+        """选择记录须是已提交历史的连续后缀；旧请求可没有该字段。"""
+        if not isinstance(context, dict) or context.get("strategy") != "recent_turns_v1":
+            raise ValueError("invalid context strategy")
+        selected, omitted = context.get("selected_turn_ids"), context.get("omitted_turn_ids")
+        if not isinstance(selected, list) or not isinstance(omitted, list):
+            raise ValueError("invalid context ranges")
+        if omitted + selected != [turn.turn_id for turn in self.history_turns()]:
+            raise ValueError("invalid context sources")
+        for key in ("estimated_input_tokens", "original_history_tokens"):
+            if type(context.get(key)) is not int or context[key] < 0:
+                raise ValueError("invalid context estimate")
 
     def _finish_request(self, kind: str, payload: dict[str, Any]) -> None:
         """请求状态与用量分别校验；只有有效模型响应才由调用方标记 succeeded。"""

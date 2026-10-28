@@ -40,13 +40,20 @@ def show_context(
     estimate, limits = context.estimate, context.limits
     write("上下文> 下一次请求的基础预览；尚未包含下一条用户输入，不是最近请求快照。")
     write(
-        f"模型：{context.model}；消息 {len(context.messages)} 条；工具说明 {len(context.tools)} 项；未裁剪。"
+        f"模型：{context.model}；消息 {len(context.messages)} 条；工具说明 {len(context.tools)} 项。"
     )
     write(
         f"估算输入：{estimate.input_tokens} token"
         f"（系统 {estimate.system_tokens}，历史 {estimate.history_tokens}，"
         f"本轮 {estimate.turn_tokens}，工具说明 {estimate.tools_tokens}）。"
     )
+    write(
+        f"历史：保留 {len(context.selected_turn_ids)} 轮，省略 {len(context.omitted_turn_ids)} 轮；原始日志保留。"
+    )
+    if context.omitted_turn_ids:
+        write("省略范围：" + context.omitted_turn_ids[0] + " … " + context.omitted_turn_ids[-1])
+    if context.selected_turn_ids:
+        write("保留范围：" + context.selected_turn_ids[0] + " … " + context.selected_turn_ids[-1])
     remaining = limits.max_input_tokens - context.budgeted_input_tokens
     availability = f"剩余 {remaining}" if remaining >= 0 else f"超出 {-remaining}"
     write(

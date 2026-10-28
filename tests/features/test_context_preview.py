@@ -133,7 +133,7 @@ def test_preview_preserves_tool_history_and_tracks_model_session_and_restart(tmp
         assert conversation.preview_context().messages == preview.messages
 
 
-@pytest.mark.parametrize("source", ["tools", "input", "history"])
+@pytest.mark.parametrize("source", ["tools", "input"])
 def test_input_budget_blocks_without_request_or_unknown_usage(tmp_path, source):
     requests = []
     config = ContextConfig(
@@ -147,8 +147,6 @@ def test_input_budget_blocks_without_request_or_unknown_usage(tmp_path, source):
     ):
         conversation = make_conversation(store, http, tmp_path, config=config)
         session_id = conversation.new("limit").session_id
-        if source == "history":
-            store.append_turn(session_id, "old", "中" * 12000)
         history = store.load_messages(session_id)
         before = conversation.preview_context()
         text = "中" * 12000 if source == "input" else "small"

@@ -7,13 +7,14 @@ import pytest
 from adam.config import ContextConfig
 from adam.context import ContextBuilder
 from adam.errors import BudgetError
+from adam.history import HistoryTurn
 
 
 def build(*, history=None, current_turn=None, tools=None, prompt="system"):
     return ContextBuilder(ContextConfig(), 4096).build(
         model="test",
         system_prompt=prompt,
-        history=history or [],
+        history=[HistoryTurn("old", history)] if history else [],
         current_turn=current_turn or [],
         tools=tools or [],
     )
@@ -75,6 +76,35 @@ def test_budget_boundary_includes_margin_but_not_output_twice(excess):
             context.ensure_within_budget()
     else:
         context.ensure_within_budget()
+
+
+@pytest.mark.parametrize("include", [False, True])
+def test_tool_turn_is_selected_whole_at_boundary(include):
+    messages = [
+        {"role": "user", "content": "read"},
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {"id": "c", "type": "function", "function": {"name": "read", "arguments": "{}"}}
+            ],
+        },
+        {"role": "tool", "tool_call_id": "c", "content": "result"},
+        {"role": "assistant", "content": "done", "reasoning_content": "reason"},
+    ]
+    full = build(history=messages)
+    limits = ContextConfig(
+        max_input_tokens=full.estimate.input_tokens + 10 - (not include), safety_margin_tokens=10
+    )
+    selected = ContextBuilder(limits, 4096).build(
+        model="test",
+        system_prompt="system",
+        history=[HistoryTurn("old", messages)],
+        current_turn=[],
+        tools=[],
+    )
+    assert selected.messages == full.messages if include else selected.messages == full.messages[:1]
+    assert selected.selected_turn_ids == (("old",) if include else ())
 
 
 def test_estimate_accounts_for_unicode_and_entire_tool_schema():

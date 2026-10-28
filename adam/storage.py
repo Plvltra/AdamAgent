@@ -15,6 +15,7 @@ from typing import Any, Self
 from filelock import FileLock, Timeout
 
 from adam.errors import AgentError, FailureCode
+from adam.history import HistoryTurn
 from adam.outcome import ExecutionOutcome
 from adam.protocol import validate_turn
 from adam.session_log import (
@@ -184,6 +185,10 @@ class SessionStore:
         """
         return self._read(session_id)[1]
 
+    def load_turns(self, session_id: str) -> list[HistoryTurn]:
+        """按提交顺序返回完整成功轮次；不通过消息 ID 推测分组，不包含失败输入。"""
+        return self._read_log(session_id).history_turns()
+
     def usage(self, session_id: str) -> tuple[int, bool]:
         """返回 (已知累计 token 数, 是否存在未知用量或未结算请求)。
 
@@ -200,14 +205,21 @@ class SessionStore:
         )
         return turn_id
 
-    def start_request(self, session_id: str, turn_id: str, model: str) -> str:
-        """登记属于 turn_id 的模型请求，返回结算与工具关联所需的 request_id。"""
+    def start_request(
+        self, session_id: str, turn_id: str, model: str, *, context: dict[str, Any] | None = None
+    ) -> str:
+        """登记模型请求及可选选择依据，返回 request_id；context 不含完整请求副本。"""
         request_id = secrets.token_hex(16)
         self._append(
             session_id,
             record(
                 "request_started",
-                {"turn_id": turn_id, "request_id": request_id, "model": model},
+                {
+                    "turn_id": turn_id,
+                    "request_id": request_id,
+                    "model": model,
+                    **({"context": context} if context is not None else {}),
+                },
             ),
         )
         return request_id

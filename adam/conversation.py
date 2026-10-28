@@ -113,11 +113,7 @@ class Conversation:
 
     def _build_context(self, session: Session | None, turn: list[dict[str, Any]]) -> RequestContext:
         """读取成功历史并委托构造；预览与每次真实请求共用，工具结果加入后重新估算。"""
-        history = (
-            [message.raw for message in self.store.load_messages(session.session_id)]
-            if session is not None
-            else []
-        )
+        history = self.store.load_turns(session.session_id) if session is not None else []
         return self.context_builder.build(
             model=self.model,
             system_prompt=session.system_prompt if session is not None else self.system_prompt,
@@ -154,7 +150,9 @@ class Conversation:
         """
         self._check_session_budget(session_id)
         context.ensure_within_budget()
-        request_id = self.store.start_request(session_id, turn_id, context.model)
+        request_id = self.store.start_request(
+            session_id, turn_id, context.model, context=context.selection_record()
+        )
         started_ns = monotonic_ns()
         try:
             result = self.client.complete(
