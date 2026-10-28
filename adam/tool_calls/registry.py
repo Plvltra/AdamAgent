@@ -67,7 +67,7 @@ SPECS = {
         ["path", "pattern"],
     ),
     "read_file": schema(
-        "按行读取UTF-8文件，返回行号；超长行截断，可用start_line继续。",
+        "按行读取UTF-8文件，返回完整文件version与行号；超长行截断，可用start_line继续。",
         {
             "path": PATH,
             "start_line": ("integer", "从1开始，默认1"),
@@ -172,6 +172,7 @@ class ToolRegistry:
             encoded = json.dumps(
                 {
                     "ok": output["ok"],
+                    **({"version": output["version"]} if "version" in output else {}),
                     "truncated": True,
                     "preview": preview,
                     "hint": "请缩小范围或分段读取。",

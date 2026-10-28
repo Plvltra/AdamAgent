@@ -2,9 +2,9 @@
 
 最近核对：2026-10-28
 
-本次核对范围：V4 剩余工作拆分为五个小任务，核对已实现的通用命令与待实现的编辑能力。
+本次核对范围：V4.1a 文件读取快照、版本标识和纯编辑计划；模型尚无写入工具。
 
-核对结论：本次仅调整任务规划，架构无变化。现有 V3 上下文管理和 run_command 保持原状；V4 文件编辑与有限修正仍未实现，不加入当前关系图。
+核对结论：file_tools 通过 text_file 读取同一份字节与版本；edit_plan 从快照纯计算候选内容及 diff。新增两项本地能力，尚未连接执行或模型工具入口。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -72,6 +72,9 @@ flowchart TD
 flowchart TD
     E["executor.py<br/>轮次关联、执行协调与留痕"] --> R["registry.py<br/>工具说明、参数校验与分派"]
     R --> F["file_tools.py<br/>目录、文件、搜索与读取"]
+    F --> SNAP["text_file.py<br/>有界文本快照与版本"]
+    PLAN["edit_plan.py<br/>纯替换计划与 diff"] --> SNAP
+    PLAN -.-> P
     R --> G["git_tools.py<br/>状态、差异与提交查询"]
     R --> C["command_tools.py<br/>执行外部程序并收集结果"]
     C -->|"请求用户确认"| UI["cli.py<br/>展示命令计划，取得 y/N"]
@@ -109,6 +112,8 @@ flowchart TD
 | [session_log.py](../adam/session_log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，重建状态、有效历史及用量，规划并回放恢复事件；自身不访问文件 |
 | [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor` | 组织工具执行，将轨迹关联到轮次与请求，并形成回传模型的工具消息 |
 | [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，校验参数、分派调用并统一结果格式 |
+| [tool_calls/text_file.py](../adam/tool_calls/text_file.py) | `TextSnapshot`、`read_snapshot` | 同一次读取的完整字节、UTF-8 文本和版本 |
+| [tool_calls/edit_plan.py](../adam/tool_calls/edit_plan.py) | `EditPlan`、`plan_edit` | 校验版本与唯一匹配，保留编码形式，生成候选内容和 diff；不写文件 |
 | [tool_calls/file_tools.py](../adam/tool_calls/file_tools.py) | `FileTools` | 文件系统查询、搜索与读取能力 |
 | [tool_calls/git_tools.py](../adam/tool_calls/git_tools.py) | `GitTools` | 固定范围的只读 Git 查询能力 |
 | [tool_calls/command_tools.py](../adam/tool_calls/command_tools.py) | `CommandTools`、`CommandRequest` | 表达待批准的命令计划，取得确认后运行程序，收集退出码、输出与执行结果 |

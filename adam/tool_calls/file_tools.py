@@ -4,10 +4,12 @@ import fnmatch
 import os
 import time
 from collections.abc import Iterator
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
 from adam.tool_calls.policy import PathPolicy, ToolError, ToolLimits
+from adam.tool_calls.text_file import read_snapshot
 
 IGNORED = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}
 
@@ -45,12 +47,14 @@ class FileTools:
         }
 
     def read_file(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
-        """按行读取文本；返回行号、截断标志与可继续读取的位置。"""
+        """按行展示同一读取快照；返回完整文件版本、行号、截断与续读位置。"""
         start, count = args.get("start_line", 1), args.get("max_lines", self.limits.max_read_lines)
         if start < 1 or not 1 <= count <= self.limits.max_read_lines:
             raise ToolError("读取行号或行数超限。")
+        snapshot = read_snapshot(path, self.limits.max_text_file_bytes)
         lines, chars, next_line, truncated = [], 0, None, False
-        for number, line in self._lines(path):
+        for number, line in enumerate(StringIO(snapshot.text, newline=None), 1):
+            line = line.rstrip("\r\n")
             if number < start:
                 continue
             if len(lines) >= count or chars >= self.limits.max_result_chars // 2:
@@ -61,7 +65,12 @@ class FileTools:
             truncated |= len(text) < len(line)
             lines.append({"line": number, "text": text})
             chars += len(text) + 40
-        return {"lines": lines, "truncated": truncated, "next_line": next_line}
+        return {
+            "version": snapshot.version,
+            "lines": lines,
+            "truncated": truncated,
+            "next_line": next_line,
+        }
 
     def find_files(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
         """返回匹配 glob 的相对文件路径，最多 200 项。"""

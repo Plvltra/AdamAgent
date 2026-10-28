@@ -79,6 +79,7 @@ def test_output_and_scan_limits(tmp_path):
     result = tools.execute("read_file", '{"path":"long.txt"}')
     assert len(result) <= 512
     assert json.loads(result)["truncated"]
+    assert len(json.loads(result)["version"]) == 64
     (tmp_path / "binary").write_bytes(b"\xff\x00")
     assert not run(tools, "read_file", path="binary")["ok"]
     limited = ToolRegistry(tmp_path, limits=ToolLimits(max_scan_entries=1))
