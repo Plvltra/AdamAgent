@@ -122,14 +122,14 @@ def test_tool_error_returns_to_model(tmp_path, calls):
 
 
 @pytest.mark.parametrize(
-    "limits,expected",
+    "limits,expected,reason",
     [
-        (AgentConfig(max_model_requests=2), 2),
-        (AgentConfig(max_tool_calls=1), 2),
-        (AgentConfig(max_session_tokens=12), 1),
+        (AgentConfig(max_model_requests=2), 2, "request_limit"),
+        (AgentConfig(max_tool_calls=1), 2, "tool_limit"),
+        (AgentConfig(max_session_tokens=12), 1, "session_token_limit"),
     ],
 )
-def test_loop_limits_keep_usage_not_partial_history(tmp_path, limits, expected):
+def test_loop_limits_keep_usage_not_partial_history(tmp_path, limits, expected, reason):
     count = 0
 
     def handler(request):
@@ -147,6 +147,8 @@ def test_loop_limits_keep_usage_not_partial_history(tmp_path, limits, expected):
         session_id = conversation.session.session_id
         assert store.load_messages(session_id) == []
         assert store.usage(session_id) == (12 * expected, False)
+        end = store.load_events(session_id)[-1]["payload"]
+        assert end["reason"] == reason and end["duration_ms"] >= 0
     assert count == expected
 
 

@@ -106,7 +106,8 @@ def test_read_tool_trace_survives_and_success_uses_original_turn(tmp_path, last_
         if last_request_fails:
             assert completed == [] and store.load_messages(session_id) == []
             assert events[-1]["type"] == "turn_finished"
-            assert events[-1]["payload"] == {"turn_id": turn_id, "status": "failed"}
+            assert events[-1]["payload"]["turn_id"] == turn_id
+            assert events[-1]["payload"]["status"] == "failed"
             assert store.usage(session_id) == (12, True)
         else:
             assert len(completed) == 1 and completed[0]["payload"]["turn_id"] == turn_id

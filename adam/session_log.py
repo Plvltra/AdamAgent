@@ -3,6 +3,7 @@
 import json
 from typing import Any
 
+from adam.outcome import outcome_details
 from adam.protocol import validate_turn
 
 
@@ -150,6 +151,7 @@ class SessionLog:
             or status not in {"succeeded", "failed", "interrupted"}
         ):
             raise ValueError("invalid request transition")
+        request.update(outcome_details(payload, status))
         request["status"] = status
 
     def _finish_turn(self, kind: str, payload: dict[str, Any]) -> None:
@@ -158,6 +160,7 @@ class SessionLog:
         status = payload.get("status")
         if status not in {"failed", "interrupted"}:
             raise ValueError("invalid turn transition")
+        self.turns[turn_id].update(outcome_details(payload, status))
         self.turns[turn_id]["status"] = status
 
     def _apply_tool(self, kind: str, payload: dict[str, Any]) -> None:
@@ -242,6 +245,9 @@ class SessionLog:
     def _complete_turn(self, kind: str, payload: dict[str, Any]) -> None:
         """完成标记同时验证协议与诊断关联，再将消息纳入有效上下文。"""
         turn_id = self._require_turn(payload)
+        if payload.get("status", "succeeded") != "succeeded":
+            raise ValueError("completion requires success")
+        details = outcome_details(payload, "succeeded")
         if not self._pending_messages or self._pending_turn != turn_id:
             raise ValueError("unmatched completion")
         validate_turn(self._pending_messages)
@@ -270,6 +276,7 @@ class SessionLog:
         if seen != set(turn_tools):
             raise ValueError("uncommitted tool trace")
         self.messages.extend((turn_id, message) for message in self._pending_messages)
+        self.turns[turn_id].update(details)
         self.turns[turn_id]["status"] = "succeeded"
         self._pending_messages = []
         self._pending_turn = ""

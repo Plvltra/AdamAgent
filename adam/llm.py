@@ -6,15 +6,24 @@ from typing import Any
 import httpx
 
 from adam.config import LLMConfig
-from adam.errors import AgentError
+from adam.errors import AgentError, FailureCode
 from adam.protocol import validate_assistant
 
 
 class LLMError(AgentError):
     """模型通信或响应失败；已取得的用量仍由会话流程结算。"""
 
-    def __init__(self, message: str, usage: tuple[int, int] | None = None) -> None:
-        super().__init__(f"模型请求错误：{message}")
+    code = FailureCode.API_ERROR
+
+    def __init__(
+        self,
+        message: str,
+        usage: tuple[int, int] | None = None,
+        *,
+        code: FailureCode | None = None,
+        http_status: int | None = None,
+    ) -> None:
+        super().__init__(f"模型请求错误：{message}", code=code, http_status=http_status)
         self.usage = usage
 
 
@@ -81,7 +90,7 @@ class LLMClient:
             服务端未报告可靠用量时为 None。
 
         Raises:
-            LLMError: 网络、HTTP 或协议错误；已解析的用量通过异常携带。
+            LLMError: 网络、HTTP 或协议错误；携带受控原因码、HTTP 状态及已解析用量。
 
         协议参考：https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/
         """
@@ -102,17 +111,26 @@ class LLMClient:
                 timeout=self.config.timeout_seconds,
             )
         except httpx.TimeoutException:
-            raise LLMError("请求超时；用量未知，未自动重试。") from None
+            raise LLMError(
+                "请求超时；用量未知，未自动重试。", code=FailureCode.API_TIMEOUT
+            ) from None
         except httpx.RequestError:
-            raise LLMError("网络连接失败；用量未知。") from None
+            raise LLMError("网络连接失败；用量未知。", code=FailureCode.API_CONNECTION) from None
         # 不回显远端响应正文或原始异常，其中可能包含凭据。
         if not 200 <= response.status_code < 300:
-            raise LLMError(f"HTTP {response.status_code}：请求失败；用量未知，未自动重试。")
+            raise LLMError(
+                f"HTTP {response.status_code}：请求失败；用量未知，未自动重试。",
+                code=FailureCode.API_HTTP,
+                http_status=response.status_code,
+            )
         if (
             response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
             == "text/event-stream"
         ):
-            raise LLMError("服务返回了流式响应，但当前客户端只支持非流式 JSON 回答。")
+            raise LLMError(
+                "服务返回了流式响应，但当前客户端只支持非流式 JSON 回答。",
+                code=FailureCode.INVALID_RESPONSE,
+            )
         usage = None
         try:
             data = response.json()
@@ -138,4 +156,8 @@ class LLMClient:
             return Completion(clean, usage)
         # JSON、字段和类型错误统一转换，但保留已经解析出的用量。
         except (ValueError, KeyError, IndexError, TypeError, AttributeError):
-            raise LLMError("模型响应格式无效或回答未完整结束；本轮不加入历史。", usage) from None
+            raise LLMError(
+                "模型响应格式无效或回答未完整结束；本轮不加入历史。",
+                usage,
+                code=FailureCode.INVALID_RESPONSE,
+            ) from None

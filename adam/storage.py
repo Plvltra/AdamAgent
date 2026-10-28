@@ -10,11 +10,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Literal, Self
+from typing import Any, Self
 
 from filelock import FileLock, Timeout
 
-from adam.errors import AgentError
+from adam.errors import AgentError, FailureCode
+from adam.outcome import ExecutionOutcome
 from adam.protocol import validate_turn
 from adam.session_log import SessionLog, UnsupportedLogVersionError, decode_records, parse_log
 
@@ -38,6 +39,8 @@ class Message:
 
 class StorageError(AgentError):
     """会话占用、格式损坏或写入失败。"""
+
+    code = FailureCode.STORAGE_ERROR
 
 
 class SessionNotFoundError(AgentError):
@@ -208,12 +211,13 @@ class SessionStore:
         request_id: str,
         usage: tuple[int, int] | None,
         *,
-        status: Literal["succeeded", "failed", "interrupted"] = "succeeded",
+        outcome: ExecutionOutcome | None = None,
     ) -> None:
         """在同一追加块内保存请求用量和终态；非法关联或重复结束抛出 ValueError。
 
         usage 是 (输入 token, 输出 token)；None 表示未知，不能按零处理。
-        status 描述模型请求本身，与后续整轮结果独立；有效响应缺少用量时仍可成功。
+        outcome 描述模型请求本身，与后续整轮结果独立；省略时按成功处理，耗时未知。
+        有效响应缺少用量时请求仍可成功，不将用量未知当作请求失败。
         可捕获的写入失败回滚整个块；后续轮次失败不会删除已落盘的消费记录。
         """
         link = {"turn_id": turn_id, "request_id": request_id}
@@ -225,18 +229,18 @@ class SessionStore:
                 "output_tokens": usage[1] if usage else None,
             },
         )
-        data += record("request_finished", {**link, "status": status})
+        data += record(
+            "request_finished", {**link, **(outcome or ExecutionOutcome.success()).payload()}
+        )
         self._append(session_id, data)
 
-    def finish_turn(
-        self, session_id: str, turn_id: str, status: Literal["failed", "interrupted"]
-    ) -> None:
+    def finish_turn(self, session_id: str, turn_id: str, outcome: ExecutionOutcome) -> None:
         """保存失败或中断的轮次终态，不提交消息；成功必须经过 append_messages。
 
         重复结束或未知轮次抛出 ValueError。存储失败时日志保留最后已落盘的状态，
         调用方应保留原始业务异常，不伪造已经保存的终态。
         """
-        self._append(session_id, record("turn_finished", {"turn_id": turn_id, "status": status}))
+        self._append(session_id, record("turn_finished", {"turn_id": turn_id, **outcome.payload()}))
 
     def append_turn(self, session_id: str, user_text: str, assistant_text: str) -> None:
         """保存一个普通问答；先登记输入，再提交消息，提交失败时诊断输入仍可能保留。"""
@@ -249,19 +253,28 @@ class SessionStore:
         self.append_messages(session_id, turn_id, messages)
 
     def append_messages(
-        self, session_id: str, turn_id: str, messages: list[dict[str, Any]]
+        self,
+        session_id: str,
+        turn_id: str,
+        messages: list[dict[str, Any]],
+        *,
+        outcome: ExecutionOutcome | None = None,
     ) -> None:
         """向已开始的轮次追加完整消息与完成标记，成功后才能加载为有效历史。
 
         messages 包括原始用户输入、工具轨迹和最终回答，须与诊断记录一致。
         校验失败抛出 ValueError；写入失败抛出 StorageError，输入不会被修改。
-        完成标记用于区分可恢复的完整历史和中断写入。
+        完成标记用于区分可恢复的完整历史和中断写入。outcome 必须为成功；
+        省略时不猜测耗时。成功原因与完整消息同块落盘，不提前声明提交成功。
         """
         validate_turn(messages)
         data = b"".join(
             record("message", {"turn_id": turn_id, "message": message}) for message in messages
         )
-        data += record("turn_completed", {"turn_id": turn_id})
+        data += record(
+            "turn_completed",
+            {"turn_id": turn_id, **(outcome or ExecutionOutcome.success()).payload()},
+        )
         self._append(session_id, data)
 
     def append_tool_event(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:

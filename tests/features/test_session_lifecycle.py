@@ -83,7 +83,7 @@ def test_save_failure_shows_reply_and_does_not_retry(tmp_path, monkeypatch):
     with SessionStore(path) as store:
         session_id = store.create_session("A", "")
 
-    def fail_save(*args):
+    def fail_save(*args, **kwargs):
         raise StorageError("保存失败")
 
     monkeypatch.setattr(SessionStore, "append_messages", fail_save)
@@ -154,7 +154,7 @@ def test_usage_save_failure_shows_unsaved_answer_and_preserves_unknown_budget(
     requests = []
     output = []
 
-    def fail_usage(*args):
+    def fail_usage(*args, **kwargs):
         raise StorageError("用量记录保存失败")
 
     monkeypatch.setattr(SessionStore, "finish_request", fail_usage)
@@ -173,3 +173,6 @@ def test_usage_save_failure_shows_unsaved_answer_and_preserves_unknown_budget(
     with SessionStore(root) as store:
         assert store.load_messages(session_id) == []
         assert store.usage(session_id) == (0, True)
+        events = store.load_events(session_id)
+        assert events[-1]["payload"]["reason"] == "request_save_failed"
+        assert events[-1]["payload"]["duration_ms"] >= 0

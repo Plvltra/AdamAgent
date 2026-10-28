@@ -97,7 +97,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 
 旧 SQLite 数据不迁移、不删除，新版本不读写它们。
 
-本版完成关联留痕和第 2 项请求/轮次状态。request_finished 记录请求的成功、失败或中断；turn_finished 记录轮次失败或中断，轮次成功仍须完整消息和 turn_completed 提交。请求成功不保证整轮成功，用量未知也不自动等于请求失败。第 3～6 项结束原因、耗时、独立开发诊断和重启恢复仍待逐项实现，不新增轮次诊断聊天命令。事件说明和验收步骤见 [会话执行轨迹](docs/session-tracing.md)。
+本版完成关联留痕、第 2 项请求/轮次状态和第 3 项结束原因与耗时。request_finished 记录请求的成功、失败或中断；turn_finished 记录轮次失败或中断，轮次成功仍须完整消息和 turn_completed 提交。请求成功不保证整轮成功，用量未知也不自动等于请求失败。终态记录稳定原因码、受控错误说明和单调时钟毫秒耗时；第 4～6 项独立开发诊断、重启恢复和真实中断验收仍待逐项实现，不新增轮次诊断聊天命令。事件说明和验收步骤见 [会话执行轨迹](docs/session-tracing.md)。
 
 ## 代码与验证
 
@@ -109,7 +109,8 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `adam/conversation.py`：加载历史、请求模型、保存成功轮次。
 - `adam/cli.py`：命令、输入循环和错误展示。
 - `adam/terminal.py`：角色标签、颜色、纯文本退化及统一失败展示。
-- `adam/errors.py`：公开业务失败契约，包含可展示说明与可选的未保存回答。
+- `adam/errors.py`：公开业务失败契约，包含可展示说明、未保存回答及稳定原因码。
+- `adam/outcome.py`：请求与轮次共用的结束信息及字段校验。
 - `adam/llm.py`：HTTP 请求及结构化助手响应、用量解析。
 - `adam/tool_calls/`：工具注册与参数验证、文件工具、Git 工具、权限与资源限制。
 - `adam/tool_calls/executor.py`：所有工具的执行协调与独立轨迹记录。
@@ -125,7 +126,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 
 业务功能点测试集中在 `tests/features/`，按会话、启动配置、工具循环、执行轨迹、终端交互和命令执行组织，见 [功能测试导航](tests/features/README.md)。基础校验保留在 `tests/test_config.py`、`tests/test_llm_config.py`、`tests/test_storage.py`、`tests/test_llm.py` 和 `tests/test_tools.py`。
 自动化使用临时目录和假 HTTP，不调用付费模型；覆盖跨启动恢复、配置位置、JSONL 损坏、写入故障回滚、会话隔离与跨进程锁释放。假 HTTP 验证工程流程，不代替真实模型的选工具和回答效果评估。
-V2.1/V2.2 基础工具闭环已实现，V2.3 固定评估尚未完成。V1.3 已实现关联留痕和请求/轮次状态；第 2 项确认后实现第 3 项结束原因与耗时，再逐项补开发诊断和中断恢复验收；完成 V1.3 后继续 V2.3 与 V3 上下文管理。JavaScript 编排不是必做前置。
+V2.1/V2.2 基础工具闭环已实现，V2.3 固定评估尚未完成。V1.3 已实现关联留痕、请求/轮次状态、结束原因与耗时；接下来逐项实现、验收并提交开发诊断和中断恢复；完成 V1.3 后继续 V2.3 与 V3 上下文管理。JavaScript 编排不是必做前置。
 规划见 [练手 TODO](docs/agent-practice-todo.md) 和 [roadmap](docs/roadmap.md)。
 
 

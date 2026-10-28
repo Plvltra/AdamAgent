@@ -6,6 +6,7 @@ from datetime import datetime
 
 import pytest
 
+from adam.outcome import ExecutionOutcome
 from adam.storage import SessionNotFoundError, SessionStore, StorageError
 
 
@@ -161,18 +162,22 @@ def test_invalid_state_transition_keeps_log_unchanged(tmp_path, action):
         session_id = store.create_session("states", "")
         turn_id = store.start_turn(session_id, "question")
         request_id = store.start_request(session_id, turn_id, "test")
-        store.finish_request(session_id, turn_id, request_id, (1, 2), status="failed")
+        store.finish_request(
+            session_id, turn_id, request_id, (1, 2), outcome=ExecutionOutcome.failure(ValueError())
+        )
         if action in {"duplicate_turn", "request_after_finished_turn"}:
-            store.finish_turn(session_id, turn_id, "failed")
+            store.finish_turn(session_id, turn_id, ExecutionOutcome.failure(ValueError()))
         path = next(tmp_path.glob("*/*/*/*.jsonl"))
         original = path.read_bytes()
         with pytest.raises(ValueError):
             if action == "duplicate_request":
                 store.finish_request(session_id, turn_id, request_id, (1, 2))
             elif action == "duplicate_turn":
-                store.finish_turn(session_id, turn_id, "interrupted")
+                store.finish_turn(
+                    session_id, turn_id, ExecutionOutcome.failure(KeyboardInterrupt())
+                )
             elif action == "success_without_messages":
-                store.finish_turn(session_id, turn_id, "succeeded")
+                store.finish_turn(session_id, turn_id, ExecutionOutcome.success())
             elif action == "request_after_finished_turn":
                 store.start_request(session_id, turn_id, "test")
             elif action == "tool_after_failed_request":
@@ -199,3 +204,49 @@ def test_invalid_state_transition_keeps_log_unchanged(tmp_path, action):
         assert path.read_bytes() == original
         assert store.usage(session_id) == (3, False)
         assert store.load_messages(session_id) == []
+
+
+@pytest.mark.parametrize(
+    "details",
+    [
+        {"reason": "completed", "duration_ms": -1, "error": None},
+        {"reason": "completed", "duration_ms": True, "error": None},
+        {"reason": "completed", "duration_ms": float("nan"), "error": None},
+        {
+            "reason": "completed",
+            "duration_ms": 1,
+            "error": {"message": "error", "http_status": None},
+        },
+        {"reason": "api_http", "duration_ms": 1, "error": {"message": "error", "http_status": 503}},
+        {"reason": "completed"},
+    ],
+)
+def test_invalid_outcome_details_are_rejected(tmp_path, details):
+    """真实文件中的不合法耗时、成功携带错误及半套详情必须拒绝读取。"""
+    with SessionStore(tmp_path) as store:
+        session_id = store.create_session("outcome", "")
+        store.append_turn(session_id, "q", "a")
+        path = next(tmp_path.glob("*/*/*/*.jsonl"))
+        events = store.load_events(session_id)
+        events[-1]["payload"] = {"turn_id": events[-1]["payload"]["turn_id"], **details}
+        path.write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")
+        with pytest.raises(StorageError):
+            store.load_messages(session_id)
+
+
+def test_earlier_v4_missing_details_remain_unknown(tmp_path):
+    """早期 v4 没有原因与耗时，回放仍读状态，不伪造新字段。"""
+    from adam.session_log import parse_log
+
+    with SessionStore(tmp_path) as store:
+        session_id = store.create_session("v4", "")
+        store.append_turn(session_id, "q", "a")
+        path = next(tmp_path.glob("*/*/*/*.jsonl"))
+        events = store.load_events(session_id)
+        events[-1]["payload"] = {"turn_id": events[-1]["payload"]["turn_id"]}
+        path.write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")
+        assert len(store.load_messages(session_id)) == 2
+        log = parse_log(path.read_bytes(), session_id)
+        turn = next(iter(log.turns.values()))
+        assert turn["status"] == "succeeded"
+        assert turn["reason"] is None and turn["duration_ms"] is None

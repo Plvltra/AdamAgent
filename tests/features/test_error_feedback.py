@@ -163,9 +163,12 @@ def test_final_answer_disk_failure_is_visible_without_retry(tmp_path, monkeypatc
         events = store.load_events(session_id)
         assert not any(event["type"] == "turn_completed" for event in events)
         request = next(e["payload"] for e in events if e["type"] == "request_finished")
-        assert request["status"] == "succeeded"
+        assert request["status"] == "succeeded" and request["reason"] == "completed"
         assert events[-1]["type"] == "turn_finished"
         assert events[-1]["payload"]["status"] == "failed"
+        assert events[-1]["payload"]["reason"] == "answer_save_failed"
+        assert events[-1]["payload"]["duration_ms"] >= 0
+        assert "private-disk-detail" not in json.dumps(events)
 
 
 @pytest.mark.parametrize("phase", ["initial", "answer"])

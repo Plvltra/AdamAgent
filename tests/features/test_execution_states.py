@@ -115,6 +115,9 @@ def test_valid_response_success_is_independent_of_accounting(tmp_path, has_usage
         assert [t["status"] for t in log.turns.values()] == ["succeeded" if has_usage else "failed"]
         assert store.usage(session_id) == ((12, False) if has_usage else (0, True))
         assert len(store.load_messages(session_id)) == (2 if has_usage else 0)
+        end = store.load_events(session_id)[-1]["payload"]
+        assert end["reason"] == ("completed" if has_usage else "usage_unknown")
+        assert end["duration_ms"] >= 0
 
 
 @pytest.mark.parametrize("failing_method", ["finish_request", "finish_turn"])

@@ -16,6 +16,7 @@
 | 终端角色与按需用量 | 默认不刷 token，/usage 不请求模型且跟随当前会话；颜色只影响前缀，重定向退回纯文本 | [test_terminal_interaction.py](test_terminal_interaction.py) |
 | 统一失败反馈 | 新错误类型无需修改 CLI；预算分类准确；磁盘失败保留回答；终端和程序故障继续传播 | [test_error_feedback.py](test_error_feedback.py) |
 | V1.3 第 2 项请求/轮次状态 | 请求成功不等于轮次成功；已知用量独立、中断收尾、原始异常保留 | [test_execution_states.py](test_execution_states.py)、[test_error_feedback.py](test_error_feedback.py) |
+| V1.3 第 3 项原因与耗时 | 两次请求和整轮分别计时；API、预算、中断和保存失败的原因准确，原始错误内容不入日志 | [test_execution_outcomes.py](test_execution_outcomes.py)、[test_tool_loop.py](test_tool_loop.py)、[test_error_feedback.py](test_error_feedback.py) |
 | V1.3.1 执行轨迹 | 失败也保留输入/请求/全部工具结果；关联正确，日志失败停止后续动作，诊断不污染成功历史 | [test_execution_trace.py](test_execution_trace.py) |
 
 这里也保留直接验证业务边界的场景，例如命令超时、请求额度耗尽；不强求每个场景都从 CLI 启动。
@@ -63,7 +64,16 @@ V1.3.1 与测试整理验收：原有 125 个用例保留，补充 11 个用例�
 
 第 2 项验收（2026-10-28）：保留原 149 个用例并扩展状态断言，新增 18 个，全量 **167 passed in 26.12s**；Ruff、格式检查与 Pyright 通过。
 
-本项不验证自动重启收尾或强杀恢复；原因与耗时也留在第 3 项，不能把有状态解释为已记录具体错误原因。
+第 2 项只验证状态，第 3 项补齐原因与耗时；两者都不代替自动重启收尾或强杀恢复。
+
+## 第 3 项：原因与耗时验收
+
+- [x] 固定单调时钟验证两次请求分别 125/250 毫秒，整轮含工具阶段共 400 毫秒；覆盖成功与第二次请求 HTTP 503。
+- [x] 超时、连接失败、协议错误、中断、退出和程序错误有稳定原因，耗时正确，原始细节不写日志且不重试。
+- [x] 复用额度与保存故障场景，区分请求/工具/token 上限、用量未知、请求结算失败与回答提交失败。
+- [x] 基础存储测试拒绝负数、布尔/NaN 耗时、成功携带错误及不完整字段；早期 v4 缺少详情保持未知。
+
+第 3 项验收（2026-10-28）：新增 15 个用例，全量 **182 passed in 29.84s**；Ruff、格式检查与 Pyright 通过。
 
 ## 怎样运行
 
@@ -89,4 +99,4 @@ pytest 已配置扫描整个 tests；现有 pre-commit 的 pytest 钩子会自�
 
 模型 HTTP 响应是预设的，测试不会消耗 API 额度；文件、JSONL、锁和部分子进程会在临时目录实际运行。故障测试在指定边界注入错误，验证程序停止或保留记录的行为。
 
-这些场景不能证明真实模型能正确决定是否使用工具，也不能代替真实进程强制终止验收或用户对配色的辨识体验。V1.3 第 3～6 项、V3、文件编辑与流式取消等未实现功能的验收仍在 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。
+这些场景不能证明真实模型能正确决定是否使用工具，也不能代替真实进程强制终止验收或用户对配色的辨识体验。V1.3 第 4～6 项、V3、文件编辑与流式取消等未实现功能的验收仍在 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。
