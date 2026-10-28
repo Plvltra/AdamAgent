@@ -50,6 +50,8 @@ def show_context(
     write(
         f"历史：保留 {len(context.selected_turn_ids)} 轮，省略 {len(context.omitted_turn_ids)} 轮；原始日志保留。"
     )
+    if context.pruned_tools:
+        write(f"工具结果：已缩减 {len(context.pruned_tools)} 项旧结果；完整内容仍在日志。")
     if context.summary is not None:
         write(
             f"摘要：{context.summary.summary_id}；覆盖 {len(context.summary.covered_turn_ids)} 轮。"

@@ -2,9 +2,9 @@
 
 最近核对：2026-10-28
 
-本次核对范围：V3.3 独立摘要操作、记账、有效版本、真实强杀恢复与近期轮次保护。
+本次核对范围：V3.4a 压力下旧工具结果缩减、保护轮次、来源校验和原记录保留。
 
-核对结论：CompactionService 规划/执行一次无工具摘要，CompactionLog 独立校验操作；SessionLog 合并消费与恢复目标。Summary 完整提交后参与 ContextBuilder，原消息不变；旧 v4 可读。
+核对结论：ContextBuilder 在整轮选择前按压力调用 context_pruning；只修改独立请求副本。实际选择记录增加 pruned_tools 来源，SessionLog 验证关联；没有新增模型请求或原历史写入。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -32,6 +32,9 @@ flowchart TD
     CONTEXT --> HISTORY["history.py<br/>完整成功轮次数据"]
     STORE --> HISTORY
     LOG --> HISTORY
+    CONTEXT --> PRUNE["context_pruning.py<br/>旧工具结果头尾节选"]
+    PRUNE --> CONFIG
+    PRUNE --> HISTORY
     CONTEXT --> CONFIG
     CONTEXT --> ERROR
     TERMINAL -.->|"读取 RequestContext 展示数据"| CONTEXT
@@ -94,6 +97,7 @@ flowchart TD
 | [config.py](../adam/config.py) | `AppConfig`、`LLMConfig`、`AgentConfig`、`ContextConfig` | 加载并校验运行配置，区分模型连接、循环/消费限额及单次输入预算 |
 | [conversation.py](../adam/conversation.py) | `Conversation` | 管理当前会话，读取成功历史并委托上下文构造，组织请求、工具与提交；分别记录请求与轮次终态 |
 | [context.py](../adam/context.py) | `ContextBuilder`、`RequestContext`、`ContextEstimate` | 按完整轮次选择连续历史后缀，估算输入、检查上限并提供来源记录；不改写原始消息 |
+| [context_pruning.py](../adam/context_pruning.py) | `prune_history` | 缩减旧工具结果副本，保护近期轮次，保留错误状态和来源 |
 | [history.py](../adam/history.py) | `HistoryTurn`、`Summary` | 成功轮次及有效摘要的共享数据 |
 | [compaction.py](../adam/compaction.py) | `CompactionService`、`CompactionPlan` | 规划有界素材、无工具摘要、独立结算并提交；不修改原历史 |
 | [compaction_log.py](../adam/compaction_log.py) | `CompactionLog` | 校验摘要来源与状态，仅完整提交激活摘要；恢复不猜未知用量 |

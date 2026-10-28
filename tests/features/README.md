@@ -14,6 +14,7 @@
 | 工具调用与预算 | 模型请求工具、执行后回传、再回答；工具错误可修正；单批额度不足不执行；同轮 ID 唯一、跨轮可复用 | [test_tool_loop.py](test_tool_loop.py) |
 | 通用命令 | 确认后才产生副作用，拒绝不执行；退出码、超时、输出限制、环境变量隔离与执行日志符合契约 | [test_command_execution.py](test_command_execution.py) |
 | 终端角色与按需用量 | 默认不刷 token，/usage 不请求模型且跟随当前会话；颜色只影响前缀，重定向退回纯文本 | [test_terminal_interaction.py](test_terminal_interaction.py) |
+| V3.4a 旧工具结果缩减 | 真实文件工具结果仅在请求中缩减、来源与日志保留，无额外模型请求 | [test_tool_result_pruning.py](test_tool_result_pruning.py)；基础边界见 `../test_context_pruning.py` |
 | V3.3 手动摘要 | 分批来源、旧版本保留、消费、未知用量、近期保护、真实强杀恢复 | [test_compaction.py](test_compaction.py)、[test_process_crash.py](test_process_crash.py) |
 | V3.2 完整轮次选择 | 连续后缀、原日志保留、实际请求来源、重启一致、非法来源拒绝 | [test_context_selection.py](test_context_selection.py) |
 | V3.1 上下文预览与输入预算 | 只读预览、完整工具历史、会话/模型切换与重启；输入/历史/工具说明超限无请求，工具结果增长后再次检查 | [test_context_preview.py](test_context_preview.py) |
@@ -101,6 +102,8 @@ V1.3.1 与测试整理验收：原有 125 个用例保留，补充 11 个用例�
 V3.2 验收（2026-10-28）：替换旧的“历史超限直接失败”场景，新增整轮选择与边界场景，全量 **229 passed in 37.34s**；Ruff、Pyright 通过。
 
 V3.3 验收（2026-10-28）：新增 18 个用例，全量 **247 passed in 39.92s**；摘要请求中、写入中、提交后的真实强杀与恢复通过，Ruff、Pyright 通过。
+
+V3.4a 验收（2026-10-28）：新增 11 个用例，全量 **258 passed in 41.60s**；覆盖压力/开关、近期保护、状态保留、共享列表与真实工具链，Ruff、Pyright 通过。
 
 ## 怎样运行
 

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from adam.config import ContextConfig
+from adam.context_pruning import prune_history
 from adam.errors import BudgetError, FailureCode
 from adam.history import HistoryTurn, Summary
 
@@ -45,12 +46,24 @@ class RequestContext:
     omitted_turn_ids: tuple[str, ...]
     original_history_tokens: int
     summary: Summary | None = None
+    pruned_tools: tuple[dict[str, Any], ...] = ()
+    candidate_history_tokens: int = 0
+
+    @property
+    def candidate_input_tokens(self) -> int:
+        """工具缩减后、整轮选择前的输入估算，用于判断是否仍需摘要。"""
+        return (
+            self.estimate.input_tokens
+            - self.estimate.history_tokens
+            + self.candidate_history_tokens
+        )
 
     def selection_record(self) -> dict[str, Any]:
         """返回实际请求的选择依据；不含认证信息，不是完整 HTTP 请求快照。"""
         return {
             "strategy": "recent_turns_v1",
             "summary_id": self.summary.summary_id if self.summary else None,
+            "pruned_tools": list(self.pruned_tools),
             "selected_turn_ids": list(self.selected_turn_ids),
             "omitted_turn_ids": list(self.omitted_turn_ids),
             "estimated_input_tokens": self.estimate.input_tokens,
@@ -110,6 +123,24 @@ class ContextBuilder:
         sizes = [
             sum(estimate_json_tokens(message) for message in turn.messages) for turn in history
         ]
+        original_history_tokens = sum(sizes)
+        pressure = (
+            system_tokens
+            + turn_tokens
+            + tools_tokens
+            + summary_tokens
+            + sum(sizes)
+            + self.limits.safety_margin_tokens
+        )
+        pruned: tuple[dict[str, Any], ...] = ()
+        if (
+            self.limits.prune_tool_results
+            and pressure >= self.limits.max_input_tokens * self.limits.compression_trigger_ratio
+        ):
+            history, pruned = prune_history(history, self.limits)
+            sizes = [
+                sum(estimate_json_tokens(message) for message in turn.messages) for turn in history
+            ]
         remaining = (
             self.limits.max_input_tokens
             - self.limits.safety_margin_tokens
@@ -140,7 +171,11 @@ class ContextBuilder:
             limits=self.limits,
             selected_turn_ids=tuple(turn.turn_id for turn in selected),
             omitted_turn_ids=tuple(turn.turn_id for turn in history[:start]),
-            original_history_tokens=sum(sizes),
+            original_history_tokens=original_history_tokens,
+            candidate_history_tokens=sum(sizes),
+            pruned_tools=tuple(
+                item for item in pruned if item["turn_id"] in {turn.turn_id for turn in selected}
+            ),
             summary=summary,
         )
 

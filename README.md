@@ -132,7 +132,8 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 
 业务功能点测试集中在 `tests/features/`，按会话、启动配置、工具循环、执行轨迹、终端交互和命令执行组织，见 [功能测试导航](tests/features/README.md)。基础校验保留在 `tests/test_config.py`、`tests/test_llm_config.py`、`tests/test_storage.py`、`tests/test_llm.py` 和 `tests/test_tools.py`。
 自动化使用临时目录和假 HTTP，不调用付费模型；覆盖跨启动恢复、配置位置、JSONL 损坏、写入故障回滚、会话隔离与跨进程锁释放。假 HTTP 验证工程流程，不代替真实模型的选工具和回答效果评估。`tests/features/test_process_crash.py` 另用本地 TCP 服务与独立进程验证强杀：请求中、消息写入中、完整提交后三个边界均经过全新进程恢复。
-V1.3 的状态、诊断和恢复已验收，V2.1/V2.2 基础工具闭环已实现；V2.3 按用户决定跳过，保留选做。V3.1/V3.2 已实现构造、预览、输入预算和完整轮次选择；V3.3 手动摘要已实现，下一步是 V3.4 旧工具结果缩减与自动压缩。JavaScript 编排不是必做前置。
+V1.3 的状态、诊断和恢复已验收，V2.1/V2.2 基础工具闭环已实现；V2.3 按用户决定跳过，保留选做。V3.1/V3.2 已实现构造、预览、输入预算和完整轮次选择；V3.3 手动摘要和 V3.4 旧工具结果缩减已实现，下一步是自动压缩。
+上下文压力达到配置阈值时，只缩减较旧工具结果的请求副本，保留来源、状态和错误；近期轮次及原始 JSONL 不变。JavaScript 编排不是必做前置。
 规划见 [练手 TODO](docs/agent-practice-todo.md) 和 [roadmap](docs/roadmap.md)。
 
 

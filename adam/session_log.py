@@ -253,6 +253,33 @@ class SessionLog:
             raise ValueError("invalid context summary")
         if covered + omitted + selected != [turn.turn_id for turn in self.history_turns()]:
             raise ValueError("invalid context sources")
+        changes = context.get("pruned_tools", [])
+        if not isinstance(changes, list):
+            raise ValueError("invalid pruning records")
+        seen = set()
+        for item in changes:
+            if not isinstance(item, dict):
+                raise ValueError("invalid pruning entry")
+            source_turn, call_id = item.get("turn_id"), item.get("tool_call_id")
+            if not isinstance(source_turn, str) or not isinstance(call_id, str):
+                raise ValueError("invalid pruning source")
+            key = (source_turn, call_id)
+            tool = self.tools.get(key)
+            if key in seen or key[0] not in selected or tool is None or not tool["finished"]:
+                raise ValueError("unknown or duplicate pruned tool")
+            seen.add(key)
+            if item.get("algorithm") != "head_tail_v1":
+                raise ValueError("invalid pruning algorithm")
+            if any(
+                type(item.get(field)) is not int or item[field] < 0
+                for field in ("original_chars", "result_chars", "head_chars", "tail_chars")
+            ):
+                raise ValueError("invalid pruning sizes")
+            if (
+                item["original_chars"] != len(tool["output"])
+                or item["result_chars"] >= item["original_chars"]
+            ):
+                raise ValueError("pruning must reduce output")
         for key in ("estimated_input_tokens", "original_history_tokens"):
             if type(context.get(key)) is not int or context[key] < 0:
                 raise ValueError("invalid context estimate")

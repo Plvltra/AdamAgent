@@ -19,6 +19,12 @@ safety_margin_tokens = 2048
 # Recent turns remain verbatim; /compact summarizes older turns in one bounded request.
 retain_recent_turns = 2
 summary_max_output_tokens = 2048
+# Shrink old tool results only when estimated input pressure reaches this ratio.
+prune_tool_results = true
+compression_trigger_ratio = 0.8
+tool_prune_threshold_chars = 4000
+tool_prune_head_chars = 1500
+tool_prune_tail_chars = 500
 
 [permissions]
 # Additional user-approved directories; relative to this configuration file.

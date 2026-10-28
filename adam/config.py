@@ -120,6 +120,11 @@ class ContextConfig:
     safety_margin_tokens: int = 2048
     retain_recent_turns: int = 2
     summary_max_output_tokens: int = 2048
+    prune_tool_results: bool = True
+    compression_trigger_ratio: float = 0.8
+    tool_prune_threshold_chars: int = 4000
+    tool_prune_head_chars: int = 1500
+    tool_prune_tail_chars: int = 500
 
     def __post_init__(self) -> None:
         """拒绝非法计数和耗尽输入预算的余量；直接构造与 TOML 加载规则一致。"""
@@ -137,6 +142,26 @@ class ContextConfig:
             or not 0 < self.summary_max_output_tokens <= 100000
         ):
             raise ConfigError("context.summary_max_output_tokens 必须是合理范围内的正整数。")
+        if type(self.prune_tool_results) is not bool:
+            raise ConfigError("context.prune_tool_results 必须是布尔值。")
+        if (
+            type(self.compression_trigger_ratio) not in {int, float}
+            or not 0 < self.compression_trigger_ratio < 1
+        ):
+            raise ConfigError("context.compression_trigger_ratio 必须在 0 和 1 之间。")
+        if (
+            any(
+                type(value) is not int or value < 0
+                for value in (
+                    self.tool_prune_threshold_chars,
+                    self.tool_prune_head_chars,
+                    self.tool_prune_tail_chars,
+                )
+            )
+            or self.tool_prune_head_chars + self.tool_prune_tail_chars + 256
+            >= self.tool_prune_threshold_chars
+        ):
+            raise ConfigError("context 工具缩减长度必须是非负整数，头尾及标记要小于阈值。")
 
 
 @dataclass(frozen=True)
