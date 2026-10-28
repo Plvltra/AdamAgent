@@ -5,14 +5,15 @@ import json
 import httpx
 import pytest
 
+from adam.application import AgentApplication
 from adam.cli import handle_command
 from adam.config import AgentConfig, ContextConfig, LLMConfig
-from adam.conversation import Conversation
 from adam.diagnostics import read_report
 from adam.errors import AgentError, BudgetError
 from adam.llm import LLMClient
 from adam.storage import SessionStore, StorageError
-from adam.tool_calls import ToolRegistry
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 
 def reply(text="目标：保留代号 ORION；待办：检查文件"):
@@ -37,11 +38,11 @@ def chat(tmp_path):
         httpx.Client(transport=httpx.MockTransport(respond)) as http,
         SessionStore(tmp_path / "sessions") as store,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store,
             LLMClient(LLMConfig("https://example.test", "model-a", "private-key"), http),
             "保留项目约束",
-            ToolRegistry(tmp_path),
+            create_tool_registry(tmp_path),
             notify=shown.append,
         )
         yield conversation, requests, responses, shown
@@ -62,9 +63,17 @@ def test_compact_command_preserves_raw_history_and_resumes_summary(chat, tmp_pat
     store = conversation.store
     original = store.load_messages(session_id)
     conversation.model = "model-b"
-    handle_command("/compact extra", conversation, None, shown.append)
+    handle_command(
+        "/compact extra",
+        AgentApplication(conversation, conversation.store, conversation.client),
+        shown.append,
+    )
     assert requests == []
-    handle_command("/compact", conversation, None, shown.append)
+    handle_command(
+        "/compact",
+        AgentApplication(conversation, conversation.store, conversation.client),
+        shown.append,
+    )
     summary = store.load_summary(session_id)
     assert len(summary.covered_turn_ids) == 3
     assert store.load_messages(session_id) == original

@@ -7,13 +7,14 @@ from dataclasses import dataclass
 from time import monotonic_ns
 from typing import Any
 
-from adam.config import ContextConfig
 from adam.context import estimate_json_tokens
 from adam.context_pruning import prune_history
-from adam.errors import BudgetError, FailureCode
+from adam.errors import BudgetError, FailureCode, LLMError
 from adam.history import Summary
-from adam.llm import Completion, LLMClient, LLMError
+from adam.models import Completion
 from adam.outcome import ExecutionOutcome
+from adam.ports import ModelClient
+from adam.settings import ContextConfig
 from adam.storage import Session, SessionStore
 
 SUMMARY_PROMPT = (
@@ -40,7 +41,7 @@ class CompactionService:
     def __init__(
         self,
         store: SessionStore,
-        client: LLMClient,
+        client: ModelClient,
         limits: ContextConfig,
         check_budget: Callable[[str], None],
     ) -> None:

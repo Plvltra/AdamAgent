@@ -9,11 +9,11 @@ import httpx
 import pytest
 
 import adam.terminal as terminal
-from adam.cli import chat
 from adam.config import AgentConfig, LLMConfig
 from adam.llm import LLMClient
 from adam.storage import SessionStore
 from adam.terminal import role_prefix
+from tests.support import run_chat as chat
 
 
 @pytest.fixture

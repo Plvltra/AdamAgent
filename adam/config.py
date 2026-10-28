@@ -4,28 +4,20 @@ import math
 import os
 import tomllib
 from collections.abc import Collection
-from dataclasses import dataclass, field, fields
+from dataclasses import fields
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from adam.errors import AgentError
-from adam.tool_calls import PermissionConfig, ToolLimits
-
-
-class ConfigError(AgentError):
-    """配置无法使用；提示只包含受控字段信息。"""
-
-    def __init__(self, message: str) -> None:
-        super().__init__(f"配置错误：{message}")
-
-
-@dataclass(frozen=True)
-class LLMConfig:
-    base_url: str
-    model: str
-    api_key: str = field(repr=False)
-    timeout_seconds: float = 120
+from adam.errors import ConfigError
+from adam.settings import (
+    AgentConfig,
+    AppConfig,
+    ContextConfig,
+    LLMConfig,
+    PermissionConfig,
+    ToolLimits,
+)
 
 
 def checked_section(value: object, allowed: Collection[str], name: str) -> dict[str, Any]:
@@ -102,87 +94,6 @@ def load_llm_config(path: Path) -> LLMConfig:
         api_key=key,
         timeout_seconds=float(timeout),
     )
-
-
-@dataclass(frozen=True)
-class AgentConfig:
-    max_model_requests: int = 8
-    max_tool_calls: int = 16
-    max_session_tokens: int = 50000
-    max_output_tokens: int = 4096
-    max_edit_attempts: int = 3
-
-
-@dataclass(frozen=True)
-class ContextConfig:
-    """单次输入的应用预算；不是模型窗口容量，输出额度由 AgentConfig 单独预留。"""
-
-    max_input_tokens: int = 32768
-    safety_margin_tokens: int = 2048
-    retain_recent_turns: int = 2
-    summary_max_output_tokens: int = 2048
-    prune_tool_results: bool = True
-    compression_trigger_ratio: float = 0.8
-    auto_compact: bool = True
-    compression_target_ratio: float = 0.6
-    tool_prune_threshold_chars: int = 4000
-    tool_prune_head_chars: int = 1500
-    tool_prune_tail_chars: int = 500
-
-    def __post_init__(self) -> None:
-        """拒绝非法计数和耗尽输入预算的余量；直接构造与 TOML 加载规则一致。"""
-        if type(self.max_input_tokens) is not int or not 0 < self.max_input_tokens <= 100000000:
-            raise ConfigError("context.max_input_tokens 必须是合理范围内的正整数。")
-        if (
-            type(self.safety_margin_tokens) is not int
-            or not 0 <= self.safety_margin_tokens < self.max_input_tokens
-        ):
-            raise ConfigError("context.safety_margin_tokens 必须是小于输入上限的非负整数。")
-        if type(self.retain_recent_turns) is not int or not 0 <= self.retain_recent_turns <= 1000:
-            raise ConfigError("context.retain_recent_turns 必须是 0 到 1000 的整数。")
-        if (
-            type(self.summary_max_output_tokens) is not int
-            or not 0 < self.summary_max_output_tokens <= 100000
-        ):
-            raise ConfigError("context.summary_max_output_tokens 必须是合理范围内的正整数。")
-        if type(self.auto_compact) is not bool:
-            raise ConfigError("context.auto_compact 必须是布尔值。")
-        if (
-            type(self.compression_trigger_ratio) not in {int, float}
-            or not 0 < self.compression_trigger_ratio < 1
-        ):
-            raise ConfigError("context.compression_trigger_ratio 必须在 0 和 1 之间。")
-        if (
-            type(self.compression_target_ratio) not in {int, float}
-            or not 0 < self.compression_target_ratio < self.compression_trigger_ratio
-        ):
-            raise ConfigError("context.compression_target_ratio 必须大于 0 且低于触发比例。")
-        if type(self.prune_tool_results) is not bool:
-            raise ConfigError("context.prune_tool_results 必须是布尔值。")
-        if (
-            any(
-                type(value) is not int or value < 0
-                for value in (
-                    self.tool_prune_threshold_chars,
-                    self.tool_prune_head_chars,
-                    self.tool_prune_tail_chars,
-                )
-            )
-            or self.tool_prune_head_chars + self.tool_prune_tail_chars + 256
-            >= self.tool_prune_threshold_chars
-        ):
-            raise ConfigError("context 工具缩减长度必须是非负整数，头尾及标记要小于阈值。")
-
-
-@dataclass(frozen=True)
-class AppConfig:
-    llm: LLMConfig
-    sessions_dir: Path
-    system_prompt: str
-    agent: AgentConfig = field(default_factory=AgentConfig)
-    permissions: PermissionConfig = field(default_factory=PermissionConfig)
-    tool_limits: ToolLimits = field(default_factory=ToolLimits)
-    context: ContextConfig = field(default_factory=ContextConfig)
 
 
 def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:

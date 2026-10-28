@@ -2,28 +2,35 @@
 
 最近核对：2026-10-29
 
-本次核对范围：V4.2b 执行事实报告、终端正常/失败展示，以及完整 V4 故障验收。
+本次核对范围：将应用分层重构接到完整 V4 基线，保留编辑确认、有限修正和执行事实报告。
 
-核对结论：新增 execution_report.py，从同一日志快照生成执行事实；SessionStore 读取，Conversation 提供本轮查询接口，terminal 展示。CLI 不解释底层命令/编辑状态；报告不写入聊天历史，也不把进程退出 0 当作测试通过。
+核对结论：bootstrap 创建并管理资源，CLI 使用 AgentApplication；共享配置、数据和错误单独定义；模型依赖 ModelClient，工具注册表只分派已注入处理函数。
 
-本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
+本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
-## 模块总览
+## 启动与资源所有权
 
-实线表示主要调用、委托或读写关系，虚线表示协议校验或展示数据依赖；这是职责关系图，不是严格执行时序或完整 import 清单。`cli.py` 启动时还负责创建并连接模型客户端、存储和工具等组件，图中主要展示运行时的业务关系。
+实线表示主要调用、委托或读写关系，虚线表示协议校验或展示数据依赖；这是职责关系图，不是严格执行时序或完整 import 清单。bootstrap 是依赖组装与资源所有权入口；CLI 只解释输入和展示结果。
 
 ```mermaid
 flowchart TD
-    ENTRY["__main__.py<br/>程序入口"] --> CLI["cli.py<br/>启动组装、用户交互、指令处理"]
-    CLI --> CONFIG["config.py<br/>加载与校验配置"]
+    ENTRY["__main__.py<br/>程序入口"] --> CLI["cli.py<br/>用户交互、指令处理"]
+    CLI --> BOOT["bootstrap.py<br/>组装与资源关闭"]
+    BOOT --> CONFIG["config.py<br/>加载与校验配置"]
+    CONFIG --> SETTINGS["settings.py<br/>不可变配置"]
+    BOOT --> APP["application.AgentApplication"]
+    CLI --> APP
+    BOOT --> LLM
+    BOOT --> STORE
+    BOOT --> FACTORY["tool_calls.factory<br/>组装内置工具"]
     CLI --> TERMINAL["terminal.py<br/>角色、失败、上下文与执行事实展示"]
-    CLI --> CONV["conversation.py<br/>轮次收尾、模型—工具循环"]
-    CLI -->|"会话列表、历史与用量查询"| STORE["storage.py<br/>会话持久化与读取"]
+    APP --> CONV["conversation.py<br/>轮次收尾、模型—工具循环"]
+    APP -->|"会话列表、历史与用量查询"| STORE["storage.py<br/>会话持久化与读取"]
 
     CONV --> COMPACT["compaction.py<br/>规划与执行摘要"]
     COMPACT --> STORE
-    COMPACT --> LLM
-    COMPACT --> CONFIG
+    COMPACT --> PORT
+    COMPACT --> SETTINGS
     COMPACT --> HISTORY
     COMPACT -->|"素材估算"| CONTEXT
     COMPACT -->|"自动摘要素材缩减"| PRUNE
@@ -36,19 +43,17 @@ flowchart TD
     STORE --> HISTORY
     LOG --> HISTORY
     CONTEXT --> PRUNE["context_pruning.py<br/>旧工具结果头尾节选"]
-    PRUNE --> CONFIG
+    PRUNE --> SETTINGS
     PRUNE --> HISTORY
-    CONTEXT --> CONFIG
+    CONTEXT --> SETTINGS
     CONTEXT --> ERROR
     TERMINAL -.->|"读取 RequestContext 展示数据"| CONTEXT
-    CONV --> LLM["llm.py<br/>访问模型服务"]
-    CLI -->|"查询模型目录"| LLM
+    CONV --> PORT
+    BOOT --> LLM["llm.py<br/>访问模型服务"]
+    APP -->|"查询模型目录"| PORT["ports.ModelClient"]
+    LLM -.->|"实现"| PORT
     LLM --> API["远端 LLM"]
-    CONV --> EXEC["tool_calls/executor.py<br/>工具额度、执行与轨迹"]
-    CONV -->|"获取工具说明"| REG["tool_calls/registry.py<br/>工具目录、参数校验与分派"]
-    EXEC --> REG
-    REG --> TOOLS["file_tools.py / git_tools.py / command_tools.py / edit_tools.py<br/>具体执行能力"]
-
+    CONV -->|"工具说明与执行"| EXEC["tool_calls.ToolExecutor"]
     CONV --> STORE
     EXEC -->|"保存执行记录"| STORE
     STORE --> FILE["会话 JSONL 文件与恢复备份"]
@@ -69,14 +74,16 @@ flowchart TD
     LOG -.->|"校验日志中的完整轮次"| PROTOCOL
 ```
 
-## 工具模块
+共享的 `models.py` 定义 Session、Message、Completion、CommandRequest、SessionUsage 和记录回调类型。`settings.py` 只定义配置值；`config.py` 负责读取和校验。这些数据定义不引用 HTTP、文件存储实现或工具执行模块。
 
-实线表示执行委托或确认回调；虚线表示使用路径规则、权限配置或资源限制。图中权限检查与资源限制属于应用层控制，通用命令不运行在操作系统沙箱内。
+## 工具创建与执行
 
 ```mermaid
 flowchart TD
     E["executor.py<br/>轮次关联、执行协调与留痕"] --> R["registry.py<br/>工具说明、参数校验与分派"]
-    R --> F["file_tools.py<br/>目录、文件、搜索与读取"]
+    FACTORY["factory.py<br/>创建工具并注册处理函数"] --> R
+    FACTORY --> CATALOG["catalog.py<br/>工具说明"]
+    R -->|"注册的处理函数"| F["file_tools.py<br/>目录、文件、搜索与读取"]
     F --> SNAP["text_file.py<br/>有界文本快照与版本"]
     PLAN["edit_plan.py<br/>纯替换计划与 diff"] --> SNAP
     PLAN -.-> P
@@ -92,16 +99,17 @@ flowchart TD
     R -.-> P["policy.py<br/>路径规则、读写权限与资源限制"]
     F -.-> P
     G -.-> P
-    C -.-> P
 ```
 
 `PathPolicy` 分别检查读取和写入范围；读取授权不赋予写入权限，专用编辑禁止 .git、凭据及链接路径。通用命令单独展示具体命令和工作目录，请用户逐次确认；批准后的程序按当前系统账户权限运行，额外读取目录配置不是命令进程的沙箱边界。
 
-`ToolExecutor` 负责调用所属轮次、请求和执行轨迹；`ToolRegistry` 负责工具目录、参数校验与分派；具体工具负责动作本身。命令和编辑通过记录回调把副作用边界交给协调层保存，通过确认回调取得用户决定。拒绝结果保存后停止同批剩余调用及本轮请求；失败输入不进入有效历史。
+`CommandTools` 只需要工作目录、资源限制和确认回调，不接收与其权限模型不相符的 PathPolicy。批准的通用命令按当前系统账户权限运行；额外读取目录只限制只读工具，不是命令进程的操作系统沙箱。
 
-## 模块与抽象职责
+ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模型。命令工具另行报告确认与进程边界；日志保存失败仍停止本轮。执行层通知工具名称，`工具>` 等展示文字由 CLI 生成。
 
-| 模块 | 主要类或入口 | 抽象的职责 |
+## 模块职责
+
+| 模块 | 主要接口 | 职责 |
 | --- | --- | --- |
 | [__main__.py](../adam/__main__.py) | 程序入口 | 将 `python -m adam` 交给 CLI 启动 |
 | [cli.py](../adam/cli.py) | `main`、`chat`、`handle_command` | 组装组件，处理输入和斜杠指令，展示结果与错误，取得命令确认 |
@@ -110,7 +118,14 @@ flowchart TD
 | [errors.py](../adam/errors.py) | `AgentError`、`FailureCode`、`BudgetError`、`TurnSaveError` | 定义可展示说明、可选未保存回答及稳定失败类别，保持界面错误接口稳定 |
 | [diagnostics.py](../adam/diagnostics.py) | `read_report`、`main` | 只读单个日志快照，按轮次输出请求和工具详情；不请求模型、不修复文件 |
 | [outcome.py](../adam/outcome.py) | `ExecutionOutcome`、`outcome_details` | 表达请求或轮次的终态、原因和已测耗时；写入和回放共用字段校验，不负责计时或 IO |
-| [config.py](../adam/config.py) | `AppConfig`、`LLMConfig`、`AgentConfig`、`ContextConfig` | 加载并校验运行配置，区分模型连接、循环/消费限额及单次输入预算 |
+| [bootstrap.py](../adam/bootstrap.py) | `open_application`、`build_application` | 组装组件并关闭自己创建的资源 |
+| [application.py](../adam/application.py) | `AgentApplication` | 面向界面的会话、模型与上下文操作 |
+| [settings.py](../adam/settings.py) | 配置值 | 不可变运行配置 |
+| [models.py](../adam/models.py) | 共享数据与 EditPlan | 不依赖具体实现的跨层数据 |
+| [ports.py](../adam/ports.py) | `ModelClient` | 模型目录与一次请求能力 |
+| [tool_calls/factory.py](../adam/tool_calls/factory.py) | `create_tool_registry` | 组装内置工具和编码器 |
+| [tool_calls/catalog.py](../adam/tool_calls/catalog.py) | `SPECS` | 模型可见的工具说明 |
+| [config.py](../adam/config.py) | `load_config`、`load_llm_config` | 加载并校验运行配置，区分模型连接、循环/消费限额及单次输入预算 |
 | [conversation.py](../adam/conversation.py) | `Conversation`、`TurnProgress` | 管理会话与轮次；依据输入压力协调自动摘要，统一限制摘要和聊天请求，组织工具与提交 |
 | [context.py](../adam/context.py) | `ContextBuilder`、`RequestContext`、`ContextEstimate` | 按完整轮次选择连续历史后缀，估算输入、检查上限并提供来源记录；不改写原始消息 |
 | [context_pruning.py](../adam/context_pruning.py) | `prune_history` | 缩减旧工具结果副本，保护近期轮次，保留错误状态和来源 |
@@ -132,9 +147,9 @@ flowchart TD
 | [tool_calls/command_tools.py](../adam/tool_calls/command_tools.py) | `CommandTools`、`CommandRequest` | 表达待批准的命令计划，取得确认后运行程序，收集退出码、输出与执行结果 |
 | [tool_calls/policy.py](../adam/tool_calls/policy.py) | `PathPolicy`、`PermissionConfig`、`ToolLimits` | 表达并检查路径访问规则，提供工具资源限制 |
 
-`adam/__init__.py` 与 `adam/tool_calls/__init__.py` 是包入口，后者集中导出工具接口；它们不承担独立的业务流程。
+## 错误与兼容边界
 
-## 关键职责边界
+已知失败统一继承 AgentError：user_message 是受控提示，partial_reply 携带未保存回答。预算耗尽使用 BudgetError，模型通信使用 LLMError；CLI 只交给 terminal.show_failure 展示。存储 IO 在 storage 的操作边界转换为 StorageError 并保留 cause，命令日志失败继续停止本轮。应用层原样传播公共错误，不重复包装；程序错误和终端 OSError 继续传播，资源由组装入口释放。
 
 - **交互与流程：** CLI 处理用户怎样操作；`Conversation` 处理普通输入背后的会话流程。斜杠指令可以直接完成查询，不必请求模型。
 - **流程与模型：** `Conversation` 决定何时请求、执行或停止；`LLMClient` 完成一次模型通信。一次用户输入可以触发多次模型请求。
@@ -171,13 +186,13 @@ flowchart TD
 ```
 
 - AgentError 提供受控的 user_message、可选 partial_reply、稳定 code 与可选数值 http_status，不决定恢复或重试。展示层仍只使用前两个字段，不逐个匹配具体异常；ExecutionOutcome 将后两个字段转换为持久化结束信息。
-- ConfigError、LLMError、StorageError、SessionNotFoundError、ToolError 和 CommandLogError 仍由各模块定义，但都实现公共契约。预算使用 BudgetError，回答未保存使用 TurnSaveError；新增业务错误类型无需增加 CLI 分支。
+- ConfigError、LLMError、StorageError、SessionNotFoundError、ToolError 和 CommandLogError 集中定义在 errors.py，原模块保留导入别名。预算使用 BudgetError，回答未保存使用 TurnSaveError；新增业务错误类型无需增加 CLI 分支。
 - 原始 HTTP 异常和响应错误由模型模块转换。原始 OSError 仅在 SessionStore 的实际文件/锁操作边界转为 StorageError，保留原因链且不直接展示系统异常文本。
 - Conversation 在最终回答或其用量无法保存时转为 TurnSaveError，保留回答。ToolExecutor 将命令记录的存储或关联失败转为 CommandLogError，确保它不会被工具注册表当作可修正参数错误继续执行。
-- 同一次失败不因公共契约而自动重试。未识别的程序错误继续传播；终端输出自身的 OSError 也不会被误报为会话文件失败。chat 的清理范围覆盖组件初始化、会话恢复与交互循环，初始界面或回答展示失败时均释放会话锁。
+- 同一次失败不因公共契约而自动重试。未识别的程序错误继续传播；终端输出自身的 OSError 也不会被误报为会话文件失败。open_application 的清理范围覆盖组件初始化、会话恢复与交互循环，初始界面或回答展示失败时均释放会话锁。
 - 对公开存储接口做故障替身时使用 StorageError；模拟真实文件系统故障时在 IO 边界注入 OSError，验证实际转换、回滚和原因链。
 
-公开异常契约与界面展示保持稳定。第 2、3 项在该契约上补齐状态、原因和耗时，V1.3.2 已通过自动化验收。CLI 的组件组装和直接存储查询仍存在；它们的职责拆分属于后续工程改进。
+公开异常契约与界面展示保持稳定。第 2、3 项在该契约上补齐状态、原因和耗时，V1.3.2 已通过自动化验收。组件组装和直接存储查询已分别移至 bootstrap 与 AgentApplication。
 
 ## 请求与轮次状态边界
 
@@ -192,4 +207,4 @@ flowchart TD
 
 ## 文档维护
 
-本文件是当前架构图与职责边界的统一维护位置。每次改动后的核对及更新要求见 [AGENTS.md](../AGENTS.md) 的“架构文档同步”；未改变架构时保留关系图，更新文首的核对范围和结论。
+本文件统一维护当前架构图与职责边界。每次改动后的要求见 [AGENTS.md](../AGENTS.md) 的“架构文档同步”。测试中的组装辅助函数不属于生产架构。

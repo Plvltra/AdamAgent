@@ -4,6 +4,7 @@ import sys
 
 import pytest
 
+import adam.bootstrap as bootstrap
 import adam.cli as cli
 
 
@@ -26,7 +27,7 @@ def test_invalid_startup_configuration_stops_before_network(
     def forbidden_client(*args, **kwargs):
         pytest.fail("Invalid configuration must fail before HTTP client creation")
 
-    monkeypatch.setattr(cli.httpx, "Client", forbidden_client)
+    monkeypatch.setattr(bootstrap.httpx, "Client", forbidden_client)
     monkeypatch.setattr(
         sys, "argv", ["adam", "--config", str(config), "--workspace", str(tmp_path)]
     )

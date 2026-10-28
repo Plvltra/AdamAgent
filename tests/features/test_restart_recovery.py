@@ -6,12 +6,12 @@ import httpx
 import pytest
 
 from adam.config import LLMConfig
-from adam.conversation import Conversation
 from adam.diagnostics import read_report
 from adam.errors import BudgetError
 from adam.llm import LLMClient, LLMError
 from adam.outcome import ExecutionOutcome
 from adam.storage import SessionStore, StorageError, record
+from tests.support import build_conversation
 
 
 @pytest.mark.parametrize("phase", ["request", "known_usage", "tool", "command", "failed_turn"])
@@ -67,7 +67,7 @@ def test_reopen_closes_only_unfinished_operations(tmp_path, phase):
         httpx.Client(transport=httpx.MockTransport(lambda r: requests.append(r))) as http,
         SessionStore(tmp_path) as store,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store, LLMClient(LLMConfig("https://example.test", "test", "x"), http), ""
         )
         conversation.resume(session_id)

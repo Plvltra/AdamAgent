@@ -76,9 +76,7 @@ def test_home_and_cli_llm_override(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["adam", "--llm-config", "alternate.toml"])
     calls = []
-    monkeypatch.setattr(
-        cli, "chat", lambda client, prompt, store, **kwargs: calls.append(client.config.model)
-    )
+    monkeypatch.setattr(cli, "chat", lambda application, **kwargs: calls.append(application.model))
     assert cli.main() == 0
     assert calls == ["test"]
     assert (home / "history").is_dir()

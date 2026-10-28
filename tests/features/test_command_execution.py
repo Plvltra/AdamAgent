@@ -6,13 +6,15 @@ import sys
 import httpx
 import pytest
 
-from adam.cli import chat, confirm_command
+from adam.cli import confirm_command
 from adam.config import LLMConfig
-from adam.conversation import Conversation
 from adam.llm import LLMClient, LLMError
 from adam.storage import SessionStore, StorageError
-from adam.tool_calls import ToolLimits, ToolRegistry
+from adam.tool_calls import ToolLimits
 from adam.tool_calls.command_tools import CommandLogError, CommandRequest
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
+from tests.support import run_chat as chat
 
 
 @pytest.fixture
@@ -37,7 +39,7 @@ def invoke(registry, argv=None, cwd=".", record=None, **options):
 def test_arbitrary_script_and_arguments(project):
     (project / "script.py").write_text("import sys; print(sys.argv[1])", encoding="utf-8")
     approved = []
-    registry = ToolRegistry(project, confirm_command=lambda c: approved.append(c) or True)
+    registry = create_tool_registry(project, confirm_command=lambda c: approved.append(c) or True)
     result = invoke(registry, [sys.executable, "script.py", "a b; & literal"])
     assert result["exit_code"] == 0
     assert result["stdout"].strip() == "a b; & literal"
@@ -47,7 +49,7 @@ def test_arbitrary_script_and_arguments(project):
 def test_git_and_alternate_cwd(project):
     outside = project.parent / "other"
     outside.mkdir()
-    registry = ToolRegistry(project, confirm_command=lambda _: True)
+    registry = create_tool_registry(project, confirm_command=lambda _: True)
     result = invoke(registry, ["git", "--version"], cwd=str(outside))
     assert result["exit_code"] == 0 and "git version" in result["stdout"]
     result = invoke(
@@ -58,7 +60,7 @@ def test_git_and_alternate_cwd(project):
 
 def test_nonzero_exit_and_stderr(project):
     result = invoke(
-        ToolRegistry(project, confirm_command=lambda _: True),
+        create_tool_registry(project, confirm_command=lambda _: True),
         [sys.executable, "-c", "import sys; print('problem', file=sys.stderr); sys.exit(7)"],
     )
     assert result["ok"] and result["exit_code"] == 7
@@ -70,7 +72,7 @@ def test_denied_and_invalid_requests_do_not_spawn(project, monkeypatch):
         raise AssertionError("Must not spawn")
 
     monkeypatch.setattr("adam.tool_calls.command_tools.subprocess.Popen", forbidden)
-    registry = ToolRegistry(project)
+    registry = create_tool_registry(project)
     assert invoke(registry)["status"] == "denied"
     for arguments in [
         {"argv": []},
@@ -84,12 +86,12 @@ def test_denied_and_invalid_requests_do_not_spawn(project, monkeypatch):
 
 
 def test_timeout_and_bounded_output(project):
-    registry = ToolRegistry(project, confirm_command=lambda _: True)
+    registry = create_tool_registry(project, confirm_command=lambda _: True)
     result = invoke(
         registry, [sys.executable, "-c", "import time; time.sleep(20)"], timeout_seconds=1
     )
     assert result["timed_out"] and result["exit_code"] is not None
-    registry = ToolRegistry(
+    registry = create_tool_registry(
         project, limits=ToolLimits(max_result_chars=512), confirm_command=lambda _: True
     )
     encoded = registry.execute(
@@ -106,7 +108,7 @@ def test_start_failure_is_recorded(project, monkeypatch):
     monkeypatch.setattr("adam.tool_calls.command_tools.subprocess.Popen", fail)
     events = []
     result = invoke(
-        ToolRegistry(project, confirm_command=lambda _: True),
+        create_tool_registry(project, confirm_command=lambda _: True),
         record=lambda kind, data: events.append(kind),
     )
     assert result["status"] == "start_failed" and result["exit_code"] is None
@@ -212,11 +214,11 @@ def test_execution_survives_later_model_failure(project, tmp_path):
         httpx.Client(transport=httpx.MockTransport(handle)) as http,
         SessionStore(tmp_path / "sessions") as store,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store,
             LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
             "",
-            ToolRegistry(project, confirm_command=lambda _: True),
+            create_tool_registry(project, confirm_command=lambda _: True),
         )
         with pytest.raises(LLMError):
             conversation.send("run tests")
@@ -246,7 +248,7 @@ def test_record_failure_prevents_spawn(project, monkeypatch):
 
     monkeypatch.setattr("adam.tool_calls.command_tools.subprocess.Popen", forbidden)
     with pytest.raises(CommandLogError):
-        invoke(ToolRegistry(project, confirm_command=lambda _: True), record=fail_record)
+        invoke(create_tool_registry(project, confirm_command=lambda _: True), record=fail_record)
 
 
 def test_unknown_execution_blocks_replay_after_restart(project, tmp_path):
@@ -273,7 +275,7 @@ def test_unknown_execution_blocks_replay_after_restart(project, tmp_path):
             transport=httpx.MockTransport(lambda _: pytest.fail("Must not request model"))
         ) as http,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store, LLMClient(LLMConfig("https://example.test", "test", "secret"), http), ""
         )
         conversation.resume(session_id)
@@ -357,22 +359,22 @@ def test_finished_command_log_failure_blocks_reexecution(project, tmp_path, monk
                 return append(session_id, kind, payload)
 
             monkeypatch.setattr(store, "append_command_event", fail_finish)
-            conversation = Conversation(
+            conversation = build_conversation(
                 store,
                 LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
                 "",
-                ToolRegistry(project, confirm_command=lambda _: True),
+                create_tool_registry(project, confirm_command=lambda _: True),
             )
             with pytest.raises(CommandLogError):
                 conversation.send("write once")
             session_id = conversation.session.session_id
             assert store.load_executions(session_id)[0]["status"] == "unknown"
         with SessionStore(root) as store:
-            conversation = Conversation(
+            conversation = build_conversation(
                 store,
                 LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
                 "",
-                ToolRegistry(project, confirm_command=lambda _: True),
+                create_tool_registry(project, confirm_command=lambda _: True),
             )
             conversation.resume(session_id)
             with pytest.raises(StorageError):
@@ -386,7 +388,7 @@ def test_command_does_not_inherit_unapproved_secret_variable(project, monkeypatc
     """父进程存在自定义密钥变量时，真实子进程仍只能看到允许继承的基础环境。"""
     monkeypatch.setenv("ADAM_TEST_SECRET", "dummy-private-value")
     result = invoke(
-        ToolRegistry(project, confirm_command=lambda _: True),
+        create_tool_registry(project, confirm_command=lambda _: True),
         [sys.executable, "-c", "import os; print(os.environ.get('ADAM_TEST_SECRET', 'absent'))"],
     )
     assert result["exit_code"] == 0 and result["stdout"].strip() == "absent"

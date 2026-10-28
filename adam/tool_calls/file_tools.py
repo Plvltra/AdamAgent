@@ -8,7 +8,9 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
-from adam.tool_calls.policy import PathPolicy, ToolError, ToolLimits
+from adam.errors import ToolError
+from adam.settings import ToolLimits
+from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.text_file import read_snapshot
 
 IGNORED = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}

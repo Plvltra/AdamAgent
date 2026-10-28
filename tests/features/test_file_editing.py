@@ -5,9 +5,9 @@ import json
 
 import pytest
 
-from adam.tool_calls import ToolRegistry
 from adam.tool_calls.edit_plan import EditConflictError, plan_edit
 from adam.tool_calls.edit_tools import EditTools
+from adam.tool_calls.factory import create_tool_registry
 from adam.tool_calls.policy import PathPolicy, PermissionConfig, ToolError, ToolLimits
 from adam.tool_calls.text_file import read_snapshot
 
@@ -19,7 +19,9 @@ def test_read_version_and_edit_plan_preserve_bytes(tmp_path, bom, newline):
     if bom:
         raw = b"\xef\xbb\xbf" + raw
     path.write_bytes(raw)
-    output = json.loads(ToolRegistry(tmp_path).execute("read_file", '{"path":"sample.txt"}'))
+    output = json.loads(
+        create_tool_registry(tmp_path).execute("read_file", '{"path":"sample.txt"}')
+    )
     assert output["version"] == hashlib.sha256(raw).hexdigest()
     plan = plan_edit(
         read_snapshot(path, 1024), "value = 'old'", 'value = "new"', output["version"], 1024

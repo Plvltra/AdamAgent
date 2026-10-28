@@ -6,11 +6,11 @@ import httpx
 import pytest
 
 from adam.config import LLMConfig
-from adam.conversation import Conversation
 from adam.llm import LLMClient, LLMError
 from adam.storage import SessionStore, StorageError
-from adam.tool_calls import ToolRegistry
 from adam.tool_calls.command_tools import CommandLogError
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 
 def read_events(root, session_id):
@@ -40,11 +40,11 @@ def response(*, tool=False, text="done", finish_reason="stop"):
 
 
 def make_conversation(store, http, workspace):
-    return Conversation(
+    return build_conversation(
         store,
         LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
         "",
-        ToolRegistry(workspace),
+        create_tool_registry(workspace),
     )
 
 
@@ -185,7 +185,7 @@ def test_tool_journal_failure_stops_before_further_actions(tmp_path, monkeypatch
             return '{"ok":true}'
 
         monkeypatch.setattr(store, "append_tool_event", append_or_fail)
-        monkeypatch.setattr(conversation.tool_registry, "execute", execute)
+        monkeypatch.setattr(conversation.tool_executor.registry, "execute", execute)
         with pytest.raises(StorageError, match="tool record failed"):
             conversation.send("read")
         assert len(requests) == 1
@@ -341,11 +341,11 @@ def test_command_log_validation_failure_is_fatal(tmp_path, monkeypatch):
         httpx.Client(transport=httpx.MockTransport(handle)) as http,
         SessionStore(tmp_path / "sessions") as store,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store,
             LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
             "",
-            ToolRegistry(tmp_path, confirm_command=lambda c: approvals.append(c) or True),
+            create_tool_registry(tmp_path, confirm_command=lambda c: approvals.append(c) or True),
         )
         monkeypatch.setattr(store, "append_command_event", fail_record)
         with pytest.raises(CommandLogError):

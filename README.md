@@ -120,7 +120,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `adam/outcome.py`：请求与轮次共用的结束信息及字段校验。
 - `adam/diagnostics.py`：`python -m adam.diagnostics <JSONL路径>` 输出只读 JSON 报告，无需模型配置。
 - `adam/llm.py`：HTTP 请求及结构化助手响应、用量解析。
-- `adam/tool_calls/`：工具注册与参数验证、文件工具、Git 工具、权限与资源限制。
+- `adam/tool_calls/`：工厂组装工具，注册表校验分派，执行器协调留痕；具体工具处理动作与权限。
 - `adam/tool_calls/executor.py`：所有工具的执行协调与独立轨迹记录。
 - `adam/protocol.py`：助手工具请求与完整轮次的协议校验。
 

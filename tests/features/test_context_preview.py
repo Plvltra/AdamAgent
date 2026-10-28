@@ -6,14 +6,16 @@ import sys
 import httpx
 import pytest
 
+import adam.bootstrap as bootstrap
 import adam.cli as cli
+from adam.application import AgentApplication
 from adam.config import AgentConfig, ContextConfig, LLMConfig
 from adam.context import ContextBuilder
-from adam.conversation import Conversation
 from adam.errors import BudgetError
 from adam.llm import LLMClient
 from adam.storage import SessionStore
-from adam.tool_calls import ToolRegistry
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation, run_chat
 
 
 def completion(*, tool=None):
@@ -38,11 +40,11 @@ def completion(*, tool=None):
 
 
 def make_conversation(store, http, root, *, config=None, prompt="system"):
-    return Conversation(
+    return build_conversation(
         store,
         LLMClient(LLMConfig("https://example.test", "model-a", "private-api-key"), http),
         prompt,
-        ToolRegistry(root),
+        create_tool_registry(root),
         AgentConfig(max_output_tokens=1234),
         context_config=config,
     )
@@ -61,7 +63,7 @@ def test_context_commands_are_read_only_and_full_is_opt_in(tmp_path):
         httpx.Client(transport=httpx.MockTransport(handle)) as http,
         SessionStore(tmp_path / "sessions") as store,
     ):
-        cli.chat(
+        run_chat(
             LLMClient(LLMConfig("https://example.test", "model-a", "private-api-key"), http),
             "system-only",
             store,
@@ -110,8 +112,16 @@ def test_preview_preserves_tool_history_and_tracks_model_session_and_restart(tmp
         assert payloads[1]["messages"][-1]["tool_call_id"] == "read1"
         before = {p: p.read_bytes() for p in root.rglob("*.jsonl")}
         shown = []
-        cli.handle_command("/model model-b", conversation, None, shown.append)
-        cli.handle_command("/context full", conversation, None, shown.append)
+        cli.handle_command(
+            "/model model-b",
+            AgentApplication(conversation, store, conversation.client),
+            shown.append,
+        )
+        cli.handle_command(
+            "/context full",
+            AgentApplication(conversation, store, conversation.client),
+            shown.append,
+        )
         preview = conversation.preview_context()
         assert preview.model == "model-b"
         assert preview.messages == payloads[1]["messages"] + [completion()["choices"][0]["message"]]
@@ -163,7 +173,9 @@ def test_input_budget_blocks_without_request_or_unknown_usage(tmp_path, source):
         assert store.usage(session_id) == (0, False)
         assert conversation.preview_context() == before
         shown = []
-        cli.handle_command("/context", conversation, None, shown.append)
+        cli.handle_command(
+            "/context", AgentApplication(conversation, store, conversation.client), shown.append
+        )
         assert any(text.startswith("上下文>") for text in shown)  # 超限仍能诊断。
     assert requests == []
 
@@ -225,7 +237,7 @@ def test_main_loads_context_limits_and_cli_shows_local_rejection(tmp_path, monke
         return original_chat(*args, **kwargs, read=lambda _: next(inputs))
 
     monkeypatch.setattr(cli, "chat", chat_with_input)
-    monkeypatch.setattr(cli.httpx, "Client", lambda **kwargs: http)
+    monkeypatch.setattr(bootstrap.httpx, "Client", lambda **kwargs: http)
     monkeypatch.setattr(
         sys, "argv", ["adam", "--config", str(config), "--workspace", str(tmp_path)]
     )

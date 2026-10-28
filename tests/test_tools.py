@@ -4,7 +4,16 @@ import subprocess
 
 import pytest
 
-from adam.tool_calls import PermissionConfig, ToolLimits, ToolRegistry
+from adam.tool_calls import PermissionConfig, ToolLimits
+from adam.tool_calls.factory import create_tool_registry
+
+
+@pytest.fixture(autouse=True)
+def isolated_git_environment(monkeypatch):
+    """隔离提交钩子的 Git 上下文，防止临时仓库命令操作真实仓库。"""
+    for name in list(os.environ):
+        if name.upper().startswith("GIT_"):
+            monkeypatch.delenv(name)
 
 
 def run(registry, name, **args):
@@ -15,7 +24,7 @@ def test_file_tools_paging_search_and_ignore(tmp_path):
     (tmp_path / "a.py").write_text("needle\nsecond\nthird\n", encoding="utf-8")
     (tmp_path / ".git").mkdir()
     (tmp_path / ".git" / "HEAD").write_text("needle", encoding="utf-8")
-    tools = ToolRegistry(tmp_path)
+    tools = create_tool_registry(tmp_path)
     assert run(tools, "list_directory", path=".")["entries"] == [".git", "a.py"]
     found = run(tools, "find_files", path=".", pattern="*.py")
     assert found["results"] == ["a.py"]
@@ -35,14 +44,14 @@ def test_permission_and_parameter_validation(tmp_path):
     other.mkdir()
     (other / "file.txt").write_text("external", encoding="utf-8")
     (workspace / "llm.toml").write_text("secret", encoding="utf-8")
-    tools = ToolRegistry(workspace)
+    tools = create_tool_registry(workspace)
     assert not run(tools, "read_file", path="../other/file.txt")["ok"]
     assert not run(tools, "read_file", path="llm.toml")["ok"]
     assert not run(tools, "read_file", path="missing")["ok"]
     assert not run(tools, "read_file", path=".", max_lines=True)["ok"]
     assert not run(tools, "file_info", path=".", extra=1)["ok"]
     assert not json.loads(tools.execute("read_file", "[]"))["ok"]
-    allowed = ToolRegistry(workspace, PermissionConfig(additional_read_dirs=(other,)))
+    allowed = create_tool_registry(workspace, PermissionConfig(additional_read_dirs=(other,)))
     assert run(allowed, "read_file", path=str(other / "file.txt"))["ok"]
 
 
@@ -70,19 +79,19 @@ def test_symlink_cannot_escape(tmp_path):
         )
         if result.returncode:
             pytest.skip("Account cannot create symlinks or junctions")
-    assert not run(ToolRegistry(workspace), "read_file", path="link/data.txt")["ok"]
+    assert not run(create_tool_registry(workspace), "read_file", path="link/data.txt")["ok"]
 
 
 def test_output_and_scan_limits(tmp_path):
     (tmp_path / "long.txt").write_text("x" * 10000, encoding="utf-8")
-    tools = ToolRegistry(tmp_path, limits=ToolLimits(max_result_chars=512))
+    tools = create_tool_registry(tmp_path, limits=ToolLimits(max_result_chars=512))
     result = tools.execute("read_file", '{"path":"long.txt"}')
     assert len(result) <= 512
     assert json.loads(result)["truncated"]
     assert len(json.loads(result)["version"]) == 64
     (tmp_path / "binary").write_bytes(b"\xff\x00")
     assert not run(tools, "read_file", path="binary")["ok"]
-    limited = ToolRegistry(tmp_path, limits=ToolLimits(max_scan_entries=1))
+    limited = create_tool_registry(tmp_path, limits=ToolLimits(max_scan_entries=1))
     assert not run(limited, "find_files", path=".", pattern="*")["ok"]
 
 
@@ -106,7 +115,7 @@ def test_git_queries_are_read_only(tmp_path):
     )
     (tmp_path / "a.txt").write_text("after\n", encoding="utf-8")
     before = git("status", "--porcelain").stdout
-    tools = ToolRegistry(tmp_path)
+    tools = create_tool_registry(tmp_path)
     assert "a.txt" in run(tools, "git_status", path=".")["text"]
     assert "+after" in run(tools, "git_diff", path=".")["text"]
     assert "initial" in run(tools, "git_log", path=".")["text"]
@@ -122,7 +131,7 @@ def test_git_diff_cannot_read_denied_files_or_run_filters(tmp_path):
     git("init")
     (tmp_path / "llm.toml").write_text("secret", encoding="utf-8")
     git("add", "llm.toml")
-    tools = ToolRegistry(tmp_path)
+    tools = create_tool_registry(tmp_path)
     result = run(tools, "git_diff", path=".", staged=True)
     assert not result["ok"]
     assert "secret" not in json.dumps(result)

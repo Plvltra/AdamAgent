@@ -6,11 +6,11 @@ import httpx
 import pytest
 
 from adam.config import ContextConfig, LLMConfig
-from adam.conversation import Conversation
 from adam.diagnostics import read_report
 from adam.llm import LLMClient
 from adam.storage import SessionStore
-from adam.tool_calls import ToolRegistry
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 
 def test_selection_is_contiguous_persistent_and_traceable(tmp_path):
@@ -30,11 +30,11 @@ def test_selection_is_contiguous_persistent_and_traceable(tmp_path):
 
     root = tmp_path / "sessions"
     with httpx.Client(transport=httpx.MockTransport(respond)) as http, SessionStore(root) as store:
-        conversation = Conversation(
+        conversation = build_conversation(
             store,
             LLMClient(LLMConfig("https://example.test", "test", "key"), http),
             "system constraint",
-            ToolRegistry(tmp_path),
+            create_tool_registry(tmp_path),
             context_config=ContextConfig(
                 max_input_tokens=8192,
                 safety_margin_tokens=0,
@@ -67,11 +67,11 @@ def test_selection_is_contiguous_persistent_and_traceable(tmp_path):
         ) as http,
         SessionStore(root) as store,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store,
             LLMClient(LLMConfig("https://example.test", "test", "key"), http),
             "changed default",
-            ToolRegistry(tmp_path),
+            create_tool_registry(tmp_path),
             context_config=ContextConfig(
                 max_input_tokens=8192,
                 safety_margin_tokens=0,

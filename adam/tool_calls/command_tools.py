@@ -1,5 +1,6 @@
 """需逐次确认的通用命令执行；参数列表启动，不提供操作系统沙箱。"""
 
+import json
 import os
 import shutil
 import signal
@@ -7,29 +8,12 @@ import subprocess
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from adam.errors import AgentError, FailureCode
-from adam.tool_calls.policy import PathPolicy, ToolError, ToolLimits
-
-ExecutionRecorder = Callable[[str, dict[str, Any]], None]
-
-
-class CommandLogError(AgentError):
-    """执行日志写入失败；停止本轮，避免把未知执行状态当作可重试错误。"""
-
-    code = FailureCode.COMMAND_LOG_ERROR
-
-
-@dataclass(frozen=True)
-class CommandRequest:
-    """用户确认的不可变执行计划，argv 使用参数列表，不经过 shell。"""
-
-    argv: tuple[str, ...]
-    cwd: Path
-    timeout_seconds: int
+from adam.errors import CommandLogError, ToolError
+from adam.models import CommandRequest, ExecutionRecorder
+from adam.settings import ToolLimits
 
 
 class _Output:
@@ -54,11 +38,11 @@ class _Output:
 class CommandTools:
     def __init__(
         self,
-        policy: PathPolicy,
+        workspace: Path,
         limits: ToolLimits,
         confirm: Callable[[CommandRequest], bool] | None = None,
     ) -> None:
-        self.policy = policy
+        self.workspace = workspace
         self.limits = limits
         self.confirm = confirm
 
@@ -93,6 +77,16 @@ class CommandTools:
         self._record(record, "command_finished", result)
         return result
 
+    def encode_result(self, output: dict[str, Any]) -> str:
+        """裁剪命令输出时保留退出码和状态，避免模型误把截断预览当执行结果。"""
+        encoded = json.dumps(output, ensure_ascii=False)
+        while len(encoded) > self.limits.max_result_chars:
+            key = "stdout" if len(output["stdout"]) >= len(output["stderr"]) else "stderr"
+            output[key] = output[key][: len(output[key]) // 2]
+            output["truncated"] = True
+            encoded = json.dumps(output, ensure_ascii=False)
+        return encoded
+
     def _prepare(self, args: dict[str, Any]) -> CommandRequest:
         """校验通用参数并解析执行路径；确认界面展示的参数即实际执行参数。"""
         argv = args.get("argv")
@@ -107,7 +101,7 @@ class CommandTools:
         if not isinstance(directory, str) or not directory.strip() or "\0" in directory:
             raise ToolError("cwd 必须是非空目录路径。")
         cwd = Path(directory).expanduser()
-        cwd = (cwd if cwd.is_absolute() else self.policy.workspace / cwd).resolve()
+        cwd = (cwd if cwd.is_absolute() else self.workspace / cwd).resolve()
         if not cwd.is_dir():
             raise ToolError("cwd 不存在或不是目录。")
         timeout = args.get("timeout_seconds", self.limits.command_timeout_seconds)

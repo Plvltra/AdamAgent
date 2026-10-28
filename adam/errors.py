@@ -87,3 +87,47 @@ class TurnSaveError(AgentError):
         super().__init__(
             "本轮保存失败，未加入历史；未自动重新请求模型。", partial_reply=reply, code=code
         )
+
+
+class ConfigError(AgentError):
+    """配置无法使用；提示只包含受控字段信息。"""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(f"配置错误：{message}")
+
+
+class LLMError(AgentError):
+    """模型通信或响应失败；已取得的用量仍由会话流程结算。"""
+
+    code = FailureCode.API_ERROR
+
+    def __init__(
+        self,
+        message: str,
+        usage: tuple[int, int] | None = None,
+        *,
+        code: FailureCode | None = None,
+        http_status: int | None = None,
+    ) -> None:
+        super().__init__(f"模型请求错误：{message}", code=code, http_status=http_status)
+        self.usage = usage
+
+
+class StorageError(AgentError):
+    """会话占用、格式损坏或写入失败。"""
+
+    code = FailureCode.STORAGE_ERROR
+
+
+class SessionNotFoundError(AgentError):
+    """指定会话不存在。"""
+
+
+class ToolError(AgentError):
+    """可以安全回传给模型的工具参数或权限错误。"""
+
+
+class CommandLogError(AgentError):
+    """执行日志写入失败；停止本轮，避免把未知执行状态当作可重试错误。"""
+
+    code = FailureCode.COMMAND_LOG_ERROR

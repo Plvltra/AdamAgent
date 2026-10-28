@@ -31,6 +31,7 @@
 | V1.3 第 5 项持锁恢复 | 备份后修复尾行、保留完整记录、状态不误判、未知用量/命令不重跑；失败保留原文件和旧锁 | [test_restart_recovery.py](test_restart_recovery.py) |
 | V1.3 第 6 项真实进程中断 | 本地 HTTP 请求后强杀，全新进程恢复；请求中、消息写入中和提交后均不重发，历史与用量准确 | [test_process_crash.py](test_process_crash.py) |
 | V1.3.1 执行轨迹 | 失败也保留输入/请求/全部工具结果；关联正确，日志失败停止后续动作，诊断不污染成功历史 | [test_execution_trace.py](test_execution_trace.py) |
+| 应用边界与资源 | 不暴露模型配置也可聊天；注册新工具仍可留痕；错误信息和未保存回答不丢失；退出及失败释放资源 | [test_application_boundary.py](test_application_boundary.py) |
 
 这里也保留直接验证业务边界的场景，例如命令超时、请求额度耗尽；不强求每个场景都从 CLI 启动。
 基础校验仍在上层：`tests/test_config.py`、`tests/test_llm_config.py`、`tests/test_llm.py`、`tests/test_storage.py`、`tests/test_tools.py`。细粒度协议、路径和数据校验不重复复制到业务测试中。
@@ -131,6 +132,8 @@ V3.4b 验收（2026-10-28）：新增 14 个用例，全量 **272 passed in 49.4
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
+tests/test_tools.py 在测试进程内隔离提交钩子继承的 GIT_* 环境变量，临时仓库的提交、暂存与配置不得落到真实仓库。
+
 pytest 已配置扫描整个 tests；现有 pre-commit 的 pytest 钩子会自动收集这个目录，无需额外配置或手工注册。
 
 ## 模拟范围与完成含义
@@ -138,3 +141,7 @@ pytest 已配置扫描整个 tests；现有 pre-commit 的 pytest 钩子会自�
 模型 HTTP 响应是预设的，测试不会消耗 API 额度；文件、JSONL、锁和部分子进程会在临时目录实际运行。故障测试在指定边界注入错误，验证程序停止或保留记录的行为。
 
 这些场景不能证明真实模型能正确决定是否使用工具，也不代替用户对配色的辨识体验。真实进程强杀已由专门测试覆盖；V2.3 按用户决定暂跳过；V3 的压缩流程已离线验收；文件编辑与流式取消等未实现功能的验收仍在 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。
+
+## V5 前置集成核验（2026-10-29）
+
+将应用边界重构重放到 V4.1b：299 个主线用例收集项全部保留，增加 15 个架构与应用边界用例，全量 314 passed；Ruff 和 Pyright 通过。仅迁移测试的依赖组装，原业务断言保留。

@@ -1,25 +1,14 @@
 """从读取快照生成单文件替换计划；不访问文件，也不执行修改。"""
 
-from dataclasses import dataclass
 from difflib import unified_diff
-from pathlib import Path
 
+from adam.models import EditPlan as EditPlan
 from adam.tool_calls.policy import ToolError
 from adam.tool_calls.text_file import TextSnapshot
 
 
 class EditConflictError(ToolError):
     """读取版本已经失效，必须重新读取后规划。"""
-
-
-@dataclass(frozen=True)
-class EditPlan:
-    """批准对象：确定的路径、原版本和候选字节；diff 只用于展示。"""
-
-    path: Path
-    before_version: str
-    candidate: bytes
-    diff: str
 
 
 def plan_edit(

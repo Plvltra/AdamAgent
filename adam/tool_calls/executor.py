@@ -6,9 +6,15 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from adam.errors import ApprovalDeniedError, BudgetError, EditLogError, FailureCode
-from adam.storage import SessionStore, StorageError
-from adam.tool_calls.command_tools import CommandLogError
+from adam.errors import (
+    ApprovalDeniedError,
+    BudgetError,
+    CommandLogError,
+    EditLogError,
+    FailureCode,
+    StorageError,
+)
+from adam.storage import SessionStore
 from adam.tool_calls.registry import ToolRegistry
 
 
@@ -29,7 +35,7 @@ class ToolBudget:
 
 
 class ToolExecutor:
-    """协调日志与工具调用；工具本身的参数、权限和确认由注册表处理。"""
+    """协调日志与工具调用；注册表分派动作，具体工具执行权限与确认规则。"""
 
     def __init__(
         self,
@@ -37,9 +43,14 @@ class ToolExecutor:
         registry: ToolRegistry,
         notify: Callable[[str], None],
     ) -> None:
+        """注入存储和工具目录；notify 只接收工具名称，展示方式由调用方决定。"""
         self.store = store
         self.registry = registry
         self.notify = notify
+
+    def definitions(self) -> list[dict[str, Any]]:
+        """返回此执行器实际支持的工具说明，供模型提出调用。"""
+        return self.registry.definitions()
 
     def execute(
         self,
@@ -102,13 +113,19 @@ class ToolExecutor:
                     "编辑日志保存失败；实际结果可能未知，已停止且不自动重做。"
                 ) from error
 
-        self.notify(f"工具> {function['name']}")
+        def record_action(kind: str, payload: dict[str, Any]) -> None:
+            """按日志事件类型保存边界；注册表无需识别具体工具或存储实现。"""
+            if kind.startswith("edit_"):
+                record_edit(kind, payload)
+            else:
+                record_command(kind, payload)
+
+        self.notify(function["name"])
         # 通用开始事件表示进入工具处理；命令和编辑的批准/副作用边界分别由 command_* / edit_* 记录。
         output = self.registry.execute(
             function["name"],
             function["arguments"],
-            record_execution=record_command,
-            record_edit=record_edit,
+            record_execution=record_action,
         )
         self.store.append_tool_event(session_id, "tool_finished", {**link, "output": output})
         return output

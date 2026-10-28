@@ -6,10 +6,10 @@ import httpx
 
 from adam.config import ContextConfig, LLMConfig
 from adam.context import estimate_json_tokens
-from adam.conversation import Conversation
 from adam.llm import LLMClient
 from adam.storage import SessionStore
-from adam.tool_calls import ToolRegistry
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 
 def test_fixed_long_history_comparison(tmp_path):
@@ -49,11 +49,11 @@ def test_fixed_long_history_comparison(tmp_path):
             httpx.Client(transport=httpx.MockTransport(respond)) as http,
             SessionStore(tmp_path / mode) as store,
         ):
-            conversation = Conversation(
+            conversation = build_conversation(
                 store,
                 LLMClient(LLMConfig("https://example.test", "test", "key"), http),
                 "system",
-                ToolRegistry(tmp_path),
+                create_tool_registry(tmp_path),
                 context_config=ContextConfig(
                     max_input_tokens=limit, safety_margin_tokens=0, auto_compact=auto
                 ),

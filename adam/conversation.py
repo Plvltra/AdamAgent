@@ -2,20 +2,19 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 from time import monotonic_ns
 from typing import Any
 
 from adam.compaction import CompactionService
-from adam.config import AgentConfig, ContextConfig
 from adam.context import ContextBuilder, RequestContext
-from adam.errors import BudgetError, FailureCode, TurnSaveError
+from adam.errors import BudgetError, FailureCode, LLMError, StorageError, TurnSaveError
 from adam.execution_report import ExecutionReport
 from adam.history import Summary
-from adam.llm import Completion, LLMClient, LLMError
+from adam.models import Completion, Session
 from adam.outcome import ExecutionOutcome
-from adam.storage import Session, SessionStore, StorageError
-from adam.tool_calls import ToolRegistry
+from adam.ports import ModelClient
+from adam.settings import AgentConfig, ContextConfig
+from adam.storage import SessionStore
 from adam.tool_calls.executor import ToolBudget, ToolExecutor
 
 
@@ -29,30 +28,32 @@ class TurnProgress:
 
 
 class Conversation:
+    """管理当前会话并驱动一轮处理；依赖与默认模型由组装入口注入。"""
+
     def __init__(
         self,
         store: SessionStore,
-        client: LLMClient,
+        client: ModelClient,
         system_prompt: str,
-        tools: ToolRegistry | None = None,
-        limits: AgentConfig | None = None,
-        notify: Callable[[str], None] | None = None,
+        tools: ToolExecutor,
+        limits: AgentConfig,
         *,
+        model: str,
         context_config: ContextConfig | None = None,
+        notify: Callable[[str], None] | None = None,
     ) -> None:
         self.store = store
         self.client = client
         self.system_prompt = system_prompt
         self.session: Session | None = None
         self._last_turn: tuple[str, str] | None = None
-        self.model = client.config.model
-        self.tool_registry = tools or ToolRegistry(Path.cwd())
-        self.limits = limits or AgentConfig()
+        self.model = model
+        self.limits = limits
+        self.tool_executor = tools
         self.context_builder = ContextBuilder(
             context_config or ContextConfig(), self.limits.max_output_tokens
         )
         self.notify = notify or (lambda _: None)
-        self.tool_executor = ToolExecutor(store, self.tool_registry, self.notify)
 
     def new(self, title: str = "新对话") -> Session:
         """创建并选中新会话，返回会话元信息。"""
@@ -222,7 +223,7 @@ class Conversation:
             system_prompt=session.system_prompt if session is not None else self.system_prompt,
             history=history,
             current_turn=turn,
-            tools=self.tool_registry.definitions(),
+            tools=self.tool_executor.definitions(),
             summary=self.store.load_summary(session.session_id) if session is not None else None,
         )
 

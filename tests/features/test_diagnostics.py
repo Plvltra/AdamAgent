@@ -8,11 +8,11 @@ import httpx
 import pytest
 
 from adam.config import LLMConfig
-from adam.conversation import Conversation
 from adam.diagnostics import main, read_report
 from adam.llm import LLMClient, LLMError
 from adam.storage import SessionStore
-from adam.tool_calls import ToolRegistry
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 
 def test_failed_turn_report_is_read_only(tmp_path):
@@ -49,11 +49,11 @@ def test_failed_turn_report_is_read_only(tmp_path):
         SessionStore(tmp_path / "sessions") as store,
         httpx.Client(transport=httpx.MockTransport(handle)) as http,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store,
             LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
             "",
-            ToolRegistry(tmp_path),
+            create_tool_registry(tmp_path),
         )
         with pytest.raises(LLMError):
             conversation.send("inspect then explain")

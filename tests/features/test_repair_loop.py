@@ -8,12 +8,12 @@ import httpx
 import pytest
 
 from adam.config import AgentConfig, LLMConfig
-from adam.conversation import Conversation
 from adam.diagnostics import read_report
 from adam.errors import ApprovalDeniedError, BudgetError
 from adam.llm import LLMClient
 from adam.storage import SessionStore
-from adam.tool_calls import ToolRegistry
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 
 def tool(name, args, call_id):
@@ -92,11 +92,11 @@ def test_failed_check_edit_and_recheck(tmp_path, approve):
         SessionStore(tmp_path / "sessions") as store,
         httpx.Client(transport=httpx.MockTransport(respond)) as http,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store,
             LLMClient(LLMConfig("https://example.test", "test", "key"), http),
             "",
-            ToolRegistry(
+            create_tool_registry(
                 tmp_path,
                 confirm_command=lambda _: True,
                 confirm_edit=lambda plan: approvals.append(plan) or approve,
@@ -173,11 +173,13 @@ def test_edit_attempt_limit_stops_before_fourth_and_resets_next_turn(tmp_path, v
         SessionStore(tmp_path / "sessions") as store,
         httpx.Client(transport=httpx.MockTransport(respond)) as http,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store,
             LLMClient(LLMConfig("https://example.test", "test", "key"), http),
             "",
-            ToolRegistry(tmp_path, confirm_edit=lambda plan: approvals.append(plan) or True),
+            create_tool_registry(
+                tmp_path, confirm_edit=lambda plan: approvals.append(plan) or True
+            ),
             AgentConfig(max_edit_attempts=3),
         )
         with pytest.raises(BudgetError) as caught:

@@ -7,12 +7,13 @@ import httpx
 import pytest
 
 from adam.config import AgentConfig, ContextConfig, LLMConfig
-from adam.conversation import Conversation
 from adam.diagnostics import read_report
 from adam.errors import AgentError, BudgetError
 from adam.llm import LLMClient
 from adam.storage import SessionStore
-from adam.tool_calls import ToolLimits, ToolRegistry
+from adam.tool_calls import ToolLimits
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 
 @pytest.fixture
@@ -56,11 +57,11 @@ def auto_chat(tmp_path):
         httpx.Client(transport=httpx.MockTransport(respond)) as http,
         SessionStore(tmp_path / "sessions") as store,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store,
             LLMClient(LLMConfig("https://example.test", "test", "key"), http),
             "system",
-            ToolRegistry(tmp_path, limits=ToolLimits(max_result_chars=24000)),
+            create_tool_registry(tmp_path, limits=ToolLimits(max_result_chars=24000)),
             notify=shown.append,
             context_config=ContextConfig(max_input_tokens=9000, safety_margin_tokens=0),
         )

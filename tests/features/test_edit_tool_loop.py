@@ -6,12 +6,12 @@ import httpx
 import pytest
 
 from adam.config import LLMConfig
-from adam.conversation import Conversation
 from adam.diagnostics import read_report
 from adam.errors import ApprovalDeniedError, EditLogError
 from adam.llm import LLMClient
 from adam.storage import SessionStore, StorageError
-from adam.tool_calls import ToolRegistry
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 
 def tool_message(name, args, call_id):
@@ -34,6 +34,11 @@ def edit_chat(tmp_path):
     target.write_bytes(b"old\n")
     requests = []
     control = {"approve": True, "extra_call": False, "expected_status": "applied"}
+
+    def confirm(plan):
+        if callback := control.get("before_approval"):
+            callback(plan)
+        return control["approve"]
 
     def respond(request):
         body = json.loads(request.content)
@@ -78,11 +83,11 @@ def edit_chat(tmp_path):
         SessionStore(tmp_path / "sessions") as store,
         httpx.Client(transport=httpx.MockTransport(respond)) as http,
     ):
-        conversation = Conversation(
+        conversation = build_conversation(
             store,
             LLMClient(LLMConfig("https://example.test", "test", "key"), http),
             "",
-            ToolRegistry(tmp_path, confirm_edit=lambda _: control["approve"]),
+            create_tool_registry(tmp_path, confirm_edit=confirm),
         )
         yield conversation, target, requests, control
 
@@ -179,7 +184,7 @@ def test_conflict_is_recorded_and_returned_to_model(edit_chat):
         target.write_bytes(b"external")
         return True
 
-    conversation.tool_registry.edits.confirm = change
+    control["before_approval"] = change
     control["expected_status"] = "conflict"
     conversation.send("change")
     result = json.loads(requests[-1]["messages"][-1]["content"])

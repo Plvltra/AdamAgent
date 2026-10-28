@@ -1,36 +1,13 @@
 """Synchronous, non-streaming Chat Completions API transport."""
 
-from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
-from adam.config import LLMConfig
-from adam.errors import AgentError, FailureCode
+from adam.errors import FailureCode, LLMError
+from adam.models import Completion
 from adam.protocol import validate_assistant
-
-
-class LLMError(AgentError):
-    """模型通信或响应失败；已取得的用量仍由会话流程结算。"""
-
-    code = FailureCode.API_ERROR
-
-    def __init__(
-        self,
-        message: str,
-        usage: tuple[int, int] | None = None,
-        *,
-        code: FailureCode | None = None,
-        http_status: int | None = None,
-    ) -> None:
-        super().__init__(f"模型请求错误：{message}", code=code, http_status=http_status)
-        self.usage = usage
-
-
-@dataclass(frozen=True)
-class Completion:
-    message: dict[str, Any]
-    usage: tuple[int, int] | None
+from adam.settings import LLMConfig
 
 
 class LLMClient:

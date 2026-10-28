@@ -6,11 +6,11 @@ import httpx
 import pytest
 
 from adam.config import LLMConfig
-from adam.conversation import Conversation
 from adam.llm import LLMClient, LLMError
 from adam.session_log import parse_log
 from adam.storage import SessionStore, StorageError
-from adam.tool_calls import ToolRegistry
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 
 def snapshot(store, session_id):
@@ -20,11 +20,11 @@ def snapshot(store, session_id):
 
 
 def make_conversation(store, http, workspace, notify=None):
-    return Conversation(
+    return build_conversation(
         store,
         LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
         "",
-        ToolRegistry(workspace),
+        create_tool_registry(workspace),
         notify=notify,
     )
 

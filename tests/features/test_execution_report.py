@@ -6,10 +6,10 @@ import sys
 import httpx
 import pytest
 
-from adam.cli import chat
 from adam.config import LLMConfig
 from adam.llm import LLMClient
 from adam.storage import SessionStore, StorageError
+from tests.support import run_chat as chat
 
 
 @pytest.fixture

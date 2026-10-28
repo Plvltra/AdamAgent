@@ -9,13 +9,13 @@ from pathlib import Path
 import httpx
 
 from adam.config import LLMConfig
-from adam.conversation import Conversation
 from adam.diagnostics import read_report
-from adam.errors import BudgetError
+from adam.errors import BudgetError, StorageError
 from adam.llm import LLMClient
-from adam.storage import SessionStore, StorageError
-from adam.tool_calls import ToolRegistry
+from adam.storage import SessionStore
 from adam.tool_calls.edit_tools import EditTools
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 mode, root_text, session_id, url, phase, ready_text = sys.argv[1:]
 root, ready = Path(root_text), Path(ready_text)
@@ -72,11 +72,11 @@ with (
     SessionStore(root) as store,
     httpx.Client(trust_env=False) as http,
 ):
-    conversation = Conversation(
+    conversation = build_conversation(
         store,
         LLMClient(LLMConfig(url, "test", "test-only-key"), http),
         "",
-        ToolRegistry(root.parent, confirm_edit=lambda _: True),
+        create_tool_registry(root.parent, confirm_edit=lambda _: True),
     )
     conversation.resume(session_id)
     if mode == "run":

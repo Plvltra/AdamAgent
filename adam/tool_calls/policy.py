@@ -1,36 +1,11 @@
 """工具的读写权限与资源限制；不依赖会话和模型配置。"""
 
 import os
-from dataclasses import dataclass
 from pathlib import Path
 
-from adam.errors import AgentError
-
-
-@dataclass(frozen=True)
-class PermissionConfig:
-    """工作目录之外的读取与写入授权分别配置，互不隐含授权。"""
-
-    additional_read_dirs: tuple[Path, ...] = ()
-    additional_write_dirs: tuple[Path, ...] = ()
-
-
-@dataclass(frozen=True)
-class ToolLimits:
-    """单次读取/结果限制；扫描为协作超时，Git 和通用命令为子进程超时。"""
-
-    max_read_lines: int = 200
-    max_result_chars: int = 8000
-    max_scan_entries: int = 5000
-    max_text_file_bytes: int = 1048576
-    max_git_path_list_bytes: int = 1048576
-    scan_timeout_seconds: int = 5
-    git_timeout_seconds: int = 5
-    command_timeout_seconds: int = 30
-
-
-class ToolError(AgentError):
-    """可以安全回传给模型的工具参数或权限错误。"""
+from adam.errors import ToolError
+from adam.settings import PermissionConfig
+from adam.settings import ToolLimits as ToolLimits
 
 
 class PathPolicy:

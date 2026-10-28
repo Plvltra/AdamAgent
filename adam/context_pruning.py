@@ -4,8 +4,8 @@ import json
 from copy import deepcopy
 from typing import Any
 
-from adam.config import ContextConfig
 from adam.history import HistoryTurn
+from adam.settings import ContextConfig
 
 # 错误和退出状态不能因为正文缩减变成看似成功；过大的错误元数据宁可不缩减。
 PRESERVED_FIELDS = ("ok", "status", "exit_code", "error", "stderr", "truncated", "next_line")

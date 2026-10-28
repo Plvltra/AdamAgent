@@ -2,11 +2,9 @@
 
 import json
 import os
-import re
 import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
@@ -14,9 +12,10 @@ from typing import Any, Self
 
 from filelock import FileLock, Timeout
 
-from adam.errors import AgentError, FailureCode
+from adam.errors import FailureCode, SessionNotFoundError, StorageError
 from adam.execution_report import ExecutionReport, build_execution_report
 from adam.history import HistoryTurn, Summary
+from adam.models import Message, Session, valid_session_id
 from adam.outcome import ExecutionOutcome
 from adam.protocol import validate_turn
 from adam.session_log import (
@@ -28,33 +27,6 @@ from adam.session_log import (
 )
 
 
-@dataclass(frozen=True)
-class Session:
-    session_id: str
-    title: str
-    system_prompt: str
-
-
-@dataclass(frozen=True)
-class Message:
-    message_id: str
-    session_id: str
-    position: int
-    role: str
-    content: str
-    raw: dict[str, Any]
-
-
-class StorageError(AgentError):
-    """会话占用、格式损坏或写入失败。"""
-
-    code = FailureCode.STORAGE_ERROR
-
-
-class SessionNotFoundError(AgentError):
-    """指定会话不存在。"""
-
-
 @contextmanager
 def _storage_io() -> Iterator[None]:
     """仅在存储操作边界转换系统 IO 错误，保留原因链；程序错误和用户中断继续传播。"""
@@ -62,11 +34,6 @@ def _storage_io() -> Iterator[None]:
         yield
     except OSError as error:
         raise StorageError("会话文件操作失败，请检查路径、权限和磁盘空间；未自动重试。") from error
-
-
-def valid_session_id(value: str) -> bool:
-    """判断输入是否为完整的 8 位小写十六进制会话 ID。"""
-    return re.fullmatch(r"[0-9a-f]{8}", value) is not None
 
 
 def record(kind: str, payload: dict[str, object]) -> bytes:

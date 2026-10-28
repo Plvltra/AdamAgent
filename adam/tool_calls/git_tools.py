@@ -6,7 +6,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from adam.tool_calls.policy import PathPolicy, ToolError, ToolLimits
+from adam.errors import ToolError
+from adam.settings import ToolLimits
+from adam.tool_calls.policy import PathPolicy
 
 
 class GitTools:

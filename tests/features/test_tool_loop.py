@@ -6,11 +6,11 @@ import httpx
 import pytest
 
 from adam.config import AgentConfig, LLMConfig
-from adam.conversation import Conversation
 from adam.errors import BudgetError
 from adam.llm import LLMClient, LLMError
 from adam.storage import SessionStore, StorageError
-from adam.tool_calls import ToolRegistry
+from adam.tool_calls.factory import create_tool_registry
+from tests.support import build_conversation
 
 
 def answer(text="done", tokens=10):
@@ -42,11 +42,11 @@ def tool_response(calls, tokens=10):
 
 
 def make_conversation(store, http, workspace, limits=None):
-    return Conversation(
+    return build_conversation(
         store,
         LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
         "system",
-        ToolRegistry(workspace),
+        create_tool_registry(workspace),
         limits,
     )
 
@@ -325,7 +325,7 @@ def test_tool_batch_over_budget_executes_none(tmp_path, monkeypatch):
         SessionStore(tmp_path / "sessions") as store,
     ):
         conversation = make_conversation(store, http, tmp_path, AgentConfig(max_tool_calls=1))
-        monkeypatch.setattr(conversation.tool_registry, "execute", forbidden)
+        monkeypatch.setattr(conversation.tool_executor.registry, "execute", forbidden)
         with pytest.raises(BudgetError):
             conversation.send("inspect twice")
         session_id = conversation.session.session_id

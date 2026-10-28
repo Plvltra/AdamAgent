@@ -7,12 +7,14 @@ import sys
 import httpx
 import pytest
 
+import adam.bootstrap as bootstrap
 import adam.cli as cli
 from adam.config import AgentConfig, LLMConfig
 from adam.conversation import Conversation
 from adam.errors import AgentError
 from adam.llm import LLMClient
 from adam.storage import SessionStore, StorageError
+from tests.support import run_chat
 
 
 def make_client(requests, *, fail_request=False):
@@ -55,7 +57,7 @@ def test_new_business_error_needs_no_cli_branch(tmp_path, monkeypatch, partial_r
     output = []
     inputs = iter(["question", "/exit"])
     with make_client(requests) as http, SessionStore(tmp_path / "sessions") as store:
-        cli.chat(
+        run_chat(
             LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
             "",
             store,
@@ -77,7 +79,7 @@ def test_budget_stop_is_not_reported_as_model_failure(tmp_path):
     output = []
     inputs = iter(["first", "blocked", "/exit"])
     with make_client(requests) as http, SessionStore(tmp_path / "sessions") as store:
-        cli.chat(
+        run_chat(
             LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
             "",
             store,
@@ -107,7 +109,7 @@ def test_api_failure_is_reported_once_without_remote_body(tmp_path):
         make_client(requests, fail_request=True) as http,
         SessionStore(tmp_path / "sessions") as store,
     ):
-        cli.chat(
+        run_chat(
             LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
             "",
             store,
@@ -144,7 +146,7 @@ def test_final_answer_disk_failure_is_visible_without_retry(tmp_path, monkeypatc
 
         monkeypatch.setattr(os, "fsync", fail_commit_once)
         inputs = iter(["question", "/exit"])
-        cli.chat(
+        run_chat(
             LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
             "",
             store,
@@ -186,10 +188,11 @@ def test_unexpected_output_error_propagates_and_releases_session(tmp_path, failu
             raise failure
         output.append(line)
 
-    with make_client(requests) as http, SessionStore(root) as store:
-        session_id = store.create_session("test", "")
-        with pytest.raises(type(failure)) as caught:
-            cli.chat(
+    # 资源由组装调用方持有；界面异常传播出 with 后，锁必须可再次获取。
+    with pytest.raises(type(failure)) as caught:
+        with make_client(requests) as http, SessionStore(root) as store:
+            session_id = store.create_session("test", "")
+            run_chat(
                 LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
                 "",
                 store,
@@ -198,11 +201,11 @@ def test_unexpected_output_error_propagates_and_releases_session(tmp_path, failu
                 write=write,
                 workspace=tmp_path,
             )
-        assert caught.value is failure
-        with SessionStore(root) as other:
-            other.select_session(session_id)
-            messages = [message.content for message in other.load_messages(session_id)]
-            assert messages == (["question", "done"] if phase == "answer" else [])
+    assert caught.value is failure
+    with SessionStore(root) as other:
+        other.select_session(session_id)
+        messages = [message.content for message in other.load_messages(session_id)]
+        assert messages == (["question", "done"] if phase == "answer" else [])
     assert len(requests) == (1 if phase == "answer" else 0)
     assert not any("会话文件操作失败" in line for line in output)
 
@@ -265,7 +268,7 @@ def test_startup_failure_uses_public_error_contract(tmp_path, monkeypatch, capsy
 
     client_type = httpx.Client
     monkeypatch.setattr(
-        cli.httpx,
+        bootstrap.httpx,
         "Client",
         lambda **_: client_type(
             transport=httpx.MockTransport(lambda _: pytest.fail("Must not request the model"))
