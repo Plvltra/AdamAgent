@@ -1,11 +1,13 @@
-"""终端角色样式与公共失败展示；颜色不进入模型消息或会话记录。"""
+"""终端角色、失败与上下文展示；颜色不进入模型消息或会话记录。"""
 
+import json
 import os
 import sys
 from collections.abc import Callable
 
 from colorama import Fore, Style
 
+from adam.context import RequestContext
 from adam.errors import AgentError
 
 
@@ -29,6 +31,39 @@ def role_prefix(role: str, *, unsaved: bool = False) -> str:
         color = Fore.CYAN if role == "user" else Fore.YELLOW
         return f"{Style.BRIGHT}{color}{label}{Style.RESET_ALL} "
     return label + " "
+
+
+def show_context(
+    context: RequestContext, write: Callable[[str], None] = print, *, full: bool = False
+) -> None:
+    """按需展示基础预览及估算；full 展开消息/工具原文，不展示连接配置或认证头。"""
+    estimate, limits = context.estimate, context.limits
+    write("上下文> 下一次请求的基础预览；尚未包含下一条用户输入，不是最近请求快照。")
+    write(
+        f"模型：{context.model}；消息 {len(context.messages)} 条；工具说明 {len(context.tools)} 项；未裁剪。"
+    )
+    write(
+        f"估算输入：{estimate.input_tokens} token"
+        f"（系统 {estimate.system_tokens}，历史 {estimate.history_tokens}，"
+        f"本轮 {estimate.turn_tokens}，工具说明 {estimate.tools_tokens}）。"
+    )
+    remaining = limits.max_input_tokens - context.budgeted_input_tokens
+    availability = f"剩余 {remaining}" if remaining >= 0 else f"超出 {-remaining}"
+    write(
+        f"输入预算：估算 {estimate.input_tokens} + 安全余量 {limits.safety_margin_tokens}"
+        f" / 上限 {limits.max_input_tokens} token；{availability} token。"
+    )
+    write(
+        f"输出预留：{context.max_output_tokens} token（另计）；"
+        f"输入、余量与输出合计约 {context.budgeted_input_tokens + context.max_output_tokens} token。"
+    )
+    write("以上为近似估算和应用预算，不是模型窗口容量或实际计费；真实发送前会连同新输入重新检查。")
+    if full:
+        write(
+            json.dumps(
+                {"messages": context.messages, "tools": context.tools}, ensure_ascii=False, indent=2
+            )
+        )
 
 
 def show_failure(error: AgentError, write: Callable[[str], None] = print) -> None:

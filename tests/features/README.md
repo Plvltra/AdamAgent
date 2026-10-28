@@ -14,6 +14,7 @@
 | 工具调用与预算 | 模型请求工具、执行后回传、再回答；工具错误可修正；单批额度不足不执行；同轮 ID 唯一、跨轮可复用 | [test_tool_loop.py](test_tool_loop.py) |
 | 通用命令 | 确认后才产生副作用，拒绝不执行；退出码、超时、输出限制、环境变量隔离与执行日志符合契约 | [test_command_execution.py](test_command_execution.py) |
 | 终端角色与按需用量 | 默认不刷 token，/usage 不请求模型且跟随当前会话；颜色只影响前缀，重定向退回纯文本 | [test_terminal_interaction.py](test_terminal_interaction.py) |
+| V3.1 上下文预览与输入预算 | 只读预览、完整工具历史、会话/模型切换与重启；输入/历史/工具说明超限无请求，工具结果增长后再次检查 | [test_context_preview.py](test_context_preview.py) |
 | 统一失败反馈 | 新错误类型无需修改 CLI；预算分类准确；磁盘失败保留回答；终端和程序故障继续传播 | [test_error_feedback.py](test_error_feedback.py) |
 | V1.3 第 2 项请求/轮次状态 | 请求成功不等于轮次成功；已知用量独立、中断收尾、原始异常保留 | [test_execution_states.py](test_execution_states.py)、[test_error_feedback.py](test_error_feedback.py) |
 | V1.3 第 3 项原因与耗时 | 两次请求和整轮分别计时；API、预算、中断和保存失败的原因准确，原始错误内容不入日志 | [test_execution_outcomes.py](test_execution_outcomes.py)、[test_tool_loop.py](test_tool_loop.py)、[test_error_feedback.py](test_error_feedback.py) |
@@ -84,6 +85,17 @@ V1.3.1 与测试整理验收：原有 125 个用例保留，补充 11 个用例�
 
 第 6 项新增 3 个真实进程场景，辅助 worker 位于 `support/crash_worker.py`；写入代理只负责暂停在半行落盘位置，HTTP、进程 kill 和重启均实际执行。结合已有成功、API 失败和 fsync 保存失败场景，全量 **207 passed in 37.00s**；Ruff 格式、lint 和 Pyright 通过。
 
+## V3.1 上下文验收
+
+- [x] `/context` 仅概览，`/context full` 展开消息/工具；不创建会话、不发模型请求、不泄漏连接密钥。
+- [x] 预览保留成功工具链与推理字段，跟随会话、模型及重启；不冒充最近请求，失败输入不混入历史。
+- [x] 输入、历史或工具说明超限时没有 request_started，保留轮次失败原因，不新增未知用量。
+- [x] 真实文件工具使当前轮次增长后，下一次请求被拦截；此前请求/工具证据和已知用量保留。
+- [x] 实际 CLI 启动读取 TOML 配置，公共错误展示沿用既有契约。
+- [x] 基础测试 `../test_context.py` 覆盖协议保真、副本独立、临界值、中文与工具 Schema 估算；`../test_config.py` 覆盖默认值、覆盖配置及非法值。
+
+新增 7 个业务场景与 12 个基础用例；全部使用假 HTTP 和临时文件，实际模型 token 数与效果不在验收范围内。2026-10-28 全量 **226 passed in 36.77s**；Ruff 格式、lint 与 Pyright 通过。
+
 ## 怎样运行
 
 在项目根目录使用项目虚拟环境：
@@ -108,4 +120,4 @@ pytest 已配置扫描整个 tests；现有 pre-commit 的 pytest 钩子会自�
 
 模型 HTTP 响应是预设的，测试不会消耗 API 额度；文件、JSONL、锁和部分子进程会在临时目录实际运行。故障测试在指定边界注入错误，验证程序停止或保留记录的行为。
 
-这些场景不能证明真实模型能正确决定是否使用工具，也不代替用户对配色的辨识体验。真实进程强杀已由专门测试覆盖；V2.3、V3、文件编辑与流式取消等未实现功能的验收仍在 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。
+这些场景不能证明真实模型能正确决定是否使用工具，也不代替用户对配色的辨识体验。真实进程强杀已由专门测试覆盖；V2.3 按用户决定暂跳过；V3.2 历史选择、V3.3 摘要、文件编辑与流式取消等未实现功能的验收仍在 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。

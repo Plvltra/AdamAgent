@@ -60,6 +60,8 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `/resume a3f9c821`：恢复指定会话并展示历史。
 - `/model`：查看模型名称；`/model <模型ID>` 切换本次运行的模型。
 - `/usage`：查看当前会话累计 token 与上限；统计不完整时显示说明，不发起模型请求。
+- `/context`：查看下一次请求的基础上下文组成与输入预算；不含尚未输入的新问题。
+- `/context full`：在概览下展开完整消息与工具说明，不请求模型、不修改会话；不是最近请求快照。
 - `/exit`、Ctrl+C 或输入结束：退出并释放会话锁。
 
 角色前缀使用加粗青色 `你>` 与加粗亮黄色 `Adam>`，正文保持终端默认颜色；恢复历史与未保存回答沿用同一样式。角色文字始终保留，避免仅靠颜色辨认。
@@ -108,6 +110,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `adam/storage.py`：JSONL 读写与会话锁。
 - `adam/session_log.py`：事件格式与轮次、请求、工具关联校验。
 - `adam/conversation.py`：加载历史、请求模型、保存成功轮次。
+- `adam/context.py`：构造模型上下文、按组成估算输入 token、检查单次输入预算；预览与发送共用。
 - `adam/cli.py`：命令、输入循环和错误展示。
 - `adam/terminal.py`：角色标签、颜色、纯文本退化及统一失败展示。
 - `adam/errors.py`：公开业务失败契约，包含可展示说明、未保存回答及稳定原因码。
@@ -128,7 +131,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 
 业务功能点测试集中在 `tests/features/`，按会话、启动配置、工具循环、执行轨迹、终端交互和命令执行组织，见 [功能测试导航](tests/features/README.md)。基础校验保留在 `tests/test_config.py`、`tests/test_llm_config.py`、`tests/test_storage.py`、`tests/test_llm.py` 和 `tests/test_tools.py`。
 自动化使用临时目录和假 HTTP，不调用付费模型；覆盖跨启动恢复、配置位置、JSONL 损坏、写入故障回滚、会话隔离与跨进程锁释放。假 HTTP 验证工程流程，不代替真实模型的选工具和回答效果评估。`tests/features/test_process_crash.py` 另用本地 TCP 服务与独立进程验证强杀：请求中、消息写入中、完整提交后三个边界均经过全新进程恢复。
-V2.1/V2.2 基础工具闭环已实现，V2.3 固定评估尚未完成。V1.3 已实现关联留痕、请求/轮次状态、结束原因与耗时；独立开发诊断、持锁中断恢复和真实进程强制终止验收已完成；下一主线是 V2.3 固定任务评估，再进入 V3 上下文管理。JavaScript 编排不是必做前置。
+V1.3 的状态、诊断和恢复已验收，V2.1/V2.2 基础工具闭环已实现；V2.3 按用户决定跳过，保留选做。V3.1 已实现上下文构造、预览和输入预算，下一主线是 V3.2 按完整轮次选择历史，再做 V3.3 手动摘要。JavaScript 编排不是必做前置。
 规划见 [练手 TODO](docs/agent-practice-todo.md) 和 [roadmap](docs/roadmap.md)。
 
 
@@ -169,9 +172,22 @@ fsmonitor和hooks，并拒绝配置了过滤器的status/diff。Git diff检查�
 它不是严格的账单封顶，也不对应固定人民币额度。
 请求有用量但回答无效时仍计入；没有可靠用量则持久标记未知并停止。
 已知预算耗尽可以提高配置额度后重启，未知预算不能通过提高额度消除。
+
+单次输入预算单独放在 `config.toml`，省略时采用以下默认值：
+
+```toml
+[context]
+max_input_tokens = 32768
+safety_margin_tokens = 2048
+```
+
+检查条件为“系统提示 + 成功历史 + 当前轮次 + 工具说明”的估算 token，再加 2048 安全余量，不超过 32768。输出沿用 `agent.max_output_tokens`（默认 4096）另计；输入上限加输出预留需适配所选模型的窗口，本版不自动查询模型容量。此预算独立于累计消费，不随 `/model` 自动变化。
+
+每次模型请求前重新检查，工具结果加入后同样生效。超限会保留失败输入与原因 `context_input_limit`，不发送该请求、不新增未知用量；不会自动裁剪历史。估算采用紧凑 JSON 的 UTF-8 字节长度，并非精确 tokenizer 或账单。操作示例与限制见 [上下文管理](docs/context-management.md)。
+
 终端显示执行的工具名称，默认不逐次打印用量；输入 `/usage` 查看会话累计值。隐藏显示不影响持久记账、额度限制或超限提示。
 
-自动化验证使用假 HTTP 和临时仓库，不消耗真实模型额度。用户已反馈通用命令成功、拒绝与失败的真实模型回答；固定任务评估和完整日志核对仍待完成。
+自动化验证使用假 HTTP 和临时仓库，不消耗真实模型额度。用户已反馈通用命令成功、拒绝与失败的真实模型回答；固定任务评估暂跳过，自动化不代表真实模型效果已验收。
 参考：[DeepSeek Tool Calls](https://api-docs.deepseek.com/guides/tool_calls/)、
 [Thinking Mode](https://api-docs.deepseek.com/guides/thinking_mode/)。
 

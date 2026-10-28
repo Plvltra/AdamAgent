@@ -11,6 +11,12 @@ max_tool_calls = 16
 max_session_tokens = 50000
 max_output_tokens = 4096
 
+[context]
+# Application input budget, not the model's context window. Output is reserved separately.
+max_input_tokens = 32768
+# Estimated input + safety margin must fit within max_input_tokens.
+safety_margin_tokens = 2048
+
 [permissions]
 # Additional user-approved directories; relative to this configuration file.
 additional_read_dirs = []

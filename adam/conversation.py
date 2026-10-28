@@ -5,7 +5,8 @@ from pathlib import Path
 from time import monotonic_ns
 from typing import Any
 
-from adam.config import AgentConfig
+from adam.config import AgentConfig, ContextConfig
+from adam.context import ContextBuilder, RequestContext
 from adam.errors import BudgetError, FailureCode, TurnSaveError
 from adam.llm import Completion, LLMClient, LLMError
 from adam.outcome import ExecutionOutcome
@@ -23,6 +24,8 @@ class Conversation:
         tools: ToolRegistry | None = None,
         limits: AgentConfig | None = None,
         notify: Callable[[str], None] | None = None,
+        *,
+        context_config: ContextConfig | None = None,
     ) -> None:
         self.store = store
         self.client = client
@@ -31,6 +34,9 @@ class Conversation:
         self.model = client.config.model
         self.tool_registry = tools or ToolRegistry(Path.cwd())
         self.limits = limits or AgentConfig()
+        self.context_builder = ContextBuilder(
+            context_config or ContextConfig(), self.limits.max_output_tokens
+        )
         self.notify = notify or (lambda _: None)
         self.tool_executor = ToolExecutor(store, self.tool_registry, self.notify)
 
@@ -70,6 +76,14 @@ class Conversation:
             )
             raise
 
+    def preview_context(self) -> RequestContext:
+        """预览当前会话的下一次基础输入；不创建会话、请求模型或修改日志。
+
+        包含系统提示、成功历史和当前工具说明，不含尚未输入的新问题；
+        未选会话时使用本次配置的系统提示。超预算仍可查看，不冒充最近实际请求。
+        """
+        return self._build_context(self.session, [])
+
     def _run_turn(self, session: Session, turn_id: str, text: str, started_ns: int) -> str:
         """运行已登记轮次；started_ns 为本进程计时起点，完整消息提交成功后才返回。"""
         if any(
@@ -79,13 +93,12 @@ class Conversation:
                 "会话有结果未知的命令执行；请检查执行记录并新建会话，不自动重跑。",
                 code=FailureCode.EXECUTION_UNKNOWN,
             )
-        messages = self._load_context(session)
         turn: list[dict[str, Any]] = [{"role": "user", "content": text}]
         seen_call_ids: set[str] = set()
 
         for step in range(self.limits.max_model_requests):
             request_id, result = self._request_with_usage(
-                session.session_id, turn_id, messages + turn
+                session.session_id, turn_id, self._build_context(session, turn)
             )
             turn.append(result.message)
             calls = result.message.get("tool_calls") or []
@@ -98,13 +111,20 @@ class Conversation:
 
         raise BudgetError("达到本轮请求上限。", code=FailureCode.REQUEST_LIMIT)
 
-    def _load_context(self, session: Session) -> list[dict[str, Any]]:
-        """组装系统提示与完整历史，保留工具调用和服务商推理字段。"""
-        messages: list[dict[str, Any]] = (
-            [{"role": "system", "content": session.system_prompt}] if session.system_prompt else []
+    def _build_context(self, session: Session | None, turn: list[dict[str, Any]]) -> RequestContext:
+        """读取成功历史并委托构造；预览与每次真实请求共用，工具结果加入后重新估算。"""
+        history = (
+            [message.raw for message in self.store.load_messages(session.session_id)]
+            if session is not None
+            else []
         )
-        messages.extend(message.raw for message in self.store.load_messages(session.session_id))
-        return messages
+        return self.context_builder.build(
+            model=self.model,
+            system_prompt=session.system_prompt if session is not None else self.system_prompt,
+            history=history,
+            current_turn=turn,
+            tools=self.tool_registry.definitions(),
+        )
 
     def _check_session_budget(self, session_id: str) -> None:
         """用量未知或累计额度耗尽时停止，避免静默漏记后继续请求。"""
@@ -121,25 +141,27 @@ class Conversation:
             )
 
     def _request_with_usage(
-        self, session_id: str, turn_id: str, messages: list[dict[str, Any]]
+        self, session_id: str, turn_id: str, context: RequestContext
     ) -> tuple[str, Completion]:
-        """先持久登记请求，再调用 API 并结算用量；不自动重试。
+        """检查预算、持久登记请求，再调用 API 并结算用量；不自动重试。
 
         返回本次 request_id 与包含可靠用量的 Completion，供工具关联来源请求。
-        turn_id 指向已记录的用户输入；有效响应先记请求成功，缺少用量时整轮仍停止。
+        turn_id 指向已记录的用户输入；context 是本次构造结果，先检查输入预算再登记请求。
+        本地超限不伪造请求或未知用量；有效响应先记请求成功，缺少用量时整轮仍停止。
         中断或未知用量会阻止继续消费。最终回答记账失败时保留回答供终端显示；
         请求耗时只包含完整模型调用及响应解析，不含开始与结算日志写入。
         失败收尾不遮蔽原始异常；崩溃遗留状态由下次取得会话写锁时恢复。
         """
         self._check_session_budget(session_id)
-        request_id = self.store.start_request(session_id, turn_id, self.model)
+        context.ensure_within_budget()
+        request_id = self.store.start_request(session_id, turn_id, context.model)
         started_ns = monotonic_ns()
         try:
             result = self.client.complete(
-                messages,
-                model=self.model,
-                tools=self.tool_registry.definitions(),
-                max_tokens=self.limits.max_output_tokens,
+                context.messages,
+                model=context.model,
+                tools=context.tools,
+                max_tokens=context.max_output_tokens,
             )
         except BaseException as error:
             usage = error.usage if isinstance(error, LLMError) else None

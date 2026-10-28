@@ -142,3 +142,37 @@ def test_unknown_field_is_reported_without_value(tmp_path):
         load_config(main)
     assert "max_result_char" in str(error.value)
     assert "private-value" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "context=1",
+        "[context]\nmax_input_tokens=true",
+        "[context]\nmax_input_tokens=0",
+        "[context]\nsafety_margin_tokens=-1",
+        "[context]\nsafety_margin_tokens=true",
+        "[context]\nmax_input_tokens=100\nsafety_margin_tokens=100",
+        '[context]\nunknown="private-value"',
+    ],
+)
+def test_invalid_context_budget_configuration(tmp_path, content):
+    main = tmp_path / "config.toml"
+    main.write_text(content, encoding="utf-8")
+    (tmp_path / "llm.toml").write_text(LLM, encoding="utf-8")
+    with pytest.raises(ConfigError) as caught:
+        load_config(main)
+    assert "context" in str(caught.value) and "private-value" not in str(caught.value)
+
+
+def test_context_defaults_and_custom_budget(tmp_path):
+    main = tmp_path / "config.toml"
+    main.write_text("", encoding="utf-8")
+    (tmp_path / "llm.toml").write_text(LLM, encoding="utf-8")
+    defaults = load_config(main)
+    assert defaults.context.max_input_tokens == 32768
+    assert defaults.context.safety_margin_tokens == 2048
+    main.write_text("[context]\nmax_input_tokens=100\nsafety_margin_tokens=0", encoding="utf-8")
+    custom = load_config(main)
+    assert custom.context.max_input_tokens == 100 and custom.context.safety_margin_tokens == 0
+    assert custom.agent == defaults.agent

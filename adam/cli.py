@@ -9,12 +9,12 @@ from pathlib import Path
 import httpx
 from colorama import just_fix_windows_console
 
-from adam.config import AgentConfig, adam_home, load_config
+from adam.config import AgentConfig, ContextConfig, adam_home, load_config
 from adam.conversation import Conversation
 from adam.errors import AgentError
 from adam.llm import LLMClient
 from adam.storage import SessionStore, valid_session_id
-from adam.terminal import role_prefix, show_failure
+from adam.terminal import role_prefix, show_context, show_failure
 from adam.tool_calls import PermissionConfig, ToolLimits, ToolRegistry
 from adam.tool_calls.command_tools import CommandRequest
 
@@ -77,6 +77,12 @@ def handle_command(
             write("用法：/usage")
         else:
             show_usage(conversation, write)
+    elif command == "/context":
+        option = parts[1] if len(parts) == 2 else ""
+        if option not in {"", "full"}:
+            write("用法：/context [full]")
+        else:
+            show_context(conversation.preview_context(), write, full=option == "full")
     elif command == "/sessions":
         sessions = conversation.store.list_sessions()
         if not sessions:
@@ -109,7 +115,7 @@ def handle_command(
             write("已切换后续请求的模型；保留历史，仅本次运行有效。")
             show_model(conversation, models, write)
     else:
-        write("未知命令，请使用 /new、/sessions、/resume、/model、/usage 或 /exit。")
+        write("未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context 或 /exit。")
     return CommandResult.HANDLED
 
 
@@ -137,6 +143,7 @@ def chat(
     permissions: PermissionConfig | None = None,
     tool_limits: ToolLimits | None = None,
     agent_config: AgentConfig | None = None,
+    context_config: ContextConfig | None = None,
 ) -> None:
     """运行终端交互；已知失败按 AgentError 展示，意外错误传播并释放会话锁。"""
     try:
@@ -152,13 +159,14 @@ def chat(
             ),
             agent_config,
             write,
+            context_config=context_config,
         )
         if resume_id is not None:
             conversation.resume(resume_id)
         models: dict[str, str | None] | None = None
 
         write(
-            "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/exit；成功轮次自动保存。"
+            "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/exit；成功轮次自动保存。"
         )
         show_session(conversation, write)
         try:
@@ -218,6 +226,7 @@ def main() -> int:
                 permissions=config.permissions,
                 tool_limits=config.tool_limits,
                 agent_config=config.agent,
+                context_config=config.context,
             )
     except AgentError as error:
         show_failure(error)

@@ -2,24 +2,28 @@
 
 最近核对：2026-10-28
 
-本次核对范围：V1.3 第 6 项真实 HTTP/独立进程强杀及重启验收，核对模型、存储、恢复与历史提交边界。
+本次核对范围：V3.1 上下文构造、预览、独立输入配置及每次请求前的预算拦截，同步业务测试与版本规划。
 
-核对结论：本项只增加测试与文档，产品架构无变化，保留现有关系图。真实进程验收覆盖请求等待、物理半行写入、完整提交后三个终止边界；全新进程使用现有 Conversation → SessionStore → SessionLog 完成恢复。
+核对结论：新增 context.py，Conversation 委托 ContextBuilder 构造请求，terminal 展示 RequestContext；配置新增 ContextConfig。输入检查在 request_started 之前，沿用公共 BudgetError 和轮次失败记录；JSONL v4 结构不变。未接入裁剪或摘要。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
 ## 模块总览
 
-实线表示主要调用、委托或读写关系，虚线表示协议校验依赖；这是职责关系图，不是严格执行时序或完整 import 清单。`cli.py` 启动时还负责创建并连接模型客户端、存储和工具等组件，图中主要展示运行时的业务关系。
+实线表示主要调用、委托或读写关系，虚线表示协议校验或展示数据依赖；这是职责关系图，不是严格执行时序或完整 import 清单。`cli.py` 启动时还负责创建并连接模型客户端、存储和工具等组件，图中主要展示运行时的业务关系。
 
 ```mermaid
 flowchart TD
     ENTRY["__main__.py<br/>程序入口"] --> CLI["cli.py<br/>启动组装、用户交互、指令处理"]
     CLI --> CONFIG["config.py<br/>加载与校验配置"]
-    CLI --> TERMINAL["terminal.py<br/>角色样式与统一失败展示"]
+    CLI --> TERMINAL["terminal.py<br/>角色、失败与上下文展示"]
     CLI --> CONV["conversation.py<br/>轮次收尾、模型—工具循环"]
     CLI -->|"会话列表、历史与用量查询"| STORE["storage.py<br/>会话持久化与读取"]
 
+    CONV --> CONTEXT["context.py<br/>构造上下文、组成估算、输入预算"]
+    CONTEXT --> CONFIG
+    CONTEXT --> ERROR
+    TERMINAL -.->|"读取 RequestContext 展示数据"| CONTEXT
     CONV --> LLM["llm.py<br/>访问模型服务"]
     CLI -->|"查询模型目录"| LLM
     LLM --> API["远端 LLM"]
@@ -72,12 +76,13 @@ flowchart TD
 | --- | --- | --- |
 | [__main__.py](../adam/__main__.py) | 程序入口 | 将 `python -m adam` 交给 CLI 启动 |
 | [cli.py](../adam/cli.py) | `main`、`chat`、`handle_command` | 组装组件，处理输入和斜杠指令，展示结果与错误，取得命令确认 |
-| [terminal.py](../adam/terminal.py) | `role_prefix`、`show_failure` | 展示角色样式、业务失败说明及未保存回答；不判断具体底层错误类型 |
+| [terminal.py](../adam/terminal.py) | `role_prefix`、`show_failure`、`show_context` | 展示角色、业务失败及上下文组成/全文；不读取会话或请求模型 |
 | [errors.py](../adam/errors.py) | `AgentError`、`FailureCode`、`BudgetError`、`TurnSaveError` | 定义可展示说明、可选未保存回答及稳定失败类别，保持界面错误接口稳定 |
 | [diagnostics.py](../adam/diagnostics.py) | `read_report`、`main` | 只读单个日志快照，按轮次输出请求和工具详情；不请求模型、不修复文件 |
 | [outcome.py](../adam/outcome.py) | `ExecutionOutcome`、`outcome_details` | 表达请求或轮次的终态、原因和已测耗时；写入和回放共用字段校验，不负责计时或 IO |
-| [config.py](../adam/config.py) | `AppConfig`、`LLMConfig`、`AgentConfig` | 加载并校验运行配置，区分整体应用、模型连接及对话循环额度 |
-| [conversation.py](../adam/conversation.py) | `Conversation` | 管理当前会话，组织历史、模型请求、工具循环、额度检查和最终回答提交；分别记录请求与轮次终态 |
+| [config.py](../adam/config.py) | `AppConfig`、`LLMConfig`、`AgentConfig`、`ContextConfig` | 加载并校验运行配置，区分模型连接、循环/消费限额及单次输入预算 |
+| [conversation.py](../adam/conversation.py) | `Conversation` | 管理当前会话，读取成功历史并委托上下文构造，组织请求、工具与提交；分别记录请求与轮次终态 |
+| [context.py](../adam/context.py) | `ContextBuilder`、`RequestContext`、`ContextEstimate` | 构造独立的消息/工具副本，估算各部分输入，检查输入上限；不访问存储、不裁剪、不调用模型 |
 | [llm.py](../adam/llm.py) | `LLMClient`、`Completion` | 访问模型服务，将一次请求转换为模型消息和用量；模型消息也可能是工具请求 |
 | [protocol.py](../adam/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
 | [storage.py](../adam/storage.py) | `SessionStore`、`Session`、`Message` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
@@ -95,12 +100,13 @@ flowchart TD
 
 - **交互与流程：** CLI 处理用户怎样操作；`Conversation` 处理普通输入背后的会话流程。斜杠指令可以直接完成查询，不必请求模型。
 - **流程与模型：** `Conversation` 决定何时请求、执行或停止；`LLMClient` 完成一次模型通信。一次用户输入可以触发多次模型请求。
+- **历史与输入：** `SessionStore` 提供成功历史；`ContextBuilder` 组装系统提示、历史、当前轮次和工具说明。`Conversation.preview_context` 与实际请求使用同一构造逻辑，预览的当前轮次为空。terminal 只读取构造结果，不承担选择或预算决策。
 - **协议与日志：** `protocol.py` 检查消息结构和工具配对；`session_log.py` 检查持久化事件的关联，并识别完整提交的历史。它们不验证回答事实是否正确。
 - **日志与文件：** `SessionLog` 解释事件含义；`SessionStore` 负责文件访问和持久化。失败轮次可以留下诊断记录，但不会因此进入模型的有效历史。
 - **配置与执行：** 配置对象描述权限、额度和限制，各业务模块负责实际执行检查。
 - **失败处理：** 可反馈的工具错误交回模型；命令日志无法可靠保存等错误会终止本轮。已知失败实现 AgentError 契约，CLI 委托 terminal.show_failure 展示；终端 IO 故障和意外程序错误不会被当成业务失败吞掉。
 
-当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态、结束原因与耗时。独立开发诊断与持锁中断恢复已实现，真实进程强杀验收已完成，不计划增加轮次诊断聊天命令。上下文裁剪与流式响应也尚未实现，不应在现有架构图中画成已接入的组件。
+当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态、结束原因与耗时。独立开发诊断与持锁中断恢复已实现，真实进程强杀验收已完成，不计划增加轮次诊断聊天命令。上下文构造与预览已实现；裁剪、摘要与流式响应尚未实现，不应在现有架构图中画成已接入的组件。
 
 ## 公开错误契约
 
@@ -116,6 +122,7 @@ flowchart TD
     OUTCOME --> ERROR
     STORE["storage.py"] --> OUTCOME
     LOG["session_log.py"] --> OUTCOME
+    CONTEXT["context.py"] --> ERROR
     CONFIG["config.py"] --> ERROR
     LLM["llm.py"] --> ERROR
     STORE --> ERROR
@@ -134,6 +141,7 @@ flowchart TD
 
 ## 请求与轮次状态边界
 
+- 每次模型请求前构造输入并检查累计消费、单次输入预算；输入估算包含工具 JSON Schema 及本轮新增结果。超限在 request_started 之前抛出 BudgetError，轮次记 failed / context_input_limit，不伪造请求记录或未知用量。
 - 开始事件建立 in_progress；request_finished 独立记录请求终态，和用量记录在同一块追加。响应有效而用量缺失时，请求可成功，整轮因预算统计不完整停止。
 - 轮次成功只来自完整 message 块与 turn_completed 的成功提交；不能用独立状态事件跳过消息校验。turn_finished 只允许 failed / interrupted。
 - Conversation 捕获失败后尽力保存终态，再传播原异常；KeyboardInterrupt / SystemExit 等退出信号记录 interrupted。失败日志本身出错只给原异常增加受控附注，不遮蔽最初失败。

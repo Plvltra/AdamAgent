@@ -16,6 +16,7 @@ class FailureCode(StrEnum):
     REQUEST_LIMIT = "request_limit"
     TOOL_LIMIT = "tool_limit"
     SESSION_TOKEN_LIMIT = "session_token_limit"
+    CONTEXT_INPUT_LIMIT = "context_input_limit"
     USAGE_UNKNOWN = "usage_unknown"
     ANSWER_SAVE_FAILED = "answer_save_failed"
     REQUEST_SAVE_FAILED = "request_save_failed"

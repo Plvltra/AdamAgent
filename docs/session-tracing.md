@@ -101,7 +101,8 @@ Conversation.send 负责轮次异常收尾，_run_turn 保留模型与工具循�
 | completed | 操作正常完成；轮次还须完整消息提交成功 |
 | api_timeout / api_connection / api_http | 请求超时、网络连接失败、非 2xx HTTP 响应 |
 | invalid_response | 模型消息、协议或结束标记无效 |
-| request_limit / tool_limit / session_token_limit | 达到本轮模型次数、工具次数或会话 token 限额 |
+| request_limit / tool_limit / session_token_limit | 达到本轮模型次数、工具次数或会话累计 token 限额 |
+| context_input_limit | 单次输入估算加安全余量超限；本地拦截，尚未发起该次请求 |
 | usage_unknown | 用量不可靠，按预算策略停止；请求本身可能已成功 |
 | answer_save_failed / request_save_failed | 最终消息提交失败 / 请求用量与终态结算失败 |
 | storage_error / command_log_error / execution_unknown | 存储故障、命令日志故障、已有命令结果未知 |

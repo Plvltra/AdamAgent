@@ -113,6 +113,24 @@ class AgentConfig:
 
 
 @dataclass(frozen=True)
+class ContextConfig:
+    """单次输入的应用预算；不是模型窗口容量，输出额度由 AgentConfig 单独预留。"""
+
+    max_input_tokens: int = 32768
+    safety_margin_tokens: int = 2048
+
+    def __post_init__(self) -> None:
+        """拒绝非法计数和耗尽输入预算的余量；直接构造与 TOML 加载规则一致。"""
+        if type(self.max_input_tokens) is not int or not 0 < self.max_input_tokens <= 100000000:
+            raise ConfigError("context.max_input_tokens 必须是合理范围内的正整数。")
+        if (
+            type(self.safety_margin_tokens) is not int
+            or not 0 <= self.safety_margin_tokens < self.max_input_tokens
+        ):
+            raise ConfigError("context.safety_margin_tokens 必须是小于输入上限的非负整数。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     llm: LLMConfig
     sessions_dir: Path
@@ -120,6 +138,7 @@ class AppConfig:
     agent: AgentConfig = field(default_factory=AgentConfig)
     permissions: PermissionConfig = field(default_factory=PermissionConfig)
     tool_limits: ToolLimits = field(default_factory=ToolLimits)
+    context: ContextConfig = field(default_factory=ContextConfig)
 
 
 def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
@@ -129,7 +148,9 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     except (OSError, UnicodeError, tomllib.TOMLDecodeError):
         raise ConfigError(f"无法读取主配置 {path}，请检查文件存在且为有效 UTF-8 TOML。") from None
 
-    checked_section(data, {"storage", "chat", "agent", "permissions", "tool_limits"}, "主配置")
+    checked_section(
+        data, {"storage", "chat", "agent", "permissions", "tool_limits", "context"}, "主配置"
+    )
     storage = data.get("storage", {})
     if isinstance(storage, dict) and "db_path" in storage:
         raise ConfigError("storage.db_path 已移除，请改用 storage.sessions_dir。")
@@ -159,6 +180,10 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     agent_data = checked_section(
         data.get("agent", {}), {item.name for item in fields(AgentConfig)}, "agent"
     )
+    context_data = checked_section(
+        data.get("context", {}), {item.name for item in fields(ContextConfig)}, "context"
+    )
+    context = ContextConfig(**context_data)
     limit_data = checked_section(
         data.get("tool_limits", {}), {item.name for item in fields(ToolLimits)}, "tool_limits"
     )
@@ -191,6 +216,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         agent=AgentConfig(**agent_data),
         permissions=PermissionConfig(additional_read_dirs=tuple(resolved_roots)),
         tool_limits=ToolLimits(**limit_data),
+        context=context,
     )
 
 
