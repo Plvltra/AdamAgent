@@ -20,6 +20,14 @@ read_file 的 version 对应与展示文本同一次读取的完整字节，分�
 
 text_file.read_snapshot 有界读取并校验文本；edit_plan.plan_edit 对快照执行纯计算，返回路径、原版本、候选字节及 diff。旧文本为空、无匹配、多匹配（含重叠）、没有内容变化、版本失效或输出超限都会失败，原文件保持不变。diff 标明缺少末尾换行。
 
-此阶段未向模型开放写入工具。下一步实现批准、写入权限、版本复查和可靠写入。
+V4.1a 只提供规划；模型工具入口将在 V4.1c 接入。
+
+## V4.1b：确认与可靠写入（已实现）
+
+EditTools.prepare 校验独立写权限并返回计划；replace_text 将这个计划交给确认回调，没有回调即拒绝。CLI 的 confirm_edit 展示实际路径和完整 diff，只接受 y/Y，取消或其他输入拒绝。
+
+批准后先复查文件版本，写入同目录临时文件并 flush/fsync；替换前再次核对权限和版本，使用 os.replace 完成替换。可捕获的替换前失败保留原文件并尽力清理临时文件；不宣称断电持久性或跨进程事务，强杀可能遗留临时文件。权限变化也会使执行失败。
+
+`permissions.additional_write_dirs` 与 additional_read_dirs 都相对 config.toml 所在目录解析，各自独立。额外写授权不自动提供模型读取权限，需要时分别配置；凭据和 .git 始终受保护，符号链接/junction 暂不支持写入。
 
 验收入口：[文件编辑业务测试](../tests/features/test_file_editing.py)。覆盖中文、引号、BOM、LF/CRLF、版本失效、无副作用失败及 diff。

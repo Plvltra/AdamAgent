@@ -32,6 +32,8 @@ tool_prune_tail_chars = 500
 [permissions]
 # Additional user-approved directories; relative to this configuration file.
 additional_read_dirs = []
+# Separate write authorization; editing still requires approval of each diff.
+additional_write_dirs = []
 
 [tool_limits]
 max_read_lines = 200

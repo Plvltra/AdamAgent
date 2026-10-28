@@ -1,5 +1,6 @@
-"""工具的读取权限与资源限制；不依赖会话和模型配置。"""
+"""工具的读写权限与资源限制；不依赖会话和模型配置。"""
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -8,9 +9,10 @@ from adam.errors import AgentError
 
 @dataclass(frozen=True)
 class PermissionConfig:
-    """工作目录之外，由用户额外授权的读取目录。"""
+    """工作目录之外的读取与写入授权分别配置，互不隐含授权。"""
 
     additional_read_dirs: tuple[Path, ...] = ()
+    additional_write_dirs: tuple[Path, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,10 @@ class PathPolicy:
         try:
             self.workspace = workspace.resolve()
             self.roots = (self.workspace, *(p.resolve() for p in permissions.additional_read_dirs))
+            self.write_roots = (
+                self.workspace,
+                *(p.resolve() for p in permissions.additional_write_dirs),
+            )
             if not self.workspace.is_dir():
                 raise ToolError("工作目录不存在或不是目录。")
         except OSError as error:
@@ -45,17 +51,35 @@ class PathPolicy:
 
     def resolve(self, value: str, *, must_exist: bool = True) -> Path:
         """返回已授权的绝对路径；must_exist=False 允许检查 Git 中已删除的路径。"""
+        return self._resolve(value, self.roots, must_exist=must_exist)
+
+    def resolve_write(self, value: str) -> Path:
+        """检查独立写入范围及凭据保护；拒绝 .git、链接路径和非普通文件。"""
+        path = self._resolve(value, self.write_roots, must_exist=True, writing=True)
+        if not path.is_file():
+            raise ToolError("只能修改已有的普通文件。")
+        return path
+
+    def _resolve(
+        self, value: str, roots: tuple[Path, ...], *, must_exist: bool, writing: bool = False
+    ) -> Path:
+        """读写共用词法与真实路径校验；写入额外拒绝通过链接替换目标。"""
         if not value or "\0" in value:
             raise ToolError("路径无效。")
         candidate = Path(value).expanduser()
         if not candidate.is_absolute():
             candidate = self.workspace / candidate
         resolved = candidate.resolve()
+        if writing and Path(os.path.abspath(candidate)) != resolved:
+            raise ToolError("暂不通过符号链接或目录联接写入文件。")
         for path in (candidate.absolute(), resolved):
-            if not any(path.is_relative_to(root) for root in self.roots):
-                raise ToolError("路径未授权，请由用户配置 permissions.additional_read_dirs。")
+            if not any(path.is_relative_to(root) for root in roots):
+                setting = "additional_write_dirs" if writing else "additional_read_dirs"
+                raise ToolError(f"路径未授权，请由用户配置 permissions.{setting}。")
+            if writing and any(part.lower() == ".git" for part in path.parts):
+                raise ToolError("禁止通过编辑工具修改 .git。")
             if any(part.lower() in {".ssh", ".aws"} for part in path.parts):
-                raise ToolError("凭据目录禁止读取。")
+                raise ToolError("凭据目录禁止访问。")
             name = path.name.lower()
             if (
                 name == "llm.toml"
@@ -63,7 +87,7 @@ class PathPolicy:
                 or name in {"id_rsa", "id_ed25519"}
                 or path.suffix.lower() in {".pem", ".key"}
             ):
-                raise ToolError("凭据文件禁止读取。")
+                raise ToolError("凭据文件禁止访问。")
         if must_exist and not resolved.exists():
             raise ToolError("路径不存在。")
         return resolved

@@ -239,17 +239,20 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         for key, value in section.items():
             if type(value) is not int or not 0 < value <= 100000000:
                 raise ConfigError(f"{key} 必须是合理范围内的正整数。")
-    roots = permission_data.get("additional_read_dirs", [])
-    if not isinstance(roots, list) or any(
-        not isinstance(root, str) or not root.strip() or "\0" in root for root in roots
-    ):
-        raise ConfigError("permissions.additional_read_dirs 必须是非空路径字符串数组。")
-    resolved_roots = []
-    for root in roots:
-        target = Path(root).expanduser()
-        resolved_roots.append(
-            (directory / target).resolve() if not target.is_absolute() else target.resolve()
-        )
+    permission_roots: dict[str, tuple[Path, ...]] = {}
+    for name in ("additional_read_dirs", "additional_write_dirs"):
+        roots = permission_data.get(name, [])
+        if not isinstance(roots, list) or any(
+            not isinstance(root, str) or not root.strip() or "\0" in root for root in roots
+        ):
+            raise ConfigError(f"permissions.{name} 必须是非空路径字符串数组。")
+        resolved = []
+        for root in roots:
+            target = Path(root).expanduser()
+            resolved.append(
+                (directory / target).resolve() if not target.is_absolute() else target.resolve()
+            )
+        permission_roots[name] = tuple(resolved)
     if limit_data.get("max_result_chars", 8000) < 512:
         raise ConfigError("tool_limits.max_result_chars 至少为512。")
     return AppConfig(
@@ -257,7 +260,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         sessions_dir=sessions_dir,
         system_prompt=prompt,
         agent=AgentConfig(**agent_data),
-        permissions=PermissionConfig(additional_read_dirs=tuple(resolved_roots)),
+        permissions=PermissionConfig(**permission_roots),
         tool_limits=ToolLimits(**limit_data),
         context=context,
     )

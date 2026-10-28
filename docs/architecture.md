@@ -2,9 +2,9 @@
 
 最近核对：2026-10-28
 
-本次核对范围：V4.1a 文件读取快照、版本标识和纯编辑计划；模型尚无写入工具。
+本次核对范围：V4.1b 独立写权限、diff 确认、版本复查和同目录临时替换；模型接入仍待 V4.1c。
 
-核对结论：file_tools 通过 text_file 读取同一份字节与版本；edit_plan 从快照纯计算候选内容及 diff。新增两项本地能力，尚未连接执行或模型工具入口。
+核对结论：EditTools 组合 PathPolicy、快照和计划，执行获批的确定内容；CLI 提供确认展示函数。读写授权分离，文件替换前复查权限和版本，尚未注册模型编辑工具。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -75,6 +75,10 @@ flowchart TD
     F --> SNAP["text_file.py<br/>有界文本快照与版本"]
     PLAN["edit_plan.py<br/>纯替换计划与 diff"] --> SNAP
     PLAN -.-> P
+    EDIT["edit_tools.py<br/>确认与可靠文件替换"] --> PLAN
+    EDIT --> SNAP
+    EDIT -.-> P
+    EDIT -->|"确认回调"| UI
     R --> G["git_tools.py<br/>状态、差异与提交查询"]
     R --> C["command_tools.py<br/>执行外部程序并收集结果"]
     C -->|"请求用户确认"| UI["cli.py<br/>展示命令计划，取得 y/N"]
@@ -85,7 +89,7 @@ flowchart TD
     C -.-> P
 ```
 
-`PathPolicy` 检查文件与 Git 查询的读取范围。通用命令单独展示具体命令和工作目录，请用户逐次确认；批准后的程序按当前系统账户权限运行，额外读取目录配置不是命令进程的沙箱边界。
+`PathPolicy` 分别检查读取和写入范围；读取授权不赋予写入权限，专用编辑禁止 .git、凭据及链接路径。通用命令单独展示具体命令和工作目录，请用户逐次确认；批准后的程序按当前系统账户权限运行，额外读取目录配置不是命令进程的沙箱边界。
 
 `ToolExecutor` 负责调用所属轮次、请求和执行轨迹；`ToolRegistry` 负责工具目录、参数校验与分派；具体工具负责动作本身。命令工具通过记录回调把进程边界交给执行协调层保存，通过确认回调取得用户决定。
 
@@ -113,6 +117,7 @@ flowchart TD
 | [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor` | 组织工具执行，将轨迹关联到轮次与请求，并形成回传模型的工具消息 |
 | [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，校验参数、分派调用并统一结果格式 |
 | [tool_calls/text_file.py](../adam/tool_calls/text_file.py) | `TextSnapshot`、`read_snapshot` | 同一次读取的完整字节、UTF-8 文本和版本 |
+| [tool_calls/edit_tools.py](../adam/tool_calls/edit_tools.py) | `EditTools` | 规划前检查写入权限，批准后复查版本，以同目录临时文件替换；不提供跨程序事务 |
 | [tool_calls/edit_plan.py](../adam/tool_calls/edit_plan.py) | `EditPlan`、`plan_edit` | 校验版本与唯一匹配，保留编码形式，生成候选内容和 diff；不写文件 |
 | [tool_calls/file_tools.py](../adam/tool_calls/file_tools.py) | `FileTools` | 文件系统查询、搜索与读取能力 |
 | [tool_calls/git_tools.py](../adam/tool_calls/git_tools.py) | `GitTools` | 固定范围的只读 Git 查询能力 |

@@ -17,6 +17,7 @@ from adam.storage import SessionStore, valid_session_id
 from adam.terminal import role_prefix, show_context, show_failure
 from adam.tool_calls import PermissionConfig, ToolLimits, ToolRegistry
 from adam.tool_calls.command_tools import CommandRequest
+from adam.tool_calls.edit_plan import EditPlan
 
 
 def show_session(conversation: Conversation, write: Callable[[str], None]) -> None:
@@ -135,6 +136,16 @@ def confirm_command(
     write(f"超时> {command.timeout_seconds} 秒；执行能力由当前账户权限决定。")
     try:
         return read("允许本次执行？[y/N] ").strip().lower() == "y"
+    except (EOFError, KeyboardInterrupt):
+        return False
+
+
+def confirm_edit(plan: EditPlan, read: Callable[[str], str], write: Callable[[str], None]) -> bool:
+    """展示已规划的完整 diff；只批准当前计划，取消或非 y 输入均拒绝。"""
+    write(f"修改文件> {plan.path}")
+    write(plan.diff)
+    try:
+        return read("允许本次文件修改？[y/N] ").strip().lower() == "y"
     except (EOFError, KeyboardInterrupt):
         return False
 
