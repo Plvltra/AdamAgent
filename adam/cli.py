@@ -13,6 +13,7 @@ from adam.bootstrap import open_application
 from adam.config import adam_home
 from adam.errors import AgentError
 from adam.models import CommandRequest, EditPlan, valid_session_id
+from adam.reply_output import ReplyOutput, write_fragment
 from adam.terminal import role_prefix, show_context, show_execution_report, show_failure
 
 
@@ -153,18 +154,30 @@ def show_turn_report(application: AgentApplication, write: Callable[[str], None]
     show_execution_report(report, write)
 
 
-def send_message(application: AgentApplication, text: str, write: Callable[[str], None]) -> None:
-    """展示回答或已知失败后附执行事实；中断也展示记录，再交外层退出。"""
+def send_message(
+    application: AgentApplication,
+    text: str,
+    write: Callable[[str], None],
+    fragment: Callable[[str], None] | None,
+) -> None:
+    """增量展示本轮回答，结束后附执行事实；已知失败展示错误，中断交外层处理。"""
+    output = ReplyOutput(write, fragment or (write_fragment if write is print else write))
     try:
-        reply = application.send(text)
+        reply = application.send(text, on_output=output.receive)
     except AgentError as error:
+        output.incomplete()
         show_failure(error, write)
+        show_turn_report(application, write)
     except (KeyboardInterrupt, EOFError):
+        output.incomplete()
         show_turn_report(application, write)
         raise
+    except BaseException:
+        output.incomplete()
+        raise
     else:
-        write(role_prefix("assistant") + reply)
-    show_turn_report(application, write)
+        output.complete(reply)
+        show_turn_report(application, write)
 
 
 def chat(
@@ -172,6 +185,7 @@ def chat(
     read: Callable[[str], str] = input,
     write: Callable[[str], None] = print,
     resume_id: str | None = None,
+    fragment: Callable[[str], None] | None = None,
 ) -> None:
     """运行终端交互并展示 AgentError；资源由调用方关闭，意外错误继续传播。"""
     if resume_id is not None:
@@ -195,7 +209,7 @@ def chat(
                     break
                 if result is CommandResult.HANDLED:
                     continue
-                send_message(application, text, write)
+                send_message(application, text, write, fragment)
             except AgentError as error:
                 show_failure(error, write)
     except (EOFError, KeyboardInterrupt):

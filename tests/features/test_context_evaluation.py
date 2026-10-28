@@ -51,7 +51,7 @@ def test_fixed_long_history_comparison(tmp_path):
         ):
             conversation = build_conversation(
                 store,
-                LLMClient(LLMConfig("https://example.test", "test", "key"), http),
+                LLMClient(LLMConfig("https://example.test", "test", "key", stream=False), http),
                 "system",
                 create_tool_registry(tmp_path),
                 context_config=ContextConfig(

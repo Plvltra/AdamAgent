@@ -20,7 +20,9 @@ def test_invalid_startup_configuration_stops_before_network(
     )
     model = "42" if invalid_section == "llm" else '"test"'
     (tmp_path / "llm.toml").write_text(
-        '[llm]\nbase_url="https://example.test"\nmodel=' + model + '\napi_key="test-secret"\n',
+        '[llm]\nstream=false\nbase_url="https://example.test"\nmodel='
+        + model
+        + '\napi_key="test-secret"\n',
         encoding="utf-8",
     )
 

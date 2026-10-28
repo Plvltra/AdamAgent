@@ -10,7 +10,7 @@ from adam.context import ContextBuilder, RequestContext
 from adam.errors import BudgetError, FailureCode, LLMError, StorageError, TurnSaveError
 from adam.execution_report import ExecutionReport
 from adam.history import Summary
-from adam.models import Completion, Session
+from adam.models import Completion, ModelOutput, Session
 from adam.outcome import ExecutionOutcome
 from adam.ports import ModelClient
 from adam.settings import AgentConfig, ContextConfig
@@ -68,7 +68,7 @@ class Conversation:
         self._last_turn = None
         return session
 
-    def send(self, text: str) -> str:
+    def send(self, text: str, *, on_output: Callable[[ModelOutput], None] | None = None) -> str:
         """处理用户输入，完成模型与工具循环，返回已保存的最终回答。
 
         输入、请求和工具轨迹独立留痕；失败轮次不加入有效历史。
@@ -86,7 +86,7 @@ class Conversation:
         self._last_turn = (session.session_id, turn_id)
         started_ns = monotonic_ns()
         try:
-            return self._run_turn(session, turn_id, text, started_ns)
+            return self._run_turn(session, turn_id, text, started_ns, on_output)
         except BaseException as error:
             outcome = ExecutionOutcome.failure(error, self._elapsed_ms(started_ns))
             self._save_failure(
@@ -127,7 +127,14 @@ class Conversation:
         """
         return self._build_context(self.session, [])
 
-    def _run_turn(self, session: Session, turn_id: str, text: str, started_ns: int) -> str:
+    def _run_turn(
+        self,
+        session: Session,
+        turn_id: str,
+        text: str,
+        started_ns: int,
+        on_output: Callable[[ModelOutput], None] | None,
+    ) -> str:
         """运行已登记轮次；started_ns 为本进程计时起点，完整消息提交成功后才返回。"""
         self._check_execution_state(session.session_id)
         turn: list[dict[str, Any]] = [{"role": "user", "content": text}]
@@ -137,7 +144,9 @@ class Conversation:
         tool_budget = ToolBudget(self.limits.max_edit_attempts)
         while progress.model_requests < self.limits.max_model_requests:
             context = self._prepare_context(session, turn_id, turn, progress)
-            request_id, result = self._request_with_usage(session.session_id, turn_id, context)
+            request_id, result = self._request_with_usage(
+                session.session_id, turn_id, context, on_output
+            )
             progress.model_requests += 1
             turn.append(result.message)
             calls = result.message.get("tool_calls") or []
@@ -242,7 +251,11 @@ class Conversation:
             )
 
     def _request_with_usage(
-        self, session_id: str, turn_id: str, context: RequestContext
+        self,
+        session_id: str,
+        turn_id: str,
+        context: RequestContext,
+        on_output: Callable[[ModelOutput], None] | None = None,
     ) -> tuple[str, Completion]:
         """检查预算、持久登记请求，再调用 API 并结算用量；不自动重试。
 
@@ -265,6 +278,7 @@ class Conversation:
                 model=context.model,
                 tools=context.tools,
                 max_tokens=context.max_output_tokens,
+                on_output=on_output,
             )
         except BaseException as error:
             usage = error.usage if isinstance(error, LLMError) else None

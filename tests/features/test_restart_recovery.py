@@ -68,7 +68,7 @@ def test_reopen_closes_only_unfinished_operations(tmp_path, phase):
         SessionStore(tmp_path) as store,
     ):
         conversation = build_conversation(
-            store, LLMClient(LLMConfig("https://example.test", "test", "x"), http), ""
+            store, LLMClient(LLMConfig("https://example.test", "test", "x", stream=False), http), ""
         )
         conversation.resume(session_id)
         report = read_report(path)

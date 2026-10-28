@@ -85,7 +85,7 @@ def edit_chat(tmp_path):
     ):
         conversation = build_conversation(
             store,
-            LLMClient(LLMConfig("https://example.test", "test", "key"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "key", stream=False), http),
             "",
             create_tool_registry(tmp_path, confirm_edit=confirm),
         )

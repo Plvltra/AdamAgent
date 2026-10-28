@@ -4,7 +4,7 @@ import pytest
 
 from adam.config import ConfigError, load_config
 
-LLM = '[llm]\nbase_url="https://example.test"\nmodel="test"\napi_key="secret"\n'
+LLM = '[llm]\nstream=false\nbase_url="https://example.test"\nmodel="test"\napi_key="secret"\n'
 
 
 def test_paths_defaults_and_llm_override(tmp_path, monkeypatch):

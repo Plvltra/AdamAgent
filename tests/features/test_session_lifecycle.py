@@ -43,7 +43,7 @@ def test_reopen_resume_isolation_and_failed_switch(tmp_path):
     with make_client(requests) as http, SessionStore(path) as store:
         entries = iter(["/new A", "one", "/new B", "two", "/sessions", "/exit"])
         chat(
-            LLMClient(LLMConfig("https://example.test", "model", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "model", "secret", stream=False), http),
             "old prompt",
             store,
             read=lambda _: next(entries),
@@ -56,7 +56,7 @@ def test_reopen_resume_isolation_and_failed_switch(tmp_path):
     with make_client(requests) as http, SessionStore(path) as store:
         entries = iter([f"/resume {first}", "/resume ffffffff", "/resume abc", "three", "/exit"])
         chat(
-            LLMClient(LLMConfig("https://example.test", "model", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "model", "secret", stream=False), http),
             "new prompt",
             store,
             read=lambda _: next(entries),
@@ -93,7 +93,7 @@ def test_save_failure_shows_reply_and_does_not_retry(tmp_path, monkeypatch):
     with make_client(requests) as http, SessionStore(path) as store:
         entries = iter(["one", "two", "/exit"])
         chat(
-            LLMClient(LLMConfig("https://example.test", "model", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "model", "secret", stream=False), http),
             "",
             store,
             read=lambda _: next(entries),
@@ -114,7 +114,7 @@ def test_main_creates_session_and_resumes(tmp_path, monkeypatch):
     config = tmp_path / "config.toml"
     config.write_text('[chat]\nsystem_prompt="system"\n', encoding="utf-8")
     (tmp_path / "llm.toml").write_text(
-        '[llm]\nbase_url="https://example.test"\nmodel="model"\napi_key="test-key"\n',
+        '[llm]\nstream=false\nbase_url="https://example.test"\nmodel="model"\napi_key="test-key"\n',
         encoding="utf-8",
     )
     requests = []
@@ -163,7 +163,7 @@ def test_usage_save_failure_shows_unsaved_answer_and_preserves_unknown_budget(
     with make_client(requests) as http, SessionStore(root) as store:
         inputs = iter(["question", "/exit"])
         chat(
-            LLMClient(LLMConfig("https://example.test", "model", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "model", "secret", stream=False), http),
             "",
             store,
             read=lambda _: next(inputs),

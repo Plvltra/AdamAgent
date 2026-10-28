@@ -32,7 +32,7 @@ def test_selection_is_contiguous_persistent_and_traceable(tmp_path):
     with httpx.Client(transport=httpx.MockTransport(respond)) as http, SessionStore(root) as store:
         conversation = build_conversation(
             store,
-            LLMClient(LLMConfig("https://example.test", "test", "key"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "key", stream=False), http),
             "system constraint",
             create_tool_registry(tmp_path),
             context_config=ContextConfig(
@@ -69,7 +69,7 @@ def test_selection_is_contiguous_persistent_and_traceable(tmp_path):
     ):
         conversation = build_conversation(
             store,
-            LLMClient(LLMConfig("https://example.test", "test", "key"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "key", stream=False), http),
             "changed default",
             create_tool_registry(tmp_path),
             context_config=ContextConfig(

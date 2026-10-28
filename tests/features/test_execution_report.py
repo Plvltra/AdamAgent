@@ -9,12 +9,14 @@ import pytest
 from adam.config import LLMConfig
 from adam.llm import LLMClient
 from adam.storage import SessionStore, StorageError
+from tests.features.test_streaming import DONE, event, sse
 from tests.support import run_chat as chat
 
 
-@pytest.fixture
-def scripted_chat(tmp_path):
+@pytest.fixture(params=[False, True], ids=["json", "stream"])
+def scripted_chat(tmp_path, request):
     """只替换 HTTP；工具、确认、文件写入、子进程及 JSONL 使用真实实现。"""
+    stream = request.param
     output, requests = [], []
     with SessionStore(tmp_path / "sessions") as store:
 
@@ -46,6 +48,22 @@ def scripted_chat(tmp_path):
                             }
                         ],
                     }
+                if stream:
+                    delta = dict(message)
+                    if calls := delta.get("tool_calls"):
+                        delta["tool_calls"] = [
+                            {"index": index, **call} for index, call in enumerate(calls)
+                        ]
+                    return sse(
+                        [
+                            event(delta),
+                            event(
+                                reason="tool_calls" if step is not None else "stop",
+                                usage={"prompt_tokens": 10, "completion_tokens": 2},
+                            ),
+                            DONE,
+                        ]
+                    )
                 return httpx.Response(
                     200,
                     json={
@@ -61,7 +79,9 @@ def scripted_chat(tmp_path):
 
             with httpx.Client(transport=httpx.MockTransport(respond)) as http:
                 chat(
-                    LLMClient(LLMConfig("https://example.test", "test", "key"), http),
+                    LLMClient(
+                        LLMConfig("https://example.test", "test", "key", stream=stream), http
+                    ),
                     "",
                     store,
                     read=lambda _: next(inputs),

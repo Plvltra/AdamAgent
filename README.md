@@ -43,7 +43,7 @@ sessions_dir = "sessions"
 system_prompt = "你是 Adam，一个友好的编程助手。"
 ```
 
-`llm.toml` 的 `[llm]` 包含 `base_url`、`model`、`timeout_seconds`（默认 120），
+`llm.toml` 的 `[llm]` 包含 `base_url`、`model`、`timeout_seconds`（默认 120）、`stream`（默认 true），
 以及二选一的 `api_key_env` / `api_key`。配置中的密钥不进入日志或 Git。
 系统提示词只影响新建会话，恢复时使用会话文件里的原提示词。
 
@@ -73,7 +73,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 命令由 `handle_command()` 统一处理；未知命令不会发送给模型。
 模型目录不可用时仍可聊天；未知模型 ID 的处理沿用运行时提示。
 首次正常输入时才自动创建会话；仅启动、列出和退出不会创建空会话。
-同步、非流式调用；不自动重试。输入预算不足时按完整轮次省略旧历史，原始 JSONL 保留。
+默认逐步显示正文，不展示推理内容；设 `llm.stream=false` 可使用完整 JSON。服务不支持 SSE 时明确报错，不自动换模式重发。部分输出不是已保存回答；完整响应校验后才执行工具并提交历史。本阶段不自动重试。输入预算不足时按完整轮次省略旧历史，原始 JSONL 保留。
 
 ## JSONL 格式与写入边界
 

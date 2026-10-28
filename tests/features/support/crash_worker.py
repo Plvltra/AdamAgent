@@ -74,7 +74,7 @@ with (
 ):
     conversation = build_conversation(
         store,
-        LLMClient(LLMConfig(url, "test", "test-only-key"), http),
+        LLMClient(LLMConfig(url, "test", "test-only-key", stream=False), http),
         "",
         create_tool_registry(root.parent, confirm_edit=lambda _: True),
     )

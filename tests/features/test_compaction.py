@@ -40,7 +40,9 @@ def chat(tmp_path):
     ):
         conversation = build_conversation(
             store,
-            LLMClient(LLMConfig("https://example.test", "model-a", "private-key"), http),
+            LLMClient(
+                LLMConfig("https://example.test", "model-a", "private-key", stream=False), http
+            ),
             "保留项目约束",
             create_tool_registry(tmp_path),
             notify=shown.append,

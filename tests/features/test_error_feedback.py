@@ -49,7 +49,7 @@ def test_new_business_error_needs_no_cli_branch(tmp_path, monkeypatch, partial_r
     class FutureFeatureError(AgentError):
         pass
 
-    def fail_send(self, text):
+    def fail_send(self, text, **kwargs):
         raise FutureFeatureError("新业务暂不可用", partial_reply=partial_reply)
 
     monkeypatch.setattr(Conversation, "send", fail_send)
@@ -58,7 +58,7 @@ def test_new_business_error_needs_no_cli_branch(tmp_path, monkeypatch, partial_r
     inputs = iter(["question", "/exit"])
     with make_client(requests) as http, SessionStore(tmp_path / "sessions") as store:
         run_chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             read=lambda _: next(inputs),
@@ -80,7 +80,7 @@ def test_budget_stop_is_not_reported_as_model_failure(tmp_path):
     inputs = iter(["first", "blocked", "/exit"])
     with make_client(requests) as http, SessionStore(tmp_path / "sessions") as store:
         run_chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             read=lambda _: next(inputs),
@@ -110,7 +110,7 @@ def test_api_failure_is_reported_once_without_remote_body(tmp_path):
         SessionStore(tmp_path / "sessions") as store,
     ):
         run_chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             read=lambda _: next(inputs),
@@ -147,7 +147,7 @@ def test_final_answer_disk_failure_is_visible_without_retry(tmp_path, monkeypatc
         monkeypatch.setattr(os, "fsync", fail_commit_once)
         inputs = iter(["question", "/exit"])
         run_chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             resume_id=session_id,
@@ -193,7 +193,7 @@ def test_unexpected_output_error_propagates_and_releases_session(tmp_path, failu
         with make_client(requests) as http, SessionStore(root) as store:
             session_id = store.create_session("test", "")
             run_chat(
-                LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+                LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
                 "",
                 store,
                 resume_id=session_id,
@@ -257,7 +257,7 @@ def test_startup_failure_uses_public_error_contract(tmp_path, monkeypatch, capsy
     config = tmp_path / "config.toml"
     config.write_text('[chat]\nsystem_prompt=""\n', encoding="utf-8")
     (tmp_path / "llm.toml").write_text(
-        '[llm]\nbase_url="https://example.test"\nmodel="test"\napi_key="secret"\n',
+        '[llm]\nstream=false\nbase_url="https://example.test"\nmodel="test"\napi_key="secret"\n',
         encoding="utf-8",
     )
     workspace = tmp_path

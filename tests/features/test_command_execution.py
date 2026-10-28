@@ -180,7 +180,7 @@ def test_cli_model_tool_loop_and_restore(project, tmp_path, decision):
         httpx.Client(transport=httpx.MockTransport(handle)) as http,
         SessionStore(tmp_path / "sessions") as store,
     ):
-        client = LLMClient(LLMConfig("https://example.test", "test", "secret"), http)
+        client = LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http)
         shown = []
         chat(client, "", store, read=lambda _: next(inputs), write=shown.append, workspace=project)
     expected = "completed" if decision == "y" else "denied"
@@ -216,7 +216,7 @@ def test_execution_survives_later_model_failure(project, tmp_path):
     ):
         conversation = build_conversation(
             store,
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             create_tool_registry(project, confirm_command=lambda _: True),
         )
@@ -276,7 +276,9 @@ def test_unknown_execution_blocks_replay_after_restart(project, tmp_path):
         ) as http,
     ):
         conversation = build_conversation(
-            store, LLMClient(LLMConfig("https://example.test", "test", "secret"), http), ""
+            store,
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
+            "",
         )
         conversation.resume(session_id)
         with pytest.raises(StorageError, match="结果未知"):
@@ -311,7 +313,7 @@ def test_approval_controls_actual_file_side_effect(project, tmp_path, decision):
         SessionStore(tmp_path / "sessions") as store,
     ):
         chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             read=lambda _: next(inputs),
@@ -361,7 +363,7 @@ def test_finished_command_log_failure_blocks_reexecution(project, tmp_path, monk
             monkeypatch.setattr(store, "append_command_event", fail_finish)
             conversation = build_conversation(
                 store,
-                LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+                LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
                 "",
                 create_tool_registry(project, confirm_command=lambda _: True),
             )
@@ -372,7 +374,7 @@ def test_finished_command_log_failure_blocks_reexecution(project, tmp_path, monk
         with SessionStore(root) as store:
             conversation = build_conversation(
                 store,
-                LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+                LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
                 "",
                 create_tool_registry(project, confirm_command=lambda _: True),
             )

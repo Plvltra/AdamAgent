@@ -42,7 +42,9 @@ def completion(*, tool=None):
 def make_conversation(store, http, root, *, config=None, prompt="system"):
     return build_conversation(
         store,
-        LLMClient(LLMConfig("https://example.test", "model-a", "private-api-key"), http),
+        LLMClient(
+            LLMConfig("https://example.test", "model-a", "private-api-key", stream=False), http
+        ),
         prompt,
         create_tool_registry(root),
         AgentConfig(max_output_tokens=1234),
@@ -64,7 +66,9 @@ def test_context_commands_are_read_only_and_full_is_opt_in(tmp_path):
         SessionStore(tmp_path / "sessions") as store,
     ):
         run_chat(
-            LLMClient(LLMConfig("https://example.test", "model-a", "private-api-key"), http),
+            LLMClient(
+                LLMConfig("https://example.test", "model-a", "private-api-key", stream=False), http
+            ),
             "system-only",
             store,
             read=lambda _: next(inputs),
@@ -219,7 +223,7 @@ def test_main_loads_context_limits_and_cli_shows_local_rejection(tmp_path, monke
     config = tmp_path / "config.toml"
     config.write_text("[context]\nmax_input_tokens=1\nsafety_margin_tokens=0\n", encoding="utf-8")
     (tmp_path / "llm.toml").write_text(
-        '[llm]\nbase_url="https://example.test"\nmodel="test"\napi_key="private-api-key"\n',
+        '[llm]\nstream=false\nbase_url="https://example.test"\nmodel="test"\napi_key="private-api-key"\n',
         encoding="utf-8",
     )
     requests = []

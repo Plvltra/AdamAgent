@@ -2,7 +2,7 @@
 
 最近核对：2026-10-29
 
-本次核对范围：将应用分层重构接到完整 V4 基线，保留编辑确认、有限修正和执行事实报告。
+本次核对范围：V5.1 流式传输、展示回调与 TOML 开关，复用现有请求/轮次状态。
 
 核对结论：bootstrap 创建并管理资源，CLI 使用 AgentApplication；共享配置、数据和错误单独定义；模型依赖 ModelClient，工具注册表只分派已注入处理函数。
 
@@ -53,6 +53,10 @@ flowchart TD
     APP -->|"查询模型目录"| PORT["ports.ModelClient"]
     LLM -.->|"实现"| PORT
     LLM --> API["远端 LLM"]
+    LLM --> STREAM["streaming.py<br/>SSE 与完整响应组装"]
+    STREAM -.-> PROTOCOL
+    LLM -.->|"ModelOutput 回调"| OUTPUT["reply_output.py<br/>增量展示与完整性提示"]
+    CLI --> OUTPUT
     CONV -->|"工具说明与执行"| EXEC["tool_calls.ToolExecutor"]
     CONV --> STORE
     EXEC -->|"保存执行记录"| STORE
@@ -132,6 +136,8 @@ ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模�
 | [history.py](../adam/history.py) | `HistoryTurn`、`Summary` | 成功轮次及有效摘要的共享数据 |
 | [compaction.py](../adam/compaction.py) | `CompactionService`、`CompactionPlan` | 规划有界素材及压缩目标、复用旧工具缩减；执行无工具摘要、独立结算并提交，不修改原历史 |
 | [compaction_log.py](../adam/compaction_log.py) | `CompactionLog` | 校验摘要来源与状态，仅完整提交激活摘要；恢复不猜未知用量 |
+| [streaming.py](../adam/streaming.py) | `sse_events`、`StreamReply` | 有界 SSE 解析、工具参数拼接、结束校验 |
+| [reply_output.py](../adam/reply_output.py) | `ReplyOutput` | 正文增量、换行、去重及未完成提示 |
 | [llm.py](../adam/llm.py) | `LLMClient`、`Completion` | 访问模型服务，将一次请求转换为模型消息和用量；模型消息也可能是工具请求 |
 | [protocol.py](../adam/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
 | [storage.py](../adam/storage.py) | `SessionStore`、`Session`、`Message` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
@@ -161,7 +167,7 @@ ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模�
 - **配置与执行：** 配置对象描述权限、额度和限制，各业务模块负责实际执行检查。
 - **失败处理：** 可反馈的工具错误交回模型；命令日志无法可靠保存等错误会终止本轮。已知失败实现 AgentError 契约，CLI 委托 terminal.show_failure 展示；终端 IO 故障和意外程序错误不会被当成业务失败吞掉。
 
-当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态、结束原因与耗时。独立开发诊断与持锁中断恢复已实现，真实进程强杀验收已完成，不计划增加轮次诊断聊天命令。上下文构造、预览、完整轮次选择、手动摘要和自动压缩均已实现；流式响应尚未实现。
+当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态、结束原因与耗时。独立开发诊断与持锁中断恢复已实现，真实进程强杀验收已完成，不计划增加轮次诊断聊天命令。上下文构造、预览、完整轮次选择、手动摘要和自动压缩均已实现；流式响应已实现；部分输出仅用于展示，完整协议消息才返回业务循环。
 
 ## 公开错误契约
 

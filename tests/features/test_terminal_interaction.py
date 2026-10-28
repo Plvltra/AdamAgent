@@ -102,7 +102,7 @@ def test_usage_is_only_shown_on_request_and_not_sent_to_model(tmp_path, interact
 
     with make_http(requests) as http, SessionStore(tmp_path / "sessions") as store:
         chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             read=read,
@@ -128,7 +128,7 @@ def test_usage_without_session_does_not_create_or_request(tmp_path):
     inputs = iter(["/usage", "/exit"])
     with make_http(requests) as http, SessionStore(tmp_path / "sessions") as store:
         chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             read=lambda _: next(inputs),
@@ -150,7 +150,7 @@ def test_usage_unknown_preserves_known_total_without_request(tmp_path):
         store.finish_request(session_id, turn_id, known, (10, 5))
         store.start_request(session_id, turn_id, "test")
         chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             read=lambda _: next(inputs),
@@ -172,7 +172,7 @@ def test_resume_uses_same_role_labels(tmp_path, interactive_terminal):
         store.append_turn(session_id, "old user", "old answer")
         inputs = iter([f"/resume {session_id}", "/exit"])
         chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             read=lambda _: next(inputs),
@@ -216,7 +216,7 @@ def test_usage_follows_selected_session_and_survives_restart(tmp_path):
             return text
 
         chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             read=read,
@@ -233,7 +233,7 @@ def test_usage_follows_selected_session_and_survives_restart(tmp_path):
     inputs = iter(["/usage", "/exit"])
     with make_http(requests) as http, SessionStore(root) as store:
         chat(
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             store,
             read=lambda _: next(inputs),

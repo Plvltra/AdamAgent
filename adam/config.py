@@ -43,7 +43,7 @@ def load_llm_config(path: Path) -> LLMConfig:
     if not isinstance(section, dict):
         raise ConfigError("配置缺少 [llm] 表。")
 
-    allowed = {"base_url", "model", "api_key", "api_key_env", "timeout_seconds"}
+    allowed = {"base_url", "model", "api_key", "api_key_env", "timeout_seconds", "stream"}
     checked_section(section, allowed, "llm")
 
     def required_text(name: str) -> str:
@@ -88,11 +88,16 @@ def load_llm_config(path: Path) -> LLMConfig:
     if type(timeout) not in {int, float} or not math.isfinite(timeout) or timeout <= 0:
         raise ConfigError("timeout_seconds 必须是有限的正数。")
 
+    stream = section.get("stream", True)
+    if type(stream) is not bool:
+        raise ConfigError("llm.stream 必须是布尔值。")
+
     return LLMConfig(
         base_url=base_url,
         model=model,
         api_key=key,
         timeout_seconds=float(timeout),
+        stream=stream,
     )
 
 

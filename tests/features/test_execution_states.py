@@ -22,7 +22,7 @@ def snapshot(store, session_id):
 def make_conversation(store, http, workspace, notify=None):
     return build_conversation(
         store,
-        LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+        LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
         "",
         create_tool_registry(workspace),
         notify=notify,

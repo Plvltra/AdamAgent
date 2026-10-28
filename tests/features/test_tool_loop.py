@@ -44,7 +44,7 @@ def tool_response(calls, tokens=10):
 def make_conversation(store, http, workspace, limits=None):
     return build_conversation(
         store,
-        LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+        LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
         "system",
         create_tool_registry(workspace),
         limits,

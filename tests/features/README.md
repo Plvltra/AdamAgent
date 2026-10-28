@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| V5.1 流式输出 | UTF-8/网络任意分片、隐藏推理、工具收齐后执行、断流不保存、不自动切模式、配置校验 | [test_streaming.py](test_streaming.py) |
 | V4.2b 执行事实报告 | CLI 正常/失败/拒绝/超时/未知结果、读取失败、回答保存失败；不采信模型自述、不污染历史 | [test_execution_report.py](test_execution_report.py)、[test_repair_loop.py](test_repair_loop.py)、[test_process_crash.py](test_process_crash.py) |
 | V4.2a 有限修正 | 真实检查失败后编辑重测、拒绝停止、同批/跨请求计数及新轮重置 | [test_repair_loop.py](test_repair_loop.py) |
 | V4.1c 模型编辑与恢复 | 真实工具闭环、拒绝停止、日志失败与伪造关联拒绝、四个强杀边界 | [test_edit_tool_loop.py](test_edit_tool_loop.py)、[test_process_crash.py](test_process_crash.py) |
@@ -145,3 +146,7 @@ pytest 已配置扫描整个 tests；现有 pre-commit 的 pytest 钩子会自�
 ## V5 前置集成核验（2026-10-29）
 
 将应用边界重构重放到 V4.1b：299 个主线用例收集项全部保留，增加 15 个架构与应用边界用例，全量 314 passed；Ruff 和 Pyright 通过。仅迁移测试的依赖组装，原业务断言保留。
+
+V5.1 定向验收：17 个新场景通过；原非流式场景显式使用 stream=false，保持原断言。
+
+V5.1 全量回归：331 passed；Ruff、格式检查、Pyright 通过。

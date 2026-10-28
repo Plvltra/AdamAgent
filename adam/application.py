@@ -1,5 +1,6 @@
 """面向界面的应用操作；隐藏存储访问与模型目录策略，沿用公共错误契约。"""
 
+from collections.abc import Callable
 from pathlib import Path
 
 from adam.context import RequestContext
@@ -7,7 +8,7 @@ from adam.conversation import Conversation
 from adam.errors import AgentError, LLMError
 from adam.execution_report import ExecutionReport
 from adam.history import Summary
-from adam.models import Message, Session, SessionUsage
+from adam.models import Message, ModelOutput, Session, SessionUsage
 from adam.ports import ModelClient
 from adam.storage import SessionStore
 
@@ -81,9 +82,13 @@ class AgentApplication:
         total, unknown = self._store.usage(session.session_id) if session else (0, False)
         return SessionUsage(total, self._conversation.limits.max_session_tokens, unknown)
 
-    def send(self, text: str) -> str:
+    def send(self, text: str, *, on_output: Callable[[ModelOutput], None] | None = None) -> str:
         """执行完整一轮并返回已保存回答；已知失败以 AgentError 交给界面。"""
-        return self._conversation.send(text)
+        return (
+            self._conversation.send(text, on_output=on_output)
+            if on_output
+            else self._conversation.send(text)
+        )
 
     def execution_report(self) -> ExecutionReport | None:
         """读取本次运行最近轮次的执行事实；切换会话后为空，不解释或重放底层操作。"""

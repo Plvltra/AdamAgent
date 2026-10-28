@@ -94,7 +94,7 @@ def test_failed_check_edit_and_recheck(tmp_path, approve):
     ):
         conversation = build_conversation(
             store,
-            LLMClient(LLMConfig("https://example.test", "test", "key"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "key", stream=False), http),
             "",
             create_tool_registry(
                 tmp_path,
@@ -175,7 +175,7 @@ def test_edit_attempt_limit_stops_before_fourth_and_resets_next_turn(tmp_path, v
     ):
         conversation = build_conversation(
             store,
-            LLMClient(LLMConfig("https://example.test", "test", "key"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "key", stream=False), http),
             "",
             create_tool_registry(
                 tmp_path, confirm_edit=lambda plan: approvals.append(plan) or True

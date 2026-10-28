@@ -28,7 +28,7 @@ class MemoryModel:
     def list_models(self):
         return {"first": "First", "second": "Second"}
 
-    def complete(self, messages, *, model, tools=None, max_tokens=4096):
+    def complete(self, messages, *, model, tools=None, max_tokens=4096, on_output=None):
         self.requests.append((list(messages), model))
         result = next(self.completions)
         if isinstance(result, Exception):
@@ -44,7 +44,9 @@ def test_cli_accepts_application_without_model_configuration(tmp_path):
             Completion({"role": "assistant", "content": "two"}, (3, 1)),
         ]
     )
-    config = AppConfig(LLMConfig("https://unused.test", "first", "secret"), tmp_path, "system")
+    config = AppConfig(
+        LLMConfig("https://unused.test", "first", "secret", stream=False), tmp_path, "system"
+    )
     inputs = iter(["hello", "/model second", "again", "/usage", "/exit"])
     output = []
     with SessionStore(tmp_path / "sessions") as store:
@@ -149,7 +151,7 @@ def test_owned_resources_close_on_exit_or_failure(tmp_path, monkeypatch, failure
     config_path = tmp_path / "config.toml"
     config_path.write_text("", encoding="utf-8")
     (tmp_path / "llm.toml").write_text(
-        '[llm]\nbase_url="https://example.test"\nmodel="first"\napi_key="secret"\n',
+        '[llm]\nstream=false\nbase_url="https://example.test"\nmodel="first"\napi_key="secret"\n',
         encoding="utf-8",
     )
     http = httpx.Client(transport=httpx.MockTransport(lambda _: pytest.fail("No HTTP expected")))

@@ -14,6 +14,7 @@ class LLMConfig:
     model: str
     api_key: str = field(repr=False)
     timeout_seconds: float = 120
+    stream: bool = True
 
 
 @dataclass(frozen=True)

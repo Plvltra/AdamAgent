@@ -59,7 +59,7 @@ def auto_chat(tmp_path):
     ):
         conversation = build_conversation(
             store,
-            LLMClient(LLMConfig("https://example.test", "test", "key"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "key", stream=False), http),
             "system",
             create_tool_registry(tmp_path, limits=ToolLimits(max_result_chars=24000)),
             notify=shown.append,

@@ -35,7 +35,9 @@ def test_invalid_responses(payload):
         transport=httpx.MockTransport(lambda _: httpx.Response(200, json=payload))
     ) as http:
         with pytest.raises(LLMError):
-            LLMClient(LLMConfig("https://example.test", "model", "secret"), http).complete([])
+            LLMClient(
+                LLMConfig("https://example.test", "model", "secret", stream=False), http
+            ).complete([])
 
 
 def test_timeout_is_not_retried():
@@ -48,7 +50,9 @@ def test_timeout_is_not_retried():
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as http:
         with pytest.raises(LLMError, match="超时") as error:
-            LLMClient(LLMConfig("https://example.test", "model", "secret"), http).complete([])
+            LLMClient(
+                LLMConfig("https://example.test", "model", "secret", stream=False), http
+            ).complete([])
     assert count == 1
     assert "secret" not in str(error.value)
 
@@ -63,7 +67,7 @@ def test_unexpected_stream_response_has_clear_error():
         )
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as http:
-        client = LLMClient(LLMConfig("https://example.test", "model", "secret"), http)
+        client = LLMClient(LLMConfig("https://example.test", "model", "secret", stream=False), http)
         with pytest.raises(LLMError, match="流式响应") as error:
             client.complete([])
     assert "secret" not in str(error.value)

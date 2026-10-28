@@ -43,7 +43,9 @@ def test_multiturn_failure_and_reset():
     entries = iter([" ", "one", "failed", "two", "/new", "three", "/exit"])
     output = []
     with httpx.Client(transport=httpx.MockTransport(handler)) as http:
-        client = LLMClient(LLMConfig("https://example.test/v1", "test-model", "secret"), http)
+        client = LLMClient(
+            LLMConfig("https://example.test/v1", "test-model", "secret", stream=False), http
+        )
         chat(client, "system", read=lambda _: next(entries), write=output.append)
     assert requests[0]["messages"] == [
         {"role": "system", "content": "system"},
@@ -71,14 +73,14 @@ def test_exit_signal(signal):
 
     output = []
     with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(404))) as http:
-        client = LLMClient(LLMConfig("https://example.test", "model", "secret"), http)
+        client = LLMClient(LLMConfig("https://example.test", "model", "secret", stream=False), http)
         chat(client, "", read=read, write=output.append)
     assert output[-1] == "再见。"
 
 
 def test_model_switch_preserves_history_and_rejects_unknown():
     requests = []
-    config = LLMConfig("https://example.test/v1", "flash", "secret")
+    config = LLMConfig("https://example.test/v1", "flash", "secret", stream=False)
 
     def handler(request):
         assert request.headers["Authorization"] == "Bearer secret"
@@ -131,7 +133,7 @@ def test_model_catalog_failure_still_allows_switch_and_chat(failure):
     entries = iter(["/model custom-model", "hello", "/exit"])
     output = []
     with httpx.Client(transport=httpx.MockTransport(handler)) as http:
-        client = LLMClient(LLMConfig("https://example.test", "flash", "secret"), http)
+        client = LLMClient(LLMConfig("https://example.test", "flash", "secret", stream=False), http)
         chat(client, "", read=lambda _: next(entries), write=output.append)
     assert len(requests) == 1
     assert requests[0]["model"] == "custom-model"
@@ -151,7 +153,7 @@ def test_commands_do_not_reach_model_and_exit_stops_input():
     entries = iter(["/unknown", "/exit extra", "/model", "hello", "/exit", "unread"])
     output = []
     with httpx.Client(transport=httpx.MockTransport(handler)) as http:
-        client = LLMClient(LLMConfig("https://example.test", "model", "secret"), http)
+        client = LLMClient(LLMConfig("https://example.test", "model", "secret", stream=False), http)
         chat(client, "", read=lambda _: next(entries), write=output.append)
     assert len(requests) == 1
     assert requests[0]["messages"] == [{"role": "user", "content": "hello"}]

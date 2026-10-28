@@ -4,7 +4,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 
 @dataclass(frozen=True)
@@ -70,3 +70,11 @@ class EditPlan:
     before_version: str
     candidate: bytes
     diff: str
+
+
+@dataclass(frozen=True)
+class ModelOutput:
+    """模型展示事件；response_end 只表示输出边界，不表示轮次已保存。"""
+
+    kind: Literal["text", "response_end"]
+    text: str = ""

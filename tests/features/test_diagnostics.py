@@ -51,7 +51,7 @@ def test_failed_turn_report_is_read_only(tmp_path):
     ):
         conversation = build_conversation(
             store,
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             create_tool_registry(tmp_path),
         )

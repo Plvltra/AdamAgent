@@ -42,7 +42,7 @@ def response(*, tool=False, text="done", finish_reason="stop"):
 def make_conversation(store, http, workspace):
     return build_conversation(
         store,
-        LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+        LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
         "",
         create_tool_registry(workspace),
     )
@@ -343,7 +343,7 @@ def test_command_log_validation_failure_is_fatal(tmp_path, monkeypatch):
     ):
         conversation = build_conversation(
             store,
-            LLMClient(LLMConfig("https://example.test", "test", "secret"), http),
+            LLMClient(LLMConfig("https://example.test", "test", "secret", stream=False), http),
             "",
             create_tool_registry(tmp_path, confirm_command=lambda c: approvals.append(c) or True),
         )
