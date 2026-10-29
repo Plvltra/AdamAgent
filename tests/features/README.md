@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| E1.5 记忆整体验收 | 固定全部/相关输入比较、时间跨期与应用重启、额外读取权限不扩范围、锁竞争/fsync 故障及禁用模式 | [test_memory_acceptance.py](test_memory_acceptance.py) |
 | E1.4 记忆继承与故障 | 子线程固定快照、续聊取新版本、共享库直接访问被拒绝、损坏/权限降级、会话错误仍停止 | [test_memory_boundaries.py](test_memory_boundaries.py) |
 | E1.3 记忆检索与输入 | 新会话召回、修改删除生效、范围与过期过滤、同轮固定、预览无请求和请求版本留痕 | [test_memory_context.py](test_memory_context.py) |
 | E1.2 记忆管理 | /memory 生命周期、来源、项目与全局范围、过期、版本冲突、正文保真和写入失败反馈 | [test_memory_management.py](test_memory_management.py) |

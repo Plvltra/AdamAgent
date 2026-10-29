@@ -1,7 +1,7 @@
 # E1 跨会话记忆：需求与验收
 
 更新日期：2026-10-29
-状态：E1.1～E1.4 存储、命令、上下文及子任务与故障边界已实现并验收；E1.5 待完成。
+状态：E1.1～E1.5 已实现并完成离线验收；真实模型召回与回答质量未评估。
 任务归属：[练手 TODO 的 E1](agent-practice-todo.md)。本文件细化需求，完成状态仍以主 TODO 为准。
 
 ## 目标与现有基础
@@ -106,11 +106,50 @@
 | E1.4 子任务与故障边界 | 子 Agent 只读继承；读取失败提示后继续；写入失败可见 | 子任务不能改记忆；不会扩大范围；损坏或权限异常不伪装成空库或保存成功 |
 | E1.5 业务整体验收 | 固定任务覆盖上述流程，对比全部注入与相关检索 | 更新、删除、过期、重启、多终端、子任务及故障均有证据；比较实际输入内容与估算用量 |
 
-按上述顺序推进。每个小任务完成后补业务验收、同步文档、验证并单独提交；本轮确认需求不代表这些功能已完成。
+上述五项已分别完成业务验收、文档同步和提交。工程完成不代表真实模型效果已经评估。
+
+## E1.5 整体验收与输入对照
+
+[整体验收测试](../tests/features/test_memory_acceptance.py) 使用相同系统约束、工具说明和新问题，对比“范围及过期过滤后全部注入”与“按相关性选择”。相关方案经过真实应用到 MockTransport 的请求路径，全部注入是 ContextBuilder 构造的对照输入。
+
+2026-10-29 本机运行的输入估算如下；来源路径也是消息的一部分，更换临时目录长度可能略有差异。4 条有效条目分别是 Python 导入、renderer 证据、午餐偏好和全局 language 约定；另有错误项目及已过期条目，两个方案均先排除。
+
+| 问题 | 相关方案选中正文 | 记忆输入：全部 → 相关 | 总输入：全部 → 相关 |
+| --- | --- | --- | --- |
+| Python imports | Python uses absolute imports | 649 → 233 | 2328 → 1912 |
+| renderer language | renderer keeps GPU evidence；language replies in Chinese | 649 → 342 | 2329 → 2022 |
+| weather | 无 | 649 → 0 | 2326 → 1677 |
+
+单位是本地估算 token，不是服务端账单。结果证明输入减少并符合预期筛选，不证明模型回答质量提升。测试同时断言原系统约束、当前输入、工具说明和记忆预算保持。
+
+复现：在项目根目录运行 `.venv\Scripts\python.exe -m pytest -q -s tests/features/test_memory_acceptance.py`。stdout 给出比较数据，临时测试目录保存 comparison.json。
+
+### 需求到验收证据
+
+| 需求 | 已运行的业务证据 |
+| --- | --- |
+| F1 记录、来源、版本 | [存储](../tests/features/test_memory_storage.py)、[管理](../tests/features/test_memory_management.py)：无来源会话不伪造；修改和删除可追溯 |
+| F2 显式管理 | [管理](../tests/features/test_memory_management.py)：真实命令解析、无模型调用、非法参数与未保存错误 |
+| F3 独立持久化 | [存储](../tests/features/test_memory_storage.py)：真实双进程各追加 12 条，24 条完整保留；版本冲突、原子替换失败 |
+| F4 范围隔离 | [上下文](../tests/features/test_memory_context.py)、[整体验收](../tests/features/test_memory_acceptance.py)：项目/全局分开，额外工具读取授权不扩大记忆范围 |
+| F5 检索与预算 | [上下文](../tests/features/test_memory_context.py)、[选择边界](../tests/test_memory_selection.py)：只注入匹配条目，不挤占受保护输入；完整记录受双重预算约束 |
+| F6 生命周期 | [整体验收](../tests/features/test_memory_acceptance.py)：时钟跨过有效期、明确更新取消过期、重建应用后召回新版本、删除后不再注入 |
+| F7 可观察性 | [上下文](../tests/features/test_memory_context.py)：/context 假设预览不请求模型；修改删除后旧请求证据不变 |
+| F8 子任务只读继承 | [边界](../tests/features/test_memory_boundaries.py)：子线程及工具循环同一快照，后续续聊换新版本，共享库读写入口受限 |
+| F9 故障行为 | [边界](../tests/features/test_memory_boundaries.py)、[整体验收](../tests/features/test_memory_acceptance.py)：损坏/权限/锁竞争可见降级，fsync/replace 失败保留旧文件，会话故障仍停止 |
+
+七项决策的对应关系：Q1/Q4 由 F1/F2/F6 验证，Q2 由 F4 验证，Q3 由 F5/F7 验证，Q5 由 F6 验证，Q6 由 F8 验证，Q7 由 F9 验证。普通回复不会自动改写记忆库，也已有字节级断言。
+
+### 当前能力边界
+
+- 关键词检索可能漏掉同义表达，也可能选中仅同词的内容。全局表示适用范围，仍须匹配；“回答使用中文”等普遍偏好不会自动用于每个无关问题。
+- 记忆没有自动抽取、向量检索或语义冲突判断；这些不属于本轮七项决策。
+- 本地 JSON 与文件锁服务于同机多进程，不提供跨机器同步服务；备份恢复见 [交付指南](install-and-recovery.md)。
+- 删除停止后续库注入，旧 JSONL 中的使用证据和模型曾复述的文本仍保留。
 
 ## 测试责任
 
-实现时在 tests/features 中按跨会话记忆这一业务能力组织测试，基础存储及检索边界按需要放到模块测试中。当前不创建空测试或用跳过测试代替待办。
+测试在 tests/features 中按跨会话记忆能力组织，基础配置及检索契约边界放在模块测试中；没有用空测试或 skip/xfail 代替验收。
 
 1. 会话 A 明确保存约定，新建会话 B 后检查实际模型请求包含选中的记录及正确来源。
 2. 项目切换不泄漏项目记忆；全局条目只有在相关时注入。
