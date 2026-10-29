@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T3.3 Skill 组合验收 | 跨项目与新会话、真实子任务权限、轮中快照、失效覆盖、流式取消及自动摘要 | [test_skill_acceptance.py](test_skill_acceptance.py) |
 | T3.2 Skill 显式启用 | 列表零请求、首请求带正文、每轮独立、预算拦截、用户目录配置和损坏快照 | [test_explicit_skills.py](test_explicit_skills.py) |
 | T3.1 Skill 多来源 | 项目优先、覆盖项可见、冻结来源、规范化同名、独立目录授权和合并上限 | [test_skill_sources.py](test_skill_sources.py) |
 | T2.3 标准 Skill 整体验收 | 两份实际示例、脚本批准/拒绝、子权限保持、源材料变化后重启 | [test_standard_skill_acceptance.py](test_standard_skill_acceptance.py)、[test_skill_boundaries.py](test_skill_boundaries.py) |

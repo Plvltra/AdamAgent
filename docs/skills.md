@@ -92,7 +92,8 @@ T2.1：tests/features/test_standard_skill_metadata.py 验证标准字段、编�
 T2.2：tests/features/test_standard_skill_loading.py 验证混合格式、Unicode ID、材料清单、版本变化、文本限制及实际 HTTP/JSONL 渐进加载。
 T2.3：tests/features/test_standard_skill_acceptance.py 验证两份实际示例的逐步加载、真实命令审批及重启；脚本批准/拒绝都有实际副作用断言。test_skill_boundaries.py 的子任务权限场景覆盖标准/TOML 两种格式。原始 UTF-8 文本保留其换行，旧证据不随源文件变化。
 
-T3.2：tests/features/test_explicit_skills.py 验证列表零请求、指定正文首请求生效、跨轮清理、目录配置、预算拦截、读取失败和日志损坏；T3.3 的跨项目/子任务整体验收另列。
+T3.2：tests/features/test_explicit_skills.py 验证列表零请求、指定正文首请求生效、跨轮清理、目录配置、预算拦截、读取失败和日志损坏。
+T3.3：tests/features/test_skill_acceptance.py 的9项业务场景覆盖共享用户目录的跨项目/新会话隔离、真实子任务材料加载与权限、轮中源文件变化、失效覆盖来源、流式命令/取消和自动摘要后指导保留。显式父任务正文不自动复制给子任务；子任务仍按明确任务和必要背景工作，并可独立加载可用技能。
 
 原 E6 的 TOML 场景继续运行；tests/features/test_skill_boundaries.py 保留审批拒绝、子任务权限和预算测试。
 E6.3 曾对迁移前示例测得目录约187 token、正文约618 token；这是历史基线，迁移后数字不沿用。
