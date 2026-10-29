@@ -11,6 +11,7 @@ from adam.contracts.errors import BudgetError, FailureCode
 from adam.contracts.history import HistoryTurn, Summary
 from adam.contracts.memory import MemorySelection
 from adam.contracts.reflection import reflection_messages
+from adam.contracts.rules import RuleSelection
 from adam.contracts.skills import catalog_messages
 
 
@@ -26,6 +27,7 @@ class ContextEstimate:
     memory_tokens: int = 0
     reflection_tokens: int = 0
     skill_tokens: int = 0
+    rules_tokens: int = 0
 
     @property
     def input_tokens(self) -> int:
@@ -38,6 +40,7 @@ class ContextEstimate:
             + self.memory_tokens
             + self.reflection_tokens
             + self.skill_tokens
+            + self.rules_tokens
         )
 
 
@@ -62,6 +65,7 @@ class RequestContext:
     preview_query: str = ""
     reflections: tuple[dict[str, Any], ...] = ()
     skills: tuple[dict[str, str], ...] = ()
+    rules: RuleSelection | None = None
 
     @property
     def candidate_input_tokens(self) -> int:
@@ -77,6 +81,7 @@ class RequestContext:
         return {
             "strategy": "recent_turns_v1",
             **({"skills": list(self.skills)} if self.skills else {}),
+            **({"rules": self.rules.to_record()} if self.rules is not None else {}),
             **({"reflections": list(self.reflections)} if self.reflections else {}),
             **({"memory": self.memory.to_dict()} if self.memory.status != "disabled" else {}),
             "summary_id": self.summary.summary_id if self.summary else None,
@@ -124,6 +129,7 @@ class ContextBuilder:
         memory: MemorySelection | None = None,
         reflections: tuple[dict[str, Any], ...] = (),
         skills: tuple[dict[str, str], ...] = (),
+        rules: RuleSelection | None = None,
     ) -> RequestContext:
         """返回独立的输入副本及组成估算；保留顺序、工具配对和服务商推理字段。
 
@@ -133,8 +139,11 @@ class ContextBuilder:
         memory 是本轮固定快照，只参与请求构造，不复制进历史；其大小同时计入总预算。
         reflections 是本轮参考建议，计入预算但不复制进聊天历史。
         skills 只含固定目录；正文由工具按需返回，不能重复注入或重复计费。
+        rules 为本次规则快照，整体计入受保护预算，不能截断或改写为摘要。
         预算覆盖完整工具 JSON Schema，不包含认证头、URL 或密钥。
         """
+        rule_messages = rules.messages() if rules is not None else []
+        rules_tokens = sum(estimate_json_tokens(m) for m in rule_messages)
         skill_messages = catalog_messages(skills)
         skill_tokens = sum(estimate_json_tokens(m) for m in skill_messages)
         advice = reflection_messages(reflections)
@@ -162,6 +171,7 @@ class ContextBuilder:
             + memory_tokens
             + reflection_tokens
             + skill_tokens
+            + rules_tokens
             + sum(sizes)
             + self.limits.safety_margin_tokens
         )
@@ -184,6 +194,7 @@ class ContextBuilder:
             - memory_tokens
             - reflection_tokens
             - skill_tokens
+            - rules_tokens
         )
         start = len(history)
         protected_start = max(0, len(history) - self.limits.retain_recent_turns)
@@ -205,6 +216,7 @@ class ContextBuilder:
             memory_tokens,
             reflection_tokens,
             skill_tokens,
+            rules_tokens,
         )
         return RequestContext(
             model=model,
@@ -215,6 +227,7 @@ class ContextBuilder:
                 + memory_messages
                 + skill_messages
                 + advice
+                + rule_messages
                 + current_turn
             ),
             tools=deepcopy(tools),
@@ -233,6 +246,7 @@ class ContextBuilder:
             memory_capacity=memory_capacity,
             reflections=deepcopy(reflections),
             skills=deepcopy(skills),
+            rules=rules,
         )
 
 

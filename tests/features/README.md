@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T1.2 项目规则执行 | 主/子规则隔离、新规则先于编辑/命令、整批等待、变更/删除、审批与预算 | [test_project_rule_execution.py](test_project_rule_execution.py) |
 | T1.1 项目规则读取 | 根/子作用域、版本与删除、坏编码、大小、链接和范围伪造 | [test_project_rules.py](test_project_rules.py) |
 | E7.3 故障与对照 | 真实断开/超时/错误/取消、无重发、进程退出、Schema/凭据边界、成本测量 | [test_mcp_failures.py](test_mcp_failures.py) |
 | E7.2 MCP 工具 | 原生/协议查询一致、实际工具记录、嵌套 Schema、冲突清理 | [test_mcp_tools.py](test_mcp_tools.py) |

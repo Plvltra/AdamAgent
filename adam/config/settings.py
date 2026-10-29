@@ -270,6 +270,17 @@ class SkillsConfig:
 
 
 @dataclass(frozen=True)
+class RulesConfig:
+    """项目规则开关；范围和读取上限由规则模块统一管理。"""
+
+    enabled: bool = True
+
+    def __post_init__(self) -> None:
+        if type(self.enabled) is not bool:
+            raise ConfigError("rules.enabled 必须是布尔值。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
@@ -287,6 +298,7 @@ class AppConfig:
     reflection: ReflectionConfig = field(default_factory=ReflectionConfig)
     review: ReviewConfig = field(default_factory=ReviewConfig)
     skills: SkillsConfig = field(default_factory=SkillsConfig)
+    rules: RulesConfig = field(default_factory=RulesConfig)
     mcp: MCPConfig = field(default_factory=MCPConfig)
     documents: DocumentConfig = field(default_factory=DocumentConfig)
     documents_dir: Path | None = None

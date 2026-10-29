@@ -50,7 +50,10 @@ def run_chat(
     agent_config=None,
     context_config=None,
 ):
-    """经生产组装逻辑运行原有交互场景；资源仍由测试的 with 块管理。"""
+    """经生产组装运行交互场景；资源仍由测试的 with 块管理。
+
+    未指定工作区时使用测试存储根，避免读取真实项目规则。
+    """
     config = AppConfig(
         client.config,
         store.root,
@@ -67,7 +70,7 @@ def run_chat(
         config,
         store,
         client,
-        workspace or Path.cwd(),
+        workspace or store.root,
         confirm_command=lambda command: confirm_command(command, read, write),
         confirm_edit=lambda plan: confirm_edit(plan, read, write),
         on_tool=lambda name: write(f"工具> {name}"),

@@ -28,6 +28,8 @@ from adam.contracts.ports import ModelClient
 from adam.llm.client import LLMClient
 from adam.llm.http_transport import InterruptibleTransport
 from adam.memory.store import MemoryStore
+from adam.rules.catalog import RuleCatalog
+from adam.rules.tracker import RuleTracker
 from adam.session.storage import SessionStore
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers
@@ -150,7 +152,27 @@ def build_application(
             else None
         )
         if reviewer:
-            registry = registry.extended(REVIEW_SPECS, review_handlers(reviewer))
+            registry = registry.extended(
+                REVIEW_SPECS,
+                review_handlers(reviewer),
+                path_selectors={
+                    "request_review": lambda args: tuple(
+                        Path(path) for path in args["paths"] if isinstance(path, str)
+                    )
+                },
+            )
+
+        rules = (
+            _project_rules(
+                workspace,
+                config.permissions,
+                (documents_dir, config.memories_dir or store.root / "_memories"),
+            )
+            if config.rules.enabled
+            else None
+        )
+        if rules:
+            registry = registry.guarded(rules.check)
 
         def bind_source(link: dict[str, str]) -> None:
             """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
@@ -190,6 +212,7 @@ def build_application(
             review=reviewer,
             memory_provider=memories.select,
             skills=skills,
+            rules=rules,
         )
         return AgentApplication(
             conversation, store, client, memories, close_resources=resources.pop_all().close
@@ -242,6 +265,19 @@ def _open_child(
             enabled=config.skills.enabled,
             protected_dirs=(memories_dir, documents_dir),
         )
+        rules = (
+            _project_rules(
+                Path(agent.workspace),
+                PermissionConfig(
+                    additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)
+                ),
+                (memories_dir, documents_dir),
+            )
+            if config.rules.enabled
+            else None
+        )
+        if rules:
+            registry = registry.guarded(rules.check)
         conversation = Conversation(
             store,
             client,
@@ -255,9 +291,18 @@ def _open_child(
             on_turn_started=started,
             memory_provider=lambda _query, _capacity: memory,
             skills=skills,
+            rules=rules,
         )
         conversation.resume(agent.agent_id)
         yield conversation
+
+
+def _project_rules(
+    workspace: Path, permissions: PermissionConfig, protected_dirs: tuple[Path, ...]
+) -> RuleTracker:
+    """为每个主/子应用创建独立规则状态，沿用读取授权与保留目录保护。"""
+    policy = PathPolicy(workspace, permissions, protected_dirs=protected_dirs)
+    return RuleTracker(RuleCatalog(workspace, partial(policy.resolve, must_exist=False)))
 
 
 @contextmanager

@@ -27,6 +27,7 @@ from adam.contracts.memory import MemorySelection
 from adam.contracts.models import ExecutionReport, ModelOutput, Session
 from adam.contracts.planning import TaskPlanner
 from adam.contracts.ports import ModelClient
+from adam.contracts.rules import ProjectRules
 from adam.session.outcome import ExecutionOutcome
 from adam.session.storage import SessionStore
 from adam.tool_calls.executor import ToolBudget, ToolExecutor
@@ -66,6 +67,7 @@ class Conversation:
         on_turn_started: Callable[[str], None] | None = None,
         memory_provider: Callable[[str, int], MemorySelection] | None = None,
         skills: tuple[dict[str, str], ...] = (),
+        rules: ProjectRules | None = None,
     ) -> None:
         self.store = store
         self.client = client
@@ -82,6 +84,7 @@ class Conversation:
         self.accounting, self.delegation = accounting, delegation
         self.cancel, self.on_turn_started = cancel, on_turn_started
         self.memory_provider, self.skills = memory_provider, skills
+        self.rules = rules
         self.planning = planning
         self.reflection, self.review = reflection, review
         self.requests = RequestRunner(
@@ -124,6 +127,8 @@ class Conversation:
         self._last_turn = (session.session_id, turn_id)
         started_ns = monotonic_ns()
         try:
+            if self.rules:
+                self.rules.begin()
             if self.planning:
                 self.planning.begin(session.session_id, turn_id)
             if self.reflection:
@@ -146,6 +151,9 @@ class Conversation:
             if self.reflection:
                 save_failure(self.reflection.finish, error)
             raise
+        finally:
+            if self.rules:
+                self.rules.end()
         if self.delegation:
             self.delegation.end()
         if self.reflection:
@@ -194,8 +202,11 @@ class Conversation:
         未选会话时使用本次配置的系统提示。超预算仍可查看，不冒充最近实际请求。
         """
         turn = [{"role": "user", "content": query}] if query else []
-        memory = self._select_memory(self.session, turn, query)
-        return replace(self._build_context(self.session, turn, memory), preview_query=query)
+        memory = self._select_memory(self.session, turn, query, preview=True)
+        return replace(
+            self._build_context(self.session, turn, memory, rules_preview=True),
+            preview_query=query,
+        )
 
     def _run_turn(
         self,
@@ -232,6 +243,8 @@ class Conversation:
             request_id, result = progress.requests.run(
                 partial(self.requests.run, session.session_id, turn_id, context, output)
             )
+            if self.rules:
+                self.rules.acknowledge(context.rules)
             calls = result.message.get("tool_calls") or []
             if not calls and self.delegation and not self.delegation.accept_final():
                 self.notify("子 Agent 结果尚未收集，要求主 Agent 先等待并汇总。")
@@ -339,12 +352,17 @@ class Conversation:
         return policy.run(lambda: service.execute(session, self.model, plan, turn_id=turn_id))
 
     def _select_memory(
-        self, session: Session | None, turn: list[dict[str, Any]], query: str
+        self,
+        session: Session | None,
+        turn: list[dict[str, Any]],
+        query: str,
+        *,
+        preview: bool = False,
     ) -> MemorySelection:
         """先预留受保护输入，再选一次记忆；工具循环复用此快照，不重新读取库。"""
         if self.memory_provider is None:
             return MemorySelection()
-        capacity = self._build_context(session, turn).memory_capacity
+        capacity = self._build_context(session, turn, rules_preview=preview).memory_capacity
         return self.memory_provider(query, capacity)
 
     def _build_context(
@@ -353,6 +371,8 @@ class Conversation:
         turn: list[dict[str, Any]],
         memory: MemorySelection | None = None,
         reflections: tuple[dict[str, Any], ...] = (),
+        *,
+        rules_preview: bool = False,
     ) -> RequestContext:
         """读取成功历史并委托构造；预览与每次真实请求共用，工具结果加入后重新估算。"""
         history = self.store.load_turns(session.session_id) if session is not None else []
@@ -381,6 +401,7 @@ class Conversation:
             memory=memory,
             reflections=reflections,
             skills=self.skills,
+            rules=self.rules.snapshot(preview=rules_preview) if self.rules else None,
         )
 
     def _check_session_budget(self, session_id: str) -> None:

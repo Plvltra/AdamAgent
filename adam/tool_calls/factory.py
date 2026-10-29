@@ -55,7 +55,22 @@ def create_tool_registry(
         handlers["run_command"] = _needs_parent
         handlers["replace_text"] = _needs_parent
     return ToolRegistry(
-        SPECS, handlers, limits, {} if delegated else {"run_command": commands.encode_result}
+        SPECS,
+        handlers,
+        limits,
+        {} if delegated else {"run_command": commands.encode_result},
+        path_selectors={
+            **{name: lambda args: (Path(args["path"]),) for name in readers},
+            # 子任务的写入/命令始终交回主任务，不为不会执行的动作发现额外路径。
+            **(
+                {}
+                if delegated
+                else {
+                    "replace_text": lambda args: (Path(args["path"]),),
+                    "run_command": lambda args: (Path(args.get("cwd", ".")),),
+                }
+            ),
+        },
     )
 
 

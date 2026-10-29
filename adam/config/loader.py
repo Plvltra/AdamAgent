@@ -21,6 +21,7 @@ from adam.config.settings import (
     PlanningConfig,
     ReflectionConfig,
     ReviewConfig,
+    RulesConfig,
     SkillsConfig,
     SubagentConfig,
     ToolLimits,
@@ -132,6 +133,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "review",
             "documents",
             "skills",
+            "rules",
             "mcp",
         },
         "主配置",
@@ -225,6 +227,11 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             data.get("skills", {}), {item.name for item in fields(SkillsConfig)}, "skills"
         )
     )
+    rules = RulesConfig(
+        **checked_section(
+            data.get("rules", {}), {item.name for item in fields(RulesConfig)}, "rules"
+        )
+    )
     subagent_data = checked_section(
         data.get("subagents", {}), {item.name for item in fields(SubagentConfig)}, "subagents"
     )
@@ -272,6 +279,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         reflection=reflection,
         review=review,
         skills=skills,
+        rules=rules,
         mcp=parse_mcp(data.get("mcp", {})),
         documents=documents,
         documents_dir=documents_dir,

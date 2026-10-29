@@ -143,6 +143,10 @@ class ToolError(AgentError):
     """可以安全回传给模型的工具参数或权限错误。"""
 
 
+class ToolDeferredError(ToolError):
+    """需要先补充模型上下文，工具尚未进入实际操作；不作为自动反思的失败线索。"""
+
+
 class CommandLogError(AgentError):
     """执行日志写入失败；停止本轮，避免把未知执行状态当作可重试错误。"""
 
