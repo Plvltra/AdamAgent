@@ -1,12 +1,13 @@
 """委派边界：共享摘要消费、可靠索引、结果大小和主会话隔离。"""
 
 import json
-import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 
 import httpx
 import pytest
 
+import adam.application.subagents.manager as delegation_manager
 import adam.session.delegation as delegation_storage
 from adam.config.settings import (
     AgentConfig,
@@ -242,9 +243,19 @@ def test_missing_index_does_not_silently_erase_child_consumption(tmp_path):
         assert len(calls) == before
 
 
-def test_followup_cannot_replace_uncollected_result_in_same_turn(tmp_path):
+def test_followup_cannot_replace_uncollected_result_in_same_turn(tmp_path, monkeypatch):
     count, child_calls = 0, []
-    active_app = []
+    child_futures = []
+
+    class ObservedPool(ThreadPoolExecutor):
+        """执行真实任务，只暴露完成信号；文件轮询会与 Windows 原子替换互相干扰。"""
+
+        def submit(self, function, /, *args, **kwargs):
+            future = super().submit(function, *args, **kwargs)
+            child_futures.append(future)
+            return future
+
+    monkeypatch.setattr(delegation_manager, "ThreadPoolExecutor", ObservedPool)
 
     def child(request):
         child_calls.append(request)
@@ -259,19 +270,8 @@ def test_followup_cannot_replace_uncollected_result_in_same_turn(tmp_path):
         else:
             agent_id = outputs(body)[0]["agent_id"]
             if count == 2:
-                deadline = time.monotonic() + 5
-                while time.monotonic() < deadline:
-                    try:
-                        record = json.loads(index_for(active_app[0]).read_text(encoding="utf-8"))
-                    except PermissionError:
-                        # 外部测试观察者不持有索引线程锁；Windows 原子替换时短暂拒绝读。
-                        time.sleep(0.01)
-                        continue
-                    if record["agents"][0]["runs"][-1]["status"] == "completed":
-                        break
-                    time.sleep(0.01)
-                else:
-                    pytest.fail("child did not finish within the observation deadline")
+                # 等待实际线程结束但不调用 wait_agents，保留“已完成、未交付”的业务条件。
+                child_futures[0].result(timeout=10)
                 result = tool_response(
                     [call("early", "send_message", agent_id=agent_id, task="second")]
                 )
@@ -289,7 +289,6 @@ def test_followup_cannot_replace_uncollected_result_in_same_turn(tmp_path):
         return httpx.Response(200, json=result)
 
     with application(tmp_path, parent, child) as (app, _):
-        active_app.append(app)
         assert app.send("work in two steps") == "both results collected"
         assert len(child_calls) == 2
         runs = json.loads(index_for(app).read_text(encoding="utf-8"))["agents"][0]["runs"]

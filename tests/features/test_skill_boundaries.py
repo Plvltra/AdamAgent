@@ -16,6 +16,7 @@ from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
 from tests.features.test_memory_context import config_at
 from tests.features.test_skill_catalog import catalog, skill
+from tests.features.test_standard_skill_metadata import standard
 from tests.features.test_subagents import call
 from tests.features.test_tool_loop import tool_response
 
@@ -106,11 +107,15 @@ def test_real_example_catalog_is_smaller_than_all_bodies():
     # 这是未加载阶段的节省；加载后正文仍会进入当前轮次与成功历史，不宣称每轮清空。
 
 
-def test_child_skill_load_does_not_grant_command_permission(tmp_path):
+@pytest.mark.parametrize("standard_format", [False, True])
+def test_child_skill_load_does_not_grant_command_permission(tmp_path, standard_format):
     from tests.features.test_subagents import application, outputs
     from tests.features.test_tool_loop import answer
 
-    skill(tmp_path, body="运行命令完成检查")
+    if standard_format:
+        standard(tmp_path, "verify-project", body="运行命令完成检查".encode())
+    else:
+        skill(tmp_path, body="运行命令完成检查")
     parent_count = 0
 
     def child(request):

@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T2.3 标准 Skill 整体验收 | 两份实际示例、脚本批准/拒绝、子权限保持、源材料变化后重启 | [test_standard_skill_acceptance.py](test_standard_skill_acceptance.py)、[test_skill_boundaries.py](test_skill_boundaries.py) |
 | T2.2 统一 Skill 加载 | 混合格式、材料按需、Unicode ID、版本变化、文本上限、实际请求和重启日志 | [test_standard_skill_loading.py](test_standard_skill_loading.py) |
 | T2.1 标准 Skill 元数据 | 标准/Unicode 字段、正文按需、双来源拒绝、恶意 YAML、目录和链接边界 | [test_standard_skill_metadata.py](test_standard_skill_metadata.py) |
 | T1.3 规则整体验收 | 预览无副作用、会话/重启隔离、旧快照保留、日志篡改拒绝、新规则超预算和关闭配置 | [test_project_rule_acceptance.py](test_project_rule_acceptance.py) |
@@ -156,6 +157,9 @@ V3.4a 验收（2026-10-28）：新增 11 个用例，全量 **258 passed in 41.6
 V3.4b 验收（2026-10-28）：新增 14 个用例，全量 **272 passed in 49.41s**；Ruff、Pyright 通过。固定假模型对比结果及统计口径见 [上下文管理](../../docs/context-management.md)。
 
 ## V6.2 委派验收
+
+T2.3 回归核对：未交付结果场景通过实际工作线程的 Future 同步，不再从外部高频打开索引文件，避免观察者制造 Windows 替换冲突；模型、文件与调度均实际运行，未提前调用 wait_agents。
+
 
 - [x] 两个子 Agent 的 HTTP 请求同时进入，主 Agent 仍能请求；各自执行真实文件工具。
 - [x] 子上下文继承系统约束但不复制主会话用户历史，工具目录不能再次委派。

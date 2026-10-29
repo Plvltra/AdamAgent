@@ -62,7 +62,7 @@ SKILL.md 的头部校验与正文来自同一次读取，避免两个版本混�
 
 T2.1：tests/features/test_standard_skill_metadata.py 验证标准字段、编码、解析与来源边界。
 T2.2：tests/features/test_standard_skill_loading.py 验证混合格式、Unicode ID、材料清单、版本变化、文本限制及实际 HTTP/JSONL 渐进加载。
-T2.3：两个项目示例的完整审批与恢复验收仍列在能力扩展需求中；不因加载器已完成而提前勾选。
+T2.3：tests/features/test_standard_skill_acceptance.py 验证两份实际示例的逐步加载、真实命令审批及重启；脚本批准/拒绝都有实际副作用断言。test_skill_boundaries.py 的子任务权限场景覆盖标准/TOML 两种格式。原始 UTF-8 文本保留其换行，旧证据不随源文件变化。
 
 原 E6 的 TOML 场景继续运行；tests/features/test_skill_boundaries.py 保留审批拒绝、子任务权限和预算测试。
 E6.3 曾对迁移前示例测得目录约187 token、正文约618 token；这是历史基线，迁移后数字不沿用。
