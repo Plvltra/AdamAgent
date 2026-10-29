@@ -21,6 +21,7 @@ from adam.config.loader import load_config
 from adam.config.settings import AppConfig, DocumentConfig, PermissionConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
+from adam.contracts.execution import ToolCapability
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import CommandRequest, EditPlan
 from adam.contracts.planning import PlanReport
@@ -123,6 +124,7 @@ def build_application(
                 DELEGATION_SPECS,
                 handlers(manager),
                 {"wait_agents": encode_results},
+                capabilities=dict.fromkeys(DELEGATION_SPECS, ToolCapability.DELEGATE),
             )
         planner = (
             PlanningService(store, config.planning, on_change=on_plan, notify=on_notice)
@@ -130,7 +132,11 @@ def build_application(
             else None
         )
         if planner:
-            registry = registry.extended(PLANNING_SPECS, planning_handlers(planner))
+            registry = registry.extended(
+                PLANNING_SPECS,
+                planning_handlers(planner),
+                capabilities=dict.fromkeys(PLANNING_SPECS, ToolCapability.SESSION_STATE),
+            )
 
         reflector = (
             ReflectionService(store, config.reflection, config.context, on_notice)
@@ -138,7 +144,11 @@ def build_application(
             else None
         )
         if reflector:
-            registry = registry.extended(FEEDBACK_SPECS, feedback_handlers(reflector))
+            registry = registry.extended(
+                FEEDBACK_SPECS,
+                feedback_handlers(reflector),
+                capabilities=dict.fromkeys(FEEDBACK_SPECS, ToolCapability.SESSION_STATE),
+            )
 
         reviewer = (
             ReviewService(
@@ -156,6 +166,7 @@ def build_application(
             registry = registry.extended(
                 REVIEW_SPECS,
                 review_handlers(reviewer),
+                capabilities=dict.fromkeys(REVIEW_SPECS, ToolCapability.DELEGATE),
                 path_selectors={
                     "request_review": lambda args: tuple(
                         Path(path) for path in args["paths"] if isinstance(path, str)

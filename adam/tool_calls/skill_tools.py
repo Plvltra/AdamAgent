@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from adam.config.settings import PermissionConfig
+from adam.contracts.execution import ToolCapability
 from adam.skills.catalog import SkillCatalog
 from adam.skills.library import SkillLibrary
 from adam.tool_calls.policy import PathPolicy
@@ -72,4 +73,5 @@ def register_skills(
                 args["skill_id"], args.get("resource", "SKILL.md")
             ),
         },
+        capabilities={"load_skill": ToolCapability.READ_ONLY},
     ), library

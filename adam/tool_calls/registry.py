@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from adam.config.settings import ToolLimits
-from adam.contracts.errors import ToolDeferredError, ToolError
+from adam.contracts.errors import ToolDeferredError, ToolError, ToolModeError
+from adam.contracts.execution import ExecutionMode, ToolCapability, check_tool_mode
 from adam.contracts.models import ExecutionRecorder
 
 ToolHandler = Callable[[dict[str, Any], ExecutionRecorder | None], dict[str, Any]]
@@ -30,15 +31,23 @@ class ToolRegistry:
         *,
         path_selectors: dict[str, PathSelector] | None = None,
         guard: ExecutionGuard | None = None,
+        capabilities: dict[str, ToolCapability] | None = None,
+        mode_provider: Callable[[], ExecutionMode] | None = None,
     ) -> None:
-        """说明与实现必须一一对应；可按工具注册结果编码器和完整参数校验器。"""
+        """说明与实现必须一一对应；可注册编码器、校验器和可信能力声明。
+
+        未声明能力按 UNKNOWN 处理；模式提供者只由组装方注入，不接受模型控制。
+        """
         if (
             specs.keys() != handlers.keys()
             or (encoders or {}).keys() - specs.keys()
             or (validators or {}).keys() - specs.keys()
             or (path_selectors or {}).keys() - specs.keys()
+            or (capabilities or {}).keys() - specs.keys()
+            or any(not isinstance(value, ToolCapability) for value in (capabilities or {}).values())
+            or (mode_provider is not None and not callable(mode_provider))
         ):
-            raise ValueError("工具说明、处理函数、编码器或校验器未正确配对。")
+            raise ValueError("工具说明、处理函数、校验器、能力或模式策略未正确配对。")
         self._specs = specs
         self._handlers = handlers
         self.limits = limits
@@ -46,6 +55,8 @@ class ToolRegistry:
         self._validators = validators or {}
         self._path_selectors = path_selectors or {}
         self._guard = guard
+        self._capabilities = dict(capabilities or {})
+        self._mode_provider = mode_provider
 
     def extended(
         self,
@@ -55,8 +66,11 @@ class ToolRegistry:
         validators: dict[str, ArgumentValidator] | None = None,
         *,
         path_selectors: dict[str, PathSelector] | None = None,
+        capabilities: dict[str, ToolCapability] | None = None,
     ) -> "ToolRegistry":
         """返回扩展后的独立目录；不覆盖同名工具，也不改变已有目录。"""
+        if (capabilities or {}).keys() - specs.keys():
+            raise ValueError("扩展只能声明本次注册工具的能力。")
         if self._specs.keys() & specs.keys():
             raise ValueError("duplicate tool registration")
         return ToolRegistry(
@@ -67,6 +81,8 @@ class ToolRegistry:
             {**self._validators, **(validators or {})},
             path_selectors={**self._path_selectors, **(path_selectors or {})},
             guard=self._guard,
+            capabilities={**self._capabilities, **(capabilities or {})},
+            mode_provider=self._mode_provider,
         )
 
     def guarded(self, guard: ExecutionGuard) -> "ToolRegistry":
@@ -81,6 +97,24 @@ class ToolRegistry:
             self._validators,
             path_selectors=self._path_selectors,
             guard=guard,
+            capabilities=self._capabilities,
+            mode_provider=self._mode_provider,
+        )
+
+    def with_mode(self, provider: Callable[[], ExecutionMode]) -> "ToolRegistry":
+        """返回绑定模式读取器的目录；扩展与规则包装保留策略，不能重复替换策略。"""
+        if self._mode_provider is not None or not callable(provider):
+            raise ValueError("模式策略已配置或读取器无效。")
+        return ToolRegistry(
+            self._specs,
+            self._handlers,
+            self.limits,
+            self._encoders,
+            self._validators,
+            path_selectors=self._path_selectors,
+            guard=self._guard,
+            capabilities=self._capabilities,
+            mode_provider=provider,
         )
 
     def definitions(self) -> list[dict[str, Any]]:
@@ -96,7 +130,7 @@ class ToolRegistry:
         """校验 JSON 参数并执行工具，返回有界 JSON 字符串；工具错误作为结果回传。
 
         record_execution 接收命令或编辑的状态事件，普通只读工具忽略该参数。
-        参数校验后先运行注入的检查，再进入工具处理与批准流程。
+        参数校验后先检查模式，再运行路径规则检查，最后进入工具处理与批准流程。
         CommandLogError / EditLogError 不转换为普通结果，调用方应停止以免自动重试。
         """
         try:
@@ -104,11 +138,17 @@ class ToolRegistry:
                 raise ToolError("未知工具。")
             args = json.loads(arguments)
             self._validate(name, args)
+            check_tool_mode(
+                self._mode_provider() if self._mode_provider is not None else ExecutionMode.ACT,
+                self._capabilities.get(name, ToolCapability.UNKNOWN),
+            )
             if self._guard:
                 select = self._path_selectors.get(name)
                 self._guard(select(args) if select else ())
             result = self._handlers[name](args, record_execution)
             output = {"ok": True, **result}
+        except ToolModeError as error:
+            output = {"ok": False, "status": "mode_blocked", "error": str(error)}
         except ToolDeferredError as error:
             output = {"ok": False, "status": "deferred", "error": str(error)}
         except (ToolError, OSError, ValueError, subprocess.SubprocessError) as error:
@@ -119,7 +159,11 @@ class ToolRegistry:
                 if isinstance(error, ToolError)
                 else "工具执行失败：文件编码、访问权限、Git或参数格式无效。",
             }
-        if name in self._encoders and "status" in output and output["status"] != "deferred":
+        if (
+            name in self._encoders
+            and "status" in output
+            and output["status"] not in {"deferred", "mode_blocked"}
+        ):
             return self._encoders[name](output)
         encoded = json.dumps(output, ensure_ascii=False)
         if len(encoded) > self.limits.max_result_chars:

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from adam.config.settings import DocumentConfig, PermissionConfig
+from adam.contracts.execution import ToolCapability
 from adam.contracts.models import ExecutionRecorder
 from adam.documents.index import DocumentIndex
 from adam.documents.search import DocumentSearch, SearchResult
@@ -68,7 +69,10 @@ def register_documents(
     )
     adapter = DocumentTools(search, config, registry.limits.max_result_chars)
     return registry.extended(
-        SPECS, {"search_documents": adapter.search_documents}, {"search_documents": encode_result}
+        SPECS,
+        {"search_documents": adapter.search_documents},
+        {"search_documents": encode_result},
+        capabilities={"search_documents": ToolCapability.READ_ONLY},
     )
 
 

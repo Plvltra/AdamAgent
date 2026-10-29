@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from adam.config.settings import PermissionConfig, ToolLimits
+from adam.contracts.execution import ToolCapability
 from adam.contracts.models import CommandRequest, EditPlan, ExecutionRecorder
 from adam.tool_calls.catalog import SPECS
 from adam.tool_calls.command_tools import CommandTools
@@ -59,6 +60,11 @@ def create_tool_registry(
         handlers,
         limits,
         {} if delegated else {"run_command": commands.encode_result},
+        capabilities={
+            **dict.fromkeys(readers, ToolCapability.READ_ONLY),
+            "replace_text": ToolCapability.EDIT_FILE,
+            "run_command": ToolCapability.RUN_PROCESS,
+        },
         path_selectors={
             **{name: lambda args: (Path(args["path"]),) for name in readers},
             # 子任务的写入/命令始终交回主任务，不为不会执行的动作发现额外路径。

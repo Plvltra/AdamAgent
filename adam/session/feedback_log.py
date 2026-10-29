@@ -7,7 +7,7 @@ from adam.contracts.reflection import Feedback, decode_feedback
 
 
 def failure_signal(tool: dict[str, Any], executions: dict[str, dict[str, Any]]) -> bool:
-    """只识别已结束工具的失败线索；拒绝、中断、未知及等待补充上下文不触发反思。"""
+    """只识别已结束工具的失败线索；拒绝、中断、未知、模式限制及等待补充上下文不触发反思。"""
     if not tool["finished"] or tool["name"] in {"report_feedback", "update_plan"}:
         return False
     output = json.loads(tool["output"])
@@ -17,6 +17,7 @@ def failure_signal(tool: dict[str, Any], executions: dict[str, dict[str, Any]]) 
         "unknown",
         "approval_required",
         "deferred",
+        "mode_blocked",
     }:
         return False
     if output.get("ok") is False:

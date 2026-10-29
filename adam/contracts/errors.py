@@ -143,6 +143,10 @@ class ToolError(AgentError):
     """可以安全回传给模型的工具参数或权限错误。"""
 
 
+class ToolModeError(ToolError):
+    """当前模式禁止执行；这是策略边界，不是用户拒绝或待自动修复的工具故障。"""
+
+
 class ToolDeferredError(ToolError):
     """需要先补充模型上下文，工具尚未进入实际操作；不作为自动反思的失败线索。"""
 

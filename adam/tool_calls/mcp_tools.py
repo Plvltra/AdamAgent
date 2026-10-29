@@ -7,6 +7,7 @@ from typing import Any
 
 from adam.config.mcp import MCPConfig
 from adam.contracts.errors import ToolError
+from adam.contracts.execution import ToolCapability
 from adam.contracts.models import ExecutionRecorder
 from adam.mcp.client import MCPConnection
 from adam.mcp.schema import validator_for
@@ -48,6 +49,7 @@ def register_mcp(
                     {name: {"description": description, "parameters": schema}},
                     {name: _handler(connection, tool["name"])},
                     validators={name: validator_for(schema)},
+                    capabilities={name: ToolCapability.READ_ONLY},
                 )
             except ValueError as error:
                 raise ToolError("MCP 工具名称冲突；未覆盖已有工具。") from error
