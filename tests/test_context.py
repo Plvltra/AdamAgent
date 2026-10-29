@@ -4,10 +4,10 @@ from dataclasses import replace
 
 import pytest
 
-from adam.config import ContextConfig
-from adam.context import ContextBuilder
-from adam.errors import BudgetError
-from adam.history import HistoryTurn
+from adam.config.settings import ContextConfig
+from adam.context.builder import ContextBuilder
+from adam.contracts.errors import BudgetError
+from adam.contracts.history import HistoryTurn
 
 
 def build(*, history=None, current_turn=None, tools=None, prompt="system"):

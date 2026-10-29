@@ -6,9 +6,11 @@ from functools import partial
 from time import monotonic_ns
 from typing import Any
 
-from adam.compaction import CompactionService
-from adam.context import ContextBuilder, RequestContext
-from adam.errors import (
+from adam.application.request_policy import RequestPolicy
+from adam.config.settings import AgentConfig, ContextConfig
+from adam.context.builder import ContextBuilder, RequestContext
+from adam.context.compaction import CompactionService
+from adam.contracts.errors import (
     BudgetError,
     FailureCode,
     LLMError,
@@ -17,14 +19,11 @@ from adam.errors import (
     StorageError,
     TurnSaveError,
 )
-from adam.execution_report import ExecutionReport
-from adam.history import Summary
-from adam.models import Completion, ModelOutput, Session
-from adam.outcome import ExecutionOutcome
-from adam.ports import ModelClient
-from adam.request_policy import RequestPolicy
-from adam.settings import AgentConfig, ContextConfig
-from adam.storage import SessionStore
+from adam.contracts.history import Summary
+from adam.contracts.models import Completion, ExecutionReport, ModelOutput, Session
+from adam.contracts.ports import ModelClient
+from adam.session.outcome import ExecutionOutcome
+from adam.session.storage import SessionStore
 from adam.tool_calls.executor import ToolBudget, ToolExecutor
 
 

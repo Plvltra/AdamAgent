@@ -9,8 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from adam.errors import ConfigError
-from adam.settings import (
+from adam.config.settings import (
     AgentConfig,
     AppConfig,
     ContextConfig,
@@ -18,6 +17,7 @@ from adam.settings import (
     PermissionConfig,
     ToolLimits,
 )
+from adam.contracts.errors import ConfigError
 
 
 def checked_section(value: object, allowed: Collection[str], name: str) -> dict[str, Any]:

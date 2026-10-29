@@ -8,9 +8,9 @@ import time
 from pathlib import Path
 
 from adam.bootstrap import open_application
-from adam.cli import chat
-from adam.diagnostics import read_report
-from adam.streaming import StreamReply
+from adam.cli.main import chat
+from adam.llm.streaming import StreamReply
+from adam.session.diagnostics import read_report
 
 root = Path(sys.argv[1])
 mode = sys.argv[2]

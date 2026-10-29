@@ -5,10 +5,10 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
-from adam.context_pruning import prune_history
-from adam.errors import BudgetError, FailureCode
-from adam.history import HistoryTurn, Summary
-from adam.settings import ContextConfig
+from adam.config.settings import ContextConfig
+from adam.context.pruning import prune_history
+from adam.contracts.errors import BudgetError, FailureCode
+from adam.contracts.history import HistoryTurn, Summary
 
 
 @dataclass(frozen=True)

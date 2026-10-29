@@ -5,12 +5,12 @@ import os
 import httpx
 import pytest
 
-from adam.config import LLMConfig
-from adam.diagnostics import read_report
-from adam.errors import BudgetError
-from adam.llm import LLMClient, LLMError
-from adam.outcome import ExecutionOutcome
-from adam.storage import SessionStore, StorageError, record
+from adam.config.settings import LLMConfig
+from adam.contracts.errors import BudgetError, LLMError, StorageError
+from adam.llm.client import LLMClient
+from adam.session.diagnostics import read_report
+from adam.session.outcome import ExecutionOutcome
+from adam.session.storage import SessionStore, record
 from tests.support import build_conversation
 
 

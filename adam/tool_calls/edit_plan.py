@@ -2,8 +2,8 @@
 
 from difflib import unified_diff
 
-from adam.models import EditPlan as EditPlan
-from adam.tool_calls.policy import ToolError
+from adam.contracts.errors import ToolError
+from adam.contracts.models import EditPlan as EditPlan
 from adam.tool_calls.text_file import TextSnapshot
 
 

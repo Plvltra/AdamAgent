@@ -2,7 +2,7 @@
 
 import shutil
 
-from adam.storage import SessionStore
+from adam.session.storage import SessionStore
 
 
 def test_backup_restores_history_in_another_data_directory(tmp_path):

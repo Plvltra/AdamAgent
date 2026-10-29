@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from adam.storage import SessionStore
+from adam.session.storage import SessionStore
 
 
 @pytest.fixture

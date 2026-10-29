@@ -8,13 +8,13 @@ from pathlib import Path
 
 from colorama import just_fix_windows_console
 
-from adam.application import AgentApplication
+from adam.application.facade import AgentApplication
 from adam.bootstrap import open_application
-from adam.config import adam_home
-from adam.errors import AgentError
-from adam.models import CommandRequest, EditPlan, valid_session_id
-from adam.reply_output import ReplyOutput, write_fragment
-from adam.terminal import role_prefix, show_context, show_execution_report, show_failure
+from adam.cli.reply_output import ReplyOutput, write_fragment
+from adam.cli.terminal import role_prefix, show_context, show_execution_report, show_failure
+from adam.config.loader import adam_home
+from adam.contracts.errors import AgentError
+from adam.contracts.models import CommandRequest, EditPlan, valid_session_id
 
 
 def show_session(application: AgentApplication, write: Callable[[str], None]) -> None:

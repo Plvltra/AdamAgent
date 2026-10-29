@@ -7,10 +7,11 @@ import sys
 import httpx
 import pytest
 
-from adam.config import LLMConfig
-from adam.diagnostics import main, read_report
-from adam.llm import LLMClient, LLMError
-from adam.storage import SessionStore
+from adam.config.settings import LLMConfig
+from adam.contracts.errors import LLMError
+from adam.llm.client import LLMClient
+from adam.session.diagnostics import main, read_report
+from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
 from tests.support import build_conversation
 

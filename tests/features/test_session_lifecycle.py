@@ -5,10 +5,11 @@ import sys
 
 import httpx
 
-from adam.cli import main
-from adam.config import LLMConfig
-from adam.llm import LLMClient
-from adam.storage import SessionStore, StorageError
+from adam.cli.main import main
+from adam.config.settings import LLMConfig
+from adam.contracts.errors import StorageError
+from adam.llm.client import LLMClient
+from adam.session.storage import SessionStore
 from tests.support import run_chat as chat
 
 
@@ -109,7 +110,7 @@ def test_save_failure_shows_reply_and_does_not_retry(tmp_path, monkeypatch):
 def test_main_creates_session_and_resumes(tmp_path, monkeypatch):
     # 两次调用真实启动入口、两次关闭重开连接，只有 HTTP 和终端输入被替换。
     import adam.bootstrap as bootstrap
-    import adam.cli as cli
+    import adam.cli.main as cli
 
     config = tmp_path / "config.toml"
     config.write_text('[chat]\nsystem_prompt="system"\n', encoding="utf-8")

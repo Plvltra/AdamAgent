@@ -5,9 +5,9 @@ import subprocess
 from collections.abc import Callable
 from typing import Any
 
-from adam.errors import ToolError
-from adam.models import ExecutionRecorder
-from adam.settings import ToolLimits
+from adam.config.settings import ToolLimits
+from adam.contracts.errors import ToolError
+from adam.contracts.models import ExecutionRecorder
 
 ToolHandler = Callable[[dict[str, Any], ExecutionRecorder | None], dict[str, Any]]
 ResultEncoder = Callable[[dict[str, Any]], str]

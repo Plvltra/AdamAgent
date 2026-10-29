@@ -6,12 +6,12 @@ import sys
 import httpx
 import pytest
 
-from adam.cli import confirm_command
-from adam.config import LLMConfig
-from adam.llm import LLMClient, LLMError
-from adam.storage import SessionStore, StorageError
-from adam.tool_calls import ToolLimits
-from adam.tool_calls.command_tools import CommandLogError, CommandRequest
+from adam.cli.main import confirm_command
+from adam.config.settings import LLMConfig, ToolLimits
+from adam.contracts.errors import CommandLogError, LLMError, StorageError
+from adam.contracts.models import CommandRequest
+from adam.llm.client import LLMClient
+from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
 from tests.support import build_conversation
 from tests.support import run_chat as chat

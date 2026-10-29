@@ -5,13 +5,13 @@ import json
 import httpx
 import pytest
 
-from adam.application import AgentApplication
-from adam.cli import handle_command
-from adam.config import AgentConfig, ContextConfig, LLMConfig
-from adam.diagnostics import read_report
-from adam.errors import AgentError, BudgetError
-from adam.llm import LLMClient
-from adam.storage import SessionStore, StorageError
+from adam.application.facade import AgentApplication
+from adam.cli.main import handle_command
+from adam.config.settings import AgentConfig, ContextConfig, LLMConfig
+from adam.contracts.errors import AgentError, BudgetError, StorageError
+from adam.llm.client import LLMClient
+from adam.session.diagnostics import read_report
+from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
 from tests.support import build_conversation
 

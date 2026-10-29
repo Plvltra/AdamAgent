@@ -7,11 +7,11 @@ from dataclasses import replace
 import httpx
 import pytest
 
-from adam.diagnostics import read_report
-from adam.errors import BudgetError, LLMError, RequestNotSentError, StorageError
-from adam.llm import LLMClient
-from adam.settings import AgentConfig, ContextConfig, LLMConfig
-from adam.storage import SessionStore
+from adam.config.settings import AgentConfig, ContextConfig, LLMConfig
+from adam.contracts.errors import BudgetError, LLMError, RequestNotSentError, StorageError
+from adam.llm.client import LLMClient
+from adam.session.diagnostics import read_report
+from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
 from tests.features.test_streaming import DONE, USAGE, event, sse
 from tests.support import build_conversation

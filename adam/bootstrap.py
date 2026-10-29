@@ -6,15 +6,15 @@ from pathlib import Path
 
 import httpx
 
-from adam.application import AgentApplication
-from adam.config import load_config
-from adam.conversation import Conversation
-from adam.http_transport import InterruptibleTransport
-from adam.llm import LLMClient
-from adam.models import CommandRequest, EditPlan
-from adam.ports import ModelClient
-from adam.settings import AppConfig
-from adam.storage import SessionStore
+from adam.application.conversation import Conversation
+from adam.application.facade import AgentApplication
+from adam.config.loader import load_config
+from adam.config.settings import AppConfig
+from adam.contracts.models import CommandRequest, EditPlan
+from adam.contracts.ports import ModelClient
+from adam.llm.client import LLMClient
+from adam.llm.http_transport import InterruptibleTransport
+from adam.session.storage import SessionStore
 from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
 

@@ -4,11 +4,11 @@ import json
 from itertools import groupby
 from typing import Any
 
-from adam.compaction_log import CompactionLog
-from adam.edit_log import EditLog
-from adam.history import HistoryTurn
-from adam.outcome import outcome_details
-from adam.protocol import validate_turn
+from adam.contracts.history import HistoryTurn
+from adam.contracts.protocol import validate_turn
+from adam.session.compaction_log import CompactionLog
+from adam.session.edit_log import EditLog
+from adam.session.outcome import outcome_details
 
 
 class UnsupportedLogVersionError(ValueError):

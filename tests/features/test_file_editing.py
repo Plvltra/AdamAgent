@@ -5,10 +5,12 @@ import json
 
 import pytest
 
+from adam.config.settings import PermissionConfig, ToolLimits
+from adam.contracts.errors import ToolError
 from adam.tool_calls.edit_plan import EditConflictError, plan_edit
 from adam.tool_calls.edit_tools import EditTools
 from adam.tool_calls.factory import create_tool_registry
-from adam.tool_calls.policy import PathPolicy, PermissionConfig, ToolError, ToolLimits
+from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.text_file import read_snapshot
 
 
@@ -155,7 +157,7 @@ def test_external_change_while_preparing_temporary_is_not_overwritten(tmp_path, 
 
 @pytest.mark.parametrize("answer,approved", [("y", True), ("Y", True), ("yes", False), ("", False)])
 def test_edit_confirmation_shows_exact_plan(tmp_path, answer, approved):
-    from adam.cli import confirm_edit
+    from adam.cli.main import confirm_edit
 
     path, tool, args = editing(tmp_path)
     plan = tool.prepare(args)

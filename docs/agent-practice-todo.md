@@ -49,7 +49,7 @@
 - [x] 自动化验证按需用量、未知统计、纯文本退化与恢复历史样式；新增 12 个用例，全量 107 个用例通过（2026-10-27），Ruff、Pyright 和依赖锁检查通过。
 - [ ] 用户在自己的终端确认角色配色足够易辨认；不同终端主题的具体色值可能不同。
 
-实现：`adam/terminal.py`、`adam/cli.py`；测试：`tests/features/test_terminal_interaction.py`。
+实现：`adam/cli/terminal.py`、`adam/cli/main.py`；测试：`tests/features/test_terminal_interaction.py`。
 
 ## 主线 V1：可靠会话
 
@@ -64,7 +64,7 @@
 - [x] 会话文件锁、ID 冲突检查、跨进程锁释放。
 - [x] 临时目录测试覆盖重开、会话隔离、损坏与保存故障。
 
-依据：`adam/storage.py`、`tests/test_storage.py`。突然终止的半轮不能当作数据库事务自动回滚。
+依据：`adam/session/storage.py`、`tests/test_storage.py`。突然终止的半轮不能当作数据库事务自动回滚。
 
 ### V1.2 接入终端会话
 
@@ -96,7 +96,7 @@
 
 本次已有用量与保存规则继续适用：request_usage 独立结算已知 token，未知用量阻止续聊；失败轮次不进入有效历史，最终回答保存失败时仍展示未保存回答。request_usage 不等于请求成功；tool_finished 仅表示取得返回结果，业务成功还需看 output。
 
-依据：`adam/conversation.py`、`adam/storage.py`、`adam/session_log.py`、`adam/tool_calls/executor.py`、`tests/features/test_execution_trace.py`。详细事件示例见 [会话执行轨迹](session-tracing.md)。
+依据：`adam/application/conversation.py`、`adam/session/storage.py`、`adam/session/log.py`、`adam/tool_calls/executor.py`、`tests/features/test_execution_trace.py`。详细事件示例见 [会话执行轨迹](session-tracing.md)。
 
 #### V1.3.2 请求/轮次状态与结束原因（已实现并自动化验收）
 
@@ -170,7 +170,7 @@
 - [x] 业务测试覆盖空会话预览、完整工具历史、切换模型/会话/重启、超限无请求，以及工具结果增长后的再次拦截；基础测试覆盖边界和非法配置。
 - [ ] 个人学习验收：观察一次 `/context full`，解释系统提示、成功历史、工具说明与下一条输入的关系，并说明为何 `/usage` 数值不同。
 
-依据：`adam/context.py`、`tests/features/test_context_preview.py`、`tests/test_context.py`、`tests/test_config.py`。V3.1 当时发送完整成功历史，后续子版本已增加选择和摘要；最近实际请求快照未纳入范围。2026-10-28 新增 19 个用例，全量 **226 passed in 36.77s**，Ruff 格式、lint 和 Pyright 通过。
+依据：`adam/context/builder.py`、`tests/features/test_context_preview.py`、`tests/test_context.py`、`tests/test_config.py`。V3.1 当时发送完整成功历史，后续子版本已增加选择和摘要；最近实际请求快照未纳入范围。2026-10-28 新增 19 个用例，全量 **226 passed in 36.77s**，Ruff 格式、lint 和 Pyright 通过。
 
 ### V3.2 按完整轮次选择历史（已实现）
 
@@ -292,6 +292,7 @@
 - [ ] 明确会话管理与本轮运行职责，保持请求记账、审批和执行的顺序约束。
 - [x] 业务功能点测试集中在 tests/features，按会话、配置启动、工具循环、执行轨迹、终端交互和命令执行组织；基础模块校验保留，fixture 就近放置。
 - [x] 统一公开错误契约与终端反馈：CLI 只处理 AgentError；预算、请求、未保存回答分别表达，存储 IO 在本模块转换，程序与终端故障不被误吞；业务验收见 tests/features/test_error_feedback.py。
+- [x] V6 前置模块整理：按职责归入八个包，统一绝对导入和文档路径；共享报告值与日志提取分开，增加包依赖约束，业务功能场景保持。
 - [x] 集中应用组装，CLI 通过应用接口操作；配置值、共享数据与错误契约独立，Conversation 不创建底层依赖或读取客户端配置。见 [依赖边界重构](dependency-refactor.md)。
 - [x] 重构保留主线现有场景，补充模型替换、工具注册、错误传递与资源释放验收，新增工具无需修改主循环或注册表的名称分支。
 

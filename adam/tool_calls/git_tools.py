@@ -6,8 +6,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from adam.errors import ToolError
-from adam.settings import ToolLimits
+from adam.config.settings import ToolLimits
+from adam.contracts.errors import ToolError
 from adam.tool_calls.policy import PathPolicy
 
 

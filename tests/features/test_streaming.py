@@ -6,12 +6,12 @@ import httpx
 import pytest
 
 from adam.bootstrap import build_application
-from adam.cli import chat
-from adam.config import load_llm_config
-from adam.errors import ConfigError, LLMError
-from adam.llm import LLMClient
-from adam.settings import AppConfig, LLMConfig
-from adam.storage import SessionStore
+from adam.cli.main import chat
+from adam.config.loader import load_llm_config
+from adam.config.settings import AppConfig, LLMConfig
+from adam.contracts.errors import ConfigError, LLMError
+from adam.llm.client import LLMClient
+from adam.session.storage import SessionStore
 
 
 def event(delta=None, *, reason=None, usage=None):

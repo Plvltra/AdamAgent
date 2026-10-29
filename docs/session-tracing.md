@@ -160,12 +160,12 @@ Conversation.send 负责轮次异常收尾，_run_turn 保留模型与工具循�
 
 ## 代码阅读顺序
 
-- `adam/conversation.py`：开始轮次，关联模型请求，分别计时并记录结果，成功后提交完整历史。
-- `adam/errors.py`、`adam/outcome.py`：稳定失败类别与共用终态字段，生成受控说明并校验状态组合。
+- `adam/application/conversation.py`：开始轮次，关联模型请求，分别计时并记录结果，成功后提交完整历史。
+- `adam/contracts/errors.py`、`adam/session/outcome.py`：稳定失败类别与共用终态字段，生成受控说明并校验状态组合。
 - `adam/tool_calls/executor.py`：统一围绕所有工具记录开始和结果，衔接命令细节记录。
-- `adam/storage.py`：公开存储接口、文件锁和追加落盘。
-- `adam/session_log.py`：解析事件并验证关联，区分诊断记录与已提交历史。
-- `adam/protocol.py`：校验工具消息协议和完整成功轮次。
+- `adam/session/storage.py`：公开存储接口、文件锁和追加落盘。
+- `adam/session/log.py`：解析事件并验证关联，区分诊断记录与已提交历史。
+- `adam/contracts/protocol.py`：校验工具消息协议和完整成功轮次。
 
 ## 验收
 

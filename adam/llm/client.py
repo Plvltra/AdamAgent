@@ -5,11 +5,11 @@ from typing import Any
 
 import httpx
 
-from adam.errors import FailureCode, LLMError, RequestInterrupted, RequestNotSentError
-from adam.models import Completion, ModelOutput
-from adam.protocol import validate_assistant
-from adam.settings import LLMConfig
-from adam.streaming import StreamReply, parse_usage, sse_events
+from adam.config.settings import LLMConfig
+from adam.contracts.errors import FailureCode, LLMError, RequestInterrupted, RequestNotSentError
+from adam.contracts.models import Completion, ModelOutput
+from adam.contracts.protocol import validate_assistant
+from adam.llm.streaming import StreamReply, parse_usage, sse_events
 
 
 class LLMClient:

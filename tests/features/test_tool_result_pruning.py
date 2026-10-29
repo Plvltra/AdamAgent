@@ -5,11 +5,10 @@ from dataclasses import replace
 
 import httpx
 
-from adam.config import LLMConfig
-from adam.diagnostics import read_report
-from adam.llm import LLMClient
-from adam.storage import SessionStore
-from adam.tool_calls import ToolLimits
+from adam.config.settings import LLMConfig, ToolLimits
+from adam.llm.client import LLMClient
+from adam.session.diagnostics import read_report
+from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
 from tests.support import build_conversation
 

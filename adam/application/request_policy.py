@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
-from adam.errors import BudgetError, FailureCode, RequestNotSentError
+from adam.contracts.errors import BudgetError, FailureCode, RequestNotSentError
 
 _Result = TypeVar("_Result")
 

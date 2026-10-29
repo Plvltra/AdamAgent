@@ -7,13 +7,13 @@ import httpx
 import pytest
 
 import adam.bootstrap as bootstrap
-import adam.cli as cli
-from adam.application import AgentApplication
-from adam.config import AgentConfig, ContextConfig, LLMConfig
-from adam.context import ContextBuilder
-from adam.errors import BudgetError
-from adam.llm import LLMClient
-from adam.storage import SessionStore
+import adam.cli.main as cli
+from adam.application.facade import AgentApplication
+from adam.config.settings import AgentConfig, ContextConfig, LLMConfig
+from adam.context.builder import ContextBuilder
+from adam.contracts.errors import BudgetError
+from adam.llm.client import LLMClient
+from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
 from tests.support import build_conversation, run_chat
 

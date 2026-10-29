@@ -8,11 +8,11 @@ from pathlib import Path
 
 import httpx
 
-from adam.config import LLMConfig
-from adam.diagnostics import read_report
-from adam.errors import BudgetError, StorageError
-from adam.llm import LLMClient
-from adam.storage import SessionStore
+from adam.config.settings import LLMConfig
+from adam.contracts.errors import BudgetError, StorageError
+from adam.llm.client import LLMClient
+from adam.session.diagnostics import read_report
+from adam.session.storage import SessionStore
 from adam.tool_calls.edit_tools import EditTools
 from adam.tool_calls.factory import create_tool_registry
 from tests.support import build_conversation

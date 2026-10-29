@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-from adam.tool_calls import PermissionConfig, ToolLimits
+from adam.config.settings import PermissionConfig, ToolLimits
 from adam.tool_calls.factory import create_tool_registry
 
 

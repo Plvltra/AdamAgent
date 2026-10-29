@@ -7,9 +7,9 @@ from collections.abc import Callable
 
 from colorama import Fore, Style
 
-from adam.context import RequestContext
-from adam.errors import AgentError
-from adam.execution_report import ExecutionReport
+from adam.context.builder import RequestContext
+from adam.contracts.errors import AgentError
+from adam.contracts.models import ExecutionReport
 
 
 def role_prefix(role: str, *, unsaved: bool = False) -> str:

@@ -7,9 +7,9 @@ from tempfile import TemporaryDirectory
 import httpx
 import pytest
 
-from adam.config import LLMConfig
-from adam.llm import LLMClient
-from adam.storage import SessionStore
+from adam.config.settings import LLMConfig
+from adam.llm.client import LLMClient
+from adam.session.storage import SessionStore
 from tests.support import run_chat
 
 

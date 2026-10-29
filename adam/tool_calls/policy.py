@@ -3,9 +3,9 @@
 import os
 from pathlib import Path
 
-from adam.errors import ToolError
-from adam.settings import PermissionConfig
-from adam.settings import ToolLimits as ToolLimits
+from adam.config.settings import PermissionConfig
+from adam.config.settings import ToolLimits as ToolLimits
+from adam.contracts.errors import ToolError
 
 
 class PathPolicy:

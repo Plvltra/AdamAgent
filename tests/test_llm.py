@@ -5,8 +5,9 @@ import json
 import httpx
 import pytest
 
-from adam.config import LLMConfig
-from adam.llm import LLMClient, LLMError
+from adam.config.settings import LLMConfig
+from adam.contracts.errors import LLMError
+from adam.llm.client import LLMClient
 
 
 def response(text="hello"):

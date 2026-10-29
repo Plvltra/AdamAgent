@@ -8,12 +8,12 @@ import httpx
 import pytest
 
 import adam.bootstrap as bootstrap
-import adam.cli as cli
-from adam.config import AgentConfig, LLMConfig
-from adam.conversation import Conversation
-from adam.errors import AgentError
-from adam.llm import LLMClient
-from adam.storage import SessionStore, StorageError
+import adam.cli.main as cli
+from adam.application.conversation import Conversation
+from adam.config.settings import AgentConfig, LLMConfig
+from adam.contracts.errors import AgentError, StorageError
+from adam.llm.client import LLMClient
+from adam.session.storage import SessionStore
 from tests.support import run_chat
 
 

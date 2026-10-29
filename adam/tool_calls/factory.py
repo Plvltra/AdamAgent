@@ -4,8 +4,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from adam.models import CommandRequest, EditPlan, ExecutionRecorder
-from adam.settings import PermissionConfig, ToolLimits
+from adam.config.settings import PermissionConfig, ToolLimits
+from adam.contracts.models import CommandRequest, EditPlan, ExecutionRecorder
 from adam.tool_calls.catalog import SPECS
 from adam.tool_calls.command_tools import CommandTools
 from adam.tool_calls.edit_tools import EditTools

@@ -4,10 +4,10 @@ import json
 
 import pytest
 
-from adam.config import ContextConfig
-from adam.context import ContextBuilder
-from adam.context_pruning import prune_history
-from adam.history import HistoryTurn
+from adam.config.settings import ContextConfig
+from adam.context.builder import ContextBuilder
+from adam.context.pruning import prune_history
+from adam.contracts.history import HistoryTurn
 
 
 def history():

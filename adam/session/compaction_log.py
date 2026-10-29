@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from adam.history import Summary
-from adam.outcome import outcome_details
+from adam.contracts.history import Summary
+from adam.session.outcome import outcome_details
 
 
 class CompactionLog:

@@ -1,3 +1,3 @@
-from adam.cli import main
+from adam.cli.main import main
 
 raise SystemExit(main())

@@ -87,3 +87,27 @@ class ModelOutput:
 
     kind: Literal["text", "response_end"]
     text: str = ""
+
+
+@dataclass(frozen=True)
+class ActionFact:
+    """一次实际派发的副作用工具；目标已用 JSON 转义，避免换行或控制符伪造报告。"""
+
+    tool_call_id: str
+    kind: str
+    target: str
+    status: str
+    exit_code: int | None = None
+    before_version: str | None = None
+    after_version: str | None = None
+
+
+@dataclass(frozen=True)
+class ExecutionReport:
+    """轮次执行快照；成功状态只表示回答提交，不承诺任务或测试正确。"""
+
+    turn_id: str
+    status: str
+    reason: str | None
+    has_tools: bool
+    actions: tuple[ActionFact, ...]

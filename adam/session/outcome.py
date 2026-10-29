@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any, Literal, Self
 
-from adam.errors import AgentError, FailureCode
+from adam.contracts.errors import AgentError, FailureCode
 
 TerminalStatus = Literal["succeeded", "failed", "interrupted"]
 

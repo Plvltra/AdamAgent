@@ -7,11 +7,11 @@ import sys
 import httpx
 import pytest
 
-from adam.config import AgentConfig, LLMConfig
-from adam.diagnostics import read_report
-from adam.errors import ApprovalDeniedError, BudgetError
-from adam.llm import LLMClient
-from adam.storage import SessionStore
+from adam.config.settings import AgentConfig, LLMConfig
+from adam.contracts.errors import ApprovalDeniedError, BudgetError
+from adam.llm.client import LLMClient
+from adam.session.diagnostics import read_report
+from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
 from tests.support import build_conversation
 

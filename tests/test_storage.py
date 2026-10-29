@@ -6,8 +6,9 @@ from datetime import datetime
 
 import pytest
 
-from adam.outcome import ExecutionOutcome
-from adam.storage import SessionNotFoundError, SessionStore, StorageError
+from adam.contracts.errors import SessionNotFoundError, StorageError
+from adam.session.outcome import ExecutionOutcome
+from adam.session.storage import SessionStore
 
 
 def test_roundtrip_layout_and_isolation(tmp_path):
@@ -112,7 +113,7 @@ def test_lock_switch_and_process_release(tmp_path):
         first.select_session(b)
     code = """import sys,time
 from pathlib import Path
-from adam.storage import SessionStore
+from adam.session.storage import SessionStore
 store=SessionStore(Path(sys.argv[1]))
 store.select_session(sys.argv[2])
 print('locked', flush=True)
@@ -133,7 +134,7 @@ time.sleep(30)
 
 
 def test_id_collision_and_missing_session(tmp_path, monkeypatch):
-    import adam.storage as storage
+    import adam.session.storage as storage
 
     ids = iter(["aaaaaaaa", "aaaaaaaa", "bbbbbbbb"])
     monkeypatch.setattr(storage.secrets, "token_hex", lambda _: next(ids))
@@ -236,7 +237,7 @@ def test_invalid_outcome_details_are_rejected(tmp_path, details):
 
 def test_earlier_v4_missing_details_remain_unknown(tmp_path):
     """早期 v4 没有原因与耗时，回放仍读状态，不伪造新字段。"""
-    from adam.session_log import parse_log
+    from adam.session.log import parse_log
 
     with SessionStore(tmp_path) as store:
         session_id = store.create_session("v4", "")

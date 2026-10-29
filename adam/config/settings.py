@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from adam.errors import ConfigError
+from adam.contracts.errors import ConfigError
 
 
 @dataclass(frozen=True)

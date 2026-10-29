@@ -2,7 +2,8 @@
 
 import pytest
 
-from adam.config import ConfigError, load_llm_config
+from adam.config.loader import load_llm_config
+from adam.contracts.errors import ConfigError
 
 BASE = '[llm]\nbase_url = "https://example.test/v1/"\nmodel = "test"\n'
 

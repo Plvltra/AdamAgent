@@ -5,10 +5,10 @@ import json
 import httpx
 import pytest
 
-from adam.config import ContextConfig, LLMConfig
-from adam.diagnostics import read_report
-from adam.llm import LLMClient
-from adam.storage import SessionStore
+from adam.config.settings import ContextConfig, LLMConfig
+from adam.llm.client import LLMClient
+from adam.session.diagnostics import read_report
+from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
 from tests.support import build_conversation
 

@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import Any, Protocol
 
-from adam.models import Completion, ModelOutput
+from adam.contracts.models import Completion, ModelOutput
 
 
 class ModelClient(Protocol):

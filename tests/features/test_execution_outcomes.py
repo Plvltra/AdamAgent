@@ -5,10 +5,11 @@ import json
 import httpx
 import pytest
 
-import adam.conversation as conversation_module
-from adam.config import LLMConfig
-from adam.llm import LLMClient, LLMError
-from adam.storage import SessionStore
+import adam.application.conversation as conversation_module
+from adam.config.settings import LLMConfig
+from adam.contracts.errors import LLMError
+from adam.llm.client import LLMClient
+from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
 from tests.support import build_conversation
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 
-from adam.tool_calls.policy import ToolError
+from adam.contracts.errors import ToolError
 
 
 @dataclass(frozen=True)

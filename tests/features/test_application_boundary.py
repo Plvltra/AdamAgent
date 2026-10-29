@@ -6,14 +6,14 @@ import httpx
 import pytest
 
 import adam.bootstrap as bootstrap
-from adam.application import AgentApplication
+from adam.application.conversation import Conversation
+from adam.application.facade import AgentApplication
 from adam.bootstrap import build_application, open_application
-from adam.cli import chat
-from adam.conversation import Conversation
-from adam.errors import AgentError, CommandLogError, LLMError, StorageError, TurnSaveError
-from adam.models import Completion
-from adam.settings import AgentConfig, AppConfig, LLMConfig, ToolLimits
-from adam.storage import SessionStore
+from adam.cli.main import chat
+from adam.config.settings import AgentConfig, AppConfig, LLMConfig, ToolLimits
+from adam.contracts.errors import AgentError, CommandLogError, LLMError, StorageError, TurnSaveError
+from adam.contracts.models import Completion
+from adam.session.storage import SessionStore
 from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.registry import ToolRegistry
 

@@ -4,8 +4,8 @@ import json
 from collections.abc import Iterable, Iterator
 from typing import Any
 
-from adam.models import Completion
-from adam.protocol import validate_assistant
+from adam.contracts.models import Completion
+from adam.contracts.protocol import validate_assistant
 
 MAX_EVENT_BYTES = 1024 * 1024
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024

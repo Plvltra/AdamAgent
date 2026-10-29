@@ -6,9 +6,10 @@ import sys
 import httpx
 import pytest
 
-from adam.config import LLMConfig
-from adam.llm import LLMClient
-from adam.storage import SessionStore, StorageError
+from adam.config.settings import LLMConfig
+from adam.contracts.errors import StorageError
+from adam.llm.client import LLMClient
+from adam.session.storage import SessionStore
 from tests.features.test_streaming import DONE, event, sse
 from tests.support import run_chat as chat
 

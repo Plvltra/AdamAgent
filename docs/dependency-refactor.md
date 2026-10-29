@@ -2,6 +2,14 @@
 
 日期：2026-10-29。重放到 main 的 8fc92bf 之后，保留 V1.3、V3 和 V4.1b 已提交功能。
 
+## V6 前置：按职责整理为包
+
+根目录散落的 26 个实现文件归入 cli、application、config、context、llm、session、contracts，已有 tool_calls 保留。包内仍分别承担展示、协议、文件 IO 和流程职责；bootstrap 继续统一组装，不引入全局对象或新的业务行为。
+
+ExecutionReport/ActionFact 随原说明迁入 contracts/models.py，日志提取留在 session/execution_report.py；配置值、错误和共享数据均直接从定义处导入。`python -m adam` 与 `python -m adam.diagnostics` 保持可用，诊断根文件只保留调用入口。
+
+业务测试不随实现文件名重排，408 个原场景保持；新增整包依赖检查覆盖将来添加的源码。原五项架构边界用例迁移位置并保留场景 ID。按迁移映射核对语法树，原业务实现仅改变导入与两个报告类型的位置；所有旧行内注释和业务 docstring 均保留，架构测试的模块说明更新为整包约束。结构与约束详见 [架构图](architecture.md)。
+
 ## 查到的问题及处理
 
 | 原问题 | 修改后 |

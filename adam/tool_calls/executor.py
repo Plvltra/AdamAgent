@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from adam.errors import (
+from adam.contracts.errors import (
     ApprovalDeniedError,
     BudgetError,
     CommandLogError,
@@ -14,7 +14,7 @@ from adam.errors import (
     FailureCode,
     StorageError,
 )
-from adam.storage import SessionStore
+from adam.session.storage import SessionStore
 from adam.tool_calls.registry import ToolRegistry
 
 

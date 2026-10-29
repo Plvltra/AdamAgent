@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from adam.config import ConfigError, load_config
+from adam.config.loader import load_config
+from adam.contracts.errors import ConfigError
 
 LLM = '[llm]\nstream=false\nbase_url="https://example.test"\nmodel="test"\napi_key="secret"\n'
 
@@ -64,8 +65,8 @@ def test_missing_config_files(tmp_path):
 def test_home_and_cli_llm_override(tmp_path, monkeypatch):
     import sys
 
-    import adam.cli as cli
-    from adam.config import adam_home
+    import adam.cli.main as cli
+    from adam.config.loader import adam_home
 
     home = tmp_path / "home"
     home.mkdir()

@@ -5,10 +5,11 @@ import json
 import httpx
 import pytest
 
-from adam.config import LLMConfig
-from adam.llm import LLMClient, LLMError
-from adam.session_log import parse_log
-from adam.storage import SessionStore, StorageError
+from adam.config.settings import LLMConfig
+from adam.contracts.errors import LLMError, StorageError
+from adam.llm.client import LLMClient
+from adam.session.log import parse_log
+from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
 from tests.support import build_conversation
 

@@ -2,10 +2,10 @@
 
 from pathlib import Path
 
+from adam.application.conversation import Conversation
 from adam.bootstrap import build_application
-from adam.cli import chat, confirm_command, confirm_edit
-from adam.conversation import Conversation
-from adam.settings import AgentConfig, AppConfig, ContextConfig, PermissionConfig, ToolLimits
+from adam.cli.main import chat, confirm_command, confirm_edit
+from adam.config.settings import AgentConfig, AppConfig, ContextConfig, PermissionConfig, ToolLimits
 from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
 

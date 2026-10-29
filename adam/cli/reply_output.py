@@ -2,8 +2,8 @@
 
 from collections.abc import Callable
 
-from adam.models import ModelOutput
-from adam.terminal import role_prefix
+from adam.cli.terminal import role_prefix
+from adam.contracts.models import ModelOutput
 
 
 class ReplyOutput:

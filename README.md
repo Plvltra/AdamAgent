@@ -113,20 +113,18 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 
 模块架构图与职责边界见 [当前系统架构](docs/architecture.md)。
 
-- `adam/config.py`：用户目录、TOML 加载与校验。
-- `adam/storage.py`：JSONL 读写与会话锁。
-- `adam/session_log.py`：事件格式与轮次、请求、工具关联校验。
-- `adam/conversation.py`：加载历史、请求模型、保存成功轮次。
-- `adam/context.py`：构造模型上下文、按组成估算输入 token、检查单次输入预算；预览与发送共用。
-- `adam/cli.py`：命令、输入循环和错误展示。
-- `adam/terminal.py`：角色标签、颜色、纯文本退化及统一失败展示。
-- `adam/errors.py`：公开业务失败契约，包含可展示说明、未保存回答及稳定原因码。
-- `adam/outcome.py`：请求与轮次共用的结束信息及字段校验。
-- `adam/diagnostics.py`：`python -m adam.diagnostics <JSONL路径>` 输出只读 JSON 报告，无需模型配置。
-- `adam/llm.py`：HTTP 请求及结构化助手响应、用量解析。
-- `adam/tool_calls/`：工厂组装工具，注册表校验分派，执行器协调留痕；具体工具处理动作与权限。
-- `adam/tool_calls/executor.py`：所有工具的执行协调与独立轨迹记录。
-- `adam/protocol.py`：助手工具请求与完整轮次的协议校验。
+| 包 | 主要职责 |
+| --- | --- |
+| adam/cli/ | 输入、斜杠指令、批准和终端展示 |
+| adam/application/ | 应用接口、会话执行与请求重试策略 |
+| adam/config/ | TOML 解析与不可变配置 |
+| adam/context/ | 上下文选择、旧结果缩减与摘要 |
+| adam/llm/ | 模型请求、SSE 与可取消 HTTP |
+| adam/session/ | JSONL、锁、状态投影、恢复和只读诊断 |
+| adam/tool_calls/ | 工具组装、参数校验、执行、权限和留痕 |
+| adam/contracts/ | 共享数据、错误、模型接口与消息协议 |
+
+根目录 `bootstrap.py` 负责组装与资源关闭。启动仍使用 `python -m adam`，只读日志仍使用 `python -m adam.diagnostics <JSONL路径>`。
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q

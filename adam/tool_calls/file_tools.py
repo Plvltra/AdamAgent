@@ -8,8 +8,8 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
-from adam.errors import ToolError
-from adam.settings import ToolLimits
+from adam.config.settings import ToolLimits
+from adam.contracts.errors import ToolError
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.text_file import read_snapshot
 

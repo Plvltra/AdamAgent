@@ -8,12 +8,12 @@ import httpx
 import pytest
 
 from adam.bootstrap import build_application
-from adam.cli import chat
-from adam.diagnostics import read_report
-from adam.errors import AgentError, BudgetError, LLMError, StorageError
-from adam.llm import LLMClient
-from adam.settings import AgentConfig, AppConfig, LLMConfig
-from adam.storage import SessionStore
+from adam.cli.main import chat
+from adam.config.settings import AgentConfig, AppConfig, LLMConfig
+from adam.contracts.errors import AgentError, BudgetError, LLMError, StorageError
+from adam.llm.client import LLMClient
+from adam.session.diagnostics import read_report
+from adam.session.storage import SessionStore
 
 
 @pytest.mark.parametrize("mode", ["known", "unknown", "cap"])

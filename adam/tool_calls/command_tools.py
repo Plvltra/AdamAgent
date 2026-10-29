@@ -11,9 +11,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from adam.errors import CommandLogError, ToolError
-from adam.models import CommandRequest, ExecutionRecorder
-from adam.settings import ToolLimits
+from adam.config.settings import ToolLimits
+from adam.contracts.errors import CommandLogError, ToolError
+from adam.contracts.models import CommandRequest, ExecutionRecorder
 
 
 class _Output:

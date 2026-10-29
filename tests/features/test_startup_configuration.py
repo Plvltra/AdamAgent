@@ -5,7 +5,7 @@ import sys
 import pytest
 
 import adam.bootstrap as bootstrap
-import adam.cli as cli
+import adam.cli.main as cli
 
 
 @pytest.mark.parametrize("invalid_section", ["main", "llm"])
