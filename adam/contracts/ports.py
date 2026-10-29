@@ -1,9 +1,10 @@
-"""业务流程需要的模型能力；HTTP 客户端和内存假模型均可实现。"""
+"""应用使用的能力接口；模型适配器与技能加载器分别实现，不向界面暴露底层配置。"""
 
 from collections.abc import Callable
 from typing import Any, Protocol
 
 from adam.contracts.models import Completion, ModelOutput
+from adam.contracts.skills import SkillListing, SkillSelection
 
 
 class ModelClient(Protocol):
@@ -23,4 +24,16 @@ class ModelClient(Protocol):
         on_output: Callable[[ModelOutput], None] | None = None,
     ) -> Completion:
         """取得一次模型响应；失败时抛出携带已知用量的 LLMError。"""
+        ...
+
+
+class SkillProvider(Protocol):
+    """应用仅查看目录或选择本轮指导；具体发现、权限和文件读取由加载器负责。"""
+
+    def listings(self) -> tuple[SkillListing, ...]:
+        """取得包含覆盖来源的只读目录，不调用模型。"""
+        ...
+
+    def select(self, skill_id: str) -> SkillSelection:
+        """读取生效正文快照；不存在、来源变化或读取受限时抛 AgentError。"""
         ...

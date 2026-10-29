@@ -1,6 +1,7 @@
 """统一标准与 TOML Skill 目录；元数据冻结，正文与材料按需读取。"""
 
 import json
+import os
 import re
 import tomllib
 from collections.abc import Callable
@@ -52,11 +53,16 @@ class SkillCatalog:
         max_bytes: int = 1048576,
         max_result_chars: int = 8000,
     ) -> None:
-        self.root = root.absolute() if root is not None else workspace.resolve() / "skills"
+        self.root = (
+            Path(os.path.abspath(root)) if root is not None else workspace.resolve() / "skills"
+        )
         self.resolve = resolve
         self.max_bytes, self.max_result_chars = max_bytes, max_result_chars
         self._entries: dict[str, SkillPackage] = {}
-        self._scan()
+        try:
+            self._scan()
+        except OSError as error:
+            raise ToolError("Skill 目录无法读取，请检查文件与权限。") from error
 
     def summaries(self) -> tuple[dict[str, str], ...]:
         """返回目录副本；标准包只读头部，旧包只读元数据与格式标记。"""

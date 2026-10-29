@@ -1,5 +1,7 @@
 # Adam
 
+T3.2 已支持用户/项目 Skill 目录与显式启用：`/skills` 查看来源和覆盖关系，`/skill <ID> <任务>` 为本轮指定指导。用户目录默认位于主配置旁的 `skills/`，项目同名技能优先；见 [Skill 使用](docs/skills.md)。
+
 E4 已支持失败后反思、自然语言纠正和人工确认的经验复用。用 `/memory candidates` 查看候选；详见 [反思与经验](docs/reflection-and-experience.md) 和 [手动对照验收](docs/reflection-evaluation.md)。真实模型效果仍待手动评估。
 
 E3.1～E3.4 显式任务计划已完成离线验收：复杂任务可使用 `update_plan` 跟踪步骤，完成需要本轮真实工具依据；终端展示进度，`/plan` 查询最近计划。未完成时最多提醒模型一次，仍受原有额度限制。见 [任务计划](docs/task-planning.md)。
@@ -41,6 +43,8 @@ uv run python -m adam
 ~/.adam/
 ├── config.toml
 ├── llm.toml
+├── skills/
+│   └── <技能名称>/SKILL.md
 ├── memories/
 │   └── memories.json
 └── sessions/
@@ -68,6 +72,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `--llm-config 路径`：覆盖模型配置；未指定时读取主配置旁的 `llm.toml`。
 - `storage.sessions_dir`：默认 `sessions`，相对路径以主配置目录为基准。
 - `storage.memories_dir`：默认 `memories`，保存独立记忆版本文件；同样相对主配置目录。
+- `skills.user_dir`：默认 `skills`，相对主配置目录；只授予技能材料读取能力，不扩大普通文件工具权限。
 - `--workspace 路径`：指定工具工作目录，默认启动目录。
 - `--resume a3f9c821`：启动时恢复会话，精确匹配 8 位小写十六进制 ID。
 - 不提供 `--sessions-dir`；旧 `--db` 和 `storage.db_path` 已移除。
@@ -83,6 +88,8 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `/context`：查看下一次请求的基础上下文组成与输入预算；不含尚未输入的新问题。
 - `/context full`：在概览下展开完整消息与工具说明，不请求模型、不修改会话；不是最近请求快照。
 - `/plan`：查看当前会话最近计划、步骤状态与依据；不调用模型，不自动重跑未完成步骤。
+- `/skills`：列出用户与项目技能，显示生效、覆盖关系和来源；不调用模型。
+- `/skill <ID> <任务>`：为本轮明确选择指导，首请求就包含正文；下一轮普通聊天不自动继续启用。
 - `/compact`：用当前模型摘要较早历史；一次最多一条无工具请求，计入消费，原始消息保留。
 - `/exit`、Ctrl+C 或输入结束：退出并释放会话锁。
 

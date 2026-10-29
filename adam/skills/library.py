@@ -5,7 +5,7 @@ from dataclasses import replace
 from typing import Any
 
 from adam.contracts.errors import ToolError
-from adam.contracts.skills import SkillListing, validate_catalog
+from adam.contracts.skills import SkillListing, SkillSelection, validate_catalog
 from adam.skills.catalog import SkillCatalog
 
 
@@ -57,6 +57,19 @@ class SkillLibrary:
         return tuple(
             item.summary()
             for _, item in sorted(self._selected.values(), key=lambda pair: pair[1].identifier)
+        )
+
+    def select(self, skill_id: str) -> SkillSelection:
+        """读取用户为本轮指定的正文及材料清单；不执行脚本，也不粘贴进持久聊天历史。"""
+        try:
+            loaded = self.load(skill_id)
+        except OSError as error:
+            raise ToolError("指定 Skill 无法读取，请检查文件与权限。") from error
+        return SkillSelection(
+            self._selected[skill_id][1],
+            loaded["version"],
+            loaded["content"],
+            tuple(loaded["resources"]),
         )
 
     def load(self, skill_id: str, resource: str = "SKILL.md") -> dict[str, Any]:

@@ -260,13 +260,21 @@ class ReviewConfig:
 
 @dataclass(frozen=True)
 class SkillsConfig:
-    """本地任务指导开关；材料和目录上限由读取器控制。"""
+    """任务指导开关与用户目录；None 供程序化组装仅使用项目技能，CLI 加载时补默认路径。"""
 
     enabled: bool = True
+    user_dir: Path | None = None
 
     def __post_init__(self) -> None:
+        """已解析目录必须为绝对路径；授权仅限 Skill 材料，不能扩张普通工具。"""
         if type(self.enabled) is not bool:
             raise ConfigError("skills.enabled 必须是布尔值。")
+        if self.user_dir is not None and (
+            not isinstance(self.user_dir, Path)
+            or "\0" in str(self.user_dir)
+            or not self.user_dir.is_absolute()
+        ):
+            raise ConfigError("skills.user_dir 必须是已解析的绝对路径。")
 
 
 @dataclass(frozen=True)

@@ -20,7 +20,8 @@ from adam.contracts.models import (
     SessionUsage,
 )
 from adam.contracts.planning import PlanReport
-from adam.contracts.ports import ModelClient
+from adam.contracts.ports import ModelClient, SkillProvider
+from adam.contracts.skills import SkillListing
 from adam.session.storage import SessionStore
 
 
@@ -35,12 +36,14 @@ class AgentApplication:
         memories: MemoryService | None = None,
         *,
         close_resources: Callable[[], None] | None = None,
+        skills: SkillProvider | None = None,
     ) -> None:
         self._close_resources = close_resources
         self._conversation = conversation
         self._store = store
         self._models_client = models
         self._memories = memories
+        self._skills = skills
         self._experiences = ExperienceService(store, memories) if memories else None
         self._models: dict[str, str | None] | None = None
 
@@ -154,8 +157,27 @@ class AgentApplication:
             "可调整输入后继续本会话；失败输入未加入有效历史，已执行的工具操作保留。",
         )
 
-    def send(self, text: str, *, on_output: Callable[[ModelOutput], None] | None = None) -> str:
-        """执行完整一轮并返回已保存回答；已知失败以 AgentError 交给界面。"""
+    def list_skills(self) -> tuple[SkillListing, ...]:
+        """查询可用指导及覆盖来源；不读取正文、不创建会话、不请求模型。"""
+        return self._skills.listings() if self._skills is not None else ()
+
+    def send(
+        self,
+        text: str,
+        *,
+        on_output: Callable[[ModelOutput], None] | None = None,
+        skill_id: str | None = None,
+    ) -> str:
+        """执行完整一轮并返回已保存回答；已知失败以 AgentError 交给界面。
+
+        skill_id 由用户显式选择，正文只作用于本轮；读取失败不提交轮次或请求模型。
+        """
+        if skill_id is not None:
+            self._conversation.clear_execution_report()
+            if self._skills is None:
+                raise AgentError("当前应用未启用 Skill。")
+            selection = self._skills.select(skill_id)
+            return self._conversation.send(text, on_output=on_output, selected_skill=selection)
         return (
             self._conversation.send(text, on_output=on_output)
             if on_output

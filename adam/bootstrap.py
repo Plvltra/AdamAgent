@@ -95,6 +95,7 @@ def build_application(
             workspace,
             config.permissions,
             enabled=config.skills.enabled,
+            user_dir=config.skills.user_dir,
             protected_dirs=(documents_dir,),
         )
         registry = register_mcp(registry, config.mcp, workspace, resources)
@@ -211,11 +212,16 @@ def build_application(
             reflection=reflector,
             review=reviewer,
             memory_provider=memories.select,
-            skills=skills,
+            skills=skills.summaries() if skills else (),
             rules=rules,
         )
         return AgentApplication(
-            conversation, store, client, memories, close_resources=resources.pop_all().close
+            conversation,
+            store,
+            client,
+            memories,
+            close_resources=resources.pop_all().close,
+            skills=skills,
         )
 
 
@@ -263,6 +269,7 @@ def _open_child(
             Path(agent.workspace),
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             enabled=config.skills.enabled,
+            user_dir=config.skills.user_dir,
             protected_dirs=(memories_dir, documents_dir),
         )
         rules = (
@@ -290,7 +297,7 @@ def _open_child(
             cancel=cancel,
             on_turn_started=started,
             memory_provider=lambda _query, _capacity: memory,
-            skills=skills,
+            skills=skills.summaries() if skills else (),
             rules=rules,
         )
         conversation.resume(agent.agent_id)

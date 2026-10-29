@@ -28,6 +28,7 @@ from adam.contracts.models import ExecutionReport, ModelOutput, Session
 from adam.contracts.planning import TaskPlanner
 from adam.contracts.ports import ModelClient
 from adam.contracts.rules import ProjectRules
+from adam.contracts.skills import SkillSelection
 from adam.session.outcome import ExecutionOutcome
 from adam.session.storage import SessionStore
 from adam.tool_calls.executor import ToolBudget, ToolExecutor
@@ -42,6 +43,7 @@ class TurnProgress:
     pruning_announced: bool = False
     memory: MemorySelection = MemorySelection()
     reflections: tuple[dict[str, Any], ...] = ()
+    selected_skill: SkillSelection | None = None
 
 
 class Conversation:
@@ -109,10 +111,17 @@ class Conversation:
         self._last_turn = None
         return session
 
-    def send(self, text: str, *, on_output: Callable[[ModelOutput], None] | None = None) -> str:
+    def send(
+        self,
+        text: str,
+        *,
+        on_output: Callable[[ModelOutput], None] | None = None,
+        selected_skill: SkillSelection | None = None,
+    ) -> str:
         """处理用户输入，完成模型与工具循环，返回已保存的最终回答。
 
         输入、请求和工具轨迹独立留痕；失败轮次不加入有效历史。
+        selected_skill 是用户为本轮指定的只读正文快照，计入输入预算，不粘贴到成功历史。
         已知失败遵循 AgentError 契约：预算问题为 BudgetError，模型问题为 LLMError；
         回答生成后保存失败为携带 partial_reply 的 TurnSaveError。
         请求与轮次分别收尾，保存稳定原因码和单调时钟耗时；原始异常继续传播。
@@ -139,7 +148,7 @@ class Conversation:
                 self.review.begin(session.session_id, turn_id)
             if self.on_turn_started:
                 self.on_turn_started(turn_id)
-            reply = self._run_turn(session, turn_id, text, started_ns, on_output)
+            reply = self._run_turn(session, turn_id, text, started_ns, on_output, selected_skill)
         except BaseException as error:
             if self.delegation:
                 save_failure(self.delegation.end, error)
@@ -169,6 +178,10 @@ class Conversation:
         if self.accounting:
             return self.accounting(self.session.session_id).usage()
         return self.store.usage(self.session.session_id)
+
+    def clear_execution_report(self) -> None:
+        """清除当前操作的执行报告；输入准备失败时不能把上一轮结果展示为本轮事实。"""
+        self._last_turn = None
 
     def execution_report(self) -> ExecutionReport | None:
         """读取本次运行最近一次输入的事实；未成功登记输入或切换会话后返回 None。
@@ -215,6 +228,7 @@ class Conversation:
         text: str,
         started_ns: int,
         on_output: Callable[[ModelOutput], None] | None,
+        selected_skill: SkillSelection | None,
     ) -> str:
         """运行已登记轮次；started_ns 为本进程计时起点，完整消息提交成功后才返回。"""
         self._check_execution_state(session.session_id)
@@ -223,7 +237,8 @@ class Conversation:
 
         progress = TurnProgress(
             RequestPolicy(self.limits.max_model_requests, self.notify, cancel=self.cancel),
-            memory=self._select_memory(session, turn, text),
+            memory=self._select_memory(session, turn, text, selected_skill=selected_skill),
+            selected_skill=selected_skill,
         )
         if progress.memory.warning:
             self.notify(progress.memory.warning)
@@ -294,7 +309,13 @@ class Conversation:
     ) -> RequestContext:
         """先缩旧工具，再按压力摘要，最后使用整轮选择；预览不经过此有副作用入口。"""
         self._check_session_budget(session.session_id)
-        context = self._build_context(session, turn, progress.memory, progress.reflections)
+        context = self._build_context(
+            session,
+            turn,
+            progress.memory,
+            progress.reflections,
+            selected_skill=progress.selected_skill,
+        )
         # 受保护部分本身放不下时，先停止，避免花费一次无法解决问题的摘要请求。
         context.ensure_within_budget()
         limits = self.context_builder.limits
@@ -328,7 +349,13 @@ class Conversation:
                     lambda: service.execute(session, self.model, plan, turn_id=turn_id),
                     keep_requests=1,
                 )
-                context = self._build_context(session, turn, progress.memory, progress.reflections)
+                context = self._build_context(
+                    session,
+                    turn,
+                    progress.memory,
+                    progress.reflections,
+                    selected_skill=progress.selected_skill,
+                )
                 self.notify("上下文> 已自动更新历史摘要；原始日志保留。")
                 progress.pruning_announced = True
         if context.pruned_tools and not progress.pruning_announced:
@@ -358,11 +385,14 @@ class Conversation:
         query: str,
         *,
         preview: bool = False,
+        selected_skill: SkillSelection | None = None,
     ) -> MemorySelection:
         """先预留受保护输入，再选一次记忆；工具循环复用此快照，不重新读取库。"""
         if self.memory_provider is None:
             return MemorySelection()
-        capacity = self._build_context(session, turn, rules_preview=preview).memory_capacity
+        capacity = self._build_context(
+            session, turn, rules_preview=preview, selected_skill=selected_skill
+        ).memory_capacity
         return self.memory_provider(query, capacity)
 
     def _build_context(
@@ -373,6 +403,7 @@ class Conversation:
         reflections: tuple[dict[str, Any], ...] = (),
         *,
         rules_preview: bool = False,
+        selected_skill: SkillSelection | None = None,
     ) -> RequestContext:
         """读取成功历史并委托构造；预览与每次真实请求共用，工具结果加入后重新估算。"""
         history = self.store.load_turns(session.session_id) if session is not None else []
@@ -401,6 +432,7 @@ class Conversation:
             memory=memory,
             reflections=reflections,
             skills=self.skills,
+            selected_skill=selected_skill,
             rules=self.rules.snapshot(preview=rules_preview) if self.rules else None,
         )
 

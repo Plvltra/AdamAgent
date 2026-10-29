@@ -222,11 +222,20 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             data.get("review", {}), {item.name for item in fields(ReviewConfig)}, "review"
         )
     )
-    skills = SkillsConfig(
-        **checked_section(
-            data.get("skills", {}), {item.name for item in fields(SkillsConfig)}, "skills"
-        )
-    )
+    skill_data = checked_section(
+        data.get("skills", {}), {item.name for item in fields(SkillsConfig)}, "skills"
+    ).copy()
+    skill_directory = skill_data.get("user_dir", "skills")
+    if (
+        not isinstance(skill_directory, str)
+        or not skill_directory.strip()
+        or "\0" in skill_directory
+    ):
+        raise ConfigError("skills.user_dir 必须是非空且不含空字符的路径字符串。")
+    user_skills = Path(skill_directory).expanduser()
+    # 与主配置同目录的 skills 默认为用户技能库；相对路径不跟随启动工作目录变化。
+    skill_data["user_dir"] = user_skills if user_skills.is_absolute() else directory / user_skills
+    skills = SkillsConfig(**skill_data)
     rules = RulesConfig(
         **checked_section(
             data.get("rules", {}), {item.name for item in fields(RulesConfig)}, "rules"

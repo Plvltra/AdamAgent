@@ -84,8 +84,10 @@ servers = []
 enabled = true
 
 [skills]
-# Load project skills metadata; bodies are read only on demand.
+# Load project and user skills metadata; bodies are read on demand or with /skill.
 enabled = true
+# Relative to this config file (normally ~/.adam/skills), not the workspace.
+user_dir = "skills"
 
 [review]
 # Independent read-only reviewer; shares subagent and token limits.

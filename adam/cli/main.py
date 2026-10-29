@@ -18,6 +18,7 @@ from adam.cli.terminal import (
     show_execution_report,
     show_failure,
     show_plan,
+    show_skills,
 )
 from adam.config.loader import adam_home
 from adam.contracts.errors import AgentError
@@ -63,8 +64,10 @@ def handle_command(
     text: str,
     application: AgentApplication,
     write: Callable[[str], None],
+    *,
+    fragment: Callable[[str], None] | None = None,
 ) -> CommandResult:
-    """统一处理终端命令；普通文本交给聊天流程，未知命令不发送给模型。"""
+    """统一处理命令；/skill 经原聊天展示流程发送明确任务，列表与未知命令不请求模型。"""
     text = text.strip()
     if not text.startswith("/"):
         return CommandResult.NOT_COMMAND
@@ -78,6 +81,17 @@ def handle_command(
         write("已新建会话，原会话仍保留。")
     elif command == "/memory":
         handle_memory_command(parts[1] if len(parts) == 2 else "", application, write)
+    elif command == "/skills":
+        if len(parts) != 1:
+            write("用法：/skills")
+        else:
+            show_skills(application.list_skills(), write)
+    elif command == "/skill":
+        invocation = parts[1].split(maxsplit=1) if len(parts) == 2 else []
+        if len(invocation) != 2:
+            write("用法：/skill <ID> <任务>")
+        else:
+            send_message(application, invocation[1], write, fragment, skill_id=invocation[0])
     elif command == "/plan":
         if len(parts) != 1:
             write("用法：/plan")
@@ -136,7 +150,7 @@ def handle_command(
             show_model(application, write)
     else:
         write(
-            "未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context、/compact、/memory、/plan 或 /exit。"
+            "未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context、/compact、/memory、/plan、/skills、/skill 或 /exit。"
         )
     return CommandResult.HANDLED
 
@@ -189,11 +203,17 @@ def send_message(
     text: str,
     write: Callable[[str], None],
     fragment: Callable[[str], None] | None,
+    *,
+    skill_id: str | None = None,
 ) -> None:
     """增量展示本轮回答，结束后附执行事实；已知失败说明继续方式，中断交外层处理。"""
     output = ReplyOutput(write, fragment or (write_fragment if write is print else write))
     try:
-        reply = application.send(text, on_output=output.receive)
+        reply = (
+            application.send(text, on_output=output.receive, skill_id=skill_id)
+            if skill_id is not None
+            else application.send(text, on_output=output.receive)
+        )
     except AgentError as error:
         output.incomplete()
         show_failure(error, write)
@@ -223,7 +243,7 @@ def chat(
         application.resume(resume_id)
 
     write(
-        "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/compact、/memory、/plan、/exit；成功轮次自动保存。"
+        "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/compact、/memory、/plan、/skills、/skill <ID> <任务>、/exit；成功轮次自动保存。"
     )
     show_session(application, write)
     try:
@@ -235,7 +255,7 @@ def chat(
             if not text:
                 continue
             try:
-                result = handle_command(text, application, write)
+                result = handle_command(text, application, write, fragment=fragment)
                 if result is CommandResult.EXIT:
                     break
                 if result is CommandResult.HANDLED:

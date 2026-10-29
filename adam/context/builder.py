@@ -12,7 +12,7 @@ from adam.contracts.history import HistoryTurn, Summary
 from adam.contracts.memory import MemorySelection
 from adam.contracts.reflection import reflection_messages
 from adam.contracts.rules import RuleSelection
-from adam.contracts.skills import catalog_messages
+from adam.contracts.skills import SkillSelection, catalog_messages, validate_skill_selection
 
 
 @dataclass(frozen=True)
@@ -65,6 +65,7 @@ class RequestContext:
     preview_query: str = ""
     reflections: tuple[dict[str, Any], ...] = ()
     skills: tuple[dict[str, str], ...] = ()
+    selected_skill: SkillSelection | None = None
     rules: RuleSelection | None = None
 
     @property
@@ -81,6 +82,7 @@ class RequestContext:
         return {
             "strategy": "recent_turns_v1",
             **({"skills": list(self.skills)} if self.skills else {}),
+            **({"selected_skill": self.selected_skill.to_record()} if self.selected_skill else {}),
             **({"rules": self.rules.to_record()} if self.rules is not None else {}),
             **({"reflections": list(self.reflections)} if self.reflections else {}),
             **({"memory": self.memory.to_dict()} if self.memory.status != "disabled" else {}),
@@ -129,6 +131,7 @@ class ContextBuilder:
         memory: MemorySelection | None = None,
         reflections: tuple[dict[str, Any], ...] = (),
         skills: tuple[dict[str, str], ...] = (),
+        selected_skill: SkillSelection | None = None,
         rules: RuleSelection | None = None,
     ) -> RequestContext:
         """返回独立的输入副本及组成估算；保留顺序、工具配对和服务商推理字段。
@@ -138,13 +141,17 @@ class ContextBuilder:
         系统提示、本轮及近期保护轮次不截断；摘要与记忆仅作为历史资料，不提升指令权限。
         memory 是本轮固定快照，只参与请求构造，不复制进历史；其大小同时计入总预算。
         reflections 是本轮参考建议，计入预算但不复制进聊天历史。
-        skills 只含固定目录；正文由工具按需返回，不能重复注入或重复计费。
+        skills 只含固定目录；selected_skill 是用户为本轮指定的正文，只注入一份并整体计入预算。
+        未指定的正文及引用材料仍由工具按需返回；指定正文不复制进聊天历史。
         rules 为本次规则快照，整体计入受保护预算，不能截断或改写为摘要。
         预算覆盖完整工具 JSON Schema，不包含认证头、URL 或密钥。
         """
         rule_messages = rules.messages() if rules is not None else []
         rules_tokens = sum(estimate_json_tokens(m) for m in rule_messages)
         skill_messages = catalog_messages(skills)
+        if selected_skill is not None:
+            validate_skill_selection(selected_skill.to_record(), skills)
+            skill_messages += selected_skill.messages()
         skill_tokens = sum(estimate_json_tokens(m) for m in skill_messages)
         advice = reflection_messages(reflections)
         reflection_tokens = sum(estimate_json_tokens(message) for message in advice)
@@ -246,6 +253,7 @@ class ContextBuilder:
             memory_capacity=memory_capacity,
             reflections=deepcopy(reflections),
             skills=deepcopy(skills),
+            selected_skill=selected_skill,
             rules=rules,
         )
 

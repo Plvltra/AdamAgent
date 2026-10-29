@@ -4,6 +4,7 @@ from pathlib import Path
 
 from adam.config.settings import PermissionConfig
 from adam.skills.catalog import SkillCatalog
+from adam.skills.library import SkillLibrary
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.registry import ToolRegistry
 
@@ -32,25 +33,43 @@ def register_skills(
     permissions: PermissionConfig,
     *,
     enabled: bool = True,
+    user_dir: Path | None = None,
     protected_dirs: tuple[Path, ...] = (),
-) -> tuple[ToolRegistry, tuple[dict[str, str], ...]]:
-    """返回扩展目录及冻结摘要；关闭或没有 Skill 时不增加工具和上下文。"""
+) -> tuple[ToolRegistry, SkillLibrary | None]:
+    """返回工具与同一份冻结目录；用户目录授权不修改普通工具权限。
+
+    关闭时返回 None；没有可用技能时返回空目录，不增加工具或上下文内容。
+    """
     if not enabled:
-        return registry, ()
-    catalog = SkillCatalog(
+        return registry, None
+    project = SkillCatalog(
         workspace,
         PathPolicy(workspace, permissions, protected_dirs=protected_dirs).resolve,
         max_bytes=registry.limits.max_text_file_bytes,
         max_result_chars=registry.limits.max_result_chars,
     )
-    summaries = catalog.summaries()
-    if not summaries:
-        return registry, ()
+    user = None
+    if user_dir is not None:
+        user_policy = PathPolicy(
+            workspace,
+            PermissionConfig(additional_read_dirs=(user_dir,)),
+            protected_dirs=protected_dirs,
+        )
+        user = SkillCatalog(
+            workspace,
+            user_policy.resolve,
+            root=user_dir,
+            max_bytes=registry.limits.max_text_file_bytes,
+            max_result_chars=registry.limits.max_result_chars,
+        )
+    library = SkillLibrary(project, user)
+    if not library.summaries():
+        return registry, library
     return registry.extended(
         SPECS,
         {
-            "load_skill": lambda args, _: catalog.load(
+            "load_skill": lambda args, _: library.load(
                 args["skill_id"], args.get("resource", "SKILL.md")
             ),
         },
-    ), summaries
+    ), library

@@ -11,6 +11,7 @@ from adam.context.builder import RequestContext
 from adam.contracts.errors import AgentError
 from adam.contracts.models import ExecutionReport
 from adam.contracts.planning import PlanReport
+from adam.contracts.skills import SkillListing
 
 
 def role_prefix(role: str, *, unsaved: bool = False) -> str:
@@ -33,6 +34,20 @@ def role_prefix(role: str, *, unsaved: bool = False) -> str:
         color = Fore.CYAN if role == "user" else Fore.YELLOW
         return f"{Style.BRIGHT}{color}{label}{Style.RESET_ALL} "
     return label + " "
+
+
+def show_skills(listings: tuple[SkillListing, ...], write: Callable[[str], None] = print) -> None:
+    """展示生效来源和覆盖关系，不读取正文，也不把列表当作聊天输入。"""
+    if not listings:
+        write("Skill> 没有可用技能；请检查配置和技能目录。")
+        return
+    for item in listings:
+        scope = "项目" if item.scope == "project" else "用户"
+        state = "被覆盖" if item.overridden_by else "生效"
+        write(f"Skill> {item.identifier} [{scope}，{state}] — {item.description}")
+        write(f"  来源：{item.source}")
+        if item.overridden_by:
+            write(f"  覆盖来源：{item.overridden_by}")
 
 
 def show_plan(report: PlanReport | None, write: Callable[[str], None] = print) -> None:
