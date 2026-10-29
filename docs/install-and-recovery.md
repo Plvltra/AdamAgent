@@ -83,4 +83,6 @@ ADAM_HOME 可以切换整套配置/数据根目录。--config、--llm-config 指
 
 干净环境实测（2026-10-29）：从 Git 源码快照建立全新 Python 3.12.14 虚拟环境，uv sync --locked 安装 25 个依赖包；CLI --help、Ruff 格式/静态检查、Pyright 通过，pytest 为 **357 passed in 82.01s**。源码 .gitattributes 固定 LF，避免 Windows 全局 autocrlf 使新导出源码违反格式规范。
 
+随后集成主线 V4 后，全量回归为 **408 passed in 105.61s**，Ruff、Pyright 通过；依赖锁文件保持不变。
+
 各场景由 tests/features 的对应业务文件维护。真实模型成功率和延迟未测；离线运行耗时主要来自进程启动、IO、故障等待与检查，不代表模型速度。

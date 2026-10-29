@@ -43,4 +43,4 @@ API 请求、记账与工具副作用的先后顺序保持；失败轮次不进�
 
 注释审查：配置、数据类和异常类说明随定义迁移；命令结果裁剪说明随编码器移动。CLI 的资源关闭说明更新为组装入口所有权，原有请求记账、日志失败与权限说明保留。
 
-架构图及每个模块的职责见 [architecture.md](architecture.md)。本次重构位于 codex/architecture-refactor 分支，提交直接接在 main 的 V4.1b 之后；无 merge 提交。main 分支指针与业务文件保持不动；清除 Git 测试误写的仓库设置，恢复普通工作仓库配置。
+架构图及每个模块的职责见 [architecture.md](architecture.md)。最初重构接在 main 的 V4.1b 之后；V5 完成后按用户确认合并主线 V4.1c～V4.2b，再将 main 快进至集成结果。编辑继续在 factory 注册，执行事实由 AgentApplication 提供；没有恢复 CLI 对 Conversation/存储实现的直接访问。最初清除过 Git 测试误写的仓库设置，临时仓库测试继续隔离 GIT_* 环境。

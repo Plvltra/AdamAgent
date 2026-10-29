@@ -9,11 +9,11 @@
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
 | V5.5 安装与迁移 | 干净环境安装及回归、停止写入后备份 JSONL，恢复到新目录仍能追加，原目录不变 | [test_backup_restore.py](test_backup_restore.py)、[交付指南](../../docs/install-and-recovery.md) |
-| V5.4 失败后继续 | 重开会话的可靠/未知消费、消费限额、未知命令拦截聊天/摘要、CLI 继续方式与失败输入隔离 | [test_failure_recovery.py](test_failure_recovery.py) |
+| V5.4 失败后继续 | 重开会话的可靠/未知消费、消费限额、未知命令和编辑拦截聊天/摘要、CLI 继续方式与失败输入隔离 | [test_failure_recovery.py](test_failure_recovery.py) |
 | V5.3 有限重试 | 连接失败独立记账、请求预算、摘要重试、非重试错误、日志失败与命令不重跑 | [test_request_retry.py](test_request_retry.py) |
 | V5.2 取消本轮 | 独立 CLI 进程、真实 HTTP 等待、父子命令清理、确认取消、返回输入及用量保留 | [test_cancellation.py](test_cancellation.py) |
 | V5.1 流式输出 | UTF-8/网络任意分片、隐藏推理、工具收齐后执行、断流不保存、不自动切模式、配置校验 | [test_streaming.py](test_streaming.py) |
-| V4.2b 执行事实报告 | CLI 正常/失败/拒绝/超时/未知结果、读取失败、回答保存失败；不采信模型自述、不污染历史 | [test_execution_report.py](test_execution_report.py)、[test_repair_loop.py](test_repair_loop.py)、[test_process_crash.py](test_process_crash.py) |
+| V4.2b 执行事实报告 | 流式与非流式 CLI 正常/失败/拒绝/超时/未知结果、读取失败、回答保存失败；不采信模型自述、不污染历史 | [test_execution_report.py](test_execution_report.py)、[test_repair_loop.py](test_repair_loop.py)、[test_process_crash.py](test_process_crash.py) |
 | V4.2a 有限修正 | 真实检查失败后编辑重测、拒绝停止、同批/跨请求计数及新轮重置 | [test_repair_loop.py](test_repair_loop.py) |
 | V4.1c 模型编辑与恢复 | 真实工具闭环、拒绝停止、日志失败与伪造关联拒绝、四个强杀边界 | [test_edit_tool_loop.py](test_edit_tool_loop.py)、[test_process_crash.py](test_process_crash.py) |
 | V4.1a/b 文件修改 | 版本、唯一匹配、字节保真、diff 批准、独立权限、外部冲突及写入失败 | [test_file_editing.py](test_file_editing.py) |
@@ -145,7 +145,7 @@ pytest 已配置扫描整个 tests；现有 pre-commit 的 pytest 钩子会自�
 
 模型 HTTP 响应是预设的，测试不会消耗 API 额度；文件、JSONL、锁和部分子进程会在临时目录实际运行。故障测试在指定边界注入错误，验证程序停止或保留记录的行为。
 
-这些场景不能证明真实模型能正确决定是否使用工具，也不代替用户对配色的辨识体验。真实进程强杀已由专门测试覆盖；V2.3 按用户决定暂跳过；V3 的压缩流程已离线验收；文件编辑集成及真实模型人工验收的剩余项见 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。
+这些场景不能证明真实模型能正确决定是否使用工具，也不代替用户对配色的辨识体验。真实进程强杀已由专门测试覆盖；V2.3 按用户决定暂跳过；V3 的压缩流程已离线验收；真实模型及个人理解验收的剩余项见 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。
 
 ## V5 前置集成核验（2026-10-29）
 
@@ -156,3 +156,7 @@ V5.1 定向验收：17 个新场景通过；原非流式场景显式使用 strea
 V5.1 全量回归：331 passed；Ruff、格式检查、Pyright 通过。
 
 V5.5 干净环境验收：Python 3.12.14、按 uv.lock 新建环境；CLI --help、Ruff、Pyright 通过，357 passed in 82.01s。真实 API 与物理键盘人工清单见交付指南。
+
+## V4 与 V5 集成验收（2026-10-29）
+
+保留 Adam2 的 357 个场景与主线 V4 后续增加的 36 个场景，初次收集 393 项；再增加 14 个流式事实报告场景和 1 个未知编辑结果拦截场景，共 **408 passed in 105.61s**，Ruff、Pyright 通过。原 V4 修复/拒绝、编辑强杀恢复、编辑额度与结果报告断言保留，仅迁移组装入口；报告与失败继续方式均通过 AgentApplication 提供，架构边界测试保持。

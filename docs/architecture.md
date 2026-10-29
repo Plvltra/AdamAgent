@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：V5.5 干净环境安装、源码换行、会话备份迁移和交付说明。
+本次核对范围：Adam2 应用分层、V5.1～V5.5 与主线 V4.1c～V4.2b 集成。
 
-核对结论：本项架构无变化。增加安装与恢复指南、JSONL 迁移测试及源码 LF 规则；运行入口、资源所有权与存储协议保持。
+核对结论：保留 bootstrap 组装、AgentApplication 界面入口和注入式工具注册表；编辑通过 factory 注册，命令/编辑事件由执行器保存。V4 执行事实经过应用接口交给 CLI，流式、取消、继续方式与编辑审批共存；未知编辑结果也拦截继续请求及摘要。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -71,6 +71,7 @@ flowchart TD
     STORE --> REPORT["execution_report.py<br/>从日志提取本轮执行事实"]
     REPORT --> LOG
     CONV -.->|"返回执行事实"| REPORT
+    APP -.->|"对界面提供执行事实"| REPORT
     TERMINAL -.->|"展示 ExecutionReport"| REPORT
     CONV --> OUTCOME["outcome.py<br/>结束原因、耗时与受控错误"]
     STORE --> OUTCOME
@@ -88,9 +89,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    E["executor.py<br/>轮次关联、执行协调与留痕"] --> R["registry.py<br/>工具说明、参数校验与分派"]
+    E["executor.py<br/>轮次关联、编辑额度与留痕"] --> R["registry.py<br/>工具说明、参数校验与分派"]
     FACTORY["factory.py<br/>创建工具并注册处理函数"] --> R
     FACTORY --> CATALOG["catalog.py<br/>工具说明"]
+    FACTORY --> F
+    FACTORY --> G
+    FACTORY --> C
+    FACTORY --> EDIT
     R -->|"注册的处理函数"| F["file_tools.py<br/>目录、文件、搜索与读取"]
     F --> SNAP["text_file.py<br/>有界文本快照与版本"]
     PLAN["edit_plan.py<br/>纯替换计划与 diff"] --> SNAP
@@ -104,7 +109,7 @@ flowchart TD
     R --> C["command_tools.py<br/>执行外部程序并收集结果"]
     C -->|"请求用户确认"| UI["cli.py<br/>展示命令或 diff，取得 y/N"]
 
-    R -.-> P["policy.py<br/>路径规则、读写权限与资源限制"]
+    FACTORY --> P["policy.py<br/>路径规则、读写权限"]
     F -.-> P
     G -.-> P
 ```
@@ -113,21 +118,23 @@ flowchart TD
 
 `CommandTools` 只需要工作目录、资源限制和确认回调，不接收与其权限模型不相符的 PathPolicy。批准的通用命令按当前系统账户权限运行；额外读取目录只限制只读工具，不是命令进程的操作系统沙箱。
 
-ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模型。命令工具另行报告确认与进程边界；日志保存失败仍停止本轮。执行层通知工具名称，`工具>` 等展示文字由 CLI 生成。
+`ToolExecutor` 负责调用所属轮次、请求和执行轨迹；`ToolRegistry` 负责工具目录、参数校验与分派；具体工具负责动作本身。命令和编辑通过记录回调把副作用边界交给协调层保存，通过确认回调取得用户决定。拒绝结果保存后停止同批剩余调用及本轮请求；失败输入不进入有效历史。
+
+ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模型。命令/编辑沿同一回调上报事件，执行器按 command_* / edit_* 分别记录；注册表不按工具名称分支。日志保存失败仍停止本轮。执行层通知工具名称，`工具>` 等展示文字由 CLI 生成。
 
 ## 模块职责
 
 | 模块 | 主要接口 | 职责 |
 | --- | --- | --- |
 | [__main__.py](../adam/__main__.py) | 程序入口 | 将 `python -m adam` 交给 CLI 启动 |
-| [cli.py](../adam/cli.py) | `main`、`chat`、`handle_command` | 组装组件，处理输入和斜杠指令，展示结果与错误，取得命令确认 |
+| [cli.py](../adam/cli.py) | `main`、`chat`、`handle_command` | 调用组装入口，处理输入和指令，展示增量/结果/错误，取得命令和 diff 确认 |
 | [terminal.py](../adam/terminal.py) | `role_prefix`、`show_failure`、`show_context`、`show_execution_report` | 展示角色、失败、上下文和执行事实；不读取会话或请求模型 |
 | [execution_report.py](../adam/execution_report.py) | `ActionFact`、`ExecutionReport`、`build_execution_report` | 从已校验日志提取执行顺序、状态、版本和退出码；不解释模型的测试结论 |
 | [errors.py](../adam/errors.py) | `AgentError`、`FailureCode`、`BudgetError`、`TurnSaveError` | 定义可展示说明、可选未保存回答及稳定失败类别，保持界面错误接口稳定 |
 | [diagnostics.py](../adam/diagnostics.py) | `read_report`、`main` | 只读单个日志快照，按轮次输出请求和工具详情；不请求模型、不修复文件 |
 | [outcome.py](../adam/outcome.py) | `ExecutionOutcome`、`outcome_details` | 表达请求或轮次的终态、原因和已测耗时；写入和回放共用字段校验，不负责计时或 IO |
 | [bootstrap.py](../adam/bootstrap.py) | `open_application`、`build_application` | 组装组件并关闭自己创建的资源 |
-| [application.py](../adam/application.py) | `AgentApplication` | 面向界面的会话、模型与上下文操作 |
+| [application.py](../adam/application.py) | `AgentApplication` | 面向界面的会话、模型、上下文、继续方式与执行事实查询 |
 | [settings.py](../adam/settings.py) | 配置值 | 不可变运行配置 |
 | [models.py](../adam/models.py) | 共享数据与 EditPlan | 不依赖具体实现的跨层数据 |
 | [ports.py](../adam/ports.py) | `ModelClient` | 模型目录与一次请求能力 |
@@ -140,6 +147,8 @@ ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模�
 | [history.py](../adam/history.py) | `HistoryTurn`、`Summary` | 成功轮次及有效摘要的共享数据 |
 | [compaction.py](../adam/compaction.py) | `CompactionService`、`CompactionPlan` | 规划有界素材及压缩目标、复用旧工具缩减；执行无工具摘要、独立结算并提交，不修改原历史 |
 | [compaction_log.py](../adam/compaction_log.py) | `CompactionLog` | 校验摘要来源与状态，仅完整提交激活摘要；恢复不猜未知用量 |
+| [http_transport.py](../adam/http_transport.py) | `InterruptibleTransport` | 为同步 HTTP 接口提供可取消的异步 IO，不把存储移到后台 |
+| [request_policy.py](../adam/request_policy.py) | `RequestPolicy` | 单轮物理请求计数、明确未发送时有限重试，摘要与聊天共用额度 |
 | [streaming.py](../adam/streaming.py) | `sse_events`、`StreamReply` | 有界 SSE 解析、工具参数拼接、结束校验 |
 | [reply_output.py](../adam/reply_output.py) | `ReplyOutput` | 正文增量、换行、去重及未完成提示 |
 | [llm.py](../adam/llm.py) | `LLMClient`、`Completion` | 访问模型服务，将一次请求转换为模型消息和用量；模型消息也可能是工具请求 |
@@ -161,7 +170,7 @@ ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模�
 
 已知失败统一继承 AgentError：user_message 是受控提示，partial_reply 携带未保存回答。预算耗尽使用 BudgetError，模型通信使用 LLMError；CLI 只交给 terminal.show_failure 展示。存储 IO 在 storage 的操作边界转换为 StorageError 并保留 cause，命令日志失败继续停止本轮。应用层原样传播公共错误，不重复包装；程序错误和终端 OSError 继续传播，资源由组装入口释放。
 
-- **交互与流程：** CLI 处理用户怎样操作；`Conversation` 处理普通输入背后的会话流程。斜杠指令可以直接完成查询，不必请求模型。
+- **交互与流程：** CLI 通过 AgentApplication 处理用户操作；`Conversation` 处理普通输入背后的会话流程。斜杠指令可以直接完成查询，不必请求模型。
 - **流程与模型：** `Conversation` 决定何时请求、执行或停止；`LLMClient` 完成一次模型通信。一次用户输入可以触发多次模型请求。
 - **历史与输入：** `SessionStore` 提供成功历史；`ContextBuilder` 组装系统提示、历史、当前轮次和工具说明。`Conversation.preview_context` 与实际请求使用同一构造逻辑，预览的当前轮次为空。terminal 只读取构造结果，不承担选择或预算决策。
 - **摘要与循环：** `Conversation._prepare_context` 只在真实发送时按压力规划摘要；`TurnProgress` 记录本轮请求数和尝试状态。`CompactionService` 处理单次摘要、消费及提交；`CompactionLog` 只解释持久化状态。摘要后重新构造输入并检查预算；仅未发出的连接失败有限重试，每次独立操作，其他失败停止。
