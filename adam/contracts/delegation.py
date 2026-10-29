@@ -55,7 +55,7 @@ class Delegation(Protocol):
         """绑定主会话并开始本轮新建计数。"""
         ...
 
-    def instructions(self) -> str:
+    def instructions(self, session_id: str | None) -> str:
         """返回程序约束与状态提示，不把子 Agent 的回复提升为系统指令。"""
         ...
 

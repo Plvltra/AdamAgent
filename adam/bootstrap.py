@@ -172,5 +172,11 @@ def open_application(
         )
         try:
             yield application
-        finally:
+        except BaseException as error:
+            try:
+                application.close()
+            except Exception:
+                error.add_note("子任务清理时发生错误；原始失败保留，请检查子会话记录。")
+            raise
+        else:
             application.close()

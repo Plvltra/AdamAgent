@@ -28,6 +28,8 @@ class DelegationStore:
         self._agents: dict[str, ChildAgent] = {}
         try:
             root.mkdir(parents=True, exist_ok=True)
+            if not self.path.exists() and any((root / "sessions").glob("*/*/*/*.jsonl")):
+                raise ValueError("missing index for existing child logs")
             if self.path.exists():
                 data = json.loads(self.path.read_text(encoding="utf-8"))
                 if data.get("version") != 1 or not isinstance(data.get("agents"), list):

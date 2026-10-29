@@ -285,7 +285,11 @@ class Conversation:
         return self.context_builder.build(
             model=self.model,
             system_prompt=(session.system_prompt if session is not None else self.system_prompt)
-            + (self.delegation.instructions() if self.delegation else ""),
+            + (
+                self.delegation.instructions(session.session_id if session else None)
+                if self.delegation
+                else ""
+            ),
             history=history,
             current_turn=turn,
             tools=self.tool_executor.definitions(),

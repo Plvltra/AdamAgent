@@ -1,5 +1,6 @@
 """一个主会话的委派调度；线程只执行子任务，终端交互始终由主线程负责。"""
 
+import json
 import secrets
 import time
 from collections.abc import Callable
@@ -76,8 +77,8 @@ class SubagentManager:
     def spawn(self, name: str, task: str) -> dict[str, Any]:
         """先保存新子会话及派发记录，再启动线程；立即返回 ID，不等待模型回答。"""
         self._validate_task(task)
-        if not name.strip() or len(name) > 80:
-            raise ToolError("子 Agent 名称应为 1 到 80 个字符。")
+        if not name.strip() or len(name) > 80 or any(ord(char) < 32 for char in name):
+            raise ToolError("子 Agent 名称应为 1 到 80 个字符的单行文本。")
         self._admit()
         if self._created >= self.limits.max_created_per_turn:
             raise ToolError("本轮新建子 Agent 已达上限；可复用已结束的子 Agent。")
@@ -101,6 +102,12 @@ class SubagentManager:
         agent = self._get(agent_id)
         if agent_id in self._active:
             raise ToolError("该子 Agent 正在运行；请先等待或停止，再补充任务。")
+        if (
+            agent.runs
+            and agent.runs[-1].parent_turn_id == self._turn_id
+            and agent.runs[-1].run_id not in self._delivered
+        ):
+            raise ToolError("请先用 wait_agents 读取上次结果，再继续同一子 Agent。")
         if agent.workspace != str(self.workspace) or agent.read_dirs != [
             str(path) for path in self.permissions.additional_read_dirs
         ]:
@@ -135,20 +142,7 @@ class SubagentManager:
             ):
                 break
             time.sleep(0.05)
-        results = []
-        limit = max(128, (self.result_limit - 512) // max(1, len(ids)) - 256)
-        for agent_id in ids:
-            agent = self._get(agent_id)
-            item = self._summary(agent)
-            if agent.runs:
-                run = agent.runs[-1]
-                if run.status != "running":
-                    self._delivered.add(run.run_id)
-                    item.update(
-                        reply=run.reply[:limit], error=run.error, truncated=len(run.reply) > limit
-                    )
-            results.append(item)
-        return {"status": "results", "agents": results}
+        return self._results(ids)
 
     def interrupt(self, agent_id: str) -> dict[str, Any]:
         """请求停止指定子任务；等待清理可另用 wait_agents，不删除历史。"""
@@ -159,8 +153,13 @@ class SubagentManager:
             active[1].cancel()
         return {"agent_id": agent_id, "status": "stopping" if active else "inactive"}
 
-    def instructions(self) -> str:
-        """系统层只补程序规则和受控 ID；子回复只能通过 tool 结果进入模型。"""
+    def instructions(self, session_id: str | None) -> str:
+        """系统层只补本会话的受控 ID，子回复仅经 tool 结果回传。
+
+        session_id 用于预览作用域隔离；预览另一会话不绑定或带入旧子任务状态。
+        """
+        if session_id != self._session_id:
+            return ""
         self._poll()
         pending = self._pending()
         if not pending:
@@ -182,10 +181,16 @@ class SubagentManager:
         """本主轮次退出时取消并收完仍在运行的任务，保证不留下静默后台请求。"""
         for _, token in self._active.values():
             token.cancel()
+        failure: Exception | None = None
         while self._active:
-            self._poll()
+            try:
+                self._poll()
+            except Exception as error:
+                failure = failure or error
             if self._active:
                 time.sleep(0.05)
+        if failure:
+            raise failure
 
     def close(self) -> None:
         """关闭线程池；调用方必须在释放主会话锁之前调用。"""
@@ -209,18 +214,49 @@ class SubagentManager:
                 children.select_session(agent.agent_id)
                 tokens, unknown = children.usage(agent.agent_id)
                 budget.update(str(children.root / agent.agent_id), tokens, unknown)
-                for run in agent.runs:
-                    if run.status == "running":
-                        index.update_run(
-                            agent.agent_id,
-                            run.run_id,
-                            status="interrupted",
-                            error="上次委派未完成调度收尾；子会话记录已恢复，未自动重发。",
-                        )
+                self._recover_runs(index, children, agent)
         self._index, self._budget, self._session_id = index, budget, session_id
         self._delivered = set()
         self._announced = {run.run_id for agent in index.agents() for run in agent.runs}
         self._budget.update(str(self.store.root / session_id), *self.store.usage(session_id))
+
+    @staticmethod
+    def _recover_runs(index: DelegationStore, children: SessionStore, agent: ChildAgent) -> None:
+        """以完整子日志恢复索引；消息已提交但索引未写完时保留成功，不重新请求。"""
+        pending = [run for run in agent.runs if run.status == "running"]
+        if not pending:
+            return
+        committed = {turn.turn_id: turn for turn in children.load_turns(agent.agent_id)}
+        failures = {
+            event["payload"]["turn_id"]: event["payload"]
+            for event in children.load_events(agent.agent_id)
+            if event["type"] == "turn_finished"
+        }
+        for run in pending:
+            turn = committed.get(run.child_turn_id or "")
+            failed = failures.get(run.child_turn_id)
+            if turn is not None:
+                index.update_run(
+                    agent.agent_id,
+                    run.run_id,
+                    status="completed",
+                    reply=turn.messages[-1]["content"],
+                    error="",
+                )
+            elif failed is not None:
+                index.update_run(
+                    agent.agent_id,
+                    run.run_id,
+                    status=failed["status"],
+                    error=failed["error"]["message"],
+                )
+            else:
+                index.update_run(
+                    agent.agent_id,
+                    run.run_id,
+                    status="interrupted",
+                    error="上次委派缺少完整结束记录；子会话已恢复，未自动重发。",
+                )
 
     def _admit(self) -> None:
         self._poll()
@@ -284,8 +320,10 @@ class SubagentManager:
         for agent_id, (future, _) in list(self._active.items()):
             if future.done():
                 # 索引写入本身失败不能被伪装为正常任务结果。
-                future.result()
-                del self._active[agent_id]
+                try:
+                    future.result()
+                finally:
+                    del self._active[agent_id]
                 agent = self._get(agent_id)
                 run = agent.runs[-1]
                 if run.run_id not in self._announced:
@@ -302,6 +340,32 @@ class SubagentManager:
             and agent.runs[-1].parent_turn_id == self._turn_id
             and agent.runs[-1].run_id not in self._delivered
         ]
+
+    def _results(self, ids: list[str]) -> dict[str, Any]:
+        """保留 ID/状态等结构并限制整个 JSON 长度；未成功返回的结果不标为已交付。"""
+        results: list[dict[str, Any]] = []
+        delivered = []
+        for agent_id in ids:
+            agent = self._get(agent_id)
+            item = self._summary(agent)
+            if agent.runs and agent.runs[-1].status != "running":
+                run = agent.runs[-1]
+                delivered.append(run.run_id)
+                item.update(reply=run.reply, error=run.error, truncated=False)
+            results.append(item)
+        output = {"status": "results", "agents": results}
+        while (
+            size := len(json.dumps({"ok": True, **output}, ensure_ascii=False))
+        ) > self.result_limit:
+            longest = max(results, key=lambda item: len(item.get("reply", "")), default={})
+            text = longest.get("reply", "")
+            if not text:
+                raise ToolError("结果元信息已超过单次输出限制；请按单个子 Agent ID 查询。")
+            remove = max(1, min(len(text) // 2, size - self.result_limit))
+            longest["reply"] = text[: max(0, len(text) - remove)]
+            longest["truncated"] = True
+        self._delivered.update(delivered)
+        return output
 
     def _get(self, agent_id: str) -> ChildAgent:
         try:
