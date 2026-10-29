@@ -2,11 +2,22 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E1.5 固定输入对照、生命周期与故障整体验收、备份说明及 F1～F9 逐项审计。
+本次核对范围：E2.1 文档分块、来源值和关键词搜索基线；本分支不包含并行 E3 的未提交工作。
 
-核对结论：本次架构无变化，保留 E1.4 已实现关系并核对五阶段验收证据。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：新增 documents 纯文本检索包，目前未接入聊天工具；保留 E1 已实现关系。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
+
+## E2 文档检索
+
+```mermaid
+flowchart LR
+    TEXT["documents/text.py<br/>分块与分词"] --> VALUES["documents/models.py<br/>Chunk / SearchHit"]
+    RANK["documents/retrieval.py<br/>关键词排序"] --> TEXT
+    RANK --> VALUES
+```
+
+当前模块处理纯文本，不读取个人目录，不调用模型；工具和持久索引在后续阶段接入。
 
 ## E1.1～E1.4 记忆存储、管理、上下文与继承
 
@@ -48,6 +59,7 @@ flowchart LR
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
 | session | storage.py、log.py、compaction_log.py、edit_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
+| documents | models.py、text.py、retrieval.py | contracts |
 | memory | store.py、project.py、retrieval.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限和具体工具文件 | session、config、contracts |
 | contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py | 无 |

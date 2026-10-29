@@ -1,0 +1,18 @@
+[
+  {"id":"retry","kind":"answer","query":"网络连接失败重试次数","path":"network.md","evidence":"最多重试 2 次"},
+  {"id":"permission","kind":"answer","query":"权限错误是否重试","path":"network.md","evidence":"权限错误不重试"},
+  {"id":"rate","kind":"answer","query":"HTTP 429 等待时间","path":"network.md","evidence":"服务端指定的等待时间"},
+  {"id":"format","kind":"answer","query":"会话记录文件格式","path":"sessions.md","evidence":"JSONL"},
+  {"id":"restart","kind":"answer","query":"程序异常退出会重发请求吗","path":"sessions.md","evidence":"不自动重发请求"},
+  {"id":"history","kind":"answer","query":"什么回答能加入有效聊天历史","path":"sessions.md","evidence":"完整回答保存成功"},
+  {"id":"cache","kind":"answer","query":"文档缓存保留时间","path":"cache.md","evidence":"30 分钟"},
+  {"id":"install","kind":"answer","query":"Python 运行环境版本","path":"installation.md","evidence":"Python 3.11"},
+  {"id":"lock","kind":"answer","query":"并发修改会话文件锁","path":"locking.txt","evidence":"必须获得文件锁"},
+  {"id":"database_session","kind":"ambiguous","query":"数据库 session 是什么","path":"transactions.md","evidence":"数据库连接上下文"},
+  {"id":"chat_session","kind":"ambiguous","query":"聊天会话记录如何保存","path":"sessions.md","evidence":"JSONL"},
+  {"id":"paraphrase_exit","kind":"paraphrase","query":"电脑突然关机后任务会自己再执行吗","path":"sessions.md","evidence":"不重跑工具"},
+  {"id":"paraphrase_atomic","kind":"paraphrase","query":"落盘没成功会把以前的数据弄丢吗","path":"locking.txt","evidence":"保存失败时保留"},
+  {"id":"expired","kind":"stale","query":"文件删除后缓存如何处理","path":"cache.md","evidence":"缓存条目也必须删除"},
+  {"id":"unknown_space","kind":"no_answer","query":"火星基地氧气配给","path":null,"evidence":null},
+  {"id":"unknown_login","kind":"no_answer","query":"默认支持哪种企业单点登录供应商","path":null,"evidence":null}
+]
