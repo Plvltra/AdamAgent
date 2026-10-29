@@ -10,6 +10,7 @@ from pathlib import Path
 from adam.bootstrap import open_application
 from adam.cli import chat
 from adam.diagnostics import read_report
+from adam.streaming import StreamReply
 
 root = Path(sys.argv[1])
 mode = sys.argv[2]
@@ -38,6 +39,18 @@ def cancel_when_ready():
         _thread.interrupt_main()
 
 
+original_accept = StreamReply.accept
+
+
+def observe_usage(self, event):
+    """只观察真实解析结果，确保已知用量场景在收到 usage 后才投递取消。"""
+    text = original_accept(self, event)
+    if self.usage is not None and mode == "known_body":
+        (root / "usage_received").touch()
+    return text
+
+
+StreamReply.accept = observe_usage
 threading.Thread(target=cancel_when_ready, daemon=True).start()
 with open_application(
     root / "config.toml",

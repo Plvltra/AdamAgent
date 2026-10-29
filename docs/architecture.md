@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：V5.3 共享物理请求额度、有限连接重试、零用量失败校验及独立摘要重试。
+本次核对范围：V5.4 失败继续方式、重启边界与未知执行对摘要的拦截。
 
-核对结论：bootstrap 创建并管理资源，CLI 使用 AgentApplication；共享配置、数据和错误单独定义；模型依赖 ModelClient，工具注册表只分派已注入处理函数。
+核对结论：模块结构保持。AgentApplication 根据会话消费及执行记录返回共享的 ContinuationStatus，CLI 只展示继续方式；Conversation 同时拦截未知副作用下的聊天与摘要。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -82,7 +82,7 @@ flowchart TD
     LOG -.->|"校验日志中的完整轮次"| PROTOCOL
 ```
 
-共享的 `models.py` 定义 Session、Message、Completion、CommandRequest、SessionUsage 和记录回调类型。`settings.py` 只定义配置值；`config.py` 负责读取和校验。这些数据定义不引用 HTTP、文件存储实现或工具执行模块。
+共享的 `models.py` 定义 Session、Message、Completion、CommandRequest、SessionUsage、ContinuationStatus 和记录回调类型。`settings.py` 只定义配置值；`config.py` 负责读取和校验。这些数据定义不引用 HTTP、文件存储实现或工具执行模块。
 
 ## 工具创建与执行
 

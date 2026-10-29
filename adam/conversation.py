@@ -56,10 +56,10 @@ class Conversation:
         self.client = client
         self.system_prompt = system_prompt
         self.session: Session | None = None
-        self._last_turn: tuple[str, str] | None = None
         self.model = model
         self.limits = limits
         self.tool_executor = tools
+        self._last_turn: tuple[str, str] | None = None
         self.context_builder = ContextBuilder(
             context_config or ContextConfig(), self.limits.max_output_tokens
         )

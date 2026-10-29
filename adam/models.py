@@ -54,6 +54,15 @@ class SessionUsage:
     unknown: bool
 
 
+@dataclass(frozen=True)
+class ContinuationStatus:
+    """当前会话是否允许继续消费及原因；不代表已发生的外部副作用可以回滚。"""
+
+    allowed: bool
+    reason: str
+    message: str
+
+
 ExecutionRecorder = Callable[[str, dict[str, Any]], None]
 
 

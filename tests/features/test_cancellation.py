@@ -152,8 +152,10 @@ def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, 
         if mode != "confirm":
             deadline = time.monotonic() + 10
             while time.monotonic() < deadline:
-                if (mode == "command" and (tmp_path / "pids").exists()) or (
-                    mode != "command" and ready.is_set()
+                if (
+                    (mode == "command" and (tmp_path / "pids").exists())
+                    or (mode not in {"command", "known_body"} and ready.is_set())
+                    or (mode == "known_body" and (tmp_path / "usage_received").exists())
                 ):
                     break
                 assert process.poll() is None
@@ -177,6 +179,7 @@ def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, 
         assert len(result["reports"]) == 2
         assert all(not alive(pid) for pid in pids)
         assert interrupted["unknown_usage"] is (mode in {"headers", "body"})
+        assert "继续方式>" in "\n".join(result["output"])
         assert len(requests) == (2 if mode in {"headers", "body"} else 3)
         if mode == "command":
             assert turn["commands"][0]["status"] == "interrupted"

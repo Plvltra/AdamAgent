@@ -144,8 +144,18 @@ def confirm_edit(plan: EditPlan, read: Callable[[str], str], write: Callable[[st
         return False
 
 
+def show_continuation(application: AgentApplication, write: Callable[[str], None]) -> None:
+    """失败后展示应用给出的继续方式；日志不可读时不猜测会话仍可执行。"""
+    try:
+        status = application.continuation_status()
+    except AgentError:
+        write("继续方式> 无法读取会话状态；请先检查日志和文件权限，未自动重试。")
+        return
+    write("继续方式> " + status.message)
+
+
 def show_turn_report(application: AgentApplication, write: Callable[[str], None]) -> None:
-    """通过会话接口取得执行事实；日志读取故障不掩盖原始失败，终端写入异常仍传播。"""
+    """通过应用取得执行事实；日志故障不掩盖原始失败，终端写入异常仍传播。"""
     try:
         report = application.execution_report()
     except AgentError:
@@ -160,7 +170,7 @@ def send_message(
     write: Callable[[str], None],
     fragment: Callable[[str], None] | None,
 ) -> None:
-    """增量展示本轮回答，结束后附执行事实；已知失败展示错误，中断交外层处理。"""
+    """增量展示本轮回答，结束后附执行事实；已知失败说明继续方式，中断交外层处理。"""
     output = ReplyOutput(write, fragment or (write_fragment if write is print else write))
     try:
         reply = application.send(text, on_output=output.receive)
@@ -168,6 +178,7 @@ def send_message(
         output.incomplete()
         show_failure(error, write)
         show_turn_report(application, write)
+        show_continuation(application, write)
     except (KeyboardInterrupt, EOFError):
         output.incomplete()
         show_turn_report(application, write)
@@ -212,8 +223,10 @@ def chat(
                 send_message(application, text, write, fragment)
             except KeyboardInterrupt:
                 write("已取消本轮，当前会话保留；已发生的工具操作不会回滚。")
+                show_continuation(application, write)
             except AgentError as error:
                 show_failure(error, write)
+                show_continuation(application, write)
     except (EOFError, KeyboardInterrupt):
         pass
     write("再见。")

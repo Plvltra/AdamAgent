@@ -8,7 +8,7 @@ from adam.conversation import Conversation
 from adam.errors import AgentError, LLMError
 from adam.execution_report import ExecutionReport
 from adam.history import Summary
-from adam.models import Message, ModelOutput, Session, SessionUsage
+from adam.models import ContinuationStatus, Message, ModelOutput, Session, SessionUsage
 from adam.ports import ModelClient
 from adam.storage import SessionStore
 
@@ -81,6 +81,38 @@ class AgentApplication:
         session = self.session
         total, unknown = self._store.usage(session.session_id) if session else (0, False)
         return SessionUsage(total, self._conversation.limits.max_session_tokens, unknown)
+
+    def continuation_status(self) -> ContinuationStatus:
+        """只读判断原会话能否继续请求；未知消费和未知副作用不以清零或重放修复。"""
+        if self.session is None:
+            return ContinuationStatus(True, "no_session", "下一条输入会新建会话。")
+        operations = self._store.load_executions(self.session.session_id) + self._store.load_edits(
+            self.session.session_id
+        )
+        if any(item["status"] == "unknown" for item in operations):
+            return ContinuationStatus(
+                False,
+                "execution_unknown",
+                "执行结果未知；先核对实际副作用和日志，再用 /new 开新会话；不会自动重跑。",
+            )
+        usage = self.usage()
+        if usage.unknown:
+            return ContinuationStatus(
+                False,
+                "usage_unknown",
+                "用量未知，原会话只供查看；用 /new 开新会话，或 /resume 切换，不能把未知消费清零。",
+            )
+        if usage.tokens >= usage.limit:
+            return ContinuationStatus(
+                False,
+                "session_token_limit",
+                "当前会话消费已达上限；可 /new，或调整额度配置后重启并 /resume。",
+            )
+        return ContinuationStatus(
+            True,
+            "ready",
+            "可调整输入后继续本会话；失败输入未加入有效历史，已执行的工具操作保留。",
+        )
 
     def send(self, text: str, *, on_output: Callable[[ModelOutput], None] | None = None) -> str:
         """执行完整一轮并返回已保存回答；已知失败以 AgentError 交给界面。"""
