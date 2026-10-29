@@ -10,6 +10,7 @@ from adam.contracts.protocol import validate_turn
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
 from adam.session.outcome import outcome_details
+from adam.session.plan_log import PlanLog
 
 
 class UnsupportedLogVersionError(ValueError):
@@ -88,6 +89,7 @@ class SessionLog:
         self.executions: dict[str, dict[str, Any]] = {}
         self.compactions = CompactionLog()
         self.edits = EditLog()
+        self.plans = PlanLog()
         self.tokens = 0
         self._unknown_usage = False
         self._pending_turn = ""
@@ -121,6 +123,7 @@ class SessionLog:
             "turn_finished": self._finish_turn,
             "tool_started": self._apply_tool,
             "tool_finished": self._apply_tool,
+            "plan_updated": self._apply_plan,
             "edit_planned": self._apply_edit,
             "edit_started": self._apply_edit,
             "edit_finished": self._apply_edit,
@@ -366,6 +369,15 @@ class SessionLog:
         }:
             raise ValueError("edit has no final result")
         tool.update(output=payload["output"], finished=True, status="finished")
+
+    def _apply_plan(self, kind: str, payload: dict[str, Any]) -> None:
+        """计划更新只能来自本轮尚在执行的 update_plan；非法关联拒绝落盘。"""
+        self._require_turn(payload)
+        self._require_request(payload)
+        tool = self._require_tool(payload)
+        if tool["name"] != "update_plan" or tool["finished"]:
+            raise ValueError("invalid plan parent")
+        self.plans.apply(payload)
 
     def _apply_edit(self, kind: str, payload: dict[str, Any]) -> None:
         """编辑事件只能属于已开始的 replace_text；具体状态由 EditLog 校验。"""

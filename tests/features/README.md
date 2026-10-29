@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| E3.1 计划存储 | 版本与来源、跨会话隔离、重启不重跑、非法状态/关联及 fsync 回滚 | [test_task_plan_storage.py](test_task_plan_storage.py) |
 | E2.5 文档整体验收 | 真实子线程查询、权限撤销、取消、资源/向量保存失败及相对工作目录 | [test_document_acceptance.py](test_document_acceptance.py) |
 | E2.4 语义检索与评估 | 向量复用/更新/模型变化、非法维度、禁止隐式下载及固定评估口径 | [test_document_embeddings.py](test_document_embeddings.py)、[test_document_evaluation.py](test_document_evaluation.py) |
 | E2.3 文档工具闭环 | 假 HTTP + 真实检索、来源和日志、按需执行、预算及配置 | [test_document_tools.py](test_document_tools.py) |

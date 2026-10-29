@@ -15,6 +15,7 @@ from filelock import FileLock, Timeout
 from adam.contracts.errors import FailureCode, SessionNotFoundError, StorageError
 from adam.contracts.history import HistoryTurn, Summary
 from adam.contracts.models import ExecutionReport, Message, Session, valid_session_id
+from adam.contracts.planning import PlanReport, PlanSnapshot
 from adam.contracts.protocol import validate_turn
 from adam.session.execution_report import build_execution_report
 from adam.session.log import (
@@ -156,6 +157,15 @@ class SessionStore:
     def load_turns(self, session_id: str) -> list[HistoryTurn]:
         """按提交顺序返回完整成功轮次；不通过消息 ID 推测分组，不包含失败输入。"""
         return self._read_log(session_id).history_turns()
+
+    def load_plan(self, session_id: str, turn_id: str | None = None) -> PlanReport | None:
+        """读取某轮或本会话最近的计划；不创建新计划，也不重跑未完成步骤。"""
+        log = self._read_log(session_id)
+        return log.plans.report(log.turns, turn_id)
+
+    def append_plan(self, session_id: str, plan: PlanSnapshot) -> None:
+        """持锁保存完整计划版本；校验或 IO 失败时保留已有版本，不提前声明成功。"""
+        self._append(session_id, record("plan_updated", plan.to_dict()))
 
     def load_summary(self, session_id: str) -> Summary | None:
         """返回最近完整提交的摘要；失败或中断的候选摘要不生效。"""
