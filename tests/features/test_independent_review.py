@@ -5,7 +5,7 @@ import json
 import httpx
 import pytest
 
-from tests.features.test_subagents import application, call, outputs
+from tests.features.test_subagents import application, call, index_for, outputs
 from tests.features.test_tool_loop import answer, tool_response
 
 
@@ -75,7 +75,7 @@ def test_review_collects_actual_evidence_and_rejects_false_or_stale_verdict(tmp_
                 200,
                 json=tool_response(
                     [
-                        call("blocked", "run_command", program="git", arguments=["--version"]),
+                        call("blocked", "run_command", argv=["git", "--version"]),
                         call("collect", "collect_review", review_id=rid),
                     ]
                 ),
@@ -128,7 +128,13 @@ def test_review_round_limit_is_not_bypassed_by_generic_send(tmp_path):
         elif count == 2:
             calls = [call("collect", "collect_review", review_id=outputs(body)[-1]["review_id"])]
         elif count == 3:
-            calls = [call("over", "request_review", goal="再审", criteria="5", paths=["calc.py"])]
+            agent_id = json.loads(index_for(app).read_text(encoding="utf-8"))["agents"][0][
+                "agent_id"
+            ]
+            calls = [
+                call("bypass", "send_message", agent_id=agent_id, task="再审"),
+                call("over", "request_review", goal="再审", criteria="5", paths=["calc.py"]),
+            ]
         else:
             captured.extend(outputs(body))
             return httpx.Response(200, json=answer("达到上限，不继续"))
@@ -136,5 +142,6 @@ def test_review_round_limit_is_not_bypassed_by_generic_send(tmp_path):
 
     with application(tmp_path, parent, reviewer, config=config) as (app, store):
         app.send("检查")
+        assert "request_review" in captured[-2]["error"]
         assert "上限" in captured[-1]["error"]
         assert len(store.load_reviews(app.session.session_id)) == 1

@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| E5.3 协作验收 | 真实缺陷修改与复审、已正确文件的无收益对照 | [test_review_acceptance.py](test_review_acceptance.py) |
 | E5.2 串行审查 | 独立证据、伪造/过期拒绝、外部删除可收集、串行限制、次数与共享消费 | [test_independent_review.py](test_independent_review.py) |
 | E5.1 审查记录 | 来源、版本与真实行号、并行拒绝、重启不重跑 | [test_review_records.py](test_review_records.py) |
 | E4.6 对照验收 | 真实失败→反思→编辑→检查、新任务、差值反例、离线评估入口 | [test_reflection_acceptance.py](test_reflection_acceptance.py)、[手动评估](../../docs/reflection-evaluation.md) |
