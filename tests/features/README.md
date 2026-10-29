@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| E7.2 MCP 工具 | 原生/协议查询一致、实际工具记录、嵌套 Schema、冲突清理 | [test_mcp_tools.py](test_mcp_tools.py) |
 | E7.1 MCP 连接 | 官方 SDK 真实进程握手、复用、关闭、未启动和配置校验 | [test_mcp_connection.py](test_mcp_connection.py) |
 | E6.3 权限与成本 | 恶意指导不跳过审批、子权限保持、超预算不请求、真实示例大小对照 | [test_skill_boundaries.py](test_skill_boundaries.py) |
 | E6.2 渐进加载 | 初始只含目录、匹配与无关任务、正文版本和重启记录 | [test_skill_loading.py](test_skill_loading.py) |

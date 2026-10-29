@@ -1,7 +1,7 @@
 """唯一的应用组装入口；加载配置，创建依赖并在退出或启动失败时释放资源。"""
 
 from collections.abc import Callable, Iterator
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import AbstractContextManager, ExitStack, contextmanager
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
@@ -36,6 +36,7 @@ from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
 from adam.tool_calls.feedback_tools import SPECS as FEEDBACK_SPECS
 from adam.tool_calls.feedback_tools import handlers as feedback_handlers
+from adam.tool_calls.mcp_tools import register_mcp
 from adam.tool_calls.planning_tools import SPECS as PLANNING_SPECS
 from adam.tool_calls.planning_tools import handlers as planning_handlers
 from adam.tool_calls.policy import PathPolicy
@@ -64,129 +65,135 @@ def build_application(
     config 只在此拆分；模型密钥仅传给模型适配器，工具只得到权限和资源限制。
     on_tool 接收工具名称；标签、颜色和输出位置由界面决定。
     child_client_factory 在工作线程中创建独立模型资源；未提供时不启用委派。
-    使用子任务的调用方须在释放主会话锁前调用 application.close。
+    启用子任务或 MCP 的调用方须在释放主会话锁前调用 application.close；
+    组装失败会回收已创建资源，主模型与主存储仍由调用方持有。
     """
-    documents_dir = config.documents_dir or store.root / "_documents"
-    document_config = replace(
-        config.documents,
-        roots=tuple(
-            path if path.is_absolute() else workspace.absolute() / path
-            for path in config.documents.roots
-        ),
-    )
-    registry = create_tool_registry(
-        workspace,
-        config.permissions,
-        config.tool_limits,
-        confirm_command=confirm_command,
-        confirm_edit=confirm_edit,
-        protected_dirs=(documents_dir,),
-    )
-    registry = register_documents(
-        registry, workspace, document_config, documents_dir, config.permissions
-    )
-    registry, skills = register_skills(
-        registry,
-        workspace,
-        config.permissions,
-        enabled=config.skills.enabled,
-        protected_dirs=(documents_dir,),
-    )
-    manager = None
-    if child_client_factory:
-        manager = SubagentManager(
-            store,
+    with ExitStack() as resources:
+        documents_dir = config.documents_dir or store.root / "_documents"
+        document_config = replace(
+            config.documents,
+            roots=tuple(
+                path if path.is_absolute() else workspace.absolute() / path
+                for path in config.documents.roots
+            ),
+        )
+        registry = create_tool_registry(
             workspace,
             config.permissions,
-            config.subagents,
-            config.agent.max_session_tokens,
-            config.tool_limits.max_result_chars,
-            partial(
-                _open_child,
-                config,
-                child_client_factory,
-                config.memories_dir or store.root / "_memories",
-                document_config,
-                documents_dir,
-            ),
-            on_notice or (lambda _: None),
-        )
-        registry = registry.extended(
-            DELEGATION_SPECS,
-            handlers(manager),
-            {"wait_agents": encode_results},
-        )
-    planner = (
-        PlanningService(store, config.planning, on_change=on_plan, notify=on_notice)
-        if config.planning.enabled
-        else None
-    )
-    if planner:
-        registry = registry.extended(PLANNING_SPECS, planning_handlers(planner))
-
-    reflector = (
-        ReflectionService(store, config.reflection, config.context, on_notice)
-        if config.reflection.enabled
-        else None
-    )
-    if reflector:
-        registry = registry.extended(FEEDBACK_SPECS, feedback_handlers(reflector))
-
-    reviewer = (
-        ReviewService(
-            store,
-            manager,
-            PathPolicy(workspace, config.permissions),
             config.tool_limits,
-            config.review,
-            on_notice or (lambda _: None),
+            confirm_command=confirm_command,
+            confirm_edit=confirm_edit,
+            protected_dirs=(documents_dir,),
         )
-        if manager and config.review.enabled
-        else None
-    )
-    if reviewer:
-        registry = registry.extended(REVIEW_SPECS, review_handlers(reviewer))
-
-    def bind_source(link: dict[str, str]) -> None:
-        """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
-        if manager:
-            manager.bind_source(link)
+        registry = register_documents(
+            registry, workspace, document_config, documents_dir, config.permissions
+        )
+        registry, skills = register_skills(
+            registry,
+            workspace,
+            config.permissions,
+            enabled=config.skills.enabled,
+            protected_dirs=(documents_dir,),
+        )
+        registry = register_mcp(registry, config.mcp, workspace, resources)
+        manager = None
+        if child_client_factory:
+            manager = SubagentManager(
+                store,
+                workspace,
+                config.permissions,
+                config.subagents,
+                config.agent.max_session_tokens,
+                config.tool_limits.max_result_chars,
+                partial(
+                    _open_child,
+                    config,
+                    child_client_factory,
+                    config.memories_dir or store.root / "_memories",
+                    document_config,
+                    documents_dir,
+                ),
+                on_notice or (lambda _: None),
+            )
+            resources.callback(manager.close)
+            registry = registry.extended(
+                DELEGATION_SPECS,
+                handlers(manager),
+                {"wait_agents": encode_results},
+            )
+        planner = (
+            PlanningService(store, config.planning, on_change=on_plan, notify=on_notice)
+            if config.planning.enabled
+            else None
+        )
         if planner:
-            planner.bind_source(link)
-        if reflector:
-            reflector.bind_source(link)
-        if reviewer:
-            reviewer.bind_source(link)
+            registry = registry.extended(PLANNING_SPECS, planning_handlers(planner))
 
-    executor = ToolExecutor(
-        store,
-        registry,
-        on_tool or (lambda _: None),
-        before_call=bind_source,
-        after_call=planner.publish if planner else None,
-        check_call=reviewer.check_call if reviewer else None,
-    )
-    memories = MemoryService(
-        MemoryStore(config.memories_dir or store.root / "_memories"), workspace, config.memory
-    )
-    conversation = Conversation(
-        store,
-        client,
-        config.system_prompt,
-        executor,
-        config.agent,
-        model=config.llm.model,
-        context_config=config.context,
-        notify=on_notice,
-        accounting=manager.account if manager else None,
-        delegation=manager,
-        planning=planner,
-        reflection=reflector,
-        review=reviewer,
-        memory_provider=memories.select,
-        skills=skills,
-    )
-    return AgentApplication(conversation, store, client, memories)
+        reflector = (
+            ReflectionService(store, config.reflection, config.context, on_notice)
+            if config.reflection.enabled
+            else None
+        )
+        if reflector:
+            registry = registry.extended(FEEDBACK_SPECS, feedback_handlers(reflector))
+
+        reviewer = (
+            ReviewService(
+                store,
+                manager,
+                PathPolicy(workspace, config.permissions),
+                config.tool_limits,
+                config.review,
+                on_notice or (lambda _: None),
+            )
+            if manager and config.review.enabled
+            else None
+        )
+        if reviewer:
+            registry = registry.extended(REVIEW_SPECS, review_handlers(reviewer))
+
+        def bind_source(link: dict[str, str]) -> None:
+            """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
+            if manager:
+                manager.bind_source(link)
+            if planner:
+                planner.bind_source(link)
+            if reflector:
+                reflector.bind_source(link)
+            if reviewer:
+                reviewer.bind_source(link)
+
+        executor = ToolExecutor(
+            store,
+            registry,
+            on_tool or (lambda _: None),
+            before_call=bind_source,
+            after_call=planner.publish if planner else None,
+            check_call=reviewer.check_call if reviewer else None,
+        )
+        memories = MemoryService(
+            MemoryStore(config.memories_dir or store.root / "_memories"), workspace, config.memory
+        )
+        conversation = Conversation(
+            store,
+            client,
+            config.system_prompt,
+            executor,
+            config.agent,
+            model=config.llm.model,
+            context_config=config.context,
+            notify=on_notice,
+            accounting=manager.account if manager else None,
+            delegation=manager,
+            planning=planner,
+            reflection=reflector,
+            review=reviewer,
+            memory_provider=memories.select,
+            skills=skills,
+        )
+        return AgentApplication(
+            conversation, store, client, memories, close_resources=resources.pop_all().close
+        )
 
 
 @contextmanager
@@ -268,7 +275,7 @@ def open_application(
     """从配置打开应用；配置错误不会创建 HTTP 客户端或会话目录。
 
     yield 期间拥有存储与 HTTP 资源；启动失败、退出、取消或界面异常都释放它们。
-    先停止并回收子任务，再释放主会话锁；已知业务错误按 AgentError 契约传播，
+    先停止并回收子任务与 MCP 服务，再释放主会话锁；已知业务错误按 AgentError 契约传播，
     不把界面故障误判成存储错误。
     """
     config = load_config(config_path, llm_path)
@@ -301,7 +308,7 @@ def open_application(
             try:
                 application.close()
             except Exception:
-                error.add_note("子任务清理时发生错误；原始失败保留，请检查子会话记录。")
+                error.add_note("应用资源清理时发生错误；原始失败保留，请检查会话记录。")
             raise
         else:
             application.close()

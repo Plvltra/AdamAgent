@@ -33,7 +33,10 @@ class AgentApplication:
         store: SessionStore,
         models: ModelClient,
         memories: MemoryService | None = None,
+        *,
+        close_resources: Callable[[], None] | None = None,
     ) -> None:
+        self._close_resources = close_resources
         self._conversation = conversation
         self._store = store
         self._models_client = models
@@ -160,8 +163,10 @@ class AgentApplication:
         )
 
     def close(self) -> None:
-        """停止并清理应用创建的子任务；外部注入的主存储和模型仍由调用方关闭。"""
-        if self._conversation.delegation:
+        """释放组装时注册的子任务与服务资源；外部注入的主存储和模型由调用方关闭。"""
+        if self._close_resources:
+            self._close_resources()
+        elif self._conversation.delegation:
             self._conversation.delegation.close()
 
     def execution_report(self) -> ExecutionReport | None:

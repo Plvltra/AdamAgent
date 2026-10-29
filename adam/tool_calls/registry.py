@@ -11,6 +11,7 @@ from adam.contracts.models import ExecutionRecorder
 
 ToolHandler = Callable[[dict[str, Any], ExecutionRecorder | None], dict[str, Any]]
 ResultEncoder = Callable[[dict[str, Any]], str]
+ArgumentValidator = Callable[[object], None]
 
 
 class ToolRegistry:
@@ -22,20 +23,27 @@ class ToolRegistry:
         handlers: dict[str, ToolHandler],
         limits: ToolLimits,
         encoders: dict[str, ResultEncoder] | None = None,
+        validators: dict[str, ArgumentValidator] | None = None,
     ) -> None:
-        """说明与实现必须一一对应；可为需要保留结构的结果注册编码器。"""
-        if specs.keys() != handlers.keys() or (encoders or {}).keys() - specs.keys():
-            raise ValueError("工具说明、处理函数或结果编码器未正确配对。")
+        """说明与实现必须一一对应；可按工具注册结果编码器和完整参数校验器。"""
+        if (
+            specs.keys() != handlers.keys()
+            or (encoders or {}).keys() - specs.keys()
+            or (validators or {}).keys() - specs.keys()
+        ):
+            raise ValueError("工具说明、处理函数、编码器或校验器未正确配对。")
         self._specs = specs
         self._handlers = handlers
         self.limits = limits
         self._encoders = encoders or {}
+        self._validators = validators or {}
 
     def extended(
         self,
         specs: dict[str, Any],
         handlers: dict[str, ToolHandler],
         encoders: dict[str, ResultEncoder] | None = None,
+        validators: dict[str, ArgumentValidator] | None = None,
     ) -> "ToolRegistry":
         """返回扩展后的独立目录；不覆盖同名工具，也不改变已有目录。"""
         if self._specs.keys() & specs.keys():
@@ -45,6 +53,7 @@ class ToolRegistry:
             {**self._handlers, **handlers},
             self.limits,
             {**self._encoders, **(encoders or {})},
+            {**self._validators, **(validators or {})},
         )
 
     def definitions(self) -> list[dict[str, Any]]:
@@ -66,15 +75,7 @@ class ToolRegistry:
             if name not in self._specs:
                 raise ToolError("未知工具。")
             args = json.loads(arguments)
-            params = self._specs[name]["parameters"]
-            if not isinstance(args, dict) or args.keys() - params["properties"].keys():
-                raise ToolError("参数必须为对象且不能包含未知字段。")
-            if any(key not in args for key in params["required"]):
-                raise ToolError("缺少必填参数。")
-            types = {"string": str, "integer": int, "boolean": bool, "array": list}
-            for key, value in args.items():
-                if type(value) is not types[params["properties"][key]["type"]]:
-                    raise ToolError(f"参数 {key} 类型错误。")
+            self._validate(name, args)
             result = self._handlers[name](args, record_execution)
             output = {"ok": True, **result}
         except (ToolError, OSError, ValueError, subprocess.SubprocessError) as error:
@@ -103,3 +104,18 @@ class ToolRegistry:
                 ensure_ascii=False,
             )
         return encoded
+
+    def _validate(self, name: str, args: object) -> None:
+        """扩展工具可注册完整 Schema 校验器；原生工具保持既有参数契约。"""
+        if name in self._validators:
+            self._validators[name](args)
+            return
+        params = self._specs[name]["parameters"]
+        if not isinstance(args, dict) or args.keys() - params["properties"].keys():
+            raise ToolError("参数必须为对象且不能包含未知字段。")
+        if any(key not in args for key in params["required"]):
+            raise ToolError("缺少必填参数。")
+        types = {"string": str, "integer": int, "boolean": bool, "array": list}
+        for key, value in args.items():
+            if type(value) is not types[params["properties"][key]["type"]]:
+                raise ToolError(f"参数 {key} 类型错误。")
