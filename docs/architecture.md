@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E2.3 文档检索工具、配置、主子 Agent 组装、来源日志和预算边界；本分支不包含并行 E3 的未提交工作。
+本次核对范围：E2.4 本地 embedding、向量缓存、共用原子快照及独立评估入口；本分支不包含并行 E3 的未提交工作。
 
-核对结论：bootstrap 通过 register_documents 注册按需只读搜索；documents/search 协调索引与排序，工具适配器维护结构化输出容量，聊天主循环保持原有流程；保留 E1 已实现关系。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：bootstrap 通过 register_documents 注册按需只读搜索；documents/search 协调索引与排序，工具适配器维护结构化输出容量，DocumentSearch 支持关键词或本地向量，后者经 EmbeddingBackend 协议；文本和向量共用 snapshots 原子缓存；聊天主循环保持原有流程；保留 E1 已实现关系。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -18,7 +18,12 @@ flowchart LR
     BOOT["bootstrap.py"] --> TOOLS["tool_calls/document_tools.py<br/>注册、适配和结果限长"]
     TOOLS --> REGISTRY["tool_calls/registry.py<br/>参数校验"]
     TOOLS --> SEARCH["documents/search.py<br/>DocumentSearch"]
+    CLI["document_search.py<br/>独立查询/模型准备/评估"] --> SEARCH
     SEARCH --> RANK
+    SEARCH --> VECTOR["documents/vectors.py<br/>VectorSearch"]
+    VECTOR --> EMBED["documents/embedding.py<br/>FastEmbedBackend / EmbeddingBackend"]
+    VECTOR --> SNAP["documents/snapshots.py<br/>有界校验与原子保存"]
+    INDEX --> SNAP
     SEARCH --> INDEX
     INDEX["documents/index.py<br/>DocumentIndex"] --> SOURCE["documents/source.py<br/>有界扫描"]
     SOURCE --> AUTH["注入的路径授权函数"]
@@ -27,7 +32,7 @@ flowchart LR
     SOURCE --> CONFIG["config/settings.py<br/>DocumentConfig"]
 ```
 
-DocumentIndex 持锁刷新配置范围内的源文件；源文件经授权和限额检查后计算内容版本。缓存损坏或读写失败明确报错，不返回旧资料。仅变更文件重新分块。搜索通过普通工具结果进入上下文与会话日志；不修改 Conversation。子任务逐个授权源文件，主子文件工具均保护索引目录。embedding 在下一阶段接入。
+DocumentIndex 持锁刷新配置范围内的源文件；源文件经授权和限额检查后计算内容版本。缓存损坏或读写失败明确报错，不返回旧资料。仅变更文件重新分块。搜索通过普通工具结果进入上下文与会话日志；不修改 Conversation。子任务逐个授权源文件，主子文件工具均保护索引目录。embedding 延迟加载，仅显式 prepare-model 可下载；查询失败不自动切策略。独立 document_search 入口不读取聊天密钥，evaluation 按固定标注统计候选证据。
 
 ## E1.1～E1.4 记忆存储、管理、上下文与继承
 
@@ -69,7 +74,7 @@ flowchart LR
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
 | session | storage.py、log.py、compaction_log.py、edit_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
-| documents | models.py、text.py、retrieval.py、source.py、index.py、search.py | config、contracts |
+| documents | 分块、来源、文本/向量检索、快照、embedding 与 evaluation | config、contracts |
 | memory | store.py、project.py、retrieval.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限、document_tools.py 和具体工具 | documents、session、config、contracts |
 | contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py | 无 |

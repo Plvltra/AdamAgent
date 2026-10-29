@@ -1,0 +1,961 @@
+{
+  "metadata": {
+    "embedding_model": "BAAI/bge-small-zh-v1.5",
+    "semantic_min_score": 0.5,
+    "chunk_chars": 400,
+    "encoding": "window256-mean-v1"
+  },
+  "keyword": {
+    "k": 3,
+    "answerable": 14,
+    "hits": 12,
+    "hit_at_k": 0.8571428571428571,
+    "no_answer": 2,
+    "no_answer_empty": 2,
+    "query_time_ms": 491.824,
+    "returned_chars": 929,
+    "rows": [
+      {
+        "id": "retry",
+        "kind": "answer",
+        "query": "网络连接失败重试次数",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 31.618,
+        "returned_chars": 78,
+        "retrieved": [
+          {
+            "path": "network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 12.410288
+          },
+          {
+            "path": "network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 3.630594
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 2.936637
+          }
+        ]
+      },
+      {
+        "id": "permission",
+        "kind": "answer",
+        "query": "权限错误是否重试",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 29.595,
+        "returned_chars": 46,
+        "retrieved": [
+          {
+            "path": "network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 9.941126
+          },
+          {
+            "path": "network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 2.675491
+          }
+        ]
+      },
+      {
+        "id": "rate",
+        "kind": "answer",
+        "query": "HTTP 429 等待时间",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 31.502,
+        "returned_chars": 108,
+        "retrieved": [
+          {
+            "path": "network.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "HTTP 429 使用服务端指定的等待时间；没有等待时间时终止并提示限流。",
+            "score": 12.575597
+          },
+          {
+            "path": "installation.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "测试使用临时目录，不修改真实用户数据。模型响应通过本地假 HTTP 提供。",
+            "score": 1.806155
+          },
+          {
+            "path": "locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 1.806155
+          }
+        ]
+      },
+      {
+        "id": "format",
+        "kind": "answer",
+        "query": "会话记录文件格式",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 46.666,
+        "returned_chars": 91,
+        "retrieved": [
+          {
+            "path": "sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 9.85068
+          },
+          {
+            "path": "locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 2.657622
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 1.702469
+          }
+        ]
+      },
+      {
+        "id": "restart",
+        "kind": "answer",
+        "query": "程序异常退出会重发请求吗",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 34.352,
+        "returned_chars": 70,
+        "retrieved": [
+          {
+            "path": "sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 16.236585
+          },
+          {
+            "path": "network.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 网络请求策略",
+            "score": 2.134682
+          },
+          {
+            "path": "network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 1.684288
+          }
+        ]
+      },
+      {
+        "id": "history",
+        "kind": "answer",
+        "query": "什么回答能加入有效聊天历史",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 28.844,
+        "returned_chars": 88,
+        "retrieved": [
+          {
+            "path": "sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 18.012448
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 2.022174
+          },
+          {
+            "path": "locking.txt",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "修改索引使用临时文件和原子替换。保存失败时保留原先有效的索引。",
+            "score": 1.838895
+          }
+        ]
+      },
+      {
+        "id": "cache",
+        "kind": "answer",
+        "query": "文档缓存保留时间",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 32.673,
+        "returned_chars": 71,
+        "retrieved": [
+          {
+            "path": "cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 11.703537
+          },
+          {
+            "path": "network.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "HTTP 429 使用服务端指定的等待时间；没有等待时间时终止并提示限流。",
+            "score": 3.112455
+          },
+          {
+            "path": "cache.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 缓存配置",
+            "score": 3.059362
+          }
+        ]
+      },
+      {
+        "id": "install",
+        "kind": "answer",
+        "query": "Python 运行环境版本",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 32.398,
+        "returned_chars": 25,
+        "retrieved": [
+          {
+            "path": "installation.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "运行环境需要 Python 3.11 或更新版本。",
+            "score": 14.570857
+          }
+        ]
+      },
+      {
+        "id": "lock",
+        "kind": "answer",
+        "query": "并发修改会话文件锁",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 34.839,
+        "returned_chars": 66,
+        "retrieved": [
+          {
+            "path": "locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 8.444293
+          },
+          {
+            "path": "sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 4.401075
+          },
+          {
+            "path": "locking.txt",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "并发写入规则",
+            "score": 3.792816
+          }
+        ]
+      },
+      {
+        "id": "database_session",
+        "kind": "ambiguous",
+        "query": "数据库 session 是什么",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 31.421,
+        "returned_chars": 70,
+        "retrieved": [
+          {
+            "path": "transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 6.929865
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 数据库事务",
+            "score": 5.492856
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 3.979167
+          }
+        ]
+      },
+      {
+        "id": "chat_session",
+        "kind": "ambiguous",
+        "query": "聊天会话记录如何保存",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 29.451,
+        "returned_chars": 83,
+        "retrieved": [
+          {
+            "path": "sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 9.81773
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 6.232186
+          },
+          {
+            "path": "sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 3.514475
+          }
+        ]
+      },
+      {
+        "id": "paraphrase_exit",
+        "kind": "paraphrase",
+        "query": "电脑突然关机后任务会自己再执行吗",
+        "answerable": true,
+        "hit": false,
+        "rank": null,
+        "empty": true,
+        "elapsed_ms": 25.537,
+        "returned_chars": 0,
+        "retrieved": []
+      },
+      {
+        "id": "paraphrase_atomic",
+        "kind": "paraphrase",
+        "query": "落盘没成功会把以前的数据弄丢吗",
+        "answerable": true,
+        "hit": false,
+        "rank": null,
+        "empty": false,
+        "elapsed_ms": 27.316,
+        "returned_chars": 70,
+        "retrieved": [
+          {
+            "path": "transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 3.583582
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 数据库事务",
+            "score": 2.539293
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 2.044396
+          }
+        ]
+      },
+      {
+        "id": "expired",
+        "kind": "stale",
+        "query": "文件删除后缓存如何处理",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 25.392,
+        "returned_chars": 63,
+        "retrieved": [
+          {
+            "path": "cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 11.393912
+          },
+          {
+            "path": "cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 3.593406
+          },
+          {
+            "path": "cache.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 缓存配置",
+            "score": 3.059362
+          }
+        ]
+      },
+      {
+        "id": "unknown_space",
+        "kind": "no_answer",
+        "query": "火星基地氧气配给",
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "empty": true,
+        "elapsed_ms": 24.309,
+        "returned_chars": 0,
+        "retrieved": []
+      },
+      {
+        "id": "unknown_login",
+        "kind": "no_answer",
+        "query": "默认支持哪种企业单点登录供应商",
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "empty": true,
+        "elapsed_ms": 25.911,
+        "returned_chars": 0,
+        "retrieved": []
+      }
+    ]
+  },
+  "semantic": {
+    "k": 3,
+    "answerable": 14,
+    "hits": 13,
+    "hit_at_k": 0.9285714285714286,
+    "no_answer": 2,
+    "no_answer_empty": 2,
+    "query_time_ms": 2349.072,
+    "returned_chars": 991,
+    "rows": [
+      {
+        "id": "retry",
+        "kind": "answer",
+        "query": "网络连接失败重试次数",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 1126.489,
+        "returned_chars": 78,
+        "retrieved": [
+          {
+            "path": "network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 0.838221
+          },
+          {
+            "path": "network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 0.683551
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 0.653732
+          }
+        ]
+      },
+      {
+        "id": "permission",
+        "kind": "answer",
+        "query": "权限错误是否重试",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 72.685,
+        "returned_chars": 80,
+        "retrieved": [
+          {
+            "path": "network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 0.735416
+          },
+          {
+            "path": "network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 0.61473
+          },
+          {
+            "path": "locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.567299
+          }
+        ]
+      },
+      {
+        "id": "rate",
+        "kind": "answer",
+        "query": "HTTP 429 等待时间",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 73.789,
+        "returned_chars": 37,
+        "retrieved": [
+          {
+            "path": "network.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "HTTP 429 使用服务端指定的等待时间；没有等待时间时终止并提示限流。",
+            "score": 0.703737
+          }
+        ]
+      },
+      {
+        "id": "format",
+        "kind": "answer",
+        "query": "会话记录文件格式",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 74.399,
+        "returned_chars": 91,
+        "retrieved": [
+          {
+            "path": "sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 0.70946
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 0.566289
+          },
+          {
+            "path": "locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.528607
+          }
+        ]
+      },
+      {
+        "id": "restart",
+        "kind": "answer",
+        "query": "程序异常退出会重发请求吗",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 76.154,
+        "returned_chars": 88,
+        "retrieved": [
+          {
+            "path": "sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 0.77059
+          },
+          {
+            "path": "locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.613183
+          },
+          {
+            "path": "network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 0.588368
+          }
+        ]
+      },
+      {
+        "id": "history",
+        "kind": "answer",
+        "query": "什么回答能加入有效聊天历史",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 81.893,
+        "returned_chars": 63,
+        "retrieved": [
+          {
+            "path": "sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 0.788757
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 0.522283
+          },
+          {
+            "path": "sessions.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 对话恢复",
+            "score": 0.519627
+          }
+        ]
+      },
+      {
+        "id": "cache",
+        "kind": "answer",
+        "query": "文档缓存保留时间",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 82.752,
+        "returned_chars": 63,
+        "retrieved": [
+          {
+            "path": "cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.834617
+          },
+          {
+            "path": "cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 0.652074
+          },
+          {
+            "path": "cache.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 缓存配置",
+            "score": 0.643313
+          }
+        ]
+      },
+      {
+        "id": "install",
+        "kind": "answer",
+        "query": "Python 运行环境版本",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 82.739,
+        "returned_chars": 59,
+        "retrieved": [
+          {
+            "path": "installation.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "运行环境需要 Python 3.11 或更新版本。",
+            "score": 0.743386
+          },
+          {
+            "path": "cache.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 缓存配置",
+            "score": 0.520403
+          },
+          {
+            "path": "cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.518315
+          }
+        ]
+      },
+      {
+        "id": "lock",
+        "kind": "answer",
+        "query": "并发修改会话文件锁",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 87.602,
+        "returned_chars": 92,
+        "retrieved": [
+          {
+            "path": "locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.778155
+          },
+          {
+            "path": "sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 0.590801
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 0.578127
+          }
+        ]
+      },
+      {
+        "id": "database_session",
+        "kind": "ambiguous",
+        "query": "数据库 session 是什么",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 94.443,
+        "returned_chars": 64,
+        "retrieved": [
+          {
+            "path": "transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 0.791885
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 数据库事务",
+            "score": 0.668857
+          },
+          {
+            "path": "sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 0.550071
+          }
+        ]
+      },
+      {
+        "id": "chat_session",
+        "kind": "ambiguous",
+        "query": "聊天会话记录如何保存",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 81.127,
+        "returned_chars": 80,
+        "retrieved": [
+          {
+            "path": "sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 0.680915
+          },
+          {
+            "path": "sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 0.617658
+          },
+          {
+            "path": "cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.562137
+          }
+        ]
+      },
+      {
+        "id": "paraphrase_exit",
+        "kind": "paraphrase",
+        "query": "电脑突然关机后任务会自己再执行吗",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 87.246,
+        "returned_chars": 101,
+        "retrieved": [
+          {
+            "path": "sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 0.582132
+          },
+          {
+            "path": "locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.572483
+          },
+          {
+            "path": "transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 0.542472
+          }
+        ]
+      },
+      {
+        "id": "paraphrase_atomic",
+        "kind": "paraphrase",
+        "query": "落盘没成功会把以前的数据弄丢吗",
+        "answerable": true,
+        "hit": false,
+        "rank": null,
+        "empty": false,
+        "elapsed_ms": 82.117,
+        "returned_chars": 32,
+        "retrieved": [
+          {
+            "path": "transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 0.551911
+          }
+        ]
+      },
+      {
+        "id": "expired",
+        "kind": "stale",
+        "query": "文件删除后缓存如何处理",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "empty": false,
+        "elapsed_ms": 83.375,
+        "returned_chars": 63,
+        "retrieved": [
+          {
+            "path": "cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 0.76216
+          },
+          {
+            "path": "cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.74152
+          },
+          {
+            "path": "cache.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 缓存配置",
+            "score": 0.672595
+          }
+        ]
+      },
+      {
+        "id": "unknown_space",
+        "kind": "no_answer",
+        "query": "火星基地氧气配给",
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "empty": true,
+        "elapsed_ms": 82.346,
+        "returned_chars": 0,
+        "retrieved": []
+      },
+      {
+        "id": "unknown_login",
+        "kind": "no_answer",
+        "query": "默认支持哪种企业单点登录供应商",
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "empty": true,
+        "elapsed_ms": 79.916,
+        "returned_chars": 0,
+        "retrieved": []
+      }
+    ]
+  }
+}

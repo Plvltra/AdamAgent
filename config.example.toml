@@ -11,6 +11,10 @@ documents_dir = "documents"
 # 此配置不授予额外读取权限；工作目录外的源还需 additional_read_dirs。
 roots = []
 top_k = 5
+# semantic 需要 uv sync --extra documents 及显式 prepare-model；不会自动联网。
+method = "keyword"
+embedding_model = "BAAI/bge-small-zh-v1.5"
+semantic_min_score = 0.5
 chunk_chars = 400
 max_files = 200
 max_file_bytes = 1048576

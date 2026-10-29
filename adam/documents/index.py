@@ -1,9 +1,5 @@
 """可重建的文档索引快照；文件锁及原子替换保护并发刷新。"""
 
-import hashlib
-import json
-import os
-import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,11 +9,9 @@ from filelock import FileLock, Timeout
 
 from adam.config.settings import DocumentConfig
 from adam.documents.models import Chunk, DocumentError
+from adam.documents.snapshots import digest, load_snapshot, save_snapshot
 from adam.documents.source import DocumentSource
 from adam.documents.text import split_document
-
-MAX_INDEX_BYTES = 64 * 1024 * 1024
-INDEX_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -46,7 +40,7 @@ class DocumentIndex:
             "roots": sorted(map(str, self.source.roots)),
             "chunk_chars": config.chunk_chars,
         }
-        key = _digest(self.scope)[:24]
+        key = digest(self.scope)[:24]
         self.path = cache_dir / (key + ".json")
         self.lock = FileLock(str(cache_dir / (key + ".lock")), timeout=5)
 
@@ -78,9 +72,9 @@ class DocumentIndex:
                         "chunks": [chunk.to_dict() for chunk in items],
                     }
                 payload = {"scope": self.scope, "documents": documents}
-                generation = _digest(payload)
+                generation = digest(payload)
                 if documents != previous or not self.path.exists():
-                    self._save(payload, generation)
+                    save_snapshot(self.path, payload)
                 return Corpus(tuple(chunks), generation, len(documents))
         except Timeout as error:
             raise DocumentError("文档索引正在被其他进程使用，请稍后查询。") from error
@@ -88,31 +82,17 @@ class DocumentIndex:
             raise DocumentError("文档索引读写失败，未返回旧资料；此前有效索引保留。") from error
 
     def _load(self) -> dict[str, Any]:
-        """验证格式、校验和及片段来源，损坏的缓存不可静默当成空索引。"""
-        if not self.path.exists():
+        """验证范围及片段来源；容器版本、校验和与原子写入由 snapshots 共用。"""
+        payload = load_snapshot(self.path)
+        if payload is None:
             return {}
         try:
-            with self.path.open("rb") as stream:
-                raw = stream.read(MAX_INDEX_BYTES + 1)
-            if len(raw) > MAX_INDEX_BYTES:
-                raise ValueError("oversized index")
-            value = json.loads(raw)
             if (
-                not isinstance(value, dict)
-                or value.keys() != {"version", "payload", "checksum"}
-                or type(value["version"]) is not int
-                or value["version"] != INDEX_VERSION
-            ):
-                raise ValueError("index schema")
-            payload = value["payload"]
-            if (
-                not isinstance(payload, dict)
-                or payload.keys() != {"scope", "documents"}
+                payload.keys() != {"scope", "documents"}
                 or payload["scope"] != self.scope
-                or value["checksum"] != _digest(payload)
                 or not isinstance(payload["documents"], dict)
             ):
-                raise ValueError("index checksum or scope")
+                raise ValueError("index scope")
             for path, document in payload["documents"].items():
                 _validate_document(path, document)
             return payload["documents"]
@@ -120,33 +100,6 @@ class DocumentIndex:
             raise DocumentError(
                 "文档索引损坏或版本不支持；保留原文件，请移走该缓存后重建。"
             ) from error
-
-    def _save(self, payload: dict[str, Any], checksum: str) -> None:
-        """先写临时文件并 fsync，再原子替换；失败时移除临时文件。"""
-        raw = json.dumps(
-            {"version": INDEX_VERSION, "payload": payload, "checksum": checksum},
-            ensure_ascii=False,
-        ).encode("utf-8")
-        if len(raw) > MAX_INDEX_BYTES:
-            raise DocumentError("文档索引超出 64 MiB，请缩小语料。")
-        descriptor, temporary = tempfile.mkstemp(dir=self.path.parent, suffix=".tmp")
-        try:
-            with os.fdopen(descriptor, "wb") as stream:
-                stream.write(raw)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, self.path)
-        finally:
-            try:
-                Path(temporary).unlink(missing_ok=True)
-            except OSError:
-                pass
-
-
-def _digest(value: object) -> str:
-    """使用稳定 JSON 编码计算缓存内容摘要。"""
-    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(encoded.encode()).hexdigest()
 
 
 def _validate_document(path: str, document: object) -> None:

@@ -1,5 +1,6 @@
 """经过校验的配置值；不读取文件、不创建客户端或执行工具。"""
 
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -159,11 +160,28 @@ class DocumentConfig:
     max_chunks: int = 10000
     scan_timeout_seconds: int = 10
     top_k: int = 5
+    method: str = "keyword"
+    embedding_model: str = "BAAI/bge-small-zh-v1.5"
+    semantic_min_score: float = 0.5
 
     def __post_init__(self) -> None:
         """限制整个语料的资源消耗；目录配置本身不授予额外读取权限。"""
         if not isinstance(self.roots, tuple) or any(not isinstance(p, Path) for p in self.roots):
             raise ConfigError("documents.roots 必须是路径元组。")
+        if not isinstance(self.method, str) or self.method not in {"keyword", "semantic"}:
+            raise ConfigError("documents.method 必须是 keyword 或 semantic。")
+        if (
+            not isinstance(self.embedding_model, str)
+            or not self.embedding_model.strip()
+            or len(self.embedding_model) > 200
+        ):
+            raise ConfigError("documents.embedding_model 必须是有效模型名称。")
+        if (
+            type(self.semantic_min_score) not in {int, float}
+            or not math.isfinite(self.semantic_min_score)
+            or not 0 <= self.semantic_min_score <= 1
+        ):
+            raise ConfigError("documents.semantic_min_score 必须是 0～1 的有限数。")
         ranges = {
             "chunk_chars": (32, 4000),
             "max_files": (1, 10000),

@@ -9,6 +9,9 @@ dependencies = [
     "httpx>=0.28,<0.29",
 ]
 
+[project.optional-dependencies]
+documents = ["fastembed>=0.9.1,<0.10"]
+
 [dependency-groups]
 dev = [
     "pyright>=1.1.414",

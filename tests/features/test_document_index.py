@@ -58,7 +58,7 @@ def test_failed_refresh_keeps_previous_snapshot_but_never_returns_it(
     def fail(*args):
         raise OSError("injected persistence failure")
 
-    monkeypatch.setattr("adam.documents.index.os." + boundary, fail)
+    monkeypatch.setattr("adam.documents.snapshots.os." + boundary, fail)
     with pytest.raises(DocumentError, match="未返回旧资料"):
         index.refresh()
     assert index.path.read_bytes() == previous

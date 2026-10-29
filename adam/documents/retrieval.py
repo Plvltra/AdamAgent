@@ -24,7 +24,7 @@ def keyword_search(chunks: Sequence[Chunk], query: str, limit: int = 5) -> list[
     for chunk, counter in zip(chunks, counters, strict=True):
         score = 0.0
         length = sum(counter.values())
-        for word in query_terms & counter.keys():
+        for word in sorted(query_terms & counter.keys()):
             count = counter[word]
             inverse = math.log(1 + (len(chunks) - frequency[word] + 0.5) / (frequency[word] + 0.5))
             score += inverse * count * 2.2 / (count + 1.2 * (0.25 + 0.75 * length / average))

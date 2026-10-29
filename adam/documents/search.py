@@ -2,9 +2,11 @@
 
 from dataclasses import dataclass
 
+from adam.documents.embedding import EmbeddingBackend, FastEmbedBackend
 from adam.documents.index import DocumentIndex
 from adam.documents.models import SearchHit
 from adam.documents.retrieval import keyword_search, validate_query
+from adam.documents.vectors import VectorSearch
 
 
 @dataclass(frozen=True)
@@ -20,12 +22,21 @@ class SearchResult:
 class DocumentSearch:
     """每次先确认可用的当前语料，再执行检索。"""
 
-    def __init__(self, index: DocumentIndex) -> None:
+    def __init__(self, index: DocumentIndex, backend: EmbeddingBackend | None = None) -> None:
         self.index = index
+        config = index.config
+        self.vectors = VectorSearch(
+            index.path.with_suffix(".vectors.json"),
+            backend or FastEmbedBackend(index.path.parent / "models", config.embedding_model),
+        )
 
     def search(self, query: str, limit: int) -> SearchResult:
         """查询失败向上报告；只有成功扫描后才允许返回空命中。"""
         validate_query(query, limit)
         corpus = self.index.refresh()
-        hits = keyword_search(corpus.chunks, query, limit)
-        return SearchResult(corpus.generation, tuple(hits), corpus.file_count)
+        config = self.index.config
+        if config.method == "semantic":
+            hits = self.vectors.search(corpus.chunks, query, limit, config.semantic_min_score)
+        else:
+            hits = keyword_search(corpus.chunks, query, limit)
+        return SearchResult(corpus.generation, tuple(hits), corpus.file_count, config.method)

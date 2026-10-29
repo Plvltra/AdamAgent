@@ -17,8 +17,26 @@
 | E2.1 | 固定文档/问题、分块及关键词搜索基线 | 已完成：6 个业务用例；提交时执行全量检查 |
 | E2.2 | 来源、版本、持久索引、刷新和故障保护 | 已完成：真实文件、重启、双进程及故障验收 |
 | E2.3 | 工具闭环、配置、引用依据及上下文预算 | 已完成：假 HTTP + 真实检索及日志、容量与配置验收 |
-| E2.4 | 本地 embedding、同题对比与独立模型缓存 | 待完成 |
+| E2.4 | 本地 embedding、同题对比与独立模型缓存 | 已完成：本地真实模型对照、向量缓存及失败测试 |
 | E2.5 | 整体验收、效果报告与操作文档 | 待完成 |
+
+## E2.4 本地语义检索
+
+安装可选依赖 `uv sync --locked --extra documents`，显式运行 `python -m adam.document_search prepare-model` 准备默认模型，再把 [documents].method 改为 "semantic"。默认模型 BAAI/bge-small-zh-v1.5 在 CPU 本地运行，正常检索使用 local_files_only，不上传文档，不消耗聊天 API 额度。安装及模型准备需要网络；默认关键词模式不需要这些依赖。独立命令不加载 llm.toml。
+
+向量按片段 ID 缓存，模型名称、FastEmbed 版本或编码方式变化会重建；源文件版本变化只生成新片段向量。查询和文档使用各自编码接口，长内容按 256 字符窗口汇总，避免静默丢掉片段尾部。分数为余弦相似度，semantic_min_score 默认 0.5，可调整但不能当事实置信度。更换同名模型权重后应清理向量缓存。向量缓存与文本索引共用 snapshots 的校验和、文件锁调用边界及原子保存协议；损坏和推理失败不静默回退关键词。
+
+独立命令示例（公共参数放在子命令前）：
+
+```powershell
+python -m adam.document_search --root docs search "会话恢复策略"
+python -m adam.document_search --cache-dir .cache/e2 prepare-model
+python -m adam.document_search --root tests/fixtures/documents --cache-dir .cache/e2 --semantic --output .cache/e2/report.json evaluate tests/fixtures/document_questions.json
+```
+
+若 [storage].documents_dir 使用自定义缓存，prepare-model 的 --cache-dir 应与之相同。--root 可重复；默认相对 --workspace，外部目录还需 --allow-read-dir。CLI --semantic 启用语义搜索或双策略评估；不读取或修改聊天配置。
+
+真实对照及局限见 [评估报告](document-retrieval-evaluation.md)。实现依据：[FastEmbed 模型及 CPU 支持](https://qdrant.tech/documentation/embeddings/fastembed/)、[本地缓存加载](https://qdrant.tech/documentation/edge/edge-fastembed-embeddings/)。
 
 ## E2.3 使用方式与工具闭环
 
