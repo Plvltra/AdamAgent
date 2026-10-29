@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：按 E2 → E3 整理主线提交，核对共享配置、工具注册、来源回调及检索结果作为计划证据的重启验收。
+本次核对范围：E4.1 反馈数据契约、原文与工具关联、有界事实投影和重启读取。
 
-核对结论：保留 E2 文档检索和 E3 显式计划的既有架构与下列依赖图。bootstrap 同时注册 search_documents、update_plan 和委派工具；配置合并后保留 documents 与 planning，取消与权限边界保持。计划证据可引用本轮实际检索结果，检索资料仍经普通工具消息进入上下文。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：SessionLog 新增 FeedbackLog，使用 contracts/reflection.py 的 Feedback；SessionStore 提供来源查询和持锁追加，复用已有恢复。自动反思尚未接入，其他依赖保持。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -65,6 +65,19 @@ flowchart LR
 
 命令解析与展示归 CLI，范围、来源与管理归 MemoryService；CLI 不直接导入 memory 包。记忆存储不依赖会话存储或模型；来源会话 ID 只作为可选值保留。MemorySelection 与记录校验位于 contracts/memory.py，存储和请求日志复用契约，避免两个存储模块互相导入。包依赖测试已覆盖 memory 及应用对它的单向依赖。
 
+## E4.1 反馈记录
+
+~~~mermaid
+flowchart LR
+    STORE["session/storage.py"] --> LOG["session/log.py"]
+    LOG --> FEEDBACK["session/feedback_log.py"]
+    FEEDBACK --> CONTRACT["contracts/reflection.py<br/>Feedback"]
+    STORE -->|有界事实投影| FEEDBACK
+    STORE --> JSONL["会话 JSONL<br/>feedback_recorded"]
+~~~
+
+反馈诊断与成功历史分别保存，查询不调用模型；存储实现不依赖应用服务。阶段状态见 [E4](reflection-and-experience.md)。
+
 ## E3.1～E3.3 计划记录、工具与交互
 
 ```mermaid
@@ -101,11 +114,11 @@ flowchart LR
 | config | loader.py、settings.py | contracts |
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
-| session | storage.py、log.py、compaction_log.py、edit_log.py、plan_log.py、plan_evidence.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
+| session | storage.py、log.py、compaction_log.py、edit_log.py、plan_log.py、plan_evidence.py、feedback_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
 | documents | 分块、来源、文本/向量检索、快照、embedding 与 evaluation | config、contracts |
 | memory | store.py、project.py、retrieval.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限、document_tools.py、planning_tools.py 和具体工具 | documents、session、config、contracts |
-| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py、planning.py | 无 |
+| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py、planning.py、reflection.py | 无 |
 
 包内使用绝对路径显式导入所属实现；类型和错误直接从定义位置导入，避免经过其他业务模块转手。新包的 `__init__.py` 仅说明职责，不批量加载实现。contracts 只承载现有跨模块契约，不作为任意辅助函数目录。
 

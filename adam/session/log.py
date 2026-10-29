@@ -10,6 +10,7 @@ from adam.contracts.planning import decode_plan
 from adam.contracts.protocol import validate_turn
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
+from adam.session.feedback_log import FeedbackLog
 from adam.session.outcome import outcome_details
 from adam.session.plan_evidence import validate_evidence
 from adam.session.plan_log import PlanLog
@@ -92,6 +93,7 @@ class SessionLog:
         self.compactions = CompactionLog()
         self.edits = EditLog()
         self.plans = PlanLog()
+        self.feedback = FeedbackLog()
         self.tokens = 0
         self._unknown_usage = False
         self._pending_turn = ""
@@ -126,6 +128,7 @@ class SessionLog:
             "tool_started": self._apply_tool,
             "tool_finished": self._apply_tool,
             "plan_updated": self._apply_plan,
+            "feedback_recorded": self._apply_feedback,
             "edit_planned": self._apply_edit,
             "edit_started": self._apply_edit,
             "edit_finished": self._apply_edit,
@@ -371,6 +374,10 @@ class SessionLog:
         }:
             raise ValueError("edit has no final result")
         tool.update(output=payload["output"], finished=True, status="finished")
+
+    def _apply_feedback(self, kind: str, payload: dict[str, Any]) -> None:
+        """反馈只记录可核对的来源；具体内容解释留给反思服务。"""
+        self.feedback.apply(payload, self.turns, self.tools, self.executions)
 
     def _apply_plan(self, kind: str, payload: dict[str, Any]) -> None:
         """计划更新只能来自本轮尚在执行的 update_plan；非法关联拒绝落盘。"""

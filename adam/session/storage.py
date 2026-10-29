@@ -17,7 +17,9 @@ from adam.contracts.history import HistoryTurn, Summary
 from adam.contracts.models import ExecutionReport, Message, Session, valid_session_id
 from adam.contracts.planning import PlanReport, PlanSnapshot
 from adam.contracts.protocol import validate_turn
+from adam.contracts.reflection import Feedback
 from adam.session.execution_report import build_execution_report
+from adam.session.feedback_log import failure_signal, feedback_context, previous_turn
 from adam.session.log import (
     SessionLog,
     UnsupportedLogVersionError,
@@ -171,6 +173,38 @@ class SessionStore:
     def append_plan(self, session_id: str, plan: PlanSnapshot) -> None:
         """持锁保存完整计划版本；校验或 IO 失败时保留已有版本，不提前声明成功。"""
         self._append(session_id, record("plan_updated", plan.to_dict()))
+
+    def append_feedback(self, session_id: str, feedback: Feedback) -> None:
+        """持锁保存真实反馈来源；失败保留原文件，重启不自动发起反思。"""
+        self._append(session_id, record("feedback_recorded", feedback.to_dict()))
+
+    def load_feedback(self, session_id: str, turn_id: str) -> list[Feedback]:
+        """只返回本轮反馈，不将旧失败输入加入成功历史。"""
+        return [
+            item
+            for item in self._read_log(session_id).feedback.records.values()
+            if item.turn_id == turn_id
+        ]
+
+    def feedback_context(self, session_id: str, feedback_id: str) -> dict[str, Any]:
+        """从同一日志快照读取反馈和有界原始事实；未知 ID 抛出 KeyError。"""
+        log = self._read_log(session_id)
+        return feedback_context(
+            log.feedback.records[feedback_id], log.turns, log.tools, log.executions
+        )
+
+    def feedback_sources(self, session_id: str, turn_id: str) -> dict[str, Any]:
+        """提供当前输入、上一轮及已结束失败工具，供程序决定登记来源。"""
+        log = self._read_log(session_id)
+        return {
+            "user_text": log.turns[turn_id]["user_text"],
+            "previous": previous_turn(log.turns, turn_id),
+            "failures": [
+                tool
+                for (parent, _), tool in log.tools.items()
+                if parent == turn_id and failure_signal(tool, log.executions)
+            ],
+        }
 
     def load_summary(self, session_id: str) -> Summary | None:
         """返回最近完整提交的摘要；失败或中断的候选摘要不生效。"""
