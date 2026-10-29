@@ -2,7 +2,23 @@
 
 import json
 import re
+import unicodedata
 from typing import Any
+
+
+def standard_skill_name(value: str) -> str:
+    """按标准参考实现规范化 Unicode 名称；无效字符、大小写或长度抛 ValueError。"""
+    name = unicodedata.normalize("NFKC", value.strip())
+    if (
+        not 1 <= len(name) <= 64
+        or name != name.lower()
+        or name.startswith("-")
+        or name.endswith("-")
+        or "--" in name
+        or not all(character.isalnum() or character == "-" for character in name)
+    ):
+        raise ValueError("invalid standard skill name")
+    return name
 
 
 def validate_catalog(value: object) -> None:

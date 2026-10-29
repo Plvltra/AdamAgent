@@ -19,6 +19,7 @@ dependencies = [
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "mcp" },
+    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -43,6 +44,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28,<0.29" },
     { name = "jsonschema", specifier = ">=4.25,<5" },
     { name = "mcp", specifier = ">=2.3,<3" },
+    { name = "pyyaml", specifier = ">=6.0.3,<7" },
 ]
 provides-extras = ["documents"]
 

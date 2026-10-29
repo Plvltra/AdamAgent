@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T2.1 标准 Skill 元数据 | 标准/Unicode 字段、正文按需、双来源拒绝、恶意 YAML、目录和链接边界 | [test_standard_skill_metadata.py](test_standard_skill_metadata.py) |
 | T1.3 规则整体验收 | 预览无副作用、会话/重启隔离、旧快照保留、日志篡改拒绝、新规则超预算和关闭配置 | [test_project_rule_acceptance.py](test_project_rule_acceptance.py) |
 | T1.2 项目规则执行 | 主/子规则隔离、新规则先于编辑/命令、整批等待、变更/删除、审批与预算 | [test_project_rule_execution.py](test_project_rule_execution.py) |
 | T1.1 项目规则读取 | 根/子作用域、版本与删除、坏编码、大小、链接和范围伪造 | [test_project_rules.py](test_project_rules.py) |

@@ -9,8 +9,14 @@ description = "用户要求运行项目检查，或修改后验证行为时使�
 resources = ["report.md"]
 ```
 
-这是 Adam 的本地 TOML 包格式，不是通用 Agent Skills frontmatter 格式。
-目录最多16个 Skill、6000字符；单包最多8份 Markdown 材料。
+这是 Adam 当前已接入聊天的 TOML 包格式；标准格式读取基础已在 T2.1 完成，接入统一加载接口与示例迁移留在 T2.2。
+标准读取基础依据 [Agent Skills 规范](https://agentskills.io/specification) 和 [官方名称校验器](https://github.com/agentskills/agentskills/blob/main/skills-ref/src/skills_ref/validator.py)：
+YAML frontmatter 支持 name、description、license、compatibility、metadata、allowed-tools；扩展字段保留为 JSON 数据，不自动执行。
+名称按 Unicode NFKC 规范化，支持中文和小写字母数字；description 最多1024字符。
+头部最多8 KiB，最多8层/2048解析事件；拒绝重复键、锚点/别名和自定义对象标签。同一包存在两份元数据来源时报错。
+T2.1 测试入口为 tests/features/test_standard_skill_metadata.py；本阶段尚未把标准包注册给模型。
+
+现有运行时目录最多16个 Skill、6000字符；单包最多8份 Markdown 材料。
 名称和用途随每次请求发送，目录变化后重启应用；正文随 load_skill 按需读取。
 示例 verify-project 和 diagnose-failure 都先查项目实际入口，不绑定某个测试框架。
 
