@@ -1,6 +1,6 @@
 # Adam
 
-E1.1/E1.2 记忆存储与 `/memory` 增删改查已实现；自动检索与模型输入接入仍在后续小任务。见 [跨会话记忆](docs/cross-session-memory.md)。
+E1.1～E1.3 跨会话记忆已接入：`/memory` 明确增删改查，每轮自动检索相关条目；`/context full --query 问题` 可预览实际选择。子任务继承与故障降级仍在后续小任务。见 [跨会话记忆](docs/cross-session-memory.md)。
 
 V6 子 Agent 协作已实现：一个终端一个主会话，主 Agent 可派发、追问和汇总辅助任务；默认并发 2 个，共用会话额度，支持单独取消和重启恢复。用法见 [V6 说明](docs/subagents.md)。
 

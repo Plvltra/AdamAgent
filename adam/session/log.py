@@ -5,6 +5,7 @@ from itertools import groupby
 from typing import Any
 
 from adam.contracts.history import HistoryTurn
+from adam.contracts.memory import validate_selection
 from adam.contracts.protocol import validate_turn
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
@@ -265,6 +266,8 @@ class SessionLog:
             raise ValueError("invalid context summary")
         if covered + omitted + selected != [turn.turn_id for turn in self.history_turns()]:
             raise ValueError("invalid context sources")
+        if "memory" in context:
+            validate_selection(context["memory"])
         self._validate_pruning(context.get("pruned_tools", []), selected)
         for key in ("estimated_input_tokens", "original_history_tokens"):
             if type(context.get(key)) is not int or context[key] < 0:

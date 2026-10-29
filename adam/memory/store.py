@@ -12,11 +12,15 @@ from pathlib import Path
 from filelock import FileLock, Timeout
 
 from adam.contracts.errors import MemoryInputError, MemoryStoreError
-from adam.contracts.memory import MemoryRecord, MemorySource, timestamp
-from adam.contracts.models import valid_session_id
+from adam.contracts.memory import (
+    MemoryRecord,
+    MemorySource,
+    decode_record,
+    timestamp,
+    validate_record,
+)
 
 MAX_FILE_BYTES = 16 * 1024 * 1024
-MAX_CONTENT_CHARS = 4000
 
 
 class MemoryStore:
@@ -175,10 +179,7 @@ class MemoryStore:
             records = []
             latest: dict[str, MemoryRecord] = {}
             for item in value["records"]:
-                item = dict(item)
-                item["source"] = MemorySource(**item["source"])
-                record = MemoryRecord(**item)
-                validate_record(record)
+                record = decode_record(item)
                 previous = latest.get(record.memory_id)
                 if previous is None:
                     if record.revision != 1 or record.source.operation != "add" or record.deleted:
@@ -245,39 +246,3 @@ class MemoryStore:
         if type(expected_revision) is not int or record.revision != expected_revision:
             raise MemoryInputError("记忆已被其他操作更新，请重新查看后再修改。")
         return record
-
-
-def validate_record(record: MemoryRecord) -> None:
-    """检查磁盘与调用方共有的数据契约；ValueError 由对应边界转为受控错误。"""
-    if not isinstance(record.memory_id, str) or not valid_session_id(record.memory_id):
-        raise ValueError("invalid memory id")
-    if type(record.revision) is not int or record.revision < 1:
-        raise ValueError("invalid revision")
-    if (
-        not isinstance(record.content, str)
-        or not record.content.strip()
-        or len(record.content) > MAX_CONTENT_CHARS
-        or "\0" in record.content
-    ):
-        raise ValueError("invalid content")
-    if record.project is not None and (
-        not isinstance(record.project, str)
-        or not Path(record.project).is_absolute()
-        or "\0" in record.project
-    ):
-        raise ValueError("invalid project")
-    if type(record.deleted) is not bool:
-        raise ValueError("invalid deletion")
-    if record.source.actor != "user" or record.source.operation not in {"add", "update", "delete"}:
-        raise ValueError("invalid source")
-    if record.deleted != (record.source.operation == "delete"):
-        raise ValueError("invalid deletion source")
-    if record.source.session_id is not None and (
-        not isinstance(record.source.session_id, str)
-        or not valid_session_id(record.source.session_id)
-    ):
-        raise ValueError("invalid source session")
-    if timestamp(record.updated_at) < timestamp(record.created_at):
-        raise ValueError("invalid time order")
-    if record.expires_at is not None:
-        timestamp(record.expires_at)

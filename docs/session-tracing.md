@@ -24,7 +24,7 @@ session_id：一个会话，对应一个 JSONL 文件
 | 事件 | payload 的关键字段 | 说明 |
 | --- | --- | --- |
 | turn_started | turn_id、user_text | 用户提交时保存输入，尚未成为成功聊天历史 |
-| request_started | turn_id、request_id、model | 调用模型前记录本次请求 |
+| request_started | turn_id、request_id、model、context | 调用模型前记录本次请求及上下文选择依据 |
 | request_usage | turn_id、request_id、input_tokens、output_tokens | 结算可用用量；未知时保留 null，不算成零 |
 | request_finished | turn_id、request_id、status、reason、duration_ms、error | 请求终态；与 request_usage 同一追加块保存 |
 | turn_finished | turn_id、status、reason、duration_ms、error | 失败或中断的轮次终态，不提交消息 |
@@ -43,6 +43,10 @@ session_id：一个会话，对应一个 JSONL 文件
 - turn_completed 只有在完整消息块通过校验并提交后才产生，表示轮次 succeeded；不能单独调用 finish_turn 声称成功。
 - tool_finished 说明工具返回了结果；文件不存在、参数错误和用户拒绝也能返回结果，业务是否成功应读取 output。
 - tool_started 说明进入工具处理，可能随后在参数校验或用户确认处结束；它不证明命令进程已经启动。命令的实际执行边界由 command_* 描述。
+
+## E1 记忆选择记录
+
+request_started.context.memory 是可选字段，strategy 为 keyword_v1，保存查询、选择状态、完整条目版本与来源。旧请求没有此字段仍可读取；已记录快照不会随记忆库未来修改或删除而变化。条目作为资料参与本次请求，不追加为普通 message；日志解释器复用 contracts/memory.py 校验记录格式。
 
 ## 失败后留下什么
 

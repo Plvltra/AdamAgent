@@ -14,6 +14,7 @@ from adam.config.settings import (
     AppConfig,
     ContextConfig,
     LLMConfig,
+    MemoryConfig,
     PermissionConfig,
     SubagentConfig,
     ToolLimits,
@@ -111,7 +112,16 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
 
     checked_section(
         data,
-        {"storage", "chat", "agent", "permissions", "tool_limits", "context", "subagents"},
+        {
+            "storage",
+            "chat",
+            "agent",
+            "permissions",
+            "tool_limits",
+            "context",
+            "subagents",
+            "memory",
+        },
         "主配置",
     )
     storage = data.get("storage", {})
@@ -154,6 +164,10 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         data.get("context", {}), {item.name for item in fields(ContextConfig)}, "context"
     )
     context = ContextConfig(**context_data)
+    memory_data = checked_section(
+        data.get("memory", {}), {item.name for item in fields(MemoryConfig)}, "memory"
+    )
+    memory = MemoryConfig(**memory_data)
     subagent_data = checked_section(
         data.get("subagents", {}), {item.name for item in fields(SubagentConfig)}, "subagents"
     )
@@ -196,6 +210,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         tool_limits=ToolLimits(**limit_data),
         context=context,
         subagents=subagents,
+        memory=memory,
     )
 
 

@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from contextlib import nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import partial
 from time import monotonic_ns
 from typing import Any
@@ -23,6 +23,7 @@ from adam.contracts.errors import (
     TurnSaveError,
 )
 from adam.contracts.history import Summary
+from adam.contracts.memory import MemorySelection
 from adam.contracts.models import Completion, ExecutionReport, ModelOutput, Session
 from adam.contracts.ports import ModelClient
 from adam.session.outcome import ExecutionOutcome
@@ -37,6 +38,7 @@ class TurnProgress:
     requests: RequestPolicy
     summary_attempted: bool = False
     pruning_announced: bool = False
+    memory: MemorySelection = MemorySelection()
 
 
 class Conversation:
@@ -57,6 +59,7 @@ class Conversation:
         delegation: Delegation | None = None,
         cancel: CancellationToken | None = None,
         on_turn_started: Callable[[str], None] | None = None,
+        memory_provider: Callable[[str, int], MemorySelection] | None = None,
     ) -> None:
         self.store = store
         self.client = client
@@ -72,6 +75,7 @@ class Conversation:
         self.notify = notify or (lambda _: None)
         self.accounting, self.delegation = accounting, delegation
         self.cancel, self.on_turn_started = cancel, on_turn_started
+        self.memory_provider = memory_provider
 
     def new(self, title: str = "新对话") -> Session:
         """创建并选中新会话，返回会话元信息。"""
@@ -154,13 +158,16 @@ class Conversation:
             )
         return summary
 
-    def preview_context(self) -> RequestContext:
+    def preview_context(self, query: str = "") -> RequestContext:
         """预览当前会话的下一次基础输入；不创建会话、请求模型或修改日志。
 
-        包含系统提示、成功历史和当前工具说明，不含尚未输入的新问题；
+        包含系统提示、成功历史和当前工具说明；query 为空时不含下一条新问题。
+        显式提供 query 时仅用于假设输入和记忆选择，不提交为聊天消息；
         未选会话时使用本次配置的系统提示。超预算仍可查看，不冒充最近实际请求。
         """
-        return self._build_context(self.session, [])
+        turn = [{"role": "user", "content": query}] if query else []
+        memory = self._select_memory(self.session, turn, query)
+        return replace(self._build_context(self.session, turn, memory), preview_query=query)
 
     def _run_turn(
         self,
@@ -176,7 +183,8 @@ class Conversation:
         seen_call_ids: set[str] = set()
 
         progress = TurnProgress(
-            RequestPolicy(self.limits.max_model_requests, self.notify, cancel=self.cancel)
+            RequestPolicy(self.limits.max_model_requests, self.notify, cancel=self.cancel),
+            memory=self._select_memory(session, turn, text),
         )
         tool_budget = ToolBudget(self.limits.max_edit_attempts)
         while progress.requests.used < self.limits.max_model_requests:
@@ -222,7 +230,7 @@ class Conversation:
     ) -> RequestContext:
         """先缩旧工具，再按压力摘要，最后使用整轮选择；预览不经过此有副作用入口。"""
         self._check_session_budget(session.session_id)
-        context = self._build_context(session, turn)
+        context = self._build_context(session, turn, progress.memory)
         # 受保护部分本身放不下时，先停止，避免花费一次无法解决问题的摘要请求。
         context.ensure_within_budget()
         limits = self.context_builder.limits
@@ -256,7 +264,7 @@ class Conversation:
                     lambda: service.execute(session, self.model, plan, turn_id=turn_id),
                     keep_requests=1,
                 )
-                context = self._build_context(session, turn)
+                context = self._build_context(session, turn, progress.memory)
                 self.notify("上下文> 已自动更新历史摘要；原始日志保留。")
                 progress.pruning_announced = True
         if context.pruned_tools and not progress.pruning_announced:
@@ -279,7 +287,21 @@ class Conversation:
         policy = RequestPolicy(self.limits.max_model_requests, self.notify, cancel=self.cancel)
         return policy.run(lambda: service.execute(session, self.model, plan, turn_id=turn_id))
 
-    def _build_context(self, session: Session | None, turn: list[dict[str, Any]]) -> RequestContext:
+    def _select_memory(
+        self, session: Session | None, turn: list[dict[str, Any]], query: str
+    ) -> MemorySelection:
+        """先预留受保护输入，再选一次记忆；工具循环复用此快照，不重新读取库。"""
+        if self.memory_provider is None:
+            return MemorySelection()
+        capacity = self._build_context(session, turn).memory_capacity
+        return self.memory_provider(query, capacity)
+
+    def _build_context(
+        self,
+        session: Session | None,
+        turn: list[dict[str, Any]],
+        memory: MemorySelection | None = None,
+    ) -> RequestContext:
         """读取成功历史并委托构造；预览与每次真实请求共用，工具结果加入后重新估算。"""
         history = self.store.load_turns(session.session_id) if session is not None else []
         return self.context_builder.build(
@@ -294,6 +316,7 @@ class Conversation:
             current_turn=turn,
             tools=self.tool_executor.definitions(),
             summary=self.store.load_summary(session.session_id) if session is not None else None,
+            memory=memory,
         )
 
     def _check_session_budget(self, session_id: str) -> None:

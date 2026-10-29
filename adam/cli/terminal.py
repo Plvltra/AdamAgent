@@ -39,18 +39,33 @@ def show_context(
 ) -> None:
     """按需展示基础预览及估算；full 展开消息/工具原文，不展示连接配置或认证头。"""
     estimate, limits = context.estimate, context.limits
-    write("上下文> 下一次请求的基础预览；尚未包含下一条用户输入，不是最近请求快照。")
+    if context.preview_query:
+        write("上下文> 指定问题的假设预览；未提交消息、未请求模型。")
+    else:
+        write("上下文> 下一次请求的基础预览；尚未包含下一条用户输入，不是最近请求快照。")
     write(
         f"模型：{context.model}；消息 {len(context.messages)} 条；工具说明 {len(context.tools)} 项。"
     )
     write(
         f"估算输入：{estimate.input_tokens} token"
         f"（系统 {estimate.system_tokens}，历史 {estimate.history_tokens}，"
-        f"本轮 {estimate.turn_tokens}，工具说明 {estimate.tools_tokens}，摘要 {estimate.summary_tokens}）。"
+        f"本轮 {estimate.turn_tokens}，工具说明 {estimate.tools_tokens}，摘要 {estimate.summary_tokens}，"
+        f"记忆 {estimate.memory_tokens}）。"
     )
     write(
         f"历史：保留 {len(context.selected_turn_ids)} 轮，省略 {len(context.omitted_turn_ids)} 轮；原始日志保留。"
     )
+    if context.memory.status != "disabled":
+        write(f"记忆：{context.memory.status}；选中 {len(context.memory.records)} 条。")
+        if context.memory.status == "query_required":
+            write("记忆按问题检索；可用 /context [full] --query 问题 预览。")
+        if context.memory.warning:
+            write(context.memory.warning)
+        for record in context.memory.records:
+            write(
+                f"  {record.memory_id} v{record.revision}；范围 {record.project or '全局'}；"
+                f"来源会话 {record.source.session_id or '无'}；更新 {record.updated_at}"
+            )
     if context.pruned_tools:
         write(f"工具结果：已缩减 {len(context.pruned_tools)} 项旧结果；完整内容仍在日志。")
     if context.summary is not None:

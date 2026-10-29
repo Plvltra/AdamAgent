@@ -9,6 +9,7 @@ from adam.config.settings import ContextConfig
 from adam.context.pruning import prune_history
 from adam.contracts.errors import BudgetError, FailureCode
 from adam.contracts.history import HistoryTurn, Summary
+from adam.contracts.memory import MemorySelection
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,7 @@ class ContextEstimate:
     turn_tokens: int
     tools_tokens: int
     summary_tokens: int = 0
+    memory_tokens: int = 0
 
     @property
     def input_tokens(self) -> int:
@@ -29,6 +31,7 @@ class ContextEstimate:
             + self.turn_tokens
             + self.tools_tokens
             + self.summary_tokens
+            + self.memory_tokens
         )
 
 
@@ -48,6 +51,9 @@ class RequestContext:
     summary: Summary | None = None
     pruned_tools: tuple[dict[str, Any], ...] = ()
     candidate_history_tokens: int = 0
+    memory: MemorySelection = MemorySelection()
+    memory_capacity: int = 0
+    preview_query: str = ""
 
     @property
     def candidate_input_tokens(self) -> int:
@@ -62,6 +68,7 @@ class RequestContext:
         """返回实际请求的选择依据；不含认证信息，不是完整 HTTP 请求快照。"""
         return {
             "strategy": "recent_turns_v1",
+            **({"memory": self.memory.to_dict()} if self.memory.status != "disabled" else {}),
             "summary_id": self.summary.summary_id if self.summary else None,
             "pruned_tools": list(self.pruned_tools),
             "selected_turn_ids": list(self.selected_turn_ids),
@@ -104,14 +111,19 @@ class ContextBuilder:
         current_turn: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         summary: Summary | None = None,
+        memory: MemorySelection | None = None,
     ) -> RequestContext:
         """返回独立的输入副本及组成估算；保留顺序、工具配对和服务商推理字段。
 
         history 仅接收完整成功轮次；current_turn 包含最新输入及工具链，预览时为空。
         先保留摘要与配置指定的近期轮次；其余从新往旧取连续后缀，放不下即停止。
-        系统提示、本轮及近期保护轮次不截断；摘要仅作为历史资料，不提升指令权限。
+        系统提示、本轮及近期保护轮次不截断；摘要与记忆仅作为历史资料，不提升指令权限。
+        memory 是本轮固定快照，只参与请求构造，不复制进历史；其大小同时计入总预算。
         预算覆盖完整工具 JSON Schema，不包含认证头、URL 或密钥。
         """
+        memory = memory or MemorySelection()
+        memory_messages = memory.messages()
+        memory_tokens = sum(estimate_json_tokens(message) for message in memory_messages)
         covered = len(summary.covered_turn_ids) if summary else 0
         history = history[covered:]
         summary_messages = [summary.message()] if summary else []
@@ -129,6 +141,7 @@ class ContextBuilder:
             + turn_tokens
             + tools_tokens
             + summary_tokens
+            + memory_tokens
             + sum(sizes)
             + self.limits.safety_margin_tokens
         )
@@ -148,9 +161,11 @@ class ContextBuilder:
             - turn_tokens
             - tools_tokens
             - summary_tokens
+            - memory_tokens
         )
         start = len(history)
         protected_start = max(0, len(history) - self.limits.retain_recent_turns)
+        memory_capacity = max(0, remaining + memory_tokens - sum(sizes[protected_start:]))
         for index in range(len(sizes) - 1, -1, -1):
             size = sizes[index]
             if size > remaining and index < protected_start:
@@ -160,11 +175,18 @@ class ContextBuilder:
         selected = history[start:]
         messages = [message for turn in selected for message in turn.messages]
         estimate = ContextEstimate(
-            system_tokens, sum(sizes[start:]), turn_tokens, tools_tokens, summary_tokens
+            system_tokens,
+            sum(sizes[start:]),
+            turn_tokens,
+            tools_tokens,
+            summary_tokens,
+            memory_tokens,
         )
         return RequestContext(
             model=model,
-            messages=deepcopy(system + summary_messages + messages + current_turn),
+            messages=deepcopy(
+                system + summary_messages + messages + memory_messages + current_turn
+            ),
             tools=deepcopy(tools),
             max_output_tokens=self.max_output_tokens,
             estimate=estimate,
@@ -177,6 +199,8 @@ class ContextBuilder:
                 item for item in pruned if item["turn_id"] in {turn.turn_id for turn in selected}
             ),
             summary=summary,
+            memory=memory,
+            memory_capacity=memory_capacity,
         )
 
 

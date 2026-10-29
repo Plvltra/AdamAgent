@@ -154,6 +154,6 @@ class AgentApplication:
         """生成并保存旧历史摘要，不修改原始记录。"""
         return self._conversation.compact()
 
-    def preview_context(self) -> RequestContext:
-        """查看下一次请求的基础上下文，不发送模型请求。"""
-        return self._conversation.preview_context()
+    def preview_context(self, query: str = "") -> RequestContext:
+        """查看基础上下文；可提供假设问题预览相关记忆，不提交消息或请求模型。"""
+        return self._conversation.preview_context(query)

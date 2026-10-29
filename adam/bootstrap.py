@@ -80,6 +80,9 @@ def build_application(
         on_tool or (lambda _: None),
         before_call=manager.bind_source if manager else None,
     )
+    memories = MemoryService(
+        MemoryStore(config.memories_dir or store.root / "_memories"), workspace, config.memory
+    )
     conversation = Conversation(
         store,
         client,
@@ -91,9 +94,7 @@ def build_application(
         notify=on_notice,
         accounting=manager.account if manager else None,
         delegation=manager,
-    )
-    memories = MemoryService(
-        MemoryStore(config.memories_dir or store.root / "_memories"), workspace
+        memory_provider=memories.select,
     )
     return AgentApplication(conversation, store, client, memories)
 

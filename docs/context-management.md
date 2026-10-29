@@ -12,6 +12,12 @@ SessionStore 提供完整成功轮次，ContextBuilder 从最新往前取连续�
 
 实际 `request_started.context` 保存策略版本、保留/省略轮次 ID、原历史与最终输入估算。独立诊断报告会展示该信息；它记录选择依据，不重复保存完整 HTTP 请求。旧 v4 请求没有此字段仍可读取。
 
+## E1 相关记忆
+
+启用记忆后，每个新用户轮次按问题检索一次；完整条目和来源计入独立 memory 输入限额及总上下文预算。先为原有受保护输入预留空间，记忆不适合时可以不选入；选中快照在本轮工具循环中保持一致。
+
+/context 不提供问题时不猜测记忆相关性；可使用 /context [full] --query 问题 预览一个假设请求。它不发模型请求或写聊天日志。实际使用的内容、版本和选择状态存入 request_started.context.memory，详见 [跨会话记忆](cross-session-memory.md)。
+
 ## 预算
 
 在实际 `config.toml` 中配置，省略时采用默认值：

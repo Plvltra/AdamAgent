@@ -129,6 +129,24 @@ class ContextConfig:
 
 
 @dataclass(frozen=True)
+class MemoryConfig:
+    """记忆选择的独立输入上限；仍须服从本轮总输入预算。"""
+
+    enabled: bool = True
+    max_entries: int = 8
+    max_input_tokens: int = 1024
+
+    def __post_init__(self) -> None:
+        """直接构造和 TOML 配置使用同一校验，不接受布尔值充当计数。"""
+        if type(self.enabled) is not bool:
+            raise ConfigError("memory.enabled 必须是布尔值。")
+        if type(self.max_entries) is not int or not 1 <= self.max_entries <= 128:
+            raise ConfigError("memory.max_entries 必须在 1～128 之间。")
+        if type(self.max_input_tokens) is not int or not 0 <= self.max_input_tokens <= 100000:
+            raise ConfigError("memory.max_input_tokens 必须在 0～100000 之间。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
@@ -141,3 +159,4 @@ class AppConfig:
     context: ContextConfig = field(default_factory=ContextConfig)
     subagents: SubagentConfig = field(default_factory=SubagentConfig)
     memories_dir: Path | None = None
+    memory: MemoryConfig = field(default_factory=MemoryConfig)

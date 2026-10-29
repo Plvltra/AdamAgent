@@ -1,19 +1,27 @@
 """记忆应用操作；协调当前项目、来源及显式管理，不依赖终端或模型。"""
 
+from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 
+from adam.config.settings import MemoryConfig
+from adam.context.builder import estimate_json_tokens
 from adam.contracts.errors import MemoryInputError
-from adam.contracts.memory import MemoryCommand, MemoryRecord, MemorySource
+from adam.contracts.memory import MemoryCommand, MemoryRecord, MemorySelection, MemorySource
 from adam.memory.project import project_identity
+from adam.memory.retrieval import rank_records
 from adam.memory.store import MemoryStore
 
 
 class MemoryService:
     """用工作目录确定项目，延迟访问磁盘；用户管理不创建聊天会话。"""
 
-    def __init__(self, store: MemoryStore, workspace: Path) -> None:
+    def __init__(
+        self, store: MemoryStore, workspace: Path, limits: MemoryConfig | None = None
+    ) -> None:
         self.store = store
         self.workspace = workspace
+        self.limits = limits or MemoryConfig()
 
     def manage(self, command: MemoryCommand, session_id: str | None = None) -> list[MemoryRecord]:
         """执行已解析的用户命令，返回实际持久化版本或查询快照。
@@ -48,6 +56,27 @@ class MemoryService:
                 command.memory_id, project, source, expected_revision=command.revision
             )
         ]
+
+    def select(self, query: str, available_tokens: int) -> MemorySelection:
+        """每轮重读有效条目，按相关性挑选完整记录；不挤占系统、本轮及保护历史。"""
+        if not self.limits.enabled:
+            return MemorySelection(status="disabled")
+        if not query.strip():
+            return MemorySelection(status="query_required")
+        project = project_identity(self.workspace)
+        ranked = rank_records(
+            self.store.list_records(project, include_global=True), query, datetime.now(UTC)
+        )
+        selection = MemorySelection(query=query, status="no_match" if not ranked else "budget")
+        budget = min(available_tokens, self.limits.max_input_tokens)
+        for record in ranked:
+            candidate = replace(selection, records=(*selection.records, record), status="selected")
+            size = sum(estimate_json_tokens(message) for message in candidate.messages())
+            if size <= budget:
+                selection = candidate
+                if len(selection.records) >= self.limits.max_entries:
+                    break
+        return selection
 
     @staticmethod
     def _validate(command: MemoryCommand) -> None:

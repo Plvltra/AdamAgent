@@ -84,10 +84,16 @@ def handle_command(
             application.compact()
     elif command == "/context":
         option = parts[1] if len(parts) == 2 else ""
-        if option not in {"", "full"}:
+        mode, delimiter, query = option.partition("--query ")
+        mode = mode.strip()
+        if mode not in {"", "full"} or (delimiter and not query.strip()):
             write("用法：/context [full]")
+            write("也可 /context [full] --query 待预览的问题")
         else:
-            show_context(application.preview_context(), write, full=option == "full")
+            preview = (
+                application.preview_context(query) if delimiter else application.preview_context()
+            )
+            show_context(preview, write, full=mode == "full")
     elif command == "/sessions":
         sessions = application.list_sessions()
         if not sessions:

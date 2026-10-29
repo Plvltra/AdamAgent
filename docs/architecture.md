@@ -2,13 +2,13 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E1.2 显式记忆命令、应用接口、组装和目录配置。
+本次核对范围：E1.3 自动检索、固定轮次快照、上下文预算、预览与请求日志校验。
 
-核对结论：CLI 的记忆命令经 AgentApplication 调用 MemoryService，bootstrap 注入独立存储；自动检索尚未接入模型请求。原聊天调用关系保持。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口，子任务继承由 E1.4 接入。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
-## E1.1/E1.2 记忆存储与用户管理
+## E1.1～E1.3 记忆存储、管理与上下文
 
 ```mermaid
 flowchart LR
@@ -17,13 +17,19 @@ flowchart LR
     BOOT["bootstrap.py"] --> SERVICE
     SERVICE --> PROJECT
     SERVICE --> STORE
+    CONV["application/conversation.py"] -->|每轮选择一次| SERVICE
+    SERVICE --> RANK["memory/retrieval.py<br/>rank_records"]
+    SERVICE -->|输入估算| BUILDER["context/builder.py"]
+    CONV -->|固定快照| BUILDER
+    CONV --> LOG["session/log.py<br/>验证请求中的记忆快照"]
+    LOG --> RECORD
     STORE["memory/store.py<br/>MemoryStore"] --> RECORD["contracts/memory.py<br/>MemoryRecord / MemorySource"]
     STORE --> ERR["contracts/errors.py<br/>MemoryStoreError / MemoryInputError"]
     PROJECT["memory/project.py<br/>project_identity"] --> ERR
     STORE --> FILE["memories.json<br/>跨进程锁 + 原子版本快照"]
 ```
 
-命令解析与展示归 CLI，范围、来源与管理归 MemoryService；CLI 不直接导入 memory 包。记忆存储不依赖会话存储或模型；来源会话 ID 只作为可选值保留。包依赖测试已覆盖 memory 及应用对它的单向依赖。
+命令解析与展示归 CLI，范围、来源与管理归 MemoryService；CLI 不直接导入 memory 包。记忆存储不依赖会话存储或模型；来源会话 ID 只作为可选值保留。MemorySelection 与记录校验位于 contracts/memory.py，存储和请求日志复用契约，避免两个存储模块互相导入。包依赖测试已覆盖 memory 及应用对它的单向依赖。
 
 ## 包目录与依赖边界
 
@@ -37,7 +43,7 @@ flowchart LR
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
 | session | storage.py、log.py、compaction_log.py、edit_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
-| memory | store.py、project.py | contracts |
+| memory | store.py、project.py、retrieval.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限和具体工具文件 | session、config、contracts |
 | contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py | 无 |
 
