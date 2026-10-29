@@ -2,11 +2,26 @@
 
 最近核对：2026-10-30
 
-本次核对范围：T2.3，新增实际标准包、脚本审批与恢复验收；架构无变化，现有 Skill/工具/会话边界保持。T2.2 中SkillCatalog 统一标准/TOML 包，SkillPackage 冻结目录元数据与材料路径；标准正文与头部使用同一字节快照。请求目录保存格式，工具结果保存元数据/内容版本；原日志目录字段继续可读。两份项目示例迁移到标准格式和 references/。ReviewService 分开处理历史读取凭据与当前目标有效性，文件删除后仍能收集为 stale；SkillCatalog 在目录与请求校验前统一去除名称、用途两端空白。保留 ToolExecutor 协作限制回调的契约说明。
+本次核对范围：T3.1，新增 skills/library.py / SkillLibrary 合并目录；contracts/skills.py 提供 SkillListing 来源与覆盖契约。单目录 SkillCatalog 可注入独立 root 与授权器；聊天组装及命令尚未接入多来源，属于 T3.2。SkillCatalog 统一标准/TOML 包，SkillPackage 冻结目录元数据与材料路径；标准正文与头部使用同一字节快照。请求目录保存格式，工具结果保存元数据/内容版本；原日志目录字段继续可读。两份项目示例迁移到标准格式和 references/。ReviewService 分开处理历史读取凭据与当前目标有效性，文件删除后仍能收集为 stale；SkillCatalog 在目录与请求校验前统一去除名称、用途两端空白。保留 ToolExecutor 协作限制回调的契约说明。
 
 核对结论：新增 ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
+
+## T3.1 多来源技能目录
+
+~~~mermaid
+flowchart LR
+    LIBRARY["skills/library.py / SkillLibrary"] --> PROJECT_CATALOG["SkillCatalog / 项目目录"]
+    LIBRARY --> USER_CATALOG["SkillCatalog / 用户目录"]
+    LIBRARY --> LISTING["contracts/skills.py / SkillListing"]
+    LIBRARY --> ACTIVE_CATALOG["生效目录 / 项目同名优先"]
+    LIBRARY --> OVERRIDE["含被覆盖项的只读列表"]
+    PROJECT_CATALOG --> PATH_AUTH["调用方注入的各自授权器"]
+    USER_CATALOG --> PATH_AUTH
+~~~
+
+SkillLibrary 不持有应用或普通工具权限，只调用各自目录的读取器。来源选择启动时冻结，原来源失效时报错；目录字典是副本，展示列表为不可变值。生效目录的 scope/source 成对校验，旧无来源日志仍可读。本阶段未改变 CLI 和 Conversation 的调用关系，下一步接入应用配置与显式选择。
 
 ## T2 标准与 TOML Skill 加载
 

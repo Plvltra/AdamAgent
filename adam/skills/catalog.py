@@ -38,17 +38,21 @@ class SkillPackage:
 
 
 class SkillCatalog:
-    """启动时冻结有界目录，正文仅在 load 时读取；更新元数据后需要重启应用。"""
+    """启动时冻结有界目录；root 可指定独立来源，读取仍必须通过注入的授权函数。
+
+    正文仅在 load 时读取；更新元数据后需要重启应用，不自动扩大普通文件工具权限。
+    """
 
     def __init__(
         self,
         workspace: Path,
         resolve: Callable[[str], Path],
         *,
+        root: Path | None = None,
         max_bytes: int = 1048576,
         max_result_chars: int = 8000,
     ) -> None:
-        self.root = workspace.resolve() / "skills"
+        self.root = root.absolute() if root is not None else workspace.resolve() / "skills"
         self.resolve = resolve
         self.max_bytes, self.max_result_chars = max_bytes, max_result_chars
         self._entries: dict[str, SkillPackage] = {}
@@ -57,6 +61,13 @@ class SkillCatalog:
     def summaries(self) -> tuple[dict[str, str], ...]:
         """返回目录副本；标准包只读头部，旧包只读元数据与格式标记。"""
         return tuple(entry.summary() for entry in self._entries.values())
+
+    def source_path(self, skill_id: str) -> Path:
+        """返回冻结的元数据来源路径；不读取文件，未知 ID 抛 ToolError。"""
+        entry = self._entries.get(skill_id)
+        if entry is None:
+            raise ToolError("Skill 未登记。")
+        return entry.source.source
 
     def load(self, skill_id: str, resource: str = "SKILL.md") -> dict[str, Any]:
         """返回完整指导、材料清单与字节版本；格式或元数据变化时要求重启。

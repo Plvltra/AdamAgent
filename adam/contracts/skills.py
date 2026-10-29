@@ -3,7 +3,35 @@
 import json
 import re
 import unicodedata
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+
+
+@dataclass(frozen=True)
+class SkillListing:
+    """技能的冻结来源；overridden_by 非空表示仅供展示，不能从该项加载正文。"""
+
+    identifier: str
+    name: str
+    description: str
+    format: str
+    version: str
+    scope: str
+    source: str
+    overridden_by: str | None = None
+
+    def summary(self) -> dict[str, str]:
+        """返回模型目录使用的独立字典，不含正文或被覆盖版本。"""
+        return {
+            "id": self.identifier,
+            "name": self.name,
+            "description": self.description,
+            "format": self.format,
+            "version": self.version,
+            "scope": self.scope,
+            "source": self.source,
+        }
 
 
 def standard_skill_name(value: str) -> str:
@@ -31,11 +59,20 @@ def validate_catalog(value: object) -> None:
         if (
             not isinstance(item, dict)
             or not required <= item.keys()
-            or item.keys() - (required | {"format"})
+            or item.keys() - (required | {"format", "scope", "source"})
         ):
             raise ValueError("invalid skill metadata")
         if not all(isinstance(item[k], str) for k in item):
             raise ValueError("invalid skill text")
+        if ("scope" in item) != ("source" in item):
+            raise ValueError("incomplete skill source")
+        if "scope" in item and (
+            item["scope"] not in {"project", "user"}
+            or not 1 <= len(item["source"]) <= 4096
+            or "\0" in item["source"]
+            or not Path(item["source"]).is_absolute()
+        ):
+            raise ValueError("invalid skill source")
         format_name = item.get("format", "toml")
         if format_name not in {"standard", "toml"}:
             raise ValueError("unknown skill format")

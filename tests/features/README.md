@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T3.1 Skill 多来源 | 项目优先、覆盖项可见、冻结来源、规范化同名、独立目录授权和合并上限 | [test_skill_sources.py](test_skill_sources.py) |
 | T2.3 标准 Skill 整体验收 | 两份实际示例、脚本批准/拒绝、子权限保持、源材料变化后重启 | [test_standard_skill_acceptance.py](test_standard_skill_acceptance.py)、[test_skill_boundaries.py](test_skill_boundaries.py) |
 | T2.2 统一 Skill 加载 | 混合格式、材料按需、Unicode ID、版本变化、文本上限、实际请求和重启日志 | [test_standard_skill_loading.py](test_standard_skill_loading.py) |
 | T2.1 标准 Skill 元数据 | 标准/Unicode 字段、正文按需、双来源拒绝、恶意 YAML、目录和链接边界 | [test_standard_skill_metadata.py](test_standard_skill_metadata.py) |
