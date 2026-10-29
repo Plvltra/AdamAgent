@@ -2,7 +2,7 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E5.3 缺陷修复与无收益对照。架构无变化；真实文件版本、主编辑审批、独立子日志和共享消费通过业务场景核对。
+本次核对范围：E6.1。新增 skills/catalog.py，文件解析与按需读取独立于模型、工具注册和会话；通过注入的路径解析器沿用权限，不反向依赖 tool_calls。
 
 核对结论：新增 ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
@@ -36,6 +36,18 @@ flowchart LR
 ```
 
 DocumentIndex 持锁刷新配置范围内的源文件；源文件经授权和限额检查后计算内容版本。缓存损坏或读写失败明确报错，不返回旧资料。仅变更文件重新分块。搜索通过普通工具结果进入上下文与会话日志；不修改 Conversation。子任务逐个授权源文件，主子文件工具均保护索引目录。embedding 延迟加载，仅显式 prepare-model 可下载；查询失败不自动切策略。独立 document_search 入口不读取聊天密钥，evaluation 按固定标注统计候选证据。
+
+## E6.1 Skill 目录基础
+
+~~~mermaid
+flowchart LR
+    CAT["skills/catalog.py"] --> META["skills/id/skill.toml<br/>启动只读元数据"]
+    CAT -->|按需 load| BODY["SKILL.md / 已登记材料"]
+    CAT -->|注入 resolve| POLICY["路径权限"]
+    CAT --> ERR["contracts/errors.py"]
+~~~
+
+此阶段尚未注册模型工具；读取返回完整内容与 SHA-256，超长报错，包外材料拒绝。
 
 ## E5.1～E5.2 独立审查
 
