@@ -2,13 +2,13 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E1.3 自动检索、固定轮次快照、上下文预算、预览与请求日志校验。
+本次核对范围：E1.4 子任务快照传递、记忆读取降级及共享库工具访问边界。
 
-核对结论：MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口，子任务继承由 E1.4 接入。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
-## E1.1～E1.3 记忆存储、管理与上下文
+## E1.1～E1.4 记忆存储、管理、上下文与继承
 
 ```mermaid
 flowchart LR
@@ -21,6 +21,11 @@ flowchart LR
     SERVICE --> RANK["memory/retrieval.py<br/>rank_records"]
     SERVICE -->|输入估算| BUILDER["context/builder.py"]
     CONV -->|固定快照| BUILDER
+    CONV -->|set_memory| MANAGER["application/subagents/manager.py"]
+    MANAGER -->|派发时捕获快照| CHILD["子 Conversation"]
+    CHILD --> BUILDER
+    BOOT -->|共享记忆目录保护| POLICY["tool_calls/policy.py"]
+    SERVICE -->|读取失败转 unavailable| ERR
     CONV --> LOG["session/log.py<br/>验证请求中的记忆快照"]
     LOG --> RECORD
     STORE["memory/store.py<br/>MemoryStore"] --> RECORD["contracts/memory.py<br/>MemoryRecord / MemorySource"]

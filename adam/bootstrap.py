@@ -17,6 +17,7 @@ from adam.config.loader import load_config
 from adam.config.settings import AppConfig, PermissionConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
+from adam.contracts.memory import MemorySelection
 from adam.contracts.models import CommandRequest, EditPlan
 from adam.contracts.ports import ModelClient
 from adam.llm.client import LLMClient
@@ -66,7 +67,12 @@ def build_application(
             config.subagents,
             config.agent.max_session_tokens,
             config.tool_limits.max_result_chars,
-            partial(_open_child, config, child_client_factory),
+            partial(
+                _open_child,
+                config,
+                child_client_factory,
+                config.memories_dir or store.root / "_memories",
+            ),
             on_notice or (lambda _: None),
         )
         registry = registry.extended(
@@ -103,14 +109,19 @@ def build_application(
 def _open_child(
     config: AppConfig,
     client_factory: ChildClientFactory,
+    memories_dir: Path,
     root: Path,
     agent: ChildAgent,
     run: ChildRun,
     cancel: CancellationToken,
     budget: SharedTokenBudget,
     started: Callable[[str], None],
+    memory: MemorySelection,
 ) -> Iterator[Conversation]:
-    """在子线程中创建和关闭全部子资源；不把主会话锁、HTTP 或审批回调传给它。"""
+    """在子线程中管理独立资源，只继承主轮次记忆快照。
+
+    不传主会话锁、HTTP 或审批回调；工具禁止读取共享记忆目录，避免绕过选择范围。
+    """
     with SessionStore(root) as store, client_factory(cancel) as client:
         store.select_session(agent.agent_id)
         account = SessionAccount(store, agent.agent_id, budget)
@@ -119,6 +130,7 @@ def _open_child(
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             config.tool_limits,
             delegated=True,
+            protected_dirs=(memories_dir,),
         )
         conversation = Conversation(
             store,
@@ -131,6 +143,7 @@ def _open_child(
             accounting=lambda _: account,
             cancel=cancel,
             on_turn_started=started,
+            memory_provider=lambda _query, _capacity: memory,
         )
         conversation.resume(agent.agent_id)
         yield conversation

@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| E1.4 记忆继承与故障 | 子线程固定快照、续聊取新版本、共享库直接访问被拒绝、损坏/权限降级、会话错误仍停止 | [test_memory_boundaries.py](test_memory_boundaries.py) |
 | E1.3 记忆检索与输入 | 新会话召回、修改删除生效、范围与过期过滤、同轮固定、预览无请求和请求版本留痕 | [test_memory_context.py](test_memory_context.py) |
 | E1.2 记忆管理 | /memory 生命周期、来源、项目与全局范围、过期、版本冲突、正文保真和写入失败反馈 | [test_memory_management.py](test_memory_management.py) |
 | E1.1 记忆存储 | 跨会话独立存储、真实多进程写入、版本冲突、范围隔离及损坏/写入失败保留 | [test_memory_storage.py](test_memory_storage.py) |

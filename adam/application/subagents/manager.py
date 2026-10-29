@@ -16,11 +16,20 @@ from adam.config.settings import PermissionConfig, SubagentConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.errors import AgentError, StorageError, ToolError
+from adam.contracts.memory import MemorySelection
 from adam.session.delegation import DelegationStore
 from adam.session.storage import SessionStore
 
 ChildOpener = Callable[
-    [Path, ChildAgent, ChildRun, CancellationToken, SharedTokenBudget, Callable[[str], None]],
+    [
+        Path,
+        ChildAgent,
+        ChildRun,
+        CancellationToken,
+        SharedTokenBudget,
+        Callable[[str], None],
+        MemorySelection,
+    ],
     AbstractContextManager[Conversation],
 ]
 
@@ -58,12 +67,18 @@ class SubagentManager:
         self._model = ""
         self._source: dict[str, str] = {}
         self._created = 0
+        self._memory = MemorySelection()
 
     def begin(self, session_id: str, turn_id: str, model: str) -> None:
         """绑定已持锁的主会话；新轮次重置新建数量，保留可续聊的子会话。"""
         self._select(session_id)
         self._turn_id, self._model = turn_id, model
         self._source, self._created = {}, 0
+        self._memory = MemorySelection()
+
+    def set_memory(self, selection: MemorySelection) -> None:
+        """保存本轮不可变快照；每次派发捕获它，续聊使用所在主轮次的新选择。"""
+        self._memory = selection
 
     def account(self, session_id: str) -> SessionAccount:
         """获取主会话的共享账本入口，摘要与普通请求使用同一额度。"""
@@ -282,12 +297,14 @@ class SubagentManager:
                 max_workers=self.limits.max_concurrent, thread_name_prefix="adam-child"
             )
         token = CancellationToken()
-        future = self._pool.submit(self._work, agent, run, token)
+        future = self._pool.submit(self._work, agent, run, token, self._memory)
         self._active[agent.agent_id] = (future, token)
         self.notify(f"子 Agent> {agent.agent_id} {agent.name} 已启动")
         return {"agent_id": agent.agent_id, "run_id": run.run_id, "status": "running"}
 
-    def _work(self, agent: ChildAgent, run: ChildRun, token: CancellationToken) -> None:
+    def _work(
+        self, agent: ChildAgent, run: ChildRun, token: CancellationToken, memory: MemorySelection
+    ) -> None:
         """工作线程只写自己的会话和线程安全索引；不打印、不读终端、不扩张权限。"""
         index, budget = self._index_required(), self._budget
 
@@ -297,7 +314,7 @@ class SubagentManager:
         try:
             token.check()
             with self.open_child(
-                self._children_root(), agent, run, token, budget, started
+                self._children_root(), agent, run, token, budget, started, memory
             ) as conversation:
                 reply = conversation.send(run.task)
             index.update_run(agent.agent_id, run.run_id, status="completed", reply=reply)

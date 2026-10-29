@@ -4,6 +4,8 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from adam.contracts.memory import MemorySelection
+
 
 @dataclass
 class ChildRun:
@@ -53,6 +55,10 @@ class Delegation(Protocol):
 
     def begin(self, session_id: str, turn_id: str, model: str) -> None:
         """绑定主会话并开始本轮新建计数。"""
+        ...
+
+    def set_memory(self, selection: MemorySelection) -> None:
+        """绑定主轮次已选的只读快照；子任务不再检索共享记忆库。"""
         ...
 
     def instructions(self, session_id: str | None) -> str:

@@ -186,6 +186,10 @@ class Conversation:
             RequestPolicy(self.limits.max_model_requests, self.notify, cancel=self.cancel),
             memory=self._select_memory(session, turn, text),
         )
+        if progress.memory.warning:
+            self.notify(progress.memory.warning)
+        if self.delegation:
+            self.delegation.set_memory(progress.memory)
         tool_budget = ToolBudget(self.limits.max_edit_attempts)
         while progress.requests.used < self.limits.max_model_requests:
             if self.cancel:

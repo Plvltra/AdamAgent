@@ -23,9 +23,14 @@ def create_tool_registry(
     confirm_command: Callable[[CommandRequest], bool] | None = None,
     confirm_edit: Callable[[EditPlan], bool] | None = None,
     delegated: bool = False,
+    protected_dirs: tuple[Path, ...] = (),
 ) -> ToolRegistry:
-    """创建内置工具目录；工作目录无效时失败，未提供确认回调时命令及编辑默认拒绝。"""
-    policy = PathPolicy(workspace, permissions or PermissionConfig())
+    """创建内置工具；工作目录无效时失败，未提供确认回调时命令及编辑默认拒绝。
+
+    protected_dirs 是程序保留目录，即使位于已授权根内，文件及 Git diff 工具也拒绝读取。
+    已批准命令不受路径策略约束；子任务的命令入口始终拒绝执行。
+    """
+    policy = PathPolicy(workspace, permissions or PermissionConfig(), protected_dirs=protected_dirs)
     limits = limits or ToolLimits()
     files = FileTools(policy, limits)
     git = GitTools(policy, limits)

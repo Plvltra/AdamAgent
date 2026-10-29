@@ -6,7 +6,7 @@ from pathlib import Path
 
 from adam.config.settings import MemoryConfig
 from adam.context.builder import estimate_json_tokens
-from adam.contracts.errors import MemoryInputError
+from adam.contracts.errors import MemoryInputError, MemoryStoreError
 from adam.contracts.memory import MemoryCommand, MemoryRecord, MemorySelection, MemorySource
 from adam.memory.project import project_identity
 from adam.memory.retrieval import rank_records
@@ -58,15 +58,25 @@ class MemoryService:
         ]
 
     def select(self, query: str, available_tokens: int) -> MemorySelection:
-        """每轮重读有效条目，按相关性挑选完整记录；不挤占系统、本轮及保护历史。"""
+        """按相关性选择完整记录；可选记忆读取失败时返回带警告的空快照。
+
+        每轮重读有效条目，不挤占系统、本轮及保护历史。
+        仅降级 MemoryStoreError；参数错误、会话日志和请求记账错误仍向上传播。
+        """
         if not self.limits.enabled:
             return MemorySelection(status="disabled")
         if not query.strip():
             return MemorySelection(status="query_required")
-        project = project_identity(self.workspace)
-        ranked = rank_records(
-            self.store.list_records(project, include_global=True), query, datetime.now(UTC)
-        )
+        try:
+            project = project_identity(self.workspace)
+            records = self.store.list_records(project, include_global=True)
+        except MemoryStoreError as error:
+            return MemorySelection(
+                query=query,
+                status="unavailable",
+                warning=f"记忆读取失败，本轮未加载记忆；聊天继续。{error.user_message}",
+            )
+        ranked = rank_records(records, query, datetime.now(UTC))
         selection = MemorySelection(query=query, status="no_match" if not ranked else "budget")
         budget = min(available_tokens, self.limits.max_input_tokens)
         for record in ranked:

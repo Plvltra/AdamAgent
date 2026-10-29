@@ -11,8 +11,15 @@ from adam.contracts.errors import ToolError
 class PathPolicy:
     """同时检查请求路径和解析后的真实路径，阻止越界和凭据读取。"""
 
-    def __init__(self, workspace: Path, permissions: PermissionConfig) -> None:
+    def __init__(
+        self,
+        workspace: Path,
+        permissions: PermissionConfig,
+        *,
+        protected_dirs: tuple[Path, ...] = (),
+    ) -> None:
         try:
+            self.protected_dirs = tuple(path.resolve() for path in protected_dirs)
             self.workspace = workspace.resolve()
             self.roots = (self.workspace, *(p.resolve() for p in permissions.additional_read_dirs))
             self.write_roots = (
@@ -48,6 +55,8 @@ class PathPolicy:
         if writing and Path(os.path.abspath(candidate)) != resolved:
             raise ToolError("暂不通过符号链接或目录联接写入文件。")
         for path in (candidate.absolute(), resolved):
+            if any(path.is_relative_to(root) for root in self.protected_dirs):
+                raise ToolError("程序保留目录禁止直接访问；子 Agent 只接收主轮次选中的记忆。")
             if not any(path.is_relative_to(root) for root in roots):
                 setting = "additional_write_dirs" if writing else "additional_read_dirs"
                 raise ToolError(f"路径未授权，请由用户配置 permissions.{setting}。")
