@@ -194,3 +194,5 @@ class AppConfig:
     subagents: SubagentConfig = field(default_factory=SubagentConfig)
     memories_dir: Path | None = None
     memory: MemoryConfig = field(default_factory=MemoryConfig)
+    documents: DocumentConfig = field(default_factory=DocumentConfig)
+    documents_dir: Path | None = None

@@ -3,6 +3,21 @@
 sessions_dir = "sessions"
 # 独立记忆目录，相对当前配置文件；默认配置在 ADAM_HOME 下。
 memories_dir = "memories"
+# 文档索引缓存，可删除后从源文件重建。
+documents_dir = "documents"
+
+[documents]
+# 空数组不注册文档工具；如 ["docs"]，相对 --workspace（默认启动目录）。
+# 此配置不授予额外读取权限；工作目录外的源还需 additional_read_dirs。
+roots = []
+top_k = 5
+chunk_chars = 400
+max_files = 200
+max_file_bytes = 1048576
+max_total_bytes = 10485760
+max_scan_entries = 5000
+max_chunks = 10000
+scan_timeout_seconds = 10
 
 [chat]
 system_prompt = "你是 Adam，一个友好的编程助手。"

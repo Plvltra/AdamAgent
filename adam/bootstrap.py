@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.manager import SubagentManager
 from adam.config.loader import load_config
-from adam.config.settings import AppConfig, PermissionConfig
+from adam.config.settings import AppConfig, DocumentConfig, PermissionConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.memory import MemorySelection
@@ -26,6 +27,7 @@ from adam.memory.store import MemoryStore
 from adam.session.storage import SessionStore
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers
+from adam.tool_calls.document_tools import register_documents
 from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
 
@@ -51,12 +53,23 @@ def build_application(
     child_client_factory 在工作线程中创建独立模型资源；未提供时不启用委派。
     使用子任务的调用方须在释放主会话锁前调用 application.close。
     """
+    documents_dir = config.documents_dir or store.root / "_documents"
+    document_config = replace(
+        config.documents,
+        roots=tuple(
+            path if path.is_absolute() else workspace / path for path in config.documents.roots
+        ),
+    )
     registry = create_tool_registry(
         workspace,
         config.permissions,
         config.tool_limits,
         confirm_command=confirm_command,
         confirm_edit=confirm_edit,
+        protected_dirs=(documents_dir,),
+    )
+    registry = register_documents(
+        registry, workspace, document_config, documents_dir, config.permissions
     )
     manager = None
     if child_client_factory:
@@ -72,6 +85,8 @@ def build_application(
                 config,
                 child_client_factory,
                 config.memories_dir or store.root / "_memories",
+                document_config,
+                documents_dir,
             ),
             on_notice or (lambda _: None),
         )
@@ -110,6 +125,8 @@ def _open_child(
     config: AppConfig,
     client_factory: ChildClientFactory,
     memories_dir: Path,
+    document_config: DocumentConfig,
+    documents_dir: Path,
     root: Path,
     agent: ChildAgent,
     run: ChildRun,
@@ -120,7 +137,8 @@ def _open_child(
 ) -> Iterator[Conversation]:
     """在子线程中管理独立资源，只继承主轮次记忆快照。
 
-    不传主会话锁、HTTP 或审批回调；工具禁止读取共享记忆目录，避免绕过选择范围。
+    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆和文档缓存，避免绕过范围。
+    文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     """
     with SessionStore(root) as store, client_factory(cancel) as client:
         store.select_session(agent.agent_id)
@@ -130,7 +148,15 @@ def _open_child(
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             config.tool_limits,
             delegated=True,
-            protected_dirs=(memories_dir,),
+            protected_dirs=(memories_dir, documents_dir),
+        )
+        registry = register_documents(
+            registry,
+            Path(agent.workspace),
+            document_config,
+            documents_dir,
+            PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
+            (memories_dir,),
         )
         conversation = Conversation(
             store,

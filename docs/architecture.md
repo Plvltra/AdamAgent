@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E2.2 有界源文件扫描、路径授权、持久索引及并发刷新；本分支不包含并行 E3 的未提交工作。
+本次核对范围：E2.3 文档检索工具、配置、主子 Agent 组装、来源日志和预算边界；本分支不包含并行 E3 的未提交工作。
 
-核对结论：documents 增加 source/index，配置值由 config 提供；读取授权经回调注入，目前未接入聊天工具；保留 E1 已实现关系。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：bootstrap 通过 register_documents 注册按需只读搜索；documents/search 协调索引与排序，工具适配器维护结构化输出容量，聊天主循环保持原有流程；保留 E1 已实现关系。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -15,6 +15,11 @@ flowchart LR
     TEXT["documents/text.py<br/>分块与分词"] --> VALUES["documents/models.py<br/>Chunk / SearchHit"]
     RANK["documents/retrieval.py<br/>关键词排序"] --> TEXT
     RANK --> VALUES
+    BOOT["bootstrap.py"] --> TOOLS["tool_calls/document_tools.py<br/>注册、适配和结果限长"]
+    TOOLS --> REGISTRY["tool_calls/registry.py<br/>参数校验"]
+    TOOLS --> SEARCH["documents/search.py<br/>DocumentSearch"]
+    SEARCH --> RANK
+    SEARCH --> INDEX
     INDEX["documents/index.py<br/>DocumentIndex"] --> SOURCE["documents/source.py<br/>有界扫描"]
     SOURCE --> AUTH["注入的路径授权函数"]
     INDEX --> TEXT
@@ -22,7 +27,7 @@ flowchart LR
     SOURCE --> CONFIG["config/settings.py<br/>DocumentConfig"]
 ```
 
-DocumentIndex 持锁刷新配置范围内的源文件；源文件经授权和限额检查后计算内容版本。缓存损坏或读写失败明确报错，不返回旧资料。仅变更文件重新分块；尚未注册聊天工具或使用 embedding。
+DocumentIndex 持锁刷新配置范围内的源文件；源文件经授权和限额检查后计算内容版本。缓存损坏或读写失败明确报错，不返回旧资料。仅变更文件重新分块。搜索通过普通工具结果进入上下文与会话日志；不修改 Conversation。子任务逐个授权源文件，主子文件工具均保护索引目录。embedding 在下一阶段接入。
 
 ## E1.1～E1.4 记忆存储、管理、上下文与继承
 
@@ -64,9 +69,9 @@ flowchart LR
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
 | session | storage.py、log.py、compaction_log.py、edit_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
-| documents | models.py、text.py、retrieval.py、source.py、index.py | config、contracts |
+| documents | models.py、text.py、retrieval.py、source.py、index.py、search.py | config、contracts |
 | memory | store.py、project.py、retrieval.py | contracts |
-| tool_calls | 工厂、注册表、执行器、权限和具体工具文件 | session、config、contracts |
+| tool_calls | 工厂、注册表、执行器、权限、document_tools.py 和具体工具 | documents、session、config、contracts |
 | contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py | 无 |
 
 包内使用绝对路径显式导入所属实现；类型和错误直接从定义位置导入，避免经过其他业务模块转手。新包的 `__init__.py` 仅说明职责，不批量加载实现。contracts 只承载现有跨模块契约，不作为任意辅助函数目录。

@@ -91,7 +91,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
         ("documents", {"documents", "config", "contracts"}),
         ("llm", {"llm", "config", "contracts"}),
         ("context", {"context", "session", "config", "contracts"}),
-        ("tool_calls", {"tool_calls", "session", "config", "contracts"}),
+        ("tool_calls", {"tool_calls", "session", "documents", "config", "contracts"}),
         (
             "application",
             {"application", "context", "session", "memory", "tool_calls", "config", "contracts"},

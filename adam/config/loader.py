@@ -13,6 +13,7 @@ from adam.config.settings import (
     AgentConfig,
     AppConfig,
     ContextConfig,
+    DocumentConfig,
     LLMConfig,
     MemoryConfig,
     PermissionConfig,
@@ -121,13 +122,14 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "context",
             "subagents",
             "memory",
+            "documents",
         },
         "主配置",
     )
     storage = data.get("storage", {})
     if isinstance(storage, dict) and "db_path" in storage:
         raise ConfigError("storage.db_path 已移除，请改用 storage.sessions_dir。")
-    storage = checked_section(storage, {"sessions_dir", "memories_dir"}, "storage")
+    storage = checked_section(storage, {"sessions_dir", "memories_dir", "documents_dir"}, "storage")
     chat = checked_section(data.get("chat", {}), {"system_prompt"}, "chat")
 
     directory_value = storage.get("sessions_dir", "sessions")
@@ -153,6 +155,30 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     memories_dir = Path(memories_value)
     if not memories_dir.is_absolute():
         memories_dir = directory / memories_dir
+
+    documents_value = storage.get("documents_dir", "documents")
+    if (
+        not isinstance(documents_value, str)
+        or not documents_value.strip()
+        or "\0" in documents_value
+    ):
+        raise ConfigError("storage.documents_dir 必须是非空且不含空字符的路径字符串。")
+    documents_dir = Path(documents_value).expanduser()
+    if not documents_dir.is_absolute():
+        documents_dir = directory / documents_dir
+    document_data = checked_section(
+        data.get("documents", {}), {item.name for item in fields(DocumentConfig)}, "documents"
+    ).copy()
+    roots = document_data.get("roots", [])
+    if (
+        not isinstance(roots, list)
+        or len(roots) > 32
+        or any(not isinstance(root, str) or not root.strip() or "\0" in root for root in roots)
+    ):
+        raise ConfigError("documents.roots 必须是不超过 32 项的非空路径字符串数组。")
+    # 文档源相对启动工作目录解析；缓存仍相对主配置，避免不同项目混用数据。
+    document_data["roots"] = tuple(Path(root).expanduser() for root in roots)
+    documents = DocumentConfig(**document_data)
 
     model_config_path = llm_path if llm_path is not None else directory / "llm.toml"
     llm = load_llm_config(model_config_path)
@@ -211,6 +237,8 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         context=context,
         subagents=subagents,
         memory=memory,
+        documents=documents,
+        documents_dir=documents_dir,
     )
 
 
