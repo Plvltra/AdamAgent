@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| E3.4 计划整体验收 | 同一两文件任务的有/无计划开销、真实编辑与命令证据、子结果成功/失败、简单问答、文档检索作为计划证据 | [test_task_plan_acceptance.py](test_task_plan_acceptance.py) |
 | E3.3 计划交互 | /plan 只读与重启、一次提醒及额度、有限调整、流式收尾和展示失败 | [test_task_plan_interaction.py](test_task_plan_interaction.py) |
 | E3.2 模型计划与证据 | 真实读文件与命令记录、伪造/跨轮/失败证据拒绝、保存失败停止及配置 | [test_task_planning.py](test_task_planning.py)、../test_planning_config.py |
 | E3.1 计划存储 | 版本与来源、跨会话隔离、重启不重跑、非法状态/关联及 fsync 回滚 | [test_task_plan_storage.py](test_task_plan_storage.py) |
@@ -149,6 +150,10 @@ V6.3 已用真实本地 TCP 和独立进程补齐中断验收；已完整提交�
 重启仍恢复原结果；未结算消费保持未知，不发新请求。另验证摘要/连接重试共用账本、
 索引替换失败无子请求、索引缺失不能清零、读取授权、结果 JSON 长度与会话预览隔离。
 同轮追问不能跳过上一结果的交付。V6 共 20 个业务场景，基础用例另有 9 个；不证明真实模型拆分任务的效果。
+
+## E2/E3 集成核验（2026-10-29）
+
+保留两项原有场景，新增真实文档检索 → 计划完成证据 → 重启查询的业务测试。`test_task_plan_acceptance.py` 共 5 项通过，合计收集 579 项；提交检查执行 Ruff 格式/lint、Pyright 与全量 pytest。工具注册、两组配置和持久化关联均保留。
 
 ## E2 本地文档检索验收
 

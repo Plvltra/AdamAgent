@@ -117,14 +117,14 @@ V4 按以下 5 个小任务实现、验收并分别提交，细项见 [练手 TO
 
 ## 4. 扩展练习：以主 TODO 为准
 
-V6 子 Agent 协作已完成工程实现及离线故障验收。[E1 跨会话记忆](cross-session-memory.md) 已按七项产品决策完成 E1.1～E1.5；本分支已完成 [E2 文档检索](local-document-rag.md)，E3 在主目录并行开发，集成状态以对应分支为准。职责包与实际依赖见 [系统架构](architecture.md)。
+V6 子 Agent 协作已完成工程实现及离线故障验收。[E1 跨会话记忆](cross-session-memory.md) 已按七项产品决策完成 E1.1～E1.5；[E2 文档检索](local-document-rag.md) 与 [E3 显式任务计划](task-planning.md) 已按 E2 → E3 的阶段顺序集成。职责包与实际依赖见 [系统架构](architecture.md)。
 
 | 主 TODO 对应项 | 当前安排 | 重点 |
 | --- | --- | --- |
 | E8 中的 V6 子 Agent 协作 | 已完成；见 [分步规划](subagents.md) | 并行、共享额度、取消与重启恢复 |
 | E1 跨会话记忆 | E1.1～E1.5 已完成工程实现与离线验收 | 明确管理、项目与全局范围、相关检索、只读继承与故障降级 |
 | E2 本地文档 RAG | E2.1～E2.5 完成工程验收及真实 embedding 对照 | [范围与验收](local-document-rag.md) |
-| E3 显式任务计划 | E3.1～E3.3 已实现，E3.4 待完成 | 计划版本、工具证据、进度展示及有限调整，见 [需求](task-planning.md) |
+| E3 显式任务计划 | E3.1～E3.4 已实现并离线验收 | 计划版本、工具证据、进度展示及有限调整，见 [需求](task-planning.md) |
 | E4 反思与经验复用、E5 双角色协作、E6 Skills、E7 MCP | 保留选做，一次选择一项 | 范围与前置条件按 [主 TODO](agent-practice-todo.md) |
 | E8 部署与性能 | 保留选做，未确定实施顺序 | 交付、恢复及先测量后优化 |
 
