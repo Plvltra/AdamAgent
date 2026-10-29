@@ -2,7 +2,7 @@
 
 最近核对：2026-10-29
 
-本次核对范围：V5.1 流式传输、展示回调与 TOML 开关，复用现有请求/轮次状态。
+本次核对范围：V5.2 可取消 HTTP 适配、短周期命令等待、取消留痕及返回输入；流式接口和存储线程归属保持。
 
 核对结论：bootstrap 创建并管理资源，CLI 使用 AgentApplication；共享配置、数据和错误单独定义；模型依赖 ModelClient，工具注册表只分派已注入处理函数。
 
@@ -52,7 +52,9 @@ flowchart TD
     BOOT --> LLM["llm.py<br/>访问模型服务"]
     APP -->|"查询模型目录"| PORT["ports.ModelClient"]
     LLM -.->|"实现"| PORT
-    LLM --> API["远端 LLM"]
+    BOOT --> HTTP["http_transport.InterruptibleTransport<br/>异步 IO 与同步接口桥接"]
+    LLM --> HTTP
+    HTTP --> API["远端 LLM"]
     LLM --> STREAM["streaming.py<br/>SSE 与完整响应组装"]
     STREAM -.-> PROTOCOL
     LLM -.->|"ModelOutput 回调"| OUTPUT["reply_output.py<br/>增量展示与完整性提示"]

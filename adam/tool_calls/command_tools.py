@@ -166,7 +166,15 @@ class CommandTools:
             reader.start()
         status = "completed"
         try:
-            process.wait(timeout=command.timeout_seconds)
+            deadline = time.monotonic() + command.timeout_seconds
+            while process.poll() is None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(command.argv, command.timeout_seconds)
+                try:
+                    process.wait(timeout=min(remaining, 0.1))
+                except subprocess.TimeoutExpired:
+                    continue
         except subprocess.TimeoutExpired:
             status = "timed_out"
             self._terminate(process)

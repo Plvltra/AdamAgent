@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 
-from adam.errors import FailureCode, LLMError
+from adam.errors import FailureCode, LLMError, RequestInterrupted
 from adam.models import Completion, ModelOutput
 from adam.protocol import validate_assistant
 from adam.settings import LLMConfig
@@ -72,6 +72,7 @@ class LLMClient:
 
         Raises:
             LLMError: 网络、HTTP 或协议错误；携带受控原因码、HTTP 状态及已解析用量。
+            RequestInterrupted: 流式请求被取消，携带中断前已收到的可靠用量。
 
         协议参考：https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/
         """
@@ -186,6 +187,8 @@ class LLMClient:
             raise LLMError(
                 "网络连接或流式读取失败；未自动重试。", reply.usage, code=FailureCode.API_CONNECTION
             ) from None
+        except KeyboardInterrupt:
+            raise RequestInterrupted(reply.usage) from None
         finally:
             if on_output:
                 on_output(ModelOutput("response_end"))

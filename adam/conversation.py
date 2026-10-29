@@ -7,7 +7,14 @@ from typing import Any
 
 from adam.compaction import CompactionService
 from adam.context import ContextBuilder, RequestContext
-from adam.errors import BudgetError, FailureCode, LLMError, StorageError, TurnSaveError
+from adam.errors import (
+    BudgetError,
+    FailureCode,
+    LLMError,
+    RequestInterrupted,
+    StorageError,
+    TurnSaveError,
+)
 from adam.execution_report import ExecutionReport
 from adam.history import Summary
 from adam.models import Completion, ModelOutput, Session
@@ -281,7 +288,7 @@ class Conversation:
                 on_output=on_output,
             )
         except BaseException as error:
-            usage = error.usage if isinstance(error, LLMError) else None
+            usage = error.usage if isinstance(error, (LLMError, RequestInterrupted)) else None
             outcome = ExecutionOutcome.failure(error, self._elapsed_ms(started_ns))
             self._save_failure(
                 lambda: self.store.finish_request(

@@ -124,23 +124,23 @@ def handle_command(
 def confirm_command(
     command: CommandRequest, read: Callable[[str], str], write: Callable[[str], None]
 ) -> bool:
-    """展示本次完整执行计划；仅明确输入 y 批准，其他输入、EOF 或取消均拒绝。"""
+    """展示本次完整执行计划；仅明确输入 y 批准，其他输入或 EOF 拒绝；Ctrl+C 取消当前轮次。"""
     write(f"工作目录> {command.cwd}")
     write("命令参数> " + json.dumps(command.argv, ensure_ascii=False))
     write(f"超时> {command.timeout_seconds} 秒；执行能力由当前账户权限决定。")
     try:
         return read("允许本次执行？[y/N] ").strip().lower() == "y"
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
         return False
 
 
 def confirm_edit(plan: EditPlan, read: Callable[[str], str], write: Callable[[str], None]) -> bool:
-    """展示已规划的完整 diff；只批准当前计划，取消或非 y 输入均拒绝。"""
+    """展示已规划的完整 diff；只批准当前计划，非 y 输入拒绝，Ctrl+C 取消当前轮次。"""
     write(f"修改文件> {plan.path}")
     write(plan.diff)
     try:
         return read("允许本次文件修改？[y/N] ").strip().lower() == "y"
-    except (EOFError, KeyboardInterrupt):
+    except EOFError:
         return False
 
 
@@ -210,6 +210,8 @@ def chat(
                 if result is CommandResult.HANDLED:
                     continue
                 send_message(application, text, write, fragment)
+            except KeyboardInterrupt:
+                write("已取消本轮，当前会话保留；已发生的工具操作不会回滚。")
             except AgentError as error:
                 show_failure(error, write)
     except (EOFError, KeyboardInterrupt):

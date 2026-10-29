@@ -9,6 +9,7 @@ import httpx
 from adam.application import AgentApplication
 from adam.config import load_config
 from adam.conversation import Conversation
+from adam.http_transport import InterruptibleTransport
 from adam.llm import LLMClient
 from adam.models import CommandRequest, EditPlan
 from adam.ports import ModelClient
@@ -74,7 +75,7 @@ def open_application(
     config = load_config(config_path, llm_path)
     with (
         SessionStore(config.sessions_dir) as store,
-        httpx.Client(follow_redirects=False) as http,
+        httpx.Client(transport=InterruptibleTransport(), follow_redirects=False) as http,
     ):
         yield build_application(
             config,

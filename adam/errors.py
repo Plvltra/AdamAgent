@@ -131,3 +131,11 @@ class CommandLogError(AgentError):
     """执行日志写入失败；停止本轮，避免把未知执行状态当作可重试错误。"""
 
     code = FailureCode.COMMAND_LOG_ERROR
+
+
+class RequestInterrupted(KeyboardInterrupt):
+    """请求中断；保留在中断前已收到的可靠用量，不把取消当模型失败。"""
+
+    def __init__(self, usage: tuple[int, int] | None = None) -> None:
+        super().__init__()
+        self.usage = usage

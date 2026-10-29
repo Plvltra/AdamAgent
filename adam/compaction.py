@@ -9,7 +9,7 @@ from typing import Any
 
 from adam.context import estimate_json_tokens
 from adam.context_pruning import prune_history
-from adam.errors import BudgetError, FailureCode, LLMError
+from adam.errors import BudgetError, FailureCode, LLMError, RequestInterrupted
 from adam.history import Summary
 from adam.models import Completion
 from adam.outcome import ExecutionOutcome
@@ -182,7 +182,7 @@ class CompactionService:
                 max_tokens=self.limits.summary_max_output_tokens,
             )
         except BaseException as error:
-            usage = error.usage if isinstance(error, LLMError) else None
+            usage = error.usage if isinstance(error, (LLMError, RequestInterrupted)) else None
             try:
                 self._settle(
                     session_id,
