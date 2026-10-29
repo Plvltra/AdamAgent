@@ -15,6 +15,7 @@ from adam.session.outcome import outcome_details
 from adam.session.plan_evidence import validate_evidence
 from adam.session.plan_log import PlanLog
 from adam.session.reflection_log import ReflectionLog
+from adam.session.review_log import ReviewLog
 
 
 class UnsupportedLogVersionError(ValueError):
@@ -96,6 +97,7 @@ class SessionLog:
         self.plans = PlanLog()
         self.feedback = FeedbackLog()
         self.reflections = ReflectionLog()
+        self.reviews = ReviewLog()
         self.tokens = 0
         self._unknown_usage = False
         self._pending_turn = ""
@@ -132,6 +134,8 @@ class SessionLog:
             "plan_updated": self._apply_plan,
             "feedback_recorded": self._apply_feedback,
             "reflection_finished": self._apply_reflection,
+            "review_requested": self._apply_review,
+            "review_finished": self._apply_review,
             "experience_decided": self._apply_experience,
             "edit_planned": self._apply_edit,
             "edit_started": self._apply_edit,
@@ -202,6 +206,7 @@ class SessionLog:
             self._validate_pending(complete=False)
         for turn_id in targets["turn_ids"]:
             self.turns[turn_id].update(details)
+            self.reviews.interrupt(turn_id)
         for request_id in targets["request_ids"]:
             self.requests[request_id].update(details)
         for turn_id, call_id in targets["tool_keys"]:
@@ -376,6 +381,7 @@ class SessionLog:
             raise ValueError("invalid turn transition")
         self.turns[turn_id].update(outcome_details(payload, status))
         self.turns[turn_id]["status"] = status
+        self.reviews.interrupt(turn_id)
 
     def _apply_tool(self, kind: str, payload: dict[str, Any]) -> None:
         """工具 ID 在轮次内唯一；结束记录必须与开始时的请求和轮次一致。"""
@@ -414,6 +420,19 @@ class SessionLog:
         }:
             raise ValueError("edit has no final result")
         tool.update(output=payload["output"], finished=True, status="finished")
+
+    def _apply_review(self, kind: str, payload: dict[str, Any]) -> None:
+        """审查事件须来自本轮实际工具；子日志证据由应用读取，不接受模型自报。"""
+        self._require_turn(payload)
+        self._require_request(payload)
+        tool = self._require_tool(payload)
+        expected = "request_review" if kind == "review_requested" else "collect_review"
+        if tool["name"] != expected or tool["finished"]:
+            raise ValueError("invalid review tool source")
+        if kind == "review_requested":
+            self.reviews.request(payload)
+        else:
+            self.reviews.finish(payload)
 
     def _apply_experience(self, kind: str, payload: dict[str, Any]) -> None:
         """人工决定独立于新聊天轮次，不创建模型请求或篡改原反思。"""
@@ -522,6 +541,11 @@ class SessionLog:
         """提交与恢复共用消息校验；恢复只允许缺少后缀，已出现的证据仍须一致。"""
         turn_id = self._pending_turn
         validate_turn(self._pending_messages, allow_partial=not complete)
+        if complete and any(
+            r["turn_id"] == turn_id and r["status"] == "pending"
+            for r in self.reviews.records.values()
+        ):
+            raise ValueError("cannot commit with pending review")
         if self._pending_messages[0]["content"] != self.turns[turn_id]["user_text"]:
             raise ValueError("mismatched user input")
         requests = [

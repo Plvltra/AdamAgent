@@ -32,6 +32,7 @@ class ChildAgent:
     workspace: str
     read_dirs: list[str]
     runs: list[ChildRun] = field(default_factory=list)
+    role: str = "helper"
 
 
 class RequestAccount(Protocol):

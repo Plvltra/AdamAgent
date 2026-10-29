@@ -94,8 +94,10 @@ class DelegationStore:
     @staticmethod
     def _decode(item: dict[str, Any]) -> ChildAgent:
         """拒绝不支持的索引结构和路径身份；不根据模型参数寻找任意文件。"""
-        if set(item) != {"agent_id", "name", "workspace", "read_dirs", "runs"}:
+        if set(item) - {"role"} != {"agent_id", "name", "workspace", "read_dirs", "runs"}:
             raise ValueError("invalid agent fields")
+        if item.get("role", "helper") not in {"helper", "reviewer"}:
+            raise ValueError("invalid child role")
         if not isinstance(item["agent_id"], str) or not valid_session_id(item["agent_id"]):
             raise ValueError("invalid child id")
         if not all(isinstance(item[key], str) for key in ("name", "workspace")):
@@ -129,5 +131,10 @@ class DelegationStore:
             if run.child_turn_id is not None and not isinstance(run.child_turn_id, str):
                 raise ValueError("invalid child turn")
         return ChildAgent(
-            item["agent_id"], item["name"], item["workspace"], item["read_dirs"], runs
+            item["agent_id"],
+            item["name"],
+            item["workspace"],
+            item["read_dirs"],
+            runs,
+            item.get("role", "helper"),
         )

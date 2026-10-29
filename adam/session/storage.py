@@ -160,6 +160,20 @@ class SessionStore:
         """按提交顺序返回完整成功轮次；不通过消息 ID 推测分组，不包含失败输入。"""
         return self._read_log(session_id).history_turns()
 
+    def append_review(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:
+        """追加已核对来源的审查记录；保存失败必须停止当前协作。"""
+        if kind not in {"review_requested", "review_finished"}:
+            raise ValueError("invalid review event")
+        self._append(session_id, record(kind, payload))
+
+    def load_reviews(self, session_id: str, turn_id: str | None = None) -> list[dict[str, Any]]:
+        """读取审查及其文件版本；不启动子任务或把未完成状态当作通过。"""
+        return [
+            item
+            for item in self._read_log(session_id).reviews.records.values()
+            if turn_id is None or item["turn_id"] == turn_id
+        ]
+
     def load_plan(self, session_id: str, turn_id: str | None = None) -> PlanReport | None:
         """读取某轮或本会话最近的计划；不创建新计划，也不重跑未完成步骤。"""
         log = self._read_log(session_id)
