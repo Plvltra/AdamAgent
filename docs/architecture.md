@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E3.2 计划工具、应用服务、真实证据校验及配置和委派来源组合。
+本次核对范围：E3.3 计划展示、只读查询、流式暂存和一次收尾提醒；核对计划工具与委派的组合边界。
 
-核对结论：新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -65,12 +65,17 @@ flowchart LR
 
 命令解析与展示归 CLI，范围、来源与管理归 MemoryService；CLI 不直接导入 memory 包。记忆存储不依赖会话存储或模型；来源会话 ID 只作为可选值保留。MemorySelection 与记录校验位于 contracts/memory.py，存储和请求日志复用契约，避免两个存储模块互相导入。包依赖测试已覆盖 memory 及应用对它的单向依赖。
 
-## E3.1/E3.2 计划记录与模型工具
+## E3.1～E3.3 计划记录、工具与交互
 
 ```mermaid
 flowchart LR
     BOOT["bootstrap.py"] --> SERVICE["application/planning.py"]
-    CONV["application/conversation.py"] -->|begin| SERVICE
+    CONV["application/conversation.py"] -->|开始轮次、收尾检查与提醒| SERVICE
+    CLI["cli/main.py"] -->|/plan| APP["application/facade.py"]
+    APP -->|load_plan| STORE
+    CLI --> VIEW["cli/terminal.py<br/>show_plan"]
+    EXEC["tool_calls/executor.py"] -->|工具结果落盘后 publish| SERVICE
+    SERVICE -->|经 bootstrap 注入展示回调| VIEW
     TOOL["tool_calls/planning_tools.py"] --> CONTRACT["contracts/planning.py<br/>TaskPlanner"]
     SERVICE -.-> CONTRACT
     TOOL -->|注入接口| SERVICE
@@ -83,7 +88,7 @@ flowchart LR
     STORE --> JSONL["会话 JSONL<br/>plan_updated"]
 ```
 
-计划事件与请求、工具关联，版本回放不访问磁盘。读取报告结合所属轮次的终态；中断恢复沿用 session_recovered，不重跑计划。模型工具已接入，界面入口留待 E3.3，状态见 [E3](task-planning.md)。
+计划事件与请求、工具关联，版本回放不访问磁盘。读取报告结合所属轮次的终态；中断恢复沿用 session_recovered，不重跑计划。模型工具和界面均已接入；未闭合时主循环暂存流式正文并最多提醒一次，额度不足或再次遗漏时保留回答并明确提示未完成。完整状态见 [E3](task-planning.md)。
 
 ## 包目录与依赖边界
 
@@ -164,9 +169,9 @@ flowchart TD
     BOOT --> DTOOLS["tool_calls/delegation_tools.py<br/>仅主 Agent 注册"]
     DTOOLS -.-> DPORT["contracts/delegation.py"]
     DELEGATE -.-> DPORT
-    CLI --> TERMINAL["cli/terminal.py<br/>角色、失败、上下文与执行事实展示"]
+    CLI --> TERMINAL["cli/terminal.py<br/>角色、失败、上下文、计划与执行事实展示"]
     APP --> CONV["application/conversation.py<br/>轮次收尾、模型—工具循环"]
-    APP -->|"会话列表、历史与用量查询"| STORE["session/storage.py<br/>会话持久化与读取"]
+    APP -->|"会话列表、历史、计划与用量查询"| STORE["session/storage.py<br/>会话持久化与读取"]
 
     CONV --> COMPACT["context/compaction.py<br/>规划与执行摘要"]
     COMPACT --> STORE

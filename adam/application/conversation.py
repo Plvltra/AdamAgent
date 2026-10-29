@@ -200,14 +200,25 @@ class Conversation:
             if self.cancel:
                 self.cancel.check()
             context = self._prepare_context(session, turn_id, turn, progress)
-            # 有未收集的子结果时暂存本次正文，避免模型提前给出的结论被显示为最终答案。
-            output = on_output if not self.delegation or self.delegation.accept_final() else None
+            # 未收集子结果或计划未闭合时暂存正文，避免提前流式展示即将被要求收尾的回答。
+            ready = (not self.delegation or self.delegation.accept_final()) and (
+                not self.planning or not self.planning.unfinished()
+            )
+            output = on_output if ready else None
             request_id, result = progress.requests.run(
                 partial(self._request_with_usage, session.session_id, turn_id, context, output)
             )
             calls = result.message.get("tool_calls") or []
             if not calls and self.delegation and not self.delegation.accept_final():
                 self.notify("子 Agent 结果尚未收集，要求主 Agent 先等待并汇总。")
+                continue
+            if (
+                not calls
+                and self.planning
+                and self.planning.retry_final(
+                    progress.requests.used < self.limits.max_model_requests
+                )
+            ):
                 continue
             turn.append(result.message)
             if not calls:
@@ -319,6 +330,11 @@ class Conversation:
             + (
                 self.delegation.instructions(session.session_id if session else None)
                 if self.delegation
+                else ""
+            )
+            + (
+                self.planning.instructions(session.session_id if session else None)
+                if self.planning
                 else ""
             ),
             history=history,

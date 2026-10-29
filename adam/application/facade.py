@@ -17,6 +17,7 @@ from adam.contracts.models import (
     Session,
     SessionUsage,
 )
+from adam.contracts.planning import PlanReport
 from adam.contracts.ports import ModelClient
 from adam.session.storage import SessionStore
 
@@ -149,6 +150,12 @@ class AgentApplication:
     def execution_report(self) -> ExecutionReport | None:
         """读取本次运行最近轮次的执行事实；切换会话后为空，不解释或重放底层操作。"""
         return self._conversation.execution_report()
+
+    def plan_report(self) -> PlanReport | None:
+        """查询当前会话最近的计划及轮次状态；无会话时不创建数据，不调用模型。"""
+        if self.session is None:
+            return None
+        return self._store.load_plan(self.session.session_id)
 
     def compact(self) -> Summary | None:
         """生成并保存旧历史摘要，不修改原始记录。"""

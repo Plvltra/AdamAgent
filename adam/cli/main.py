@@ -12,7 +12,13 @@ from adam.application.facade import AgentApplication
 from adam.bootstrap import open_application
 from adam.cli.memory_commands import handle_memory_command
 from adam.cli.reply_output import ReplyOutput, write_fragment
-from adam.cli.terminal import role_prefix, show_context, show_execution_report, show_failure
+from adam.cli.terminal import (
+    role_prefix,
+    show_context,
+    show_execution_report,
+    show_failure,
+    show_plan,
+)
 from adam.config.loader import adam_home
 from adam.contracts.errors import AgentError
 from adam.contracts.models import CommandRequest, EditPlan, valid_session_id
@@ -72,6 +78,11 @@ def handle_command(
         write("已新建会话，原会话仍保留。")
     elif command == "/memory":
         handle_memory_command(parts[1] if len(parts) == 2 else "", application, write)
+    elif command == "/plan":
+        if len(parts) != 1:
+            write("用法：/plan")
+        else:
+            show_plan(application.plan_report(), write)
     elif command == "/usage":
         if len(parts) != 1:
             write("用法：/usage")
@@ -125,7 +136,7 @@ def handle_command(
             show_model(application, write)
     else:
         write(
-            "未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context、/compact、/memory 或 /exit。"
+            "未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context、/compact、/memory、/plan 或 /exit。"
         )
     return CommandResult.HANDLED
 
@@ -212,7 +223,7 @@ def chat(
         application.resume(resume_id)
 
     write(
-        "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/compact、/memory、/exit；成功轮次自动保存。"
+        "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/compact、/memory、/plan、/exit；成功轮次自动保存。"
     )
     show_session(application, write)
     try:
@@ -261,6 +272,7 @@ def main() -> int:
             confirm_edit=lambda plan: confirm_edit(plan, input, print),
             on_tool=lambda name: print(f"工具> {name}"),
             on_notice=print,
+            on_plan=show_plan,
         ) as application:
             print(f"会话目录：{application.sessions_dir}")
             chat(application, resume_id=args.resume)

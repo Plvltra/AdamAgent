@@ -1,5 +1,7 @@
 # Adam
 
+E3 显式任务计划已接入：复杂任务可使用 `update_plan` 跟踪步骤，完成需要本轮真实工具依据；终端展示进度，`/plan` 查询最近计划。未完成时最多提醒模型一次，仍受原有额度限制。见 [任务计划](docs/task-planning.md)。
+
 E2.1～E2.5 已实现并验收，支持关键词及可选本地语义检索：在 `[documents]` 设置 `roots = ["docs"]`（相对工作目录），模型可使用 `search_documents` 查询 Markdown/TXT，结果带来源、行号和版本。源文件变化自动刷新；默认未配置时不启用。语义模式先运行 `uv sync --locked --extra documents` 和显式 `python -m adam.document_search prepare-model`，再设置 `method = "semantic"`；正常查询不联网下载。见 [文档检索说明](docs/local-document-rag.md) 和 [真实检索对照](docs/document-retrieval-evaluation.md)。
 
 E1 跨会话记忆已完成离线验收：`/memory` 明确增删改查，每轮自动检索相关条目；`/context full --query 问题` 可预览实际选择。子任务只读继承主轮次快照；记忆读取失败提示后继续聊天。E1.1～E1.5 按阶段提交，测试覆盖并发、重启及故障。见 [跨会话记忆](docs/cross-session-memory.md)。
@@ -78,6 +80,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `/usage`：查看当前主会话及全部子 Agent 的累计 token 与共享上限；统计不完整时显示说明，不发起模型请求。
 - `/context`：查看下一次请求的基础上下文组成与输入预算；不含尚未输入的新问题。
 - `/context full`：在概览下展开完整消息与工具说明，不请求模型、不修改会话；不是最近请求快照。
+- `/plan`：查看当前会话最近计划、步骤状态与依据；不调用模型，不自动重跑未完成步骤。
 - `/compact`：用当前模型摘要较早历史；一次最多一条无工具请求，计入消费，原始消息保留。
 - `/exit`、Ctrl+C 或输入结束：退出并释放会话锁。
 

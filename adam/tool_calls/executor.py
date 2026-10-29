@@ -45,13 +45,18 @@ class ToolExecutor:
         notify: Callable[[str], None],
         *,
         before_call: Callable[[dict[str, str]], None] | None = None,
+        after_call: Callable[[], None] | None = None,
         cancel: CancellationToken | None = None,
     ) -> None:
-        """注入存储和工具目录；notify 只接收工具名称，展示方式由调用方决定。"""
+        """注入存储和工具目录；notify 只接收工具名称，展示方式由调用方决定。
+
+        after_call 在结果落盘后发布业务变化，界面异常向上传播。
+        """
         self.store = store
         self.registry = registry
         self.notify = notify
         self.before_call, self.cancel = before_call, cancel
+        self.after_call = after_call
 
     def definitions(self) -> list[dict[str, Any]]:
         """返回此执行器实际支持的工具说明，供模型提出调用。"""
@@ -86,6 +91,8 @@ class ToolExecutor:
                 self.before_call(link)
             output = self._execute_call(session_id, link, call["function"])
             results.append({"role": "tool", "tool_call_id": call["id"], "content": output})
+            if self.after_call:
+                self.after_call()
             if json.loads(output).get("status") == "denied":
                 raise ApprovalDeniedError("已拒绝本次动作，本轮已停止；此前完成的动作保留。")
         return results

@@ -10,6 +10,7 @@ from colorama import Fore, Style
 from adam.context.builder import RequestContext
 from adam.contracts.errors import AgentError
 from adam.contracts.models import ExecutionReport
+from adam.contracts.planning import PlanReport
 
 
 def role_prefix(role: str, *, unsaved: bool = False) -> str:
@@ -32,6 +33,38 @@ def role_prefix(role: str, *, unsaved: bool = False) -> str:
         color = Fore.CYAN if role == "user" else Fore.YELLOW
         return f"{Style.BRIGHT}{color}{label}{Style.RESET_ALL} "
     return label + " "
+
+
+def show_plan(report: PlanReport | None, write: Callable[[str], None] = print) -> None:
+    """展示计划步骤及证据；轮次终态与步骤状态分别呈现，不把结束等同于成功。"""
+    if report is None:
+        write("计划> 当前会话尚无计划。")
+        return
+    plan = report.snapshot
+    state = {
+        "in_progress": "进行中",
+        "succeeded": "回答已保存",
+        "failed": "失败",
+        "interrupted": "中断",
+    }[report.turn_status]
+    write(f"计划> 轮次 {plan.turn_id[:8]} · 版本 {plan.version} · {state}")
+    if plan.unfinished and report.turn_status != "in_progress":
+        write("计划未完成；保留以下原状态，不自动重跑。")
+    labels = {
+        "pending": "待做",
+        "in_progress": "进行中",
+        "completed": "已完成",
+        "failed": "失败",
+        "cancelled": "已取消",
+    }
+    for index, step in enumerate(plan.steps, 1):
+        write(f"  {index}. [{labels[step.status]}] {step.content}")
+        if step.evidence:
+            write("     依据工具：" + json.dumps(step.evidence, ensure_ascii=False))
+        if step.reason:
+            write("     原因：" + step.reason)
+    if plan.reason:
+        write("调整原因：" + plan.reason)
 
 
 def show_context(

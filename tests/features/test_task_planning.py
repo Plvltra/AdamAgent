@@ -27,7 +27,7 @@ def step(status="pending", evidence=None, reason=""):
 
 
 @contextmanager
-def plan_app(root, handler, *, config=None, notices=None, confirm=None):
+def plan_app(root, handler, *, config=None, notices=None, confirm=None, plans=None):
     """真实应用和 HTTP 适配；全部文件在临时根，审批由测试显式控制。"""
     config = config or config_at(root)
     with (
@@ -40,6 +40,7 @@ def plan_app(root, handler, *, config=None, notices=None, confirm=None):
             LLMClient(config.llm, http),
             root,
             on_notice=(notices if notices is not None else []).append,
+            on_plan=(plans if plans is not None else []).append,
             confirm_command=confirm,
             confirm_edit=confirm,
         )

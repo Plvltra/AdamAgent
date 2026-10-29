@@ -63,6 +63,18 @@ class TaskPlanner(Protocol):
         """开始新的用户轮次，不继承旧轮次的待办状态。"""
         ...
 
+    def unfinished(self) -> bool:
+        """本轮是否仍有待做或进行中步骤；不读取其他轮次的计划。"""
+        ...
+
+    def retry_final(self, can_request: bool) -> bool:
+        """未闭合时最多提醒一次；无额度或再次遗漏则提示未完成并允许保留回复。"""
+        ...
+
+    def instructions(self, session_id: str | None) -> str:
+        """返回受控的收尾提醒，不把模型提供的步骤文本提升为系统指令。"""
+        ...
+
     def bind_source(self, link: dict[str, str]) -> None:
         """接收执行器生成的来源，模型不能自行指定轮次或请求。"""
         ...

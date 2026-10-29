@@ -21,6 +21,7 @@ from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import CommandRequest, EditPlan
+from adam.contracts.planning import PlanReport
 from adam.contracts.ports import ModelClient
 from adam.llm.client import LLMClient
 from adam.llm.http_transport import InterruptibleTransport
@@ -47,6 +48,7 @@ def build_application(
     confirm_edit: Callable[[EditPlan], bool] | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
+    on_plan: Callable[[PlanReport], None] | None = None,
     child_client_factory: ChildClientFactory | None = None,
 ) -> AgentApplication:
     """将已打开的依赖组装为应用，不接管调用方的主存储或主模型资源。
@@ -99,7 +101,11 @@ def build_application(
             handlers(manager),
             {"wait_agents": encode_results},
         )
-    planner = PlanningService(store, config.planning) if config.planning.enabled else None
+    planner = (
+        PlanningService(store, config.planning, on_change=on_plan, notify=on_notice)
+        if config.planning.enabled
+        else None
+    )
     if planner:
         registry = registry.extended(PLANNING_SPECS, planning_handlers(planner))
 
@@ -115,6 +121,7 @@ def build_application(
         registry,
         on_tool or (lambda _: None),
         before_call=bind_source,
+        after_call=planner.publish if planner else None,
     )
     memories = MemoryService(
         MemoryStore(config.memories_dir or store.root / "_memories"), workspace, config.memory
@@ -202,6 +209,7 @@ def open_application(
     confirm_edit: Callable[[EditPlan], bool] | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
+    on_plan: Callable[[PlanReport], None] | None = None,
 ) -> Iterator[AgentApplication]:
     """从配置打开应用；配置错误不会创建 HTTP 客户端或会话目录。
 
@@ -230,6 +238,7 @@ def open_application(
             confirm_edit=confirm_edit,
             on_tool=on_tool,
             on_notice=on_notice,
+            on_plan=on_plan,
             child_client_factory=child_client,
         )
         try:
