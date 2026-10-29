@@ -39,7 +39,7 @@ def split_document(path: str, text: str, version: str, max_chars: int = 1000) ->
     for number, line in enumerate(text.splitlines(), 1):
         if re.match(r"^#{1,6}\s+", line):
             flush()
-            title = line.lstrip("#").strip()
+            title = line.lstrip("#").strip()[:200]
         if not line.strip():
             flush()
             continue

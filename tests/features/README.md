@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| E2.2 文档索引 | 同时间戳更新、删除、重启、真实双进程、锁竞争、损坏与保存失败 | [test_document_index.py](test_document_index.py) |
 | E2.1 文档检索基线 | 固定文档和问题、真实关键词检索、片段来源及查询边界 | [test_document_retrieval.py](test_document_retrieval.py) |
 | E1.5 记忆整体验收 | 固定全部/相关输入比较、时间跨期与应用重启、额外读取权限不扩范围、锁竞争/fsync 故障及禁用模式 | [test_memory_acceptance.py](test_memory_acceptance.py) |
 | E1.4 记忆继承与故障 | 子线程固定快照、续聊取新版本、共享库直接访问被拒绝、损坏/权限降级、会话错误仍停止 | [test_memory_boundaries.py](test_memory_boundaries.py) |

@@ -147,6 +147,40 @@ class MemoryConfig:
 
 
 @dataclass(frozen=True)
+class DocumentConfig:
+    """指定文档范围和检索资源上限；空 roots 表示不启用文档工具。"""
+
+    roots: tuple[Path, ...] = ()
+    chunk_chars: int = 400
+    max_files: int = 200
+    max_file_bytes: int = 1048576
+    max_total_bytes: int = 10485760
+    max_scan_entries: int = 5000
+    max_chunks: int = 10000
+    scan_timeout_seconds: int = 10
+    top_k: int = 5
+
+    def __post_init__(self) -> None:
+        """限制整个语料的资源消耗；目录配置本身不授予额外读取权限。"""
+        if not isinstance(self.roots, tuple) or any(not isinstance(p, Path) for p in self.roots):
+            raise ConfigError("documents.roots 必须是路径元组。")
+        ranges = {
+            "chunk_chars": (32, 4000),
+            "max_files": (1, 10000),
+            "max_file_bytes": (1, 10485760),
+            "max_total_bytes": (1, 104857600),
+            "max_scan_entries": (1, 100000),
+            "max_chunks": (1, 50000),
+            "scan_timeout_seconds": (1, 300),
+            "top_k": (1, 20),
+        }
+        for name, (low, high) in ranges.items():
+            value = getattr(self, name)
+            if type(value) is not int or not low <= value <= high:
+                raise ConfigError(f"documents.{name} 必须是 {low}～{high} 的整数。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
