@@ -9,6 +9,7 @@ from typing import Any
 from adam.application.reflection import ReflectionService
 from adam.application.request_policy import RequestPolicy
 from adam.application.request_runner import RequestRunner, save_failure
+from adam.application.review import ReviewService
 from adam.config.settings import AgentConfig, ContextConfig
 from adam.context.builder import ContextBuilder, RequestContext
 from adam.context.compaction import CompactionService
@@ -60,6 +61,7 @@ class Conversation:
         delegation: Delegation | None = None,
         planning: TaskPlanner | None = None,
         reflection: ReflectionService | None = None,
+        review: ReviewService | None = None,
         cancel: CancellationToken | None = None,
         on_turn_started: Callable[[str], None] | None = None,
         memory_provider: Callable[[str, int], MemorySelection] | None = None,
@@ -80,7 +82,7 @@ class Conversation:
         self.cancel, self.on_turn_started = cancel, on_turn_started
         self.memory_provider = memory_provider
         self.planning = planning
-        self.reflection = reflection
+        self.reflection, self.review = reflection, review
         self.requests = RequestRunner(
             store,
             client,
@@ -127,6 +129,8 @@ class Conversation:
                 self.reflection.begin(session.session_id, turn_id)
             if self.delegation:
                 self.delegation.begin(session.session_id, turn_id, self.model)
+            if self.review:
+                self.review.begin(session.session_id, turn_id)
             if self.on_turn_started:
                 self.on_turn_started(turn_id)
             reply = self._run_turn(session, turn_id, text, started_ns, on_output)
@@ -145,6 +149,8 @@ class Conversation:
             self.delegation.end()
         if self.reflection:
             self.reflection.finish()
+        if self.review:
+            self.review.finish()
         return reply
 
     def usage(self) -> tuple[int, bool]:
@@ -220,6 +226,7 @@ class Conversation:
             ready = (not self.delegation or self.delegation.accept_final()) and (
                 not self.planning or not self.planning.unfinished()
             )
+            ready = ready and (not self.review or not self.review.pending())
             output = on_output if ready else None
             request_id, result = progress.requests.run(
                 partial(self.requests.run, session.session_id, turn_id, context, output)
@@ -227,6 +234,9 @@ class Conversation:
             calls = result.message.get("tool_calls") or []
             if not calls and self.delegation and not self.delegation.accept_final():
                 self.notify("子 Agent 结果尚未收集，要求主 Agent 先等待并汇总。")
+                continue
+            if not calls and self.review and self.review.pending():
+                self.notify("审查结果尚未收集，请先 collect_review。")
                 continue
             if (
                 not calls
@@ -356,6 +366,11 @@ class Conversation:
             + (
                 self.planning.instructions(session.session_id if session else None)
                 if self.planning
+                else ""
+            )
+            + (
+                self.review.instructions()
+                if self.review and session and self.review.session_id == session.session_id
                 else ""
             ),
             history=history,

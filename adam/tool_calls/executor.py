@@ -14,6 +14,7 @@ from adam.contracts.errors import (
     EditLogError,
     FailureCode,
     StorageError,
+    ToolError,
 )
 from adam.session.storage import SessionStore
 from adam.tool_calls.registry import ToolRegistry
@@ -46,17 +47,19 @@ class ToolExecutor:
         *,
         before_call: Callable[[dict[str, str]], None] | None = None,
         after_call: Callable[[], None] | None = None,
+        check_call: Callable[[str], None] | None = None,
         cancel: CancellationToken | None = None,
     ) -> None:
         """注入存储和工具目录；notify 只接收工具名称，展示方式由调用方决定。
 
         after_call 在结果落盘后发布业务变化，界面异常向上传播。
+        check_call 在副作用之前检查协作限制；ToolError 留下失败结果供模型调整。
         """
         self.store = store
         self.registry = registry
         self.notify = notify
         self.before_call, self.cancel = before_call, cancel
-        self.after_call = after_call
+        self.after_call, self.check_call = after_call, check_call
 
     def definitions(self) -> list[dict[str, Any]]:
         """返回此执行器实际支持的工具说明，供模型提出调用。"""
@@ -138,10 +141,15 @@ class ToolExecutor:
 
         self.notify(function["name"])
         # 通用开始事件表示进入工具处理；命令和编辑的批准/副作用边界分别由 command_* / edit_* 记录。
-        output = self.registry.execute(
-            function["name"],
-            function["arguments"],
-            record_execution=record_action,
-        )
+        try:
+            if self.check_call:
+                self.check_call(function["name"])
+            output = self.registry.execute(
+                function["name"],
+                function["arguments"],
+                record_execution=record_action,
+            )
+        except ToolError as error:
+            output = json.dumps({"ok": False, "error": str(error)}, ensure_ascii=False)
         self.store.append_tool_event(session_id, "tool_finished", {**link, "output": output})
         return output

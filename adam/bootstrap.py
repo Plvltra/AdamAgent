@@ -13,6 +13,7 @@ from adam.application.facade import AgentApplication
 from adam.application.memories import MemoryService
 from adam.application.planning import PlanningService
 from adam.application.reflection import ReflectionService
+from adam.application.review import ReviewService
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.manager import SubagentManager
@@ -37,6 +38,9 @@ from adam.tool_calls.feedback_tools import SPECS as FEEDBACK_SPECS
 from adam.tool_calls.feedback_tools import handlers as feedback_handlers
 from adam.tool_calls.planning_tools import SPECS as PLANNING_SPECS
 from adam.tool_calls.planning_tools import handlers as planning_handlers
+from adam.tool_calls.policy import PathPolicy
+from adam.tool_calls.review_tools import SPECS as REVIEW_SPECS
+from adam.tool_calls.review_tools import handlers as review_handlers
 
 ChildClientFactory = Callable[[CancellationToken], AbstractContextManager[ModelClient]]
 
@@ -120,6 +124,21 @@ def build_application(
     if reflector:
         registry = registry.extended(FEEDBACK_SPECS, feedback_handlers(reflector))
 
+    reviewer = (
+        ReviewService(
+            store,
+            manager,
+            PathPolicy(workspace, config.permissions),
+            config.tool_limits,
+            config.review,
+            on_notice or (lambda _: None),
+        )
+        if manager and config.review.enabled
+        else None
+    )
+    if reviewer:
+        registry = registry.extended(REVIEW_SPECS, review_handlers(reviewer))
+
     def bind_source(link: dict[str, str]) -> None:
         """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
         if manager:
@@ -128,6 +147,8 @@ def build_application(
             planner.bind_source(link)
         if reflector:
             reflector.bind_source(link)
+        if reviewer:
+            reviewer.bind_source(link)
 
     executor = ToolExecutor(
         store,
@@ -135,6 +156,7 @@ def build_application(
         on_tool or (lambda _: None),
         before_call=bind_source,
         after_call=planner.publish if planner else None,
+        check_call=reviewer.check_call if reviewer else None,
     )
     memories = MemoryService(
         MemoryStore(config.memories_dir or store.root / "_memories"), workspace, config.memory
@@ -152,6 +174,7 @@ def build_application(
         delegation=manager,
         planning=planner,
         reflection=reflector,
+        review=reviewer,
         memory_provider=memories.select,
     )
     return AgentApplication(conversation, store, client, memories)

@@ -2,7 +2,7 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E2→E3→E4→E5.1 历史整合；保留双方架构图与共享配置。E5.1 审查契约、ReviewLog 和子角色。新增审查事件与证据校验；SubagentManager 可读取已结束子轮的原始工具记录，角色保存在原子索引。模型审查工具尚未接入。
+本次核对范围：E5.2 独立审查接入，保留已整合 E2～E4。ReviewService 负责串行、文件版本和子证据；ToolExecutor 在副作用之前调用通用检查回调。普通聊天不增加审查提示。
 
 核对结论：新增 ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
@@ -37,10 +37,16 @@ flowchart LR
 
 DocumentIndex 持锁刷新配置范围内的源文件；源文件经授权和限额检查后计算内容版本。缓存损坏或读写失败明确报错，不返回旧资料。仅变更文件重新分块。搜索通过普通工具结果进入上下文与会话日志；不修改 Conversation。子任务逐个授权源文件，主子文件工具均保护索引目录。embedding 延迟加载，仅显式 prepare-model 可下载；查询失败不自动切策略。独立 document_search 入口不读取聊天密钥，evaluation 按固定标注统计候选证据。
 
-## E5.1 审查记录基础
+## E5.1～E5.2 独立审查
 
 ~~~mermaid
 flowchart LR
+    CONV["application/conversation.py"] --> SERVICE["application/review.py"]
+    TOOL["tool_calls/review_tools.py"] -->|Reviewer 接口| SERVICE
+    EXEC["tool_calls/executor.py"] -->|check_call| SERVICE
+    SERVICE --> MANAGER["application/subagents/manager.py"]
+    SERVICE --> STORE
+    SERVICE --> POLICY["tool_calls/policy.py + text_file.py"]
     MANAGER["application/subagents/manager.py"] --> CHILD["子 SessionStore<br/>已结束轮次的真实工具记录"]
     MANAGER --> INDEX["session/delegation.py<br/>helper / reviewer"]
     STORE["session/storage.py"] --> LOG["session/log.py"]

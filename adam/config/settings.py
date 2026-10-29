@@ -243,6 +243,21 @@ class DocumentConfig:
 
 
 @dataclass(frozen=True)
+class ReviewConfig:
+    """独立审查的轮次上限；仍共用 V6 的并发、子创建数与 token 限制。"""
+
+    enabled: bool = True
+    max_rounds: int = 2
+
+    def __post_init__(self) -> None:
+        """只允许有限次审查，避免执行者与审查者无限往返。"""
+        if type(self.enabled) is not bool:
+            raise ConfigError("review.enabled 必须是布尔值。")
+        if type(self.max_rounds) is not int or not 1 <= self.max_rounds <= 4:
+            raise ConfigError("review.max_rounds 必须在 1～4 之间。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
@@ -258,5 +273,6 @@ class AppConfig:
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     planning: PlanningConfig = field(default_factory=PlanningConfig)
     reflection: ReflectionConfig = field(default_factory=ReflectionConfig)
+    review: ReviewConfig = field(default_factory=ReviewConfig)
     documents: DocumentConfig = field(default_factory=DocumentConfig)
     documents_dir: Path | None = None

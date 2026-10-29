@@ -19,6 +19,7 @@ from adam.config.settings import (
     PermissionConfig,
     PlanningConfig,
     ReflectionConfig,
+    ReviewConfig,
     SubagentConfig,
     ToolLimits,
 )
@@ -126,6 +127,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "memory",
             "planning",
             "reflection",
+            "review",
             "documents",
         },
         "主配置",
@@ -209,6 +211,11 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "reflection",
         )
     )
+    review = ReviewConfig(
+        **checked_section(
+            data.get("review", {}), {item.name for item in fields(ReviewConfig)}, "review"
+        )
+    )
     subagent_data = checked_section(
         data.get("subagents", {}), {item.name for item in fields(SubagentConfig)}, "subagents"
     )
@@ -254,6 +261,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         memory=memory,
         planning=planning,
         reflection=reflection,
+        review=review,
         documents=documents,
         documents_dir=documents_dir,
     )
