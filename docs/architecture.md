@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：V5.4 失败继续方式、重启边界与未知执行对摘要的拦截。
+本次核对范围：V5.5 干净环境安装、源码换行、会话备份迁移和交付说明。
 
-核对结论：模块结构保持。AgentApplication 根据会话消费及执行记录返回共享的 ContinuationStatus，CLI 只展示继续方式；Conversation 同时拦截未知副作用下的聊天与摘要。
+核对结论：本项架构无变化。增加安装与恢复指南、JSONL 迁移测试及源码 LF 规则；运行入口、资源所有权与存储协议保持。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 

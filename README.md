@@ -6,12 +6,14 @@ Python 终端 Agent，支持模型自主调用文件与 Git 查询工具，以�
 
 取消当前执行可按 Ctrl+C，返回输入框；空闲输入时 Ctrl+C 退出。失败或取消后会提示能否继续原会话；未知用量或未知副作用必须先检查并新建会话。仅连接未建立的请求最多额外重试两次，详见 [V5 实施记录](docs/v5-interaction.md)。
 
+完整的干净环境步骤、会话备份恢复、故障处理和人工验收清单见 [安装与恢复](docs/install-and-recovery.md)。
+
 ## 安装与配置
 
 需要 Python 3.11+；使用项目虚拟环境，避免调用本机默认 Python 2.7。
 
 ```powershell
-uv sync
+uv sync --locked
 $adamHome = Join-Path $HOME ".adam"
 New-Item -ItemType Directory -Force $adamHome
 # 仅首次配置时复制，已有配置不要覆盖。

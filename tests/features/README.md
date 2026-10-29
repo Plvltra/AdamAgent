@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| V5.5 安装与迁移 | 干净环境安装及回归、停止写入后备份 JSONL，恢复到新目录仍能追加，原目录不变 | [test_backup_restore.py](test_backup_restore.py)、[交付指南](../../docs/install-and-recovery.md) |
 | V5.4 失败后继续 | 重开会话的可靠/未知消费、消费限额、未知命令拦截聊天/摘要、CLI 继续方式与失败输入隔离 | [test_failure_recovery.py](test_failure_recovery.py) |
 | V5.3 有限重试 | 连接失败独立记账、请求预算、摘要重试、非重试错误、日志失败与命令不重跑 | [test_request_retry.py](test_request_retry.py) |
 | V5.2 取消本轮 | 独立 CLI 进程、真实 HTTP 等待、父子命令清理、确认取消、返回输入及用量保留 | [test_cancellation.py](test_cancellation.py) |
@@ -144,7 +145,7 @@ pytest 已配置扫描整个 tests；现有 pre-commit 的 pytest 钩子会自�
 
 模型 HTTP 响应是预设的，测试不会消耗 API 额度；文件、JSONL、锁和部分子进程会在临时目录实际运行。故障测试在指定边界注入错误，验证程序停止或保留记录的行为。
 
-这些场景不能证明真实模型能正确决定是否使用工具，也不代替用户对配色的辨识体验。真实进程强杀已由专门测试覆盖；V2.3 按用户决定暂跳过；V3 的压缩流程已离线验收；文件编辑与流式取消等未实现功能的验收仍在 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。
+这些场景不能证明真实模型能正确决定是否使用工具，也不代替用户对配色的辨识体验。真实进程强杀已由专门测试覆盖；V2.3 按用户决定暂跳过；V3 的压缩流程已离线验收；文件编辑集成及真实模型人工验收的剩余项见 [练手 TODO](../../docs/agent-practice-todo.md)；后续补测规则见 [AGENTS.md](../../AGENTS.md)。
 
 ## V5 前置集成核验（2026-10-29）
 
@@ -153,3 +154,5 @@ pytest 已配置扫描整个 tests；现有 pre-commit 的 pytest 钩子会自�
 V5.1 定向验收：17 个新场景通过；原非流式场景显式使用 stream=false，保持原断言。
 
 V5.1 全量回归：331 passed；Ruff、格式检查、Pyright 通过。
+
+V5.5 干净环境验收：Python 3.12.14、按 uv.lock 新建环境；CLI --help、Ruff、Pyright 通过，357 passed in 82.01s。真实 API 与物理键盘人工清单见交付指南。

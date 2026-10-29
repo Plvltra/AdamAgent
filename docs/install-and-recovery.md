@@ -1,0 +1,86 @@
+# Windows 安装、运行与恢复
+
+核对日期：2026-10-29。交付为 Python CLI 源码，不制作 exe。真实服务商效果与物理键盘体验另列人工清单。
+
+## 从干净环境启动
+
+准备 Python 3.11+ 和 uv，在仓库根目录运行：
+
+```powershell
+uv sync --locked
+.\.venv\Scripts\python.exe -m adam --help
+```
+
+默认安装开发检查工具。锁文件缺少的包需要下载；已有完整缓存才可加 --offline。uv 未加入 PATH、但当前 Python 已安装 uv 模块时，可以用 python -m uv 执行同一命令。不要使用本机旧 Python 2.7。
+
+首次配置时按 README 将 config.example.toml 与 llm.example.toml 复制到用户 .adam 目录，已有配置不覆盖。推荐用 llm.toml 的 api_key_env 引用环境变量。llm.stream 默认 true；服务不支持 SSE 时显式设 false，不自动切模式重发。
+
+```powershell
+$env:DEEPSEEK_API_KEY = "填入自己的密钥"
+.\.venv\Scripts\python.exe -m adam
+```
+
+ADAM_HOME 可以切换整套配置/数据根目录。--config、--llm-config 指定具体文件，--workspace 指定工具工作目录。模型连接、存储位置、权限和预算分别由 TOML 对应表负责；改变工作目录不会隐式移动会话。
+
+## 本地回归
+
+```powershell
+.\.venv\Scripts\python.exe -m ruff format --check .
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m pyright
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+这些测试使用临时配置、假模型 HTTP、本地 TCP 服务和真实本地子进程，不调用付费模型。测试成功不能证明真实模型选工具或修复代码的效果。
+
+## 会话备份与迁移
+
+1. 退出所有正在使用这些会话的 Adam 进程，让 JSONL 完成写入并释放锁。
+2. 备份 config.toml、需要保留的 llm.toml，以及配置指向的整个 sessions 目录（保持年/月/日层级与原文件名）。llm.toml 若含明文密钥，按个人凭据妥善保存；不要放进项目 Git。
+3. 恢复时复制到一个新的数据目录，先保留原目录和备份。在 config.toml 的 storage.sessions_dir 中设置恢复目录；相对路径以配置文件所在目录为基准。
+4. 运行 /sessions 查看 ID，再 /resume 实际 ID。可以先使用独立诊断入口读取日志，不会请求模型。
+5. 跨机器还需检查模型环境变量、工作目录和额外读写权限。恢复聊天记录不会重放文件修改或命令。
+
+```powershell
+.\.venv\Scripts\python.exe -m adam.diagnostics "D:\AdamData\sessions\2026\10\29\a3f9c821.jsonl"
+```
+
+上例路径和 ID 替换为自己的文件。锁文件不是历史；恢复必须在原写入进程退出后进行。不要用网盘同时同步两台正在写入的同一会话。
+
+强制退出产生残缺尾行时，程序取得锁后备份原文件并恢复；中间损坏拒绝读取。不要手动删除 unknown 或改成零消费来继续。原始文件和 .bak 可用来核对恢复前后的记录。
+
+## 故障处理
+
+| 现象 | 下一步 |
+| --- | --- |
+| 配置错误 | 检查两份 TOML、路径、未知字段及 API 环境变量；尚未调用模型 |
+| SSE 不支持或响应不是预期协议 | 核对服务能力，显式调整 stream；不会自动切模式 |
+| 连接未建立 | 最多额外两次，仍失败则检查网络后手动再次输入 |
+| HTTP 拒绝、读取超时或断流 | 不自动重试；按继续方式判断原会话能否请求 |
+| 部分正文已显示 | 只表示展示过；没有完整提交就不属于成功历史 |
+| 消费或副作用未知 | 只读核对日志/实际文件或进程，再新建会话 |
+| 日志保存或读取失败 | 检查目录权限、磁盘空间；已显示回答不等于已经保存 |
+| 用户取消 | 已发生动作不回滚；执行时回到输入，空闲时退出 |
+
+## 人工 API 与终端清单
+
+- [ ] 自己的服务可显示流式正文，并正确报告 usage。
+- [ ] stream=false 时仍可多轮聊天；服务协议不符时提示明确。
+- [ ] 物理 Ctrl+C 可取消等待/正文/命令，回到输入；空闲 Ctrl+C 退出。
+- [ ] 实际模型修复练习中核对 diff、命令输出与会话日志。
+- [ ] 记录真实任务成功率、耗时与计费用量；不将下表的模拟 token 当作服务账单。
+
+## 离线验收复盘
+
+| 固定场景 | 工程判定 | 模拟用量或失败证据 |
+| --- | --- | --- |
+| 流式正文完整结束 | 只展示一次，完整历史可恢复 | 10 输入 + 3 输出 token |
+| 两次连接失败后成功（非流式） | 三个独立请求，只有成功响应进入历史 | 0 + 0 + 6 token |
+| 已知用量的协议失败后继续 | 第一轮保留诊断，下一轮不带失败输入 | 6 + 6 token |
+| 未知用量的请求中断 | 禁止原会话继续，新建会话可用 | 未知保持未知，不估成零 |
+| 命令中断 | 父子进程清理，操作记录 interrupted | 可能已有部分副作用，不自动重跑 |
+| 备份后换目录恢复 | 原历史保持，新目录可继续追加 | 原目录不受影响 |
+
+干净环境实测（2026-10-29）：从 Git 源码快照建立全新 Python 3.12.14 虚拟环境，uv sync --locked 安装 25 个依赖包；CLI --help、Ruff 格式/静态检查、Pyright 通过，pytest 为 **357 passed in 82.01s**。源码 .gitattributes 固定 LF，避免 Windows 全局 autocrlf 使新导出源码违反格式规范。
+
+各场景由 tests/features 的对应业务文件维护。真实模型成功率和延迟未测；离线运行耗时主要来自进程启动、IO、故障等待与检查，不代表模型速度。
