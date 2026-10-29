@@ -166,6 +166,28 @@ class PlanningConfig:
 
 
 @dataclass(frozen=True)
+class ReflectionConfig:
+    """反思是有界附加请求，仍计入原轮次与共享额度。"""
+
+    enabled: bool = True
+    max_per_turn: int = 1
+    max_input_tokens: int = 4096
+    max_output_tokens: int = 1024
+
+    def __post_init__(self) -> None:
+        """直接构造与 TOML 共用约束，不接受布尔值作数量。"""
+        if type(self.enabled) is not bool:
+            raise ConfigError("reflection.enabled 必须是布尔值。")
+        for name, value, maximum in (
+            ("max_per_turn", self.max_per_turn, 4),
+            ("max_input_tokens", self.max_input_tokens, 32768),
+            ("max_output_tokens", self.max_output_tokens, 4096),
+        ):
+            if type(value) is not int or not 1 <= value <= maximum:
+                raise ConfigError(f"reflection.{name} 必须在 1～{maximum} 之间。")
+
+
+@dataclass(frozen=True)
 class DocumentConfig:
     """指定文档范围和检索资源上限；空 roots 表示不启用文档工具。"""
 
@@ -235,5 +257,6 @@ class AppConfig:
     memories_dir: Path | None = None
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     planning: PlanningConfig = field(default_factory=PlanningConfig)
+    reflection: ReflectionConfig = field(default_factory=ReflectionConfig)
     documents: DocumentConfig = field(default_factory=DocumentConfig)
     documents_dir: Path | None = None

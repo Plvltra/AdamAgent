@@ -20,13 +20,16 @@ class RequestPolicy:
     used: int = 0
     cancel: CancellationToken | None = None
 
-    def run(self, operation: Callable[[], _Result], *, keep_requests: int = 0) -> _Result:
+    def run(
+        self, operation: Callable[[], _Result], *, keep_requests: int = 0, max_attempts: int = 3
+    ) -> _Result:
         """调用带独立持久记录的请求；仅明确未发出的连接错误允许重试。
 
-        keep_requests 为后续正式回答保留次数。次数或日志失败直接传播；
+        keep_requests 为后续正式回答保留次数；专门反思以 max_attempts=1 禁止额外重试。
+        次数或日志失败直接传播；
         短退避可被 Ctrl+C 中断，不以后台线程继续请求。
         """
-        for attempt in range(3):
+        for attempt in range(max_attempts):
             if self.cancel:
                 self.cancel.check()
             if self.used >= self.maximum - keep_requests:
@@ -35,7 +38,7 @@ class RequestPolicy:
             try:
                 return operation()
             except RequestNotSentError:
-                if attempt == 2:
+                if attempt + 1 == max_attempts:
                     raise
                 if self.used >= self.maximum - keep_requests:
                     raise BudgetError(

@@ -45,6 +45,12 @@ enabled = true
 max_entries = 8
 max_input_tokens = 1024
 
+[reflection]
+enabled = true
+max_per_turn = 1
+max_input_tokens = 4096
+max_output_tokens = 1024
+
 [planning]
 enabled = true
 max_steps = 8

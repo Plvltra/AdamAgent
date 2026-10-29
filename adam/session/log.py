@@ -10,10 +10,11 @@ from adam.contracts.planning import decode_plan
 from adam.contracts.protocol import validate_turn
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
-from adam.session.feedback_log import FeedbackLog
+from adam.session.feedback_log import FeedbackLog, feedback_context
 from adam.session.outcome import outcome_details
 from adam.session.plan_evidence import validate_evidence
 from adam.session.plan_log import PlanLog
+from adam.session.reflection_log import ReflectionLog
 
 
 class UnsupportedLogVersionError(ValueError):
@@ -94,6 +95,7 @@ class SessionLog:
         self.edits = EditLog()
         self.plans = PlanLog()
         self.feedback = FeedbackLog()
+        self.reflections = ReflectionLog()
         self.tokens = 0
         self._unknown_usage = False
         self._pending_turn = ""
@@ -129,6 +131,7 @@ class SessionLog:
             "tool_finished": self._apply_tool,
             "plan_updated": self._apply_plan,
             "feedback_recorded": self._apply_feedback,
+            "reflection_finished": self._apply_reflection,
             "edit_planned": self._apply_edit,
             "edit_started": self._apply_edit,
             "edit_finished": self._apply_edit,
@@ -236,7 +239,7 @@ class SessionLog:
                 raise ValueError("invalid or duplicate request")
             context = payload.get("context")
             if context is not None:
-                self._validate_context(context)
+                self._validate_context(context, turn_id)
             self.requests[request_id] = {
                 **({"context": context} if context is not None else {}),
                 "turn_id": turn_id,
@@ -260,8 +263,21 @@ class SessionLog:
         request["settled"] = True
         request["usage"] = (inputs, outputs)
 
-    def _validate_context(self, context: object) -> None:
-        """校验摘要覆盖前缀与未覆盖历史的连续后缀；旧请求可没有选择字段。"""
+    def _validate_context(self, context: object, turn_id: str) -> None:
+        """校验摘要覆盖前缀、连续历史后缀或反思反馈快照；旧请求可没有选择字段。"""
+        if isinstance(context, dict) and context.get("strategy") == "reflection_v1":
+            feedback = self.feedback.records.get(context.get("feedback_id", ""))
+            if (
+                set(context) != {"strategy", "feedback_id", "source", "estimated_input_tokens"}
+                or feedback is None
+                or feedback.turn_id != turn_id
+                or context["source"]
+                != feedback_context(feedback, self.turns, self.tools, self.executions)
+                or type(context["estimated_input_tokens"]) is not int
+                or context["estimated_input_tokens"] < 0
+            ):
+                raise ValueError("invalid reflection context")
+            return
         if not isinstance(context, dict) or context.get("strategy") != "recent_turns_v1":
             raise ValueError("invalid context strategy")
         selected, omitted = context.get("selected_turn_ids"), context.get("omitted_turn_ids")
@@ -375,6 +391,11 @@ class SessionLog:
             raise ValueError("edit has no final result")
         tool.update(output=payload["output"], finished=True, status="finished")
 
+    def _apply_reflection(self, kind: str, payload: dict[str, Any]) -> None:
+        """只给当前轮追加反思结果；原始请求状态及用量不因降级被改写。"""
+        self._require_turn(payload)
+        self.reflections.apply(payload, self.feedback.records, self.requests)
+
     def _apply_feedback(self, kind: str, payload: dict[str, Any]) -> None:
         """反馈只记录可核对的来源；具体内容解释留给反思服务。"""
         self.feedback.apply(payload, self.turns, self.tools, self.executions)
@@ -475,13 +496,22 @@ class SessionLog:
         validate_turn(self._pending_messages, allow_partial=not complete)
         if self._pending_messages[0]["content"] != self.turns[turn_id]["user_text"]:
             raise ValueError("mismatched user input")
-        requests = [item for item in self.requests.values() if item["turn_id"] == turn_id]
+        requests = [
+            {**item, "request_id": key}
+            for key, item in self.requests.items()
+            if item["turn_id"] == turn_id
+        ]
         # 离线导入可没有请求；发生过请求时，连接失败不能冒充产生了最终回答。
+        # 仅明确留痕的反思格式失败可降级；聊天响应失败仍不能提交成功历史。
         if requests and (
             not any(item["status"] == "succeeded" for item in requests)
             or any(
                 not item["settled"]
-                or (item["status"] != "succeeded" and item.get("reason") != "api_not_sent")
+                or (
+                    item["status"] != "succeeded"
+                    and item.get("reason") != "api_not_sent"
+                    and not self.reflections.permits_failed_request(item["request_id"])
+                )
                 for item in requests
             )
         ):

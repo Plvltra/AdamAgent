@@ -21,6 +21,21 @@ class Feedback:
         return asdict(self)
 
 
+def decode_reflection(value: object) -> dict[str, str]:
+    """反思仅接收短的结构化建议；原因是待验证假设，不接受模型自封成功。"""
+    names = {"problem", "hypothesis", "action", "verification", "lesson", "applies_when", "limits"}
+    if not isinstance(value, dict) or set(value) != names:
+        raise ValueError("invalid reflection fields")
+    for name, text in value.items():
+        if not isinstance(text, str) or len(text) > 1000 or any(ord(char) < 32 for char in text):
+            raise ValueError("invalid reflection text")
+        if name not in {"lesson", "applies_when", "limits"} and not text.strip():
+            raise ValueError("missing reflection text")
+    if value["lesson"] and not value["applies_when"].strip():
+        raise ValueError("lesson requires applicability")
+    return dict(value)
+
+
 def decode_feedback(value: dict[str, Any]) -> Feedback:
     """严格校验记录结构；来源存在性及原文引用由日志投影核对。"""
     if set(value) != {field.name for field in fields(Feedback)}:

@@ -1,13 +1,13 @@
 """组织会话流程；会话文件是已完成历史的来源。"""
 
 from collections.abc import Callable
-from contextlib import nullcontext
 from dataclasses import dataclass, replace
 from functools import partial
 from time import monotonic_ns
 from typing import Any
 
 from adam.application.request_policy import RequestPolicy
+from adam.application.request_runner import RequestRunner, save_failure
 from adam.config.settings import AgentConfig, ContextConfig
 from adam.context.builder import ContextBuilder, RequestContext
 from adam.context.compaction import CompactionService
@@ -17,14 +17,12 @@ from adam.contracts.errors import (
     BudgetError,
     FailureCode,
     LLMError,
-    RequestInterrupted,
-    RequestNotSentError,
     StorageError,
     TurnSaveError,
 )
 from adam.contracts.history import Summary
 from adam.contracts.memory import MemorySelection
-from adam.contracts.models import Completion, ExecutionReport, ModelOutput, Session
+from adam.contracts.models import ExecutionReport, ModelOutput, Session
 from adam.contracts.planning import TaskPlanner
 from adam.contracts.ports import ModelClient
 from adam.session.outcome import ExecutionOutcome
@@ -79,6 +77,14 @@ class Conversation:
         self.cancel, self.on_turn_started = cancel, on_turn_started
         self.memory_provider = memory_provider
         self.planning = planning
+        self.requests = RequestRunner(
+            store,
+            client,
+            self._check_session_budget,
+            accounting,
+            cancel,
+            clock=lambda: monotonic_ns(),
+        )
 
     def new(self, title: str = "新对话") -> Session:
         """创建并选中新会话，返回会话元信息。"""
@@ -120,9 +126,9 @@ class Conversation:
             reply = self._run_turn(session, turn_id, text, started_ns, on_output)
         except BaseException as error:
             if self.delegation:
-                self._save_failure(self.delegation.end, error)
+                save_failure(self.delegation.end, error)
             outcome = ExecutionOutcome.failure(error, self._elapsed_ms(started_ns))
-            self._save_failure(
+            save_failure(
                 lambda: self.store.finish_turn(session.session_id, turn_id, outcome),
                 error,
             )
@@ -206,7 +212,7 @@ class Conversation:
             )
             output = on_output if ready else None
             request_id, result = progress.requests.run(
-                partial(self._request_with_usage, session.session_id, turn_id, context, output)
+                partial(self.requests.run, session.session_id, turn_id, context, output)
             )
             calls = result.message.get("tool_calls") or []
             if not calls and self.delegation and not self.delegation.accept_final():
@@ -361,92 +367,6 @@ class Conversation:
                 code=FailureCode.SESSION_TOKEN_LIMIT,
             )
 
-    def _request_with_usage(
-        self,
-        session_id: str,
-        turn_id: str,
-        context: RequestContext,
-        on_output: Callable[[ModelOutput], None] | None = None,
-    ) -> tuple[str, Completion]:
-        """执行一次物理请求：检查预算、登记、调用和结算；外层策略决定是否重试。
-
-        返回本次 request_id 与包含可靠用量的 Completion，供工具关联来源请求。
-        turn_id 指向已记录的用户输入；context 是本次构造结果，先检查输入预算再登记请求。
-        本地超限不伪造请求或未知用量；有效响应先记请求成功，缺少用量时整轮仍停止。
-        明确未发出的连接错误结算为零；只有结算成功才允许外层重试。
-        中断或未知用量会阻止继续消费。最终回答记账失败时保留回答供终端显示；
-        请求耗时只包含完整模型调用及响应解析，不含开始与结算日志写入。
-        失败收尾不遮蔽原始异常；崩溃遗留状态由下次取得会话写锁时恢复。
-        """
-        self._check_session_budget(session_id)
-        context.ensure_within_budget()
-        scope = (
-            self.accounting(session_id).request(
-                context.budgeted_input_tokens + context.max_output_tokens
-            )
-            if self.accounting
-            else nullcontext()
-        )
-        with scope:
-            return self._perform_request(session_id, turn_id, context, on_output)
-
-    def _perform_request(
-        self,
-        session_id: str,
-        turn_id: str,
-        context: RequestContext,
-        on_output: Callable[[ModelOutput], None] | None,
-    ) -> tuple[str, Completion]:
-        """在额度预留内登记、调用与结算；共享额度退出时读取本次持久化结果。"""
-        if self.cancel:
-            self.cancel.check()
-        request_id = self.store.start_request(
-            session_id, turn_id, context.model, context=context.selection_record()
-        )
-        started_ns = monotonic_ns()
-        try:
-            result = self.client.complete(
-                context.messages,
-                model=context.model,
-                tools=context.tools,
-                max_tokens=context.max_output_tokens,
-                on_output=on_output,
-            )
-        except BaseException as error:
-            usage = error.usage if isinstance(error, (LLMError, RequestInterrupted)) else None
-            outcome = ExecutionOutcome.failure(error, self._elapsed_ms(started_ns))
-            if isinstance(error, RequestNotSentError):
-                # 未发出请求允许重试的前提是失败及零用量已可靠记录；日志失败直接停止。
-                self.store.finish_request(session_id, turn_id, request_id, usage, outcome=outcome)
-            else:
-                self._save_failure(
-                    lambda: self.store.finish_request(
-                        session_id, turn_id, request_id, usage, outcome=outcome
-                    ),
-                    error,
-                )
-            raise
-
-        outcome = ExecutionOutcome.success(self._elapsed_ms(started_ns))
-        try:
-            self.store.finish_request(
-                session_id, turn_id, request_id, result.usage, outcome=outcome
-            )
-        except StorageError as error:
-            if not result.message.get("tool_calls"):
-                raise TurnSaveError(
-                    result.message["content"], code=FailureCode.REQUEST_SAVE_FAILED
-                ) from error
-            raise StorageError(
-                "请求结算记录保存失败；已停止本轮，未自动重试。",
-                code=FailureCode.REQUEST_SAVE_FAILED,
-            ) from error
-        if result.usage is None:
-            raise LLMError(
-                "API未返回可靠用量；预算统计不完整，本轮停止。", code=FailureCode.USAGE_UNKNOWN
-            )
-        return request_id, result
-
     def _check_tool_budget(
         self, session_id: str, step: int, calls: list[dict[str, Any]], seen_ids: set[str]
     ) -> None:
@@ -484,12 +404,3 @@ class Conversation:
     def _elapsed_ms(started_ns: int) -> int:
         """单调时钟差转为整毫秒；跨进程不能复用起点，不用系统时间相减。"""
         return (monotonic_ns() - started_ns) // 1_000_000
-
-    @staticmethod
-    def _save_failure(save: Callable[[], None], original: BaseException) -> None:
-        """尽力保存失败状态；日志故障不能覆盖最初的模型、工具或程序异常。"""
-        try:
-            save()
-        except Exception:
-            # 磁盘持续不可写时无法再可靠记录终态；附注不带原始系统或服务端详情。
-            original.add_note("执行状态保存失败，日志可能仍显示进行中；未自动重试。")

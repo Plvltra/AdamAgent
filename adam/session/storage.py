@@ -206,6 +206,18 @@ class SessionStore:
             ],
         }
 
+    def append_reflection(self, session_id: str, payload: dict[str, Any]) -> None:
+        """保存反思结果或跳过原因；请求消费仍由普通请求事件结算。"""
+        self._append(session_id, record("reflection_finished", payload))
+
+    def load_reflections(self, session_id: str, turn_id: str | None = None) -> list[dict[str, Any]]:
+        """读取反思记录，不自动重发在途或未完成的请求。"""
+        return [
+            item
+            for item in self._read_log(session_id).reflections.records.values()
+            if turn_id is None or item["turn_id"] == turn_id
+        ]
+
     def load_summary(self, session_id: str) -> Summary | None:
         """返回最近完整提交的摘要；失败或中断的候选摘要不生效。"""
         return self._read_log(session_id).compactions.summary
