@@ -1,12 +1,23 @@
 # Adam 系统架构
 
-最近核对：2026-10-29
+最近核对：2026-10-30
 
-本次核对范围：按 E 编号整理 main 提交历史，架构无变化；业务代码、测试、配置与依赖内容保持一致。ReviewService 分开处理历史读取凭据与当前目标有效性，文件删除后仍能收集为 stale；SkillCatalog 在目录与请求校验前统一去除名称、用途两端空白。保留 ToolExecutor 协作限制回调的契约说明。
+本次核对范围：T1.1，新增 rules/catalog.py 与 contracts/rules.py；规则读取通过注入授权复用路径边界，尚未接入聊天。ReviewService 分开处理历史读取凭据与当前目标有效性，文件删除后仍能收集为 stale；SkillCatalog 在目录与请求校验前统一去除名称、用途两端空白。保留 ToolExecutor 协作限制回调的契约说明。
 
 核对结论：新增 ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
+
+## T1.1 项目规则读取
+
+~~~mermaid
+flowchart LR
+    SOURCE["rules/catalog.py / RuleCatalog"] --> CONTRACT["contracts/rules.py / RuleSelection"]
+    SOURCE --> AUTH["注入的路径授权函数"]
+    SOURCE --> FILE["目标祖先目录 / AGENTS.md"]
+~~~
+
+规则按根到叶排序并保留各自作用域，兄弟目录互不覆盖。每次选择重新读取当前文件，旧快照不变；无权读取、非法编码或超限明确失败，不返回残缺指导。本阶段为独立读取能力，聊天接入见 T1.2。
 
 ## E2 文档检索
 
