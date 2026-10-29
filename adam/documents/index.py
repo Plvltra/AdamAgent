@@ -32,9 +32,11 @@ class DocumentIndex:
         workspace: Path,
         config: DocumentConfig,
         authorize: Callable[[str], Path],
+        check_cancel: Callable[[], None] | None = None,
     ) -> None:
         self.config = config
-        self.source = DocumentSource(workspace, config, authorize, cache_dir)
+        self.check_cancel = check_cancel or (lambda: None)
+        self.source = DocumentSource(workspace, config, authorize, cache_dir, self.check_cancel)
         self.scope = {
             "workspace": str(workspace.resolve()),
             "roots": sorted(map(str, self.source.roots)),
@@ -50,13 +52,16 @@ class DocumentIndex:
         只有变化后才落盘。损坏缓存明确报错并保留原文件；删除对应缓存可重建，
         会话日志不受影响。不同工作目录和语料配置使用独立缓存文件。
         """
+        self.check_cancel()
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.lock:
+                self.check_cancel()
                 previous = self._load()
                 documents: dict[str, Any] = {}
                 chunks: list[Chunk] = []
                 for source in self.source.scan():
+                    self.check_cancel()
                     old = previous.get(source.path)
                     if old is not None and old["version"] == source.version:
                         items = [Chunk(**value) for value in old["chunks"]]
@@ -73,6 +78,7 @@ class DocumentIndex:
                     }
                 payload = {"scope": self.scope, "documents": documents}
                 generation = digest(payload)
+                self.check_cancel()
                 if documents != previous or not self.path.exists():
                     save_snapshot(self.path, payload)
                 return Corpus(tuple(chunks), generation, len(documents))

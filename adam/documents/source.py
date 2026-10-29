@@ -31,7 +31,9 @@ class DocumentSource:
         config: DocumentConfig,
         authorize: Callable[[str], Path],
         cache_dir: Path,
+        check_cancel: Callable[[], None] | None = None,
     ) -> None:
+        self.check_cancel = check_cancel or (lambda: None)
         self.workspace = workspace.resolve()
         self.config = config
         self.authorize = authorize
@@ -46,7 +48,9 @@ class DocumentSource:
 
         跳过隐藏项、缓存目录、链接和非 MD/TXT 文件。每个源文件重新读取并计算哈希，
         因此即使修改保持了大小和 mtime，也不会继续使用旧版本。
+        在文件边界协作检查取消；阻塞的操作系统文件读取不能在调用中途强制停止。
         """
+        self.check_cancel()
         deadline = time.monotonic() + self.config.scan_timeout_seconds
         pending = [self.authorize(str(root)) for root in self.requested_roots]
         sources: dict[str, Source] = {}
@@ -54,6 +58,7 @@ class DocumentSource:
         entries = total_bytes = 0
         try:
             while pending:
+                self.check_cancel()
                 directory = pending.pop()
                 if directory in visited or directory.is_relative_to(self.cache_dir):
                     continue
@@ -63,6 +68,7 @@ class DocumentSource:
                     raise DocumentError("documents.roots 中的路径必须是已存在的目录。")
                 with os.scandir(directory) as children:
                     for entry in children:
+                        self.check_cancel()
                         entries += 1
                         if entries > self.config.max_scan_entries or time.monotonic() > deadline:
                             raise DocumentError("文档扫描达到数量或时间上限，请缩小文档目录。")

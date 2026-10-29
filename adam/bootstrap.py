@@ -57,7 +57,8 @@ def build_application(
     document_config = replace(
         config.documents,
         roots=tuple(
-            path if path.is_absolute() else workspace / path for path in config.documents.roots
+            path if path.is_absolute() else workspace.absolute() / path
+            for path in config.documents.roots
         ),
     )
     registry = create_tool_registry(
@@ -157,6 +158,7 @@ def _open_child(
             documents_dir,
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             (memories_dir,),
+            check_cancel=cancel.check,
         )
         conversation = Conversation(
             store,

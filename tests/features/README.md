@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| E2.5 文档整体验收 | 真实子线程查询、权限撤销、取消、资源/向量保存失败及相对工作目录 | [test_document_acceptance.py](test_document_acceptance.py) |
 | E2.4 语义检索与评估 | 向量复用/更新/模型变化、非法维度、禁止隐式下载及固定评估口径 | [test_document_embeddings.py](test_document_embeddings.py)、[test_document_evaluation.py](test_document_evaluation.py) |
 | E2.3 文档工具闭环 | 假 HTTP + 真实检索、来源和日志、按需执行、预算及配置 | [test_document_tools.py](test_document_tools.py) |
 | E2.2 文档索引 | 同时间戳更新、删除、重启、真实双进程、锁竞争、损坏与保存失败 | [test_document_index.py](test_document_index.py) |
@@ -145,6 +146,12 @@ V6.3 已用真实本地 TCP 和独立进程补齐中断验收；已完整提交�
 重启仍恢复原结果；未结算消费保持未知，不发新请求。另验证摘要/连接重试共用账本、
 索引替换失败无子请求、索引缺失不能清零、读取授权、结果 JSON 长度与会话预览隔离。
 同轮追问不能跳过上一结果的交付。V6 共 20 个业务场景，基础用例另有 9 个；不证明真实模型拆分任务的效果。
+
+## E2 本地文档检索验收
+
+六个 test_document_*.py 文件共 44 项通过。检索与文件操作真实执行；HTTP 模型响应只替代远端，EmbeddingBackend 替身只验证向量协议与缓存。真实 FastEmbed 0.9.1 / BGE 中文小模型另外运行固定 16 题，报告见 [检索对照](../../docs/document-retrieval-evaluation.md)。无 embedding 可选依赖的 Python 3.11 新环境已验证普通启动、关键词查询及语义缺依赖提示。全量回归为提交前门槛，本阶段收集 546 项。
+
+新增取消回调覆盖扫描及向量边界，实际文件 IO 和单次 ONNX 推理为协作取消；不宣称强制中止本地系统调用。坏缓存、撤销的权限、写入失败不得被当作无答案。最终回答的真实模型忠实性单列人工验证。
 
 ## 怎样运行
 

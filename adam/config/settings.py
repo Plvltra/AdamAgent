@@ -166,8 +166,12 @@ class DocumentConfig:
 
     def __post_init__(self) -> None:
         """限制整个语料的资源消耗；目录配置本身不授予额外读取权限。"""
-        if not isinstance(self.roots, tuple) or any(not isinstance(p, Path) for p in self.roots):
-            raise ConfigError("documents.roots 必须是路径元组。")
+        if (
+            not isinstance(self.roots, tuple)
+            or len(self.roots) > 32
+            or any(not isinstance(p, Path) or "\0" in str(p) for p in self.roots)
+        ):
+            raise ConfigError("documents.roots 必须是不超过 32 项、不含空字符的路径元组。")
         if not isinstance(self.method, str) or self.method not in {"keyword", "semantic"}:
             raise ConfigError("documents.method 必须是 keyword 或 semantic。")
         if (

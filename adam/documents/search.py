@@ -28,6 +28,7 @@ class DocumentSearch:
         self.vectors = VectorSearch(
             index.path.with_suffix(".vectors.json"),
             backend or FastEmbedBackend(index.path.parent / "models", config.embedding_model),
+            index.check_cancel,
         )
 
     def search(self, query: str, limit: int) -> SearchResult:
@@ -39,4 +40,5 @@ class DocumentSearch:
             hits = self.vectors.search(corpus.chunks, query, limit, config.semantic_min_score)
         else:
             hits = keyword_search(corpus.chunks, query, limit)
+        self.index.check_cancel()
         return SearchResult(corpus.generation, tuple(hits), corpus.file_count, config.method)

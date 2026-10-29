@@ -27,7 +27,7 @@ def evaluate(
                 number
                 for number, hit in enumerate(result.hits, 1)
                 if case["path"] is not None
-                and Path(hit.chunk.path).as_posix().endswith("/" + case["path"])
+                and Path(hit.chunk.path).as_posix().endswith("/" + Path(case["path"]).as_posix())
                 and case["evidence"] in hit.chunk.text
             ),
             None,

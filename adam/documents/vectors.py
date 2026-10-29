@@ -1,5 +1,6 @@
 """小语料向量缓存和余弦检索；不需要独立向量数据库服务。"""
 
+import math
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -26,11 +27,13 @@ class VectorSearch:
         self, chunks: Sequence[Chunk], query: str, limit: int, minimum: float
     ) -> list[SearchHit]:
         """刷新向量后返回达到余弦阈值的候选；阈值不保证证据充分。"""
+        self.check_cancel()
         if not chunks:
             return []
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.lock:
+                self.check_cancel()
                 identity = self.backend.identity
                 previous = self._load(identity)
                 vectors: dict[str, list[float]] = {}
@@ -47,6 +50,7 @@ class VectorSearch:
                 needle = unit_vector(self.backend.query(query))
                 if any(len(row) != len(needle) for row in vectors.values()):
                     raise ValueError("query dimension")
+                self.check_cancel()
                 if vectors != previous:
                     save_snapshot(self.path, {"backend": identity, "vectors": vectors})
             hits = [
@@ -82,5 +86,7 @@ class VectorSearch:
             if not isinstance(key, str) or len(key) != 16:
                 raise ValueError("chunk id")
             unit_vector(row)
+            if not math.isclose(math.hypot(*row), 1, rel_tol=1e-6):
+                raise ValueError("non-normalized cached vector")
             vectors[key] = row
         return vectors if value["backend"] == identity else {}

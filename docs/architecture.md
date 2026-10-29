@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E2.4 本地 embedding、向量缓存、共用原子快照及独立评估入口；本分支不包含并行 E3 的未提交工作。
+本次核对范围：E2.5 子任务查询、权限撤销、取消、相对路径、新环境启动及故障整体验收；本分支不包含并行 E3 的未提交工作。
 
-核对结论：bootstrap 通过 register_documents 注册按需只读搜索；documents/search 协调索引与排序，工具适配器维护结构化输出容量，DocumentSearch 支持关键词或本地向量，后者经 EmbeddingBackend 协议；文本和向量共用 snapshots 原子缓存；聊天主循环保持原有流程；保留 E1 已实现关系。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：bootstrap 通过 register_documents 注册按需只读搜索；documents/search 协调索引与排序，工具适配器维护结构化输出容量，DocumentSearch 支持关键词或本地向量，后者经 EmbeddingBackend 协议；文本和向量共用 snapshots 原子缓存。子任务 CancellationToken 经回调传入扫描与向量边界，权限在每次扫描重查；聊天主循环保持原有流程；保留 E1 已实现关系。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -23,6 +23,9 @@ flowchart LR
     SEARCH --> VECTOR["documents/vectors.py<br/>VectorSearch"]
     VECTOR --> EMBED["documents/embedding.py<br/>FastEmbedBackend / EmbeddingBackend"]
     VECTOR --> SNAP["documents/snapshots.py<br/>有界校验与原子保存"]
+    CANCEL["子任务 CancellationToken.check"] -.-> SOURCE
+    CANCEL -.-> INDEX
+    CANCEL -.-> VECTOR
     INDEX --> SNAP
     SEARCH --> INDEX
     INDEX["documents/index.py<br/>DocumentIndex"] --> SOURCE["documents/source.py<br/>有界扫描"]
@@ -64,7 +67,7 @@ flowchart LR
 
 ## 包目录与依赖边界
 
-同一能力的文件放在同一个包内，包内仍按职责分文件。根目录保留 `__main__.py`、`bootstrap.py` 和 `diagnostics.py`，分别负责聊天启动、资源组装及原诊断命令入口。
+同一能力的文件放在同一个包内，包内仍按职责分文件。根目录的 `__main__.py`、`bootstrap.py`、`diagnostics.py` 分别负责聊天启动、资源组装和原诊断入口；`document_search.py` 负责独立的文档查询、模型准备与评估，不组装聊天应用或读取其密钥。
 
 | 包 | 归入的文件 | 允许的其他项目依赖 |
 | --- | --- | --- |

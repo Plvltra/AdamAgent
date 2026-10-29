@@ -1,6 +1,7 @@
 """将文档检索注册为普通只读工具，复用既有轮次、额度和工具日志。"""
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -55,12 +56,16 @@ def register_documents(
     cache_dir: Path,
     permissions: PermissionConfig,
     protected_dirs: tuple[Path, ...] = (),
+    *,
+    check_cancel: Callable[[], None] | None = None,
 ) -> ToolRegistry:
     """配置了文档源才注册工具；组装不扫描文件，也不产生模型请求。"""
     if not config.roots:
         return registry
     policy = PathPolicy(workspace, permissions, protected_dirs=(*protected_dirs, cache_dir))
-    search = DocumentSearch(DocumentIndex(cache_dir, workspace, config, policy.resolve))
+    search = DocumentSearch(
+        DocumentIndex(cache_dir, workspace, config, policy.resolve, check_cancel)
+    )
     adapter = DocumentTools(search, config, registry.limits.max_result_chars)
     return registry.extended(
         SPECS, {"search_documents": adapter.search_documents}, {"search_documents": encode_result}
