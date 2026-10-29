@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：V6 前置模块整理，将相关 Python 文件归入职责包，核对跨包依赖与测试引用。
+本次核对范围：V6.1 子 Agent 额度、取消与配置基础；既有调用链保持，尚未启用委派。
 
-核对结论：形成八个职责包，依赖组装仍在根目录 bootstrap。共享类型直接从定义模块导入，报告值与日志提取实现分开；保留 CLI/诊断入口、配置和日志行为，本项没有实现多会话并发。
+核对结论：application/subagents/budget.py 管理整组消费快照与原子预留，contracts/cancellation.py 提供跨线程停止信号，config/settings.py 增加 SubagentConfig。当前是已测试的基础组件，未接入聊天入口；原运行图不变。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -28,6 +28,18 @@
 bootstrap 可创建各层具体组件，业务包不反向调用它。cli/main 不直接依赖 Conversation、存储、HTTP 或具体工具。上下文构造是纯逻辑；同包的摘要服务经模型接口和会话存储完成持久化操作。会话包不依赖上下文算法，摘要事件的校验和恢复仍归 session。
 
 ExecutionReport、ActionFact 放在 contracts/models.py，提取事实的 build_execution_report 留在 session/execution_report.py；展示层只依赖报告值，不连带导入日志解释器。tests/test_architecture.py 检查整包源码，新增文件同样受约束。业务测试继续按功能放在 tests/features。迁移前后收集项比对：原 408 项无遗漏，增加 8 项包依赖约束，共 416 项；本次没有改变业务场景断言。
+
+## V6.1 已实现的基础组件
+
+```mermaid
+flowchart LR
+    BUDGET["application/subagents/budget.py<br/>SharedTokenBudget"] --> ERRORS["contracts/errors.py"]
+    CANCEL["contracts/cancellation.py<br/>CancellationToken"] --> ERRORS
+    LOADER["config/loader.py"] --> SUBCONFIG["config/settings.py<br/>SubagentConfig"]
+```
+
+共享额度按成员保存持久化累计快照；在途预留只影响新请求准入，不能被当作用量未知。
+这些组件尚未加入下面的聊天调用链。业务计划见 [V6](subagents.md)。
 
 ## 启动与资源所有权
 

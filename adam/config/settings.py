@@ -29,6 +29,23 @@ class AgentConfig:
 
 
 @dataclass(frozen=True)
+class SubagentConfig:
+    """单个主会话的子任务上限；子 Agent 不允许再委派，消费沿用 agent 总额度。"""
+
+    max_concurrent: int = 2
+    max_created_per_turn: int = 4
+
+    def __post_init__(self) -> None:
+        """直接构造与 TOML 使用相同校验，防止无界线程或无限派发。"""
+        for name, value in (
+            ("max_concurrent", self.max_concurrent),
+            ("max_created_per_turn", self.max_created_per_turn),
+        ):
+            if type(value) is not int or not 1 <= value <= 32:
+                raise ConfigError(f"subagents.{name} 必须是 1 到 32 的整数。")
+
+
+@dataclass(frozen=True)
 class PermissionConfig:
     """工作目录之外的读取与写入授权分别配置，互不隐含授权。"""
 
@@ -122,3 +139,4 @@ class AppConfig:
     permissions: PermissionConfig = field(default_factory=PermissionConfig)
     tool_limits: ToolLimits = field(default_factory=ToolLimits)
     context: ContextConfig = field(default_factory=ContextConfig)
+    subagents: SubagentConfig = field(default_factory=SubagentConfig)

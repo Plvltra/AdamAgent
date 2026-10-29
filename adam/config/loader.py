@@ -15,6 +15,7 @@ from adam.config.settings import (
     ContextConfig,
     LLMConfig,
     PermissionConfig,
+    SubagentConfig,
     ToolLimits,
 )
 from adam.contracts.errors import ConfigError
@@ -109,7 +110,9 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         raise ConfigError(f"无法读取主配置 {path}，请检查文件存在且为有效 UTF-8 TOML。") from None
 
     checked_section(
-        data, {"storage", "chat", "agent", "permissions", "tool_limits", "context"}, "主配置"
+        data,
+        {"storage", "chat", "agent", "permissions", "tool_limits", "context", "subagents"},
+        "主配置",
     )
     storage = data.get("storage", {})
     if isinstance(storage, dict) and "db_path" in storage:
@@ -144,6 +147,10 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         data.get("context", {}), {item.name for item in fields(ContextConfig)}, "context"
     )
     context = ContextConfig(**context_data)
+    subagent_data = checked_section(
+        data.get("subagents", {}), {item.name for item in fields(SubagentConfig)}, "subagents"
+    )
+    subagents = SubagentConfig(**subagent_data)
     limit_data = checked_section(
         data.get("tool_limits", {}), {item.name for item in fields(ToolLimits)}, "tool_limits"
     )
@@ -180,6 +187,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         permissions=PermissionConfig(**permission_roots),
         tool_limits=ToolLimits(**limit_data),
         context=context,
+        subagents=subagents,
     )
 
 

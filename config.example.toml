@@ -13,6 +13,12 @@ max_edit_attempts = 3
 max_session_tokens = 50000
 max_output_tokens = 4096
 
+[subagents]
+# 同一主会话并发运行的子 Agent 数量；不同终端分别限制。
+max_concurrent = 2
+# 一次主用户输入内最多新建多少个子 Agent，复用已有子 Agent 不计为新建。
+max_created_per_turn = 4
+
 [context]
 # Application input budget, not the model's context window. Output is reserved separately.
 max_input_tokens = 32768
