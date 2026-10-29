@@ -6,10 +6,12 @@ from typing import Any
 
 from adam.contracts.history import HistoryTurn
 from adam.contracts.memory import validate_selection
+from adam.contracts.planning import decode_plan
 from adam.contracts.protocol import validate_turn
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
 from adam.session.outcome import outcome_details
+from adam.session.plan_evidence import validate_evidence
 from adam.session.plan_log import PlanLog
 
 
@@ -377,6 +379,7 @@ class SessionLog:
         tool = self._require_tool(payload)
         if tool["name"] != "update_plan" or tool["finished"]:
             raise ValueError("invalid plan parent")
+        validate_evidence(decode_plan(payload), self.tools, self.executions, self.edits.operations)
         self.plans.apply(payload)
 
     def _apply_edit(self, kind: str, payload: dict[str, Any]) -> None:

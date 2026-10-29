@@ -11,6 +11,7 @@ import httpx
 from adam.application.conversation import Conversation
 from adam.application.facade import AgentApplication
 from adam.application.memories import MemoryService
+from adam.application.planning import PlanningService
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.manager import SubagentManager
@@ -30,6 +31,8 @@ from adam.tool_calls.delegation_tools import encode_results, handlers
 from adam.tool_calls.document_tools import register_documents
 from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
+from adam.tool_calls.planning_tools import SPECS as PLANNING_SPECS
+from adam.tool_calls.planning_tools import handlers as planning_handlers
 
 ChildClientFactory = Callable[[CancellationToken], AbstractContextManager[ModelClient]]
 
@@ -96,11 +99,22 @@ def build_application(
             handlers(manager),
             {"wait_agents": encode_results},
         )
+    planner = PlanningService(store, config.planning) if config.planning.enabled else None
+    if planner:
+        registry = registry.extended(PLANNING_SPECS, planning_handlers(planner))
+
+    def bind_source(link: dict[str, str]) -> None:
+        """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
+        if manager:
+            manager.bind_source(link)
+        if planner:
+            planner.bind_source(link)
+
     executor = ToolExecutor(
         store,
         registry,
         on_tool or (lambda _: None),
-        before_call=manager.bind_source if manager else None,
+        before_call=bind_source,
     )
     memories = MemoryService(
         MemoryStore(config.memories_dir or store.root / "_memories"), workspace, config.memory
@@ -116,6 +130,7 @@ def build_application(
         notify=on_notice,
         accounting=manager.account if manager else None,
         delegation=manager,
+        planning=planner,
         memory_provider=memories.select,
     )
     return AgentApplication(conversation, store, client, memories)

@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, Protocol
 
 STEP_STATUSES = {"pending", "in_progress", "completed", "failed", "cancelled"}
 CLOSED_STATUSES = {"completed", "failed", "cancelled"}
@@ -54,6 +54,22 @@ class PlanReport:
     snapshot: PlanSnapshot
     turn_status: str
     turn_reason: str | None = None
+
+
+class TaskPlanner(Protocol):
+    """主轮次的计划入口；界面、模型工具和存储实现通过契约解耦。"""
+
+    def begin(self, session_id: str, turn_id: str) -> None:
+        """开始新的用户轮次，不继承旧轮次的待办状态。"""
+        ...
+
+    def bind_source(self, link: dict[str, str]) -> None:
+        """接收执行器生成的来源，模型不能自行指定轮次或请求。"""
+        ...
+
+    def update(self, steps: object, reason: str = "") -> dict[str, Any]:
+        """保存整份清单，返回已落盘快照；非法模型输入作为工具错误返回。"""
+        ...
 
 
 def decode_steps(value: object) -> tuple[PlanStep, ...]:

@@ -1,7 +1,7 @@
 # E3 显式任务计划
 
 更新：2026-10-29。主任务以 [练手 TODO](agent-practice-todo.md) 的 E3 为准。
-当前 E3.1 已实现记录与存储；模型工具、终端和整体验收尚未接入。
+当前 E3.1/E3.2 已实现记录、模型工具及证据校验；终端和整体验收尚未接入。
 
 ## 已确认范围
 
@@ -18,15 +18,27 @@
 | 子任务 | 内容 | 状态 |
 | --- | --- | --- |
 | E3.1 | 数据契约、计划版本、轮次归属、存储失败保护和重启读取 | 已实现 |
-| E3.2 | update_plan 工具、配置及真实执行证据校验 | 待实现 |
+| E3.2 | update_plan 工具、配置及真实执行证据校验 | 已实现 |
 | E3.3 | 展示、/plan、有限重规划与收尾提醒 | 待实现 |
 | E3.4 | 两文件业务验收及普通循环/显式计划对照 | 待实现 |
+
+## E3.2 模型工具与证据
+
+主应用注册 update_plan，子 Agent 不注册。PlanningService 绑定程序提供的轮次/请求/工具来源，模型只提交步骤和原因，不能指定来源。before_call 同时给委派与计划服务提供关联，保留 V6 行为。
+
+[planning] 配置 enabled=true、max_steps=8、max_replans=3；禁用时不向模型注册工具，不妨碍读取已有计划。首次建立把限制写入版本记录；后续状态更新不增加重规划次数。
+
+session/plan_evidence.py 在追加和重放时校验：证据属于本轮且工具已结束，不能引用 update_plan 自身；completed 要求实际成功。run_command 另查执行记录的 completed 与 exit_code=0，replace_text 要求 applied，wait_agents 要求返回成员均已完成。其他工具依据实际回传结果，不把 ok=true 的失败状态当成功。语义证据是否充分仍由模型负责。
+
+模型参数、版本及证据不合法时返回工具错误，保留上版计划；保存失败仍是 StorageError，停止后续工具与模型请求，不改成普通参数错误。真实来源先预检、落盘再复核。
+
+验收：[模型计划](../tests/features/test_task_planning.py) 覆盖伪造、自引用、跨轮、失败读取证据，命令 0/非零退出码及保存失败；[配置](../tests/test_planning_config.py) 覆盖构造及 TOML 入口。
 
 ## E3.1 记录与恢复
 
 contracts/planning.py 定义不可变步骤、完整快照及查询报告；session/plan_log.py 校验版本和重规划次数。SessionLog 校验更新所属轮次、请求和正在执行的 update_plan；SessionStore 复用原追加、文件锁与 fsync 回滚。
 
-plan_updated 包含 turn_id、request_id、tool_call_id、version、steps、reason、replan_count、max_steps、max_replans。步骤包含稳定 step_id、content、status、evidence、reason。状态为 pending、in_progress、completed、failed、cancelled；失败和取消必须有原因，完成必须带证据引用。E3.2 将补引用的真实结果校验。
+plan_updated 包含 turn_id、request_id、tool_call_id、version、steps、reason、replan_count、max_steps、max_replans。步骤包含稳定 step_id、content、status、evidence、reason。状态为 pending、in_progress、completed、failed、cancelled；失败和取消必须有原因，完成必须带证据引用。E3.2 已补引用的真实结果校验。
 
 旧 v4 会话没有 plan_updated 仍可读；含新事件的日志不保证被旧程序读取。计划记录不自动加入成功消息历史。PlanReport 单独携带轮次终态；轮次被中断时保留原步骤，不伪造完成。新会话不会带入旧计划。
 

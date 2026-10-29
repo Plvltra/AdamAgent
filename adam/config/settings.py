@@ -148,6 +148,24 @@ class MemoryConfig:
 
 
 @dataclass(frozen=True)
+class PlanningConfig:
+    """主 Agent 计划限制；单次状态更新仍占现有工具与模型请求额度。"""
+
+    enabled: bool = True
+    max_steps: int = 8
+    max_replans: int = 3
+
+    def __post_init__(self) -> None:
+        """直接构造和 TOML 一致校验，拒绝布尔值冒充计数。"""
+        if type(self.enabled) is not bool:
+            raise ConfigError("planning.enabled 必须是布尔值。")
+        if type(self.max_steps) is not int or not 1 <= self.max_steps <= 64:
+            raise ConfigError("planning.max_steps 必须在 1～64 之间。")
+        if type(self.max_replans) is not int or not 0 <= self.max_replans <= 100:
+            raise ConfigError("planning.max_replans 必须在 0～100 之间。")
+
+
+@dataclass(frozen=True)
 class DocumentConfig:
     """指定文档范围和检索资源上限；空 roots 表示不启用文档工具。"""
 
@@ -216,5 +234,6 @@ class AppConfig:
     subagents: SubagentConfig = field(default_factory=SubagentConfig)
     memories_dir: Path | None = None
     memory: MemoryConfig = field(default_factory=MemoryConfig)
+    planning: PlanningConfig = field(default_factory=PlanningConfig)
     documents: DocumentConfig = field(default_factory=DocumentConfig)
     documents_dir: Path | None = None

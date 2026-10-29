@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E3.1 计划数据契约、JSONL 版本投影及会话存储入口。
+本次核对范围：E3.2 计划工具、应用服务、真实证据校验及配置和委派来源组合。
 
-核对结论：新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。E3 模型工具尚未接入。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -65,18 +65,25 @@ flowchart LR
 
 命令解析与展示归 CLI，范围、来源与管理归 MemoryService；CLI 不直接导入 memory 包。记忆存储不依赖会话存储或模型；来源会话 ID 只作为可选值保留。MemorySelection 与记录校验位于 contracts/memory.py，存储和请求日志复用契约，避免两个存储模块互相导入。包依赖测试已覆盖 memory 及应用对它的单向依赖。
 
-## E3.1 计划记录
+## E3.1/E3.2 计划记录与模型工具
 
 ```mermaid
 flowchart LR
-    STORE["session/storage.py"] --> LOG["session/log.py"]
+    BOOT["bootstrap.py"] --> SERVICE["application/planning.py"]
+    CONV["application/conversation.py"] -->|begin| SERVICE
+    TOOL["tool_calls/planning_tools.py"] --> CONTRACT["contracts/planning.py<br/>TaskPlanner"]
+    SERVICE -.-> CONTRACT
+    TOOL -->|注入接口| SERVICE
+    SERVICE --> STORE["session/storage.py"]
+    STORE --> LOG["session/log.py"]
+    LOG --> EVIDENCE["session/plan_evidence.py<br/>实际工具及命令/编辑结果"]
     LOG --> PLAN["session/plan_log.py<br/>PlanLog"]
     PLAN --> DATA["contracts/planning.py<br/>PlanSnapshot / PlanReport"]
     STORE --> DATA
     STORE --> JSONL["会话 JSONL<br/>plan_updated"]
 ```
 
-计划事件与请求、工具关联，版本回放不访问磁盘。读取报告结合所属轮次的终态；中断恢复沿用 session_recovered，不重跑计划。当前还没有模型工具和界面入口，状态见 [E3](task-planning.md)。
+计划事件与请求、工具关联，版本回放不访问磁盘。读取报告结合所属轮次的终态；中断恢复沿用 session_recovered，不重跑计划。模型工具已接入，界面入口留待 E3.3，状态见 [E3](task-planning.md)。
 
 ## 包目录与依赖边界
 
@@ -85,11 +92,11 @@ flowchart LR
 | 包 | 归入的文件 | 允许的其他项目依赖 |
 | --- | --- | --- |
 | cli | main.py、terminal.py、reply_output.py、memory_commands.py | application、context、config、contracts；仅 main 调用 bootstrap |
-| application | facade.py、conversation.py、request_policy.py、memories.py、subagents/manager.py、budget.py、account.py | context、session、memory、tool_calls、config、contracts |
+| application | facade.py、conversation.py、request_policy.py、memories.py、planning.py、subagents/manager.py、budget.py、account.py | context、session、memory、tool_calls、config、contracts |
 | config | loader.py、settings.py | contracts |
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
-| session | storage.py、log.py、compaction_log.py、edit_log.py、plan_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
+| session | storage.py、log.py、compaction_log.py、edit_log.py、plan_log.py、plan_evidence.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
 | documents | 分块、来源、文本/向量检索、快照、embedding 与 evaluation | config、contracts |
 | memory | store.py、project.py、retrieval.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限、document_tools.py 和具体工具 | documents、session、config、contracts |

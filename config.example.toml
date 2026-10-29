@@ -45,6 +45,11 @@ enabled = true
 max_entries = 8
 max_input_tokens = 1024
 
+[planning]
+enabled = true
+max_steps = 8
+max_replans = 3
+
 [context]
 # Application input budget, not the model's context window. Output is reserved separately.
 max_input_tokens = 32768

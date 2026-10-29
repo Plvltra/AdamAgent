@@ -25,6 +25,7 @@ from adam.contracts.errors import (
 from adam.contracts.history import Summary
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import Completion, ExecutionReport, ModelOutput, Session
+from adam.contracts.planning import TaskPlanner
 from adam.contracts.ports import ModelClient
 from adam.session.outcome import ExecutionOutcome
 from adam.session.storage import SessionStore
@@ -57,6 +58,7 @@ class Conversation:
         notify: Callable[[str], None] | None = None,
         accounting: Callable[[str], RequestAccount] | None = None,
         delegation: Delegation | None = None,
+        planning: TaskPlanner | None = None,
         cancel: CancellationToken | None = None,
         on_turn_started: Callable[[str], None] | None = None,
         memory_provider: Callable[[str, int], MemorySelection] | None = None,
@@ -76,6 +78,7 @@ class Conversation:
         self.accounting, self.delegation = accounting, delegation
         self.cancel, self.on_turn_started = cancel, on_turn_started
         self.memory_provider = memory_provider
+        self.planning = planning
 
     def new(self, title: str = "新对话") -> Session:
         """创建并选中新会话，返回会话元信息。"""
@@ -108,6 +111,8 @@ class Conversation:
         self._last_turn = (session.session_id, turn_id)
         started_ns = monotonic_ns()
         try:
+            if self.planning:
+                self.planning.begin(session.session_id, turn_id)
             if self.delegation:
                 self.delegation.begin(session.session_id, turn_id, self.model)
             if self.on_turn_started:

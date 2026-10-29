@@ -163,6 +163,11 @@ class SessionStore:
         log = self._read_log(session_id)
         return log.plans.report(log.turns, turn_id)
 
+    def validate_plan(self, session_id: str, plan: PlanSnapshot) -> None:
+        """预检模型更新，不写文件；持久化仍重复校验，避免绕过日志契约。"""
+        log = self._read_log(session_id)
+        log.extend(decode_records(record("plan_updated", plan.to_dict())))
+
     def append_plan(self, session_id: str, plan: PlanSnapshot) -> None:
         """持锁保存完整计划版本；校验或 IO 失败时保留已有版本，不提前声明成功。"""
         self._append(session_id, record("plan_updated", plan.to_dict()))

@@ -17,6 +17,7 @@ from adam.config.settings import (
     LLMConfig,
     MemoryConfig,
     PermissionConfig,
+    PlanningConfig,
     SubagentConfig,
     ToolLimits,
 )
@@ -122,6 +123,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "context",
             "subagents",
             "memory",
+            "planning",
             "documents",
         },
         "主配置",
@@ -194,6 +196,10 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         data.get("memory", {}), {item.name for item in fields(MemoryConfig)}, "memory"
     )
     memory = MemoryConfig(**memory_data)
+    planning_data = checked_section(
+        data.get("planning", {}), {item.name for item in fields(PlanningConfig)}, "planning"
+    )
+    planning = PlanningConfig(**planning_data)
     subagent_data = checked_section(
         data.get("subagents", {}), {item.name for item in fields(SubagentConfig)}, "subagents"
     )
@@ -237,6 +243,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         context=context,
         subagents=subagents,
         memory=memory,
+        planning=planning,
         documents=documents,
         documents_dir=documents_dir,
     )
