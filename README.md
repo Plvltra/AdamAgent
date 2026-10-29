@@ -1,5 +1,7 @@
 # Adam
 
+E4 已支持失败后反思、自然语言纠正和人工确认的经验复用。用 `/memory candidates` 查看候选；详见 [反思与经验](docs/reflection-and-experience.md) 和 [手动对照验收](docs/reflection-evaluation.md)。真实模型效果仍待手动评估。
+
 E3.1～E3.4 显式任务计划已完成离线验收：复杂任务可使用 `update_plan` 跟踪步骤，完成需要本轮真实工具依据；终端展示进度，`/plan` 查询最近计划。未完成时最多提醒模型一次，仍受原有额度限制。见 [任务计划](docs/task-planning.md)。
 
 E2.1～E2.5 已实现并验收，支持关键词及可选本地语义检索：在 `[documents]` 设置 `roots = ["docs"]`（相对工作目录），模型可使用 `search_documents` 查询 Markdown/TXT，结果带来源、行号和版本。源文件变化自动刷新；默认未配置时不启用。语义模式先运行 `uv sync --locked --extra documents` 和显式 `python -m adam.document_search prepare-model`，再设置 `method = "semantic"`；正常查询不联网下载。见 [文档检索说明](docs/local-document-rag.md) 和 [真实检索对照](docs/document-retrieval-evaluation.md)。

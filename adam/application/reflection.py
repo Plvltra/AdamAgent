@@ -133,13 +133,6 @@ class ReflectionService:
                 f"经验> 本轮有 {count} 条尚未验证的候选；用 /memory candidates 查看后接受或丢弃。"
             )
 
-    def _append_feedback(self, feedback: Feedback) -> None:
-        """日志拒绝或写入失败必须停止，不能被工具层吞成可继续的参数错误。"""
-        try:
-            self.store.append_feedback(self._session_id, feedback)
-        except ValueError as error:
-            raise StorageError("反馈记录与实际来源不一致。") from error
-
     def reflect(
         self,
         session_id: str,
@@ -199,6 +192,13 @@ class ReflectionService:
         else:
             record.update(status="completed", reason="completed", result=decoded)
         return self._save(session_id, record)
+
+    def _append_feedback(self, feedback: Feedback) -> None:
+        """日志拒绝或写入失败必须停止，不能被工具层吞成可继续的参数错误。"""
+        try:
+            self.store.append_feedback(self._session_id, feedback)
+        except ValueError as error:
+            raise StorageError("反馈记录与实际来源不一致。") from error
 
     def _save(self, session_id: str, record: dict[str, Any]) -> dict[str, Any]:
         """先持久化再通知；界面错误不改写为模型或工具失败。"""

@@ -18,6 +18,8 @@ def failure_signal(tool: dict[str, Any], executions: dict[str, dict[str, Any]]) 
         "approval_required",
     }:
         return False
+    if output.get("ok") is False:
+        return True  # 参数校验等失败可能尚未启动进程，不能要求有命令执行记录。
     if tool["name"] == "run_command":
         execution = executions.get(tool.get("execution_id") or "", {})
         return execution.get("status") in {"timed_out", "start_failed"} or (
@@ -28,7 +30,7 @@ def failure_signal(tool: dict[str, Any], executions: dict[str, dict[str, Any]]) 
             isinstance(agent, dict) and agent.get("status") == "failed"
             for agent in output.get("agents", [])
         )
-    return output.get("ok") is False
+    return False
 
 
 class FeedbackLog:

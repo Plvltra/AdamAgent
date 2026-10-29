@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| E4.6 对照验收 | 真实失败→反思→编辑→检查、新任务、差值反例、离线评估入口 | [test_reflection_acceptance.py](test_reflection_acceptance.py)、[手动评估](../../docs/reflection-evaluation.md) |
 | E4.5 经验复用 | 新会话、范围与相关性、版本/过期/删除、预算和子继承 | [test_experience_reuse.py](test_experience_reuse.py) |
 | E4.4 经验候选 | 查看/改写/接受/丢弃、保存失败恢复、重启和删除不复活 | [test_experience_candidates.py](test_experience_candidates.py) |
 | E4.3 自动反思与纠正 | 同批完成后触发、次数上限、降级、停止、重启关联和历史隔离 | [test_reflection_loop.py](test_reflection_loop.py) |
