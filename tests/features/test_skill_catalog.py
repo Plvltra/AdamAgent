@@ -6,6 +6,7 @@ import pytest
 
 from adam.config.settings import PermissionConfig
 from adam.contracts.errors import ToolError
+from adam.contracts.skills import validate_catalog
 from adam.skills.catalog import SkillCatalog
 from adam.tool_calls.policy import PathPolicy
 
@@ -55,6 +56,18 @@ def test_changed_metadata_and_oversized_body_fail_without_partial_guidance(tmp_p
     (folder / "skill.toml").write_text('name="changed"', encoding="utf-8")
     with pytest.raises(ToolError, match="元数据已变化"):
         c.load("verify-project")
+
+
+def test_metadata_padding_is_normalized_before_context_validation(tmp_path):
+    folder = skill(tmp_path)
+    (folder / "skill.toml").write_text(
+        'name = "' + " " * 81 + '检查项目  "\ndescription = " 修改后检查 "\nresources = []',
+        encoding="utf-8",
+    )
+    summaries = catalog(tmp_path).summaries()
+    validate_catalog(summaries)
+    assert summaries[0]["name"] == "检查项目"
+    assert summaries[0]["description"] == "修改后检查"
 
 
 def test_material_link_cannot_escape_package(tmp_path):

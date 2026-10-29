@@ -74,6 +74,10 @@ tool_prune_threshold_chars = 4000
 tool_prune_head_chars = 1500
 tool_prune_tail_chars = 500
 
+[skills]
+# Load project skills metadata; bodies are read only on demand.
+enabled = true
+
 [review]
 # Independent read-only reviewer; shares subagent and token limits.
 enabled = true

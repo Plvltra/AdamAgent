@@ -41,6 +41,7 @@ from adam.tool_calls.planning_tools import handlers as planning_handlers
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.review_tools import SPECS as REVIEW_SPECS
 from adam.tool_calls.review_tools import handlers as review_handlers
+from adam.tool_calls.skill_tools import register_skills
 
 ChildClientFactory = Callable[[CancellationToken], AbstractContextManager[ModelClient]]
 
@@ -83,6 +84,13 @@ def build_application(
     )
     registry = register_documents(
         registry, workspace, document_config, documents_dir, config.permissions
+    )
+    registry, skills = register_skills(
+        registry,
+        workspace,
+        config.permissions,
+        enabled=config.skills.enabled,
+        protected_dirs=(documents_dir,),
     )
     manager = None
     if child_client_factory:
@@ -176,6 +184,7 @@ def build_application(
         reflection=reflector,
         review=reviewer,
         memory_provider=memories.select,
+        skills=skills,
     )
     return AgentApplication(conversation, store, client, memories)
 
@@ -219,6 +228,13 @@ def _open_child(
             (memories_dir,),
             check_cancel=cancel.check,
         )
+        registry, skills = register_skills(
+            registry,
+            Path(agent.workspace),
+            PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
+            enabled=config.skills.enabled,
+            protected_dirs=(memories_dir, documents_dir),
+        )
         conversation = Conversation(
             store,
             client,
@@ -231,6 +247,7 @@ def _open_child(
             cancel=cancel,
             on_turn_started=started,
             memory_provider=lambda _query, _capacity: memory,
+            skills=skills,
         )
         conversation.resume(agent.agent_id)
         yield conversation

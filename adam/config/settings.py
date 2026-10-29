@@ -258,6 +258,17 @@ class ReviewConfig:
 
 
 @dataclass(frozen=True)
+class SkillsConfig:
+    """本地任务指导开关；材料和目录上限由读取器控制。"""
+
+    enabled: bool = True
+
+    def __post_init__(self) -> None:
+        if type(self.enabled) is not bool:
+            raise ConfigError("skills.enabled 必须是布尔值。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
@@ -274,5 +285,6 @@ class AppConfig:
     planning: PlanningConfig = field(default_factory=PlanningConfig)
     reflection: ReflectionConfig = field(default_factory=ReflectionConfig)
     review: ReviewConfig = field(default_factory=ReviewConfig)
+    skills: SkillsConfig = field(default_factory=SkillsConfig)
     documents: DocumentConfig = field(default_factory=DocumentConfig)
     documents_dir: Path | None = None

@@ -11,6 +11,7 @@ from adam.config.settings import (
     ContextConfig,
     PermissionConfig,
     ReflectionConfig,
+    SkillsConfig,
     ToolLimits,
 )
 from adam.tool_calls.executor import ToolExecutor
@@ -59,6 +60,8 @@ def run_chat(
         tool_limits or ToolLimits(),
         context_config or ContextConfig(),
         reflection=ReflectionConfig(enabled=False),
+        # 通用聊天场景固定关闭 Skill；E6 专门场景启用临时目录中的指导。
+        skills=SkillsConfig(enabled=False),
     )
     application = build_application(
         config,

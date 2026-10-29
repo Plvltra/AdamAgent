@@ -112,6 +112,7 @@ def test_main_creates_session_and_resumes(tmp_path, monkeypatch):
     import adam.bootstrap as bootstrap
     import adam.cli.main as cli
 
+    monkeypatch.chdir(tmp_path)
     config = tmp_path / "config.toml"
     config.write_text('[chat]\nsystem_prompt="system"\n', encoding="utf-8")
     (tmp_path / "llm.toml").write_text(

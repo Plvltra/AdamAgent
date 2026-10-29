@@ -86,6 +86,7 @@ class SkillCatalog:
             for key, limit in (("name", 80), ("description", 300)):
                 if not isinstance(data[key], str) or not 1 <= len(data[key].strip()) <= limit:
                     raise ToolError("Skill 名称或用途为空或过长。")
+                data[key] = data[key].strip()
             resources = data["resources"]
             if (
                 not isinstance(resources, list)

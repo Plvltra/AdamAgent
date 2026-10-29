@@ -8,6 +8,7 @@ from adam.contracts.history import HistoryTurn
 from adam.contracts.memory import validate_selection
 from adam.contracts.planning import decode_plan
 from adam.contracts.protocol import validate_turn
+from adam.contracts.skills import validate_catalog
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
 from adam.session.feedback_log import FeedbackLog, feedback_context
@@ -302,6 +303,8 @@ class SessionLog:
             raise ValueError("invalid context summary")
         if covered + omitted + selected != [turn.turn_id for turn in self.history_turns()]:
             raise ValueError("invalid context sources")
+        if "skills" in context:
+            validate_catalog(context["skills"])
         if "memory" in context:
             validate_selection(context["memory"])
         advice = context.get("reflections", [])

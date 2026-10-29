@@ -8,7 +8,8 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
-| E6.1 Skill 目录 | 元数据独立读取、包内范围、更新失效、大小与链接边界 | [test_skill_catalog.py](test_skill_catalog.py) |
+| E6.2 渐进加载 | 初始只含目录、匹配与无关任务、正文版本和重启记录 | [test_skill_loading.py](test_skill_loading.py) |
+| E6.1 Skill 目录 | 元数据独立读取与空白规范化、包内范围、更新失效、大小与链接边界 | [test_skill_catalog.py](test_skill_catalog.py) |
 | E5.3 协作验收 | 真实缺陷修改与复审、已正确文件的无收益对照 | [test_review_acceptance.py](test_review_acceptance.py) |
 | E5.2 串行审查 | 独立证据、伪造/过期拒绝、外部删除可收集、串行限制、次数与共享消费 | [test_independent_review.py](test_independent_review.py) |
 | E5.1 审查记录 | 来源、版本与真实行号、并行拒绝、重启不重跑 | [test_review_records.py](test_review_records.py) |

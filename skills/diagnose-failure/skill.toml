@@ -1,0 +1,3 @@
+name = "定位执行失败"
+description = "测试、构建或命令失败，需要定位原因并验证修正时使用；只有预期的非零退出或普通知识问答不触发。"
+resources = ["environment.md"]

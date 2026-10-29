@@ -65,6 +65,7 @@ class Conversation:
         cancel: CancellationToken | None = None,
         on_turn_started: Callable[[str], None] | None = None,
         memory_provider: Callable[[str, int], MemorySelection] | None = None,
+        skills: tuple[dict[str, str], ...] = (),
     ) -> None:
         self.store = store
         self.client = client
@@ -80,7 +81,7 @@ class Conversation:
         self.notify = notify or (lambda _: None)
         self.accounting, self.delegation = accounting, delegation
         self.cancel, self.on_turn_started = cancel, on_turn_started
-        self.memory_provider = memory_provider
+        self.memory_provider, self.skills = memory_provider, skills
         self.planning = planning
         self.reflection, self.review = reflection, review
         self.requests = RequestRunner(
@@ -379,6 +380,7 @@ class Conversation:
             summary=self.store.load_summary(session.session_id) if session is not None else None,
             memory=memory,
             reflections=reflections,
+            skills=self.skills,
         )
 
     def _check_session_budget(self, session_id: str) -> None:

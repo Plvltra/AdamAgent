@@ -20,6 +20,7 @@ from adam.config.settings import (
     PlanningConfig,
     ReflectionConfig,
     ReviewConfig,
+    SkillsConfig,
     SubagentConfig,
     ToolLimits,
 )
@@ -129,6 +130,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "reflection",
             "review",
             "documents",
+            "skills",
         },
         "主配置",
     )
@@ -216,6 +218,11 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             data.get("review", {}), {item.name for item in fields(ReviewConfig)}, "review"
         )
     )
+    skills = SkillsConfig(
+        **checked_section(
+            data.get("skills", {}), {item.name for item in fields(SkillsConfig)}, "skills"
+        )
+    )
     subagent_data = checked_section(
         data.get("subagents", {}), {item.name for item in fields(SubagentConfig)}, "subagents"
     )
@@ -262,6 +269,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         planning=planning,
         reflection=reflection,
         review=review,
+        skills=skills,
         documents=documents,
         documents_dir=documents_dir,
     )
