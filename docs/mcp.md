@@ -41,3 +41,26 @@ stdout 只供协议使用，服务日志写 stderr。客户端不把 LLM 密钥�
 [ClientSession](https://py.sdk.modelcontextprotocol.io/api/mcp/client/session/)。
 调用使用 session.call_tool，避免高层 Client 在 HEADER_MISMATCH 后自动重发；
 工具 is_error 必须转成失败，不能把正常收到协议响应等同查询成功。
+
+## 验收与成本
+
+工程验收运行：
+~~~powershell
+python -m pytest -q tests/features/test_mcp_connection.py tests/features/test_mcp_tools.py tests/features/test_mcp_failures.py
+~~~
+
+使用真实 SDK 服务子进程制造工具错误、主动退出、长等待和在途取消；确认进程退出，调用日志仅一次。
+Schema 嵌套类型在客户端校验；服务另检查路径和凭据。名称冲突或非只读工具导致启动失败，
+已经打开的服务由组装资源栈关闭。服务声明只读不能验证其实现，用户应配置可信程序。
+
+从项目根运行可重现的只读性能对照：
+~~~powershell
+python -m scripts.compare_mcp --workspace . --path skills/verify-project/skill.toml --runs 3
+~~~
+
+输出冷启动、直接函数均值、连接复用均值、结果 JSON 字符数及内容一致性。
+2026-10-29 在本机 Python 3.11.9 / MCP SDK 2.3.0 测量上述命令：冷启动 1.243 秒；
+直接调用均值 1.46 毫秒，复用连接调用均值 29.27 毫秒；结果 JSON 分别为 196 / 477 字符，内容一致。
+这不调用模型，token/模型费用为零；耗时与机器和缓存状态相关，不把一次测量当性能保证。
+协议多出进程、序列化与传输开销；收益是可以独立替换服务实现，不需要修改 Agent 的工具循环。
+简单本地函数仍适合直接调用，只有跨进程或独立扩展有价值时才使用 MCP。

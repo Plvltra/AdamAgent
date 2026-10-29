@@ -41,6 +41,8 @@ def assert_stopped(pid):
                 assert kernel.WaitForSingleObject(handle, 5000) == 0
             finally:
                 kernel.CloseHandle(handle)
+        else:
+            assert ctypes.get_last_error() == 87, "cannot verify process exit"
     else:
         for _ in range(50):
             try:
