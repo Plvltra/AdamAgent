@@ -85,7 +85,7 @@ class AgentApplication:
     def usage(self) -> SessionUsage:
         """查询当前会话消费；缺失用量保持未知，不触发模型请求。"""
         session = self.session
-        total, unknown = self._store.usage(session.session_id) if session else (0, False)
+        total, unknown = self._conversation.usage() if session else (0, False)
         return SessionUsage(total, self._conversation.limits.max_session_tokens, unknown)
 
     def continuation_status(self) -> ContinuationStatus:
@@ -127,6 +127,11 @@ class AgentApplication:
             if on_output
             else self._conversation.send(text)
         )
+
+    def close(self) -> None:
+        """停止并清理应用创建的子任务；外部注入的主存储和模型仍由调用方关闭。"""
+        if self._conversation.delegation:
+            self._conversation.delegation.close()
 
     def execution_report(self) -> ExecutionReport | None:
         """读取本次运行最近轮次的执行事实；切换会话后为空，不解释或重放底层操作。"""

@@ -31,6 +31,22 @@ class ToolRegistry:
         self.limits = limits
         self._encoders = encoders or {}
 
+    def extended(
+        self,
+        specs: dict[str, Any],
+        handlers: dict[str, ToolHandler],
+        encoders: dict[str, ResultEncoder] | None = None,
+    ) -> "ToolRegistry":
+        """返回扩展后的独立目录；不覆盖同名工具，也不改变已有目录。"""
+        if self._specs.keys() & specs.keys():
+            raise ValueError("duplicate tool registration")
+        return ToolRegistry(
+            {**self._specs, **specs},
+            {**self._handlers, **handlers},
+            self.limits,
+            {**self._encoders, **(encoders or {})},
+        )
+
     def definitions(self) -> list[dict[str, Any]]:
         """返回供 Chat Completions tools 字段使用的工具说明。"""
         return [

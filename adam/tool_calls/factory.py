@@ -22,6 +22,7 @@ def create_tool_registry(
     *,
     confirm_command: Callable[[CommandRequest], bool] | None = None,
     confirm_edit: Callable[[EditPlan], bool] | None = None,
+    delegated: bool = False,
 ) -> ToolRegistry:
     """创建内置工具目录；工作目录无效时失败，未提供确认回调时命令及编辑默认拒绝。"""
     policy = PathPolicy(workspace, permissions or PermissionConfig())
@@ -44,7 +45,22 @@ def create_tool_registry(
     # 命令批准后的进程不受只读路径规则限制；只读工具在适配器中检查路径。
     handlers["run_command"] = commands.run_command
     handlers["replace_text"] = edits.replace_text
-    return ToolRegistry(SPECS, handlers, limits, {"run_command": commands.encode_result})
+    if delegated:
+        # 不调用审批回调，也不构造修改计划或启动程序；将需要人工授权的工作交回主 Agent。
+        handlers["run_command"] = _needs_parent
+        handlers["replace_text"] = _needs_parent
+    return ToolRegistry(
+        SPECS, handlers, limits, {} if delegated else {"run_command": commands.encode_result}
+    )
+
+
+def _needs_parent(args: dict[str, Any], record: ExecutionRecorder | None) -> dict[str, Any]:
+    """子 Agent 不能申请新权限；模型仍可解释限制并完成辅助分析。"""
+    return {
+        "ok": False,
+        "status": "approval_required",
+        "error": "此动作需要额外批准，子 Agent 不能执行；请向主 Agent 提供方案，由其接手。",
+    }
 
 
 def _path_handler(

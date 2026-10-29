@@ -7,17 +7,21 @@ from typing import TypeVar
 
 import httpx
 
+from adam.contracts.cancellation import CancellationToken
+from adam.contracts.errors import RequestInterrupted
+
 _Result = TypeVar("_Result")
 
 
 class InterruptibleTransport(httpx.BaseTransport):
-    """供单线程 CLI 使用的 HTTP 适配器；Ctrl+C 取消当前 IO，后续请求仍可复用。
+    """由单个调用线程拥有的 HTTP 适配器；Ctrl+C 或停止令牌取消当前 IO。
 
-    事件循环与连接池由此对象拥有，随 httpx.Client.close 释放；不在工作线程中
-    运行 SessionStore，也不隐藏重试。调用方不得在已有 asyncio 循环内嵌套使用。
+    事件循环与连接池由此对象拥有，随 httpx.Client.close 释放；子 Agent 必须
+    在自己的线程创建独立实例，不跨线程共享，也不隐藏重试。调用方不得在已有 asyncio 循环内嵌套使用。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, cancel: CancellationToken | None = None) -> None:
+        self.cancel = cancel
         self._runner = asyncio.Runner()
         self._transport = httpx.AsyncHTTPTransport(retries=0)
 
@@ -31,14 +35,17 @@ class InterruptibleTransport(httpx.BaseTransport):
             extensions=response.extensions,
         )
 
-    def run(self, operation: Awaitable[_Result]) -> _Result:
-        """在同一事件循环等待一次 IO；周期让出控制，保证 Windows 能处理停止信号。"""
-        return self._runner.run(_wait_for_io(operation))
+    def run(self, operation: Awaitable[_Result], *, cleanup: bool = False) -> _Result:
+        """等待 IO 并检查停止信号；资源清理不能被已经置位的令牌再次打断。"""
+        try:
+            return self._runner.run(_wait_for_io(operation, None if cleanup else self.cancel))
+        except asyncio.CancelledError:
+            raise RequestInterrupted() from None
 
     def close(self) -> None:
         """关闭连接池与事件循环；不保留未完成的网络请求。"""
         try:
-            self.run(self._transport.aclose())
+            self.run(self._transport.aclose(), cleanup=True)
         finally:
             self._runner.close()
 
@@ -59,14 +66,18 @@ class _ResponseStream(httpx.SyncByteStream):
                 return
 
     def close(self) -> None:
-        self.transport.run(self.response.aclose())
+        self.transport.run(self.response.aclose(), cleanup=True)
 
 
-async def _wait_for_io(operation: Awaitable[_Result]) -> _Result:
+async def _wait_for_io(
+    operation: Awaitable[_Result], cancel: CancellationToken | None = None
+) -> _Result:
     """取消等待时也取消真正的 IO；短周期等待不改变网络超时或重新发送请求。"""
     task = asyncio.ensure_future(operation)
     try:
         while not task.done():
+            if cancel is not None and cancel.cancelled:
+                raise asyncio.CancelledError
             await asyncio.wait({task}, timeout=0.1)
         return task.result()
     finally:

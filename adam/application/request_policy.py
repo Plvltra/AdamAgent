@@ -5,6 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
+from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import BudgetError, FailureCode, RequestNotSentError
 
 _Result = TypeVar("_Result")
@@ -17,6 +18,7 @@ class RequestPolicy:
     maximum: int
     notify: Callable[[str], None]
     used: int = 0
+    cancel: CancellationToken | None = None
 
     def run(self, operation: Callable[[], _Result], *, keep_requests: int = 0) -> _Result:
         """调用带独立持久记录的请求；仅明确未发出的连接错误允许重试。
@@ -25,6 +27,8 @@ class RequestPolicy:
         短退避可被 Ctrl+C 中断，不以后台线程继续请求。
         """
         for attempt in range(3):
+            if self.cancel:
+                self.cancel.check()
             if self.used >= self.maximum - keep_requests:
                 raise BudgetError("达到本轮物理请求上限。", code=FailureCode.REQUEST_LIMIT)
             self.used += 1
@@ -38,5 +42,8 @@ class RequestPolicy:
                         "剩余请求额度不足以重试。", code=FailureCode.REQUEST_LIMIT
                     ) from None
                 self.notify(f"连接未建立，请求未发出；准备第 {attempt + 1}/2 次重试。")
-                time.sleep(0.2 * (attempt + 1))
+                if self.cancel:
+                    self.cancel.wait(0.2 * (attempt + 1))
+                else:
+                    time.sleep(0.2 * (attempt + 1))
         raise AssertionError("unreachable")

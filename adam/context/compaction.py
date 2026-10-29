@@ -3,6 +3,7 @@
 import json
 import secrets
 from collections.abc import Callable
+from contextlib import nullcontext
 from dataclasses import dataclass
 from time import monotonic_ns
 from typing import Any
@@ -10,6 +11,7 @@ from typing import Any
 from adam.config.settings import ContextConfig
 from adam.context.builder import estimate_json_tokens
 from adam.context.pruning import prune_history
+from adam.contracts.delegation import RequestAccount
 from adam.contracts.errors import (
     BudgetError,
     FailureCode,
@@ -51,9 +53,11 @@ class CompactionService:
         client: ModelClient,
         limits: ContextConfig,
         check_budget: Callable[[str], None],
+        accounting: Callable[[str], RequestAccount] | None = None,
     ) -> None:
         self.store, self.client, self.limits = store, client, limits
         self.check_budget = check_budget
+        self.accounting = accounting
 
     def plan(
         self, session: Session, *, prune_tools: bool = False, min_source_tokens: int | None = None
@@ -126,6 +130,22 @@ class CompactionService:
     ) -> Summary:
         """执行已规划的一次请求；调用者先预留请求次数，来源在持久化边界再次校验。"""
         self.check_budget(session.session_id)
+        scope = (
+            self.accounting(session.session_id).request(
+                plan.estimated_input_tokens
+                + self.limits.safety_margin_tokens
+                + self.limits.summary_max_output_tokens
+            )
+            if self.accounting
+            else nullcontext()
+        )
+        with scope:
+            return self._execute(session, model, plan, turn_id=turn_id)
+
+    def _execute(
+        self, session: Session, model: str, plan: CompactionPlan, *, turn_id: str | None
+    ) -> Summary:
+        """在预留范围内保存独立摘要事件；失败时退出前结算共享消费。"""
         operation_id = secrets.token_hex(16)
         self.store.append_compaction_event(
             session.session_id,

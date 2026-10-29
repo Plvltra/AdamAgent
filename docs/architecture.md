@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：V6.1 子 Agent 额度、取消与配置基础；既有调用链保持，尚未启用委派。
+本次核对范围：V6.2 委派调度、独立子会话、共享记账、工具适配与请求取消边界。
 
-核对结论：application/subagents/budget.py 管理整组消费快照与原子预留，contracts/cancellation.py 提供跨线程停止信号，config/settings.py 增加 SubagentConfig。当前是已测试的基础组件，未接入聊天入口；原运行图不变。
+核对结论：bootstrap 组装 SubagentManager，主 Conversation 经接口协调委派。子线程各自拥有 Conversation、SessionStore 和 HTTP；共享的只有受锁保护的额度及索引。工具适配依赖 contracts 接口，不反向导入应用。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -15,13 +15,13 @@
 | 包 | 归入的文件 | 允许的其他项目依赖 |
 | --- | --- | --- |
 | cli | main.py、terminal.py、reply_output.py | application、context、config、contracts；仅 main 调用 bootstrap |
-| application | facade.py、conversation.py、request_policy.py | context、session、tool_calls、config、contracts |
+| application | facade.py、conversation.py、request_policy.py、subagents/manager.py、budget.py、account.py | context、session、tool_calls、config、contracts |
 | config | loader.py、settings.py | contracts |
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
-| session | storage.py、log.py、compaction_log.py、edit_log.py、outcome.py、execution_report.py、diagnostics.py | contracts |
+| session | storage.py、log.py、compaction_log.py、edit_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限和具体工具文件 | session、config、contracts |
-| contracts | models.py、history.py、errors.py、ports.py、protocol.py | 无 |
+| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py | 无 |
 
 包内使用绝对路径显式导入所属实现；类型和错误直接从定义位置导入，避免经过其他业务模块转手。新包的 `__init__.py` 仅说明职责，不批量加载实现。contracts 只承载现有跨模块契约，不作为任意辅助函数目录。
 
@@ -29,17 +29,38 @@ bootstrap 可创建各层具体组件，业务包不反向调用它。cli/main �
 
 ExecutionReport、ActionFact 放在 contracts/models.py，提取事实的 build_execution_report 留在 session/execution_report.py；展示层只依赖报告值，不连带导入日志解释器。tests/test_architecture.py 检查整包源码，新增文件同样受约束。业务测试继续按功能放在 tests/features。迁移前后收集项比对：原 408 项无遗漏，增加 8 项包依赖约束，共 416 项；本次没有改变业务场景断言。
 
-## V6.1 已实现的基础组件
+## V6 委派、额度与资源边界
 
 ```mermaid
 flowchart LR
     BUDGET["application/subagents/budget.py<br/>SharedTokenBudget"] --> ERRORS["contracts/errors.py"]
     CANCEL["contracts/cancellation.py<br/>CancellationToken"] --> ERRORS
     LOADER["config/loader.py"] --> SUBCONFIG["config/settings.py<br/>SubagentConfig"]
+    BOOT["bootstrap.py"] --> MANAGER["application/subagents/manager.py<br/>派发、收集、停止、恢复"]
+    BOOT --> CHILD["独立子 Conversation / SessionStore / HTTP"]
+    MANAGER --> INDEX["session/delegation.py<br/>原子索引"]
+    MANAGER --> BUDGET
+    MANAGER --> ACCOUNT["application/subagents/account.py<br/>成员日志结算"]
+    ACCOUNT --> BUDGET
+    ACCOUNT --> STORE["session/storage.py<br/>独立 JSONL"]
+    ADAPTER["tool_calls/delegation_tools.py"] --> PORT["contracts/delegation.py"]
+    MANAGER -.-> PORT
+    CHILD --> ACCOUNT
+    CHILD --> CANCEL
 ```
 
 共享额度按成员保存持久化累计快照；在途预留只影响新请求准入，不能被当作用量未知。
-这些组件尚未加入下面的聊天调用链。业务计划见 [V6](subagents.md)。
+这些组件已接入下面的聊天调用链。业务计划与使用方法见 [V6](subagents.md)。
+主线程持有主会话锁；每次子运行在所属线程新建并关闭自己的存储与传输。
+SubagentManager 保留可续聊身份和独立历史，线程池只负责当前运行，容量不足不排队。
+SessionAccount 在请求登记前预留、结算日志后更新；普通请求与摘要共用同一整组账本。
+root 的 /usage 显示聚合值；未知消费禁止新请求，但不主动取消其他在途请求。
+
+委派索引关联父轮次/请求/工具及子轮次，保存位置独立于主会话日期目录；
+子任务正文只通过 tool 消息返回主模型。最终回答前未收集的结果由协调接口检查，
+主循环在既有请求限额内提醒模型读取，不虚构模型工具调用。
+子工具目录没有委派能力，命令/编辑适配器直接返回 approval_required，不接终端审批。
+主轮次失败或取消后先停止并等待所有子线程，再释放主会话锁。
 
 ## 启动与资源所有权
 
@@ -56,6 +77,12 @@ flowchart TD
     BOOT --> LLM
     BOOT --> STORE
     BOOT --> FACTORY["tool_calls.factory<br/>组装内置工具"]
+    BOOT --> DELEGATE["application/subagents/manager.py"]
+    CONV -->|委派生命周期与结果收集检查| DELEGATE
+    DELEGATE --> DINDEX["session/delegation.py"]
+    BOOT --> DTOOLS["tool_calls/delegation_tools.py<br/>仅主 Agent 注册"]
+    DTOOLS -.-> DPORT["contracts/delegation.py"]
+    DELEGATE -.-> DPORT
     CLI --> TERMINAL["cli/terminal.py<br/>角色、失败、上下文与执行事实展示"]
     APP --> CONV["application/conversation.py<br/>轮次收尾、模型—工具循环"]
     APP -->|"会话列表、历史与用量查询"| STORE["session/storage.py<br/>会话持久化与读取"]
@@ -171,6 +198,11 @@ ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模�
 | [application/facade.py](../adam/application/facade.py) | `AgentApplication` | 面向界面的会话、模型、上下文、继续方式与执行事实查询 |
 | [config/settings.py](../adam/config/settings.py) | 配置值 | 不可变运行配置 |
 | [contracts/models.py](../adam/contracts/models.py) | 共享数据、EditPlan、ActionFact 与 ExecutionReport | 不依赖具体实现的跨层数据 |
+| [application/subagents/manager.py](../adam/application/subagents/manager.py) | SubagentManager | 委派准入、追问、结果交付、取消与重启恢复 |
+| [application/subagents/account.py](../adam/application/subagents/account.py) | SessionAccount | 线程所属日志与整组额度之间的结算边界 |
+| [session/delegation.py](../adam/session/delegation.py) | DelegationStore | 原子持久化成员与历次派发索引 |
+| [contracts/delegation.py](../adam/contracts/delegation.py) | RequestAccount、Delegation、DelegationTools | 共享额度和委派流程接口，避免工具反向依赖应用 |
+| [tool_calls/delegation_tools.py](../adam/tool_calls/delegation_tools.py) | SPECS、handlers | 委派工具说明与参数适配 |
 | [contracts/ports.py](../adam/contracts/ports.py) | `ModelClient` | 模型目录与一次请求能力 |
 | [tool_calls/factory.py](../adam/tool_calls/factory.py) | `create_tool_registry` | 组装内置工具和编码器 |
 | [tool_calls/catalog.py](../adam/tool_calls/catalog.py) | `SPECS` | 模型可见的工具说明 |
@@ -181,7 +213,7 @@ ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模�
 | [contracts/history.py](../adam/contracts/history.py) | `HistoryTurn`、`Summary` | 成功轮次及有效摘要的共享数据 |
 | [context/compaction.py](../adam/context/compaction.py) | `CompactionService`、`CompactionPlan` | 规划有界素材及压缩目标、复用旧工具缩减；执行无工具摘要、独立结算并提交，不修改原历史 |
 | [session/compaction_log.py](../adam/session/compaction_log.py) | `CompactionLog` | 校验摘要来源与状态，仅完整提交激活摘要；恢复不猜未知用量 |
-| [llm/http_transport.py](../adam/llm/http_transport.py) | `InterruptibleTransport` | 为同步 HTTP 接口提供可取消的异步 IO，不把存储移到后台 |
+| [llm/http_transport.py](../adam/llm/http_transport.py) | `InterruptibleTransport` | 为每个所属线程的同步接口提供可取消的异步 IO；连接池不跨线程共享 |
 | [application/request_policy.py](../adam/application/request_policy.py) | `RequestPolicy` | 单轮物理请求计数、明确未发送时有限重试，摘要与聊天共用额度 |
 | [llm/streaming.py](../adam/llm/streaming.py) | `sse_events`、`StreamReply` | 有界 SSE 解析、工具参数拼接、结束校验 |
 | [cli/reply_output.py](../adam/cli/reply_output.py) | `ReplyOutput` | 正文增量、换行、去重及未完成提示 |

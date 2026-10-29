@@ -11,6 +11,11 @@ class CancellationToken:
     def __init__(self) -> None:
         self._event = Event()
 
+    @property
+    def cancelled(self) -> bool:
+        """供异步 IO 适配器检查，不在事件循环内部抛出 KeyboardInterrupt。"""
+        return self._event.is_set()
+
     def cancel(self) -> None:
         """请求停止；可重复调用，不在调用线程执行目标任务的清理。"""
         self._event.set()

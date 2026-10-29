@@ -1,6 +1,7 @@
 """组织会话流程；会话文件是已完成历史的来源。"""
 
 from collections.abc import Callable
+from contextlib import nullcontext
 from dataclasses import dataclass
 from functools import partial
 from time import monotonic_ns
@@ -10,6 +11,8 @@ from adam.application.request_policy import RequestPolicy
 from adam.config.settings import AgentConfig, ContextConfig
 from adam.context.builder import ContextBuilder, RequestContext
 from adam.context.compaction import CompactionService
+from adam.contracts.cancellation import CancellationToken
+from adam.contracts.delegation import Delegation, RequestAccount
 from adam.contracts.errors import (
     BudgetError,
     FailureCode,
@@ -50,6 +53,10 @@ class Conversation:
         model: str,
         context_config: ContextConfig | None = None,
         notify: Callable[[str], None] | None = None,
+        accounting: Callable[[str], RequestAccount] | None = None,
+        delegation: Delegation | None = None,
+        cancel: CancellationToken | None = None,
+        on_turn_started: Callable[[str], None] | None = None,
     ) -> None:
         self.store = store
         self.client = client
@@ -63,6 +70,8 @@ class Conversation:
             context_config or ContextConfig(), self.limits.max_output_tokens
         )
         self.notify = notify or (lambda _: None)
+        self.accounting, self.delegation = accounting, delegation
+        self.cancel, self.on_turn_started = cancel, on_turn_started
 
     def new(self, title: str = "新对话") -> Session:
         """创建并选中新会话，返回会话元信息。"""
@@ -95,14 +104,31 @@ class Conversation:
         self._last_turn = (session.session_id, turn_id)
         started_ns = monotonic_ns()
         try:
-            return self._run_turn(session, turn_id, text, started_ns, on_output)
+            if self.delegation:
+                self.delegation.begin(session.session_id, turn_id, self.model)
+            if self.on_turn_started:
+                self.on_turn_started(turn_id)
+            reply = self._run_turn(session, turn_id, text, started_ns, on_output)
         except BaseException as error:
+            if self.delegation:
+                self._save_failure(self.delegation.end, error)
             outcome = ExecutionOutcome.failure(error, self._elapsed_ms(started_ns))
             self._save_failure(
                 lambda: self.store.finish_turn(session.session_id, turn_id, outcome),
                 error,
             )
             raise
+        if self.delegation:
+            self.delegation.end()
+        return reply
+
+    def usage(self) -> tuple[int, bool]:
+        """返回当前主会话及已接入子会话的消费；无会话时不创建文件。"""
+        if self.session is None:
+            return 0, False
+        if self.accounting:
+            return self.accounting(self.session.session_id).usage()
+        return self.store.usage(self.session.session_id)
 
     def execution_report(self) -> ExecutionReport | None:
         """读取本次运行最近一次输入的事实；未成功登记输入或切换会话后返回 None。
@@ -149,15 +175,24 @@ class Conversation:
         turn: list[dict[str, Any]] = [{"role": "user", "content": text}]
         seen_call_ids: set[str] = set()
 
-        progress = TurnProgress(RequestPolicy(self.limits.max_model_requests, self.notify))
+        progress = TurnProgress(
+            RequestPolicy(self.limits.max_model_requests, self.notify, cancel=self.cancel)
+        )
         tool_budget = ToolBudget(self.limits.max_edit_attempts)
         while progress.requests.used < self.limits.max_model_requests:
+            if self.cancel:
+                self.cancel.check()
             context = self._prepare_context(session, turn_id, turn, progress)
+            # 有未收集的子结果时暂存本次正文，避免模型提前给出的结论被显示为最终答案。
+            output = on_output if not self.delegation or self.delegation.accept_final() else None
             request_id, result = progress.requests.run(
-                partial(self._request_with_usage, session.session_id, turn_id, context, on_output)
+                partial(self._request_with_usage, session.session_id, turn_id, context, output)
             )
-            turn.append(result.message)
             calls = result.message.get("tool_calls") or []
+            if not calls and self.delegation and not self.delegation.accept_final():
+                self.notify("子 Agent 结果尚未收集，要求主 Agent 先等待并汇总。")
+                continue
+            turn.append(result.message)
             if not calls:
                 return self._save_completed_turn(session.session_id, turn_id, turn, started_ns)
 
@@ -198,7 +233,9 @@ class Conversation:
             and pressure >= limits.max_input_tokens * limits.compression_trigger_ratio
         ):
             progress.summary_attempted = True
-            service = CompactionService(self.store, self.client, limits, self._check_session_budget)
+            service = CompactionService(
+                self.store, self.client, limits, self._check_session_budget, self.accounting
+            )
             desired = max(
                 1,
                 int(
@@ -230,12 +267,16 @@ class Conversation:
     def _compact(self, session: Session, turn_id: str | None = None) -> Summary | None:
         """委托独立摘要服务，复用累计消费检查；不把摘要加入普通问答历史。"""
         service = CompactionService(
-            self.store, self.client, self.context_builder.limits, self._check_session_budget
+            self.store,
+            self.client,
+            self.context_builder.limits,
+            self._check_session_budget,
+            self.accounting,
         )
         plan = service.plan(session)
         if plan is None:
             return None
-        policy = RequestPolicy(self.limits.max_model_requests, self.notify)
+        policy = RequestPolicy(self.limits.max_model_requests, self.notify, cancel=self.cancel)
         return policy.run(lambda: service.execute(session, self.model, plan, turn_id=turn_id))
 
     def _build_context(self, session: Session | None, turn: list[dict[str, Any]]) -> RequestContext:
@@ -243,7 +284,8 @@ class Conversation:
         history = self.store.load_turns(session.session_id) if session is not None else []
         return self.context_builder.build(
             model=self.model,
-            system_prompt=session.system_prompt if session is not None else self.system_prompt,
+            system_prompt=(session.system_prompt if session is not None else self.system_prompt)
+            + (self.delegation.instructions() if self.delegation else ""),
             history=history,
             current_turn=turn,
             tools=self.tool_executor.definitions(),
@@ -252,6 +294,9 @@ class Conversation:
 
     def _check_session_budget(self, session_id: str) -> None:
         """用量未知或累计额度耗尽时停止，避免静默漏记后继续请求。"""
+        if self.accounting:
+            self.accounting(session_id).check()
+            return
         tokens, unknown = self.store.usage(session_id)
         if unknown:
             raise BudgetError(
@@ -283,6 +328,26 @@ class Conversation:
         """
         self._check_session_budget(session_id)
         context.ensure_within_budget()
+        scope = (
+            self.accounting(session_id).request(
+                context.budgeted_input_tokens + context.max_output_tokens
+            )
+            if self.accounting
+            else nullcontext()
+        )
+        with scope:
+            return self._perform_request(session_id, turn_id, context, on_output)
+
+    def _perform_request(
+        self,
+        session_id: str,
+        turn_id: str,
+        context: RequestContext,
+        on_output: Callable[[ModelOutput], None] | None,
+    ) -> tuple[str, Completion]:
+        """在额度预留内登记、调用与结算；共享额度退出时读取本次持久化结果。"""
+        if self.cancel:
+            self.cancel.check()
         request_id = self.store.start_request(
             session_id, turn_id, context.model, context=context.selection_record()
         )

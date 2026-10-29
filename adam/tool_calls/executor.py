@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import (
     ApprovalDeniedError,
     BudgetError,
@@ -42,11 +43,15 @@ class ToolExecutor:
         store: SessionStore,
         registry: ToolRegistry,
         notify: Callable[[str], None],
+        *,
+        before_call: Callable[[dict[str, str]], None] | None = None,
+        cancel: CancellationToken | None = None,
     ) -> None:
         """注入存储和工具目录；notify 只接收工具名称，展示方式由调用方决定。"""
         self.store = store
         self.registry = registry
         self.notify = notify
+        self.before_call, self.cancel = before_call, cancel
 
     def definitions(self) -> list[dict[str, Any]]:
         """返回此执行器实际支持的工具说明，供模型提出调用。"""
@@ -69,12 +74,16 @@ class ToolExecutor:
         """
         results = []
         for call in calls:
+            if self.cancel:
+                self.cancel.check()
             budget.consume(call["function"]["name"])
             link = {
                 "turn_id": turn_id,
                 "request_id": request_id,
                 "tool_call_id": call["id"],
             }
+            if self.before_call:
+                self.before_call(link)
             output = self._execute_call(session_id, link, call["function"])
             results.append({"role": "tool", "tool_call_id": call["id"], "content": output})
             if json.loads(output).get("status") == "denied":
