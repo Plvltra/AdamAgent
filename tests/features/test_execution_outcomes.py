@@ -126,7 +126,7 @@ def test_failure_reason_does_not_depend_on_raw_error_text(
         if scenario == "timeout":
             raise httpx.ReadTimeout("private-detail", request=request)
         if scenario == "network":
-            raise httpx.ConnectError("private-detail", request=request)
+            raise httpx.ReadError("private-detail", request=request)
         if scenario == "protocol":
             return httpx.Response(200, text="private-detail")
         raise failure("private-detail")

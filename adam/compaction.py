@@ -9,7 +9,14 @@ from typing import Any
 
 from adam.context import estimate_json_tokens
 from adam.context_pruning import prune_history
-from adam.errors import BudgetError, FailureCode, LLMError, RequestInterrupted
+from adam.errors import (
+    BudgetError,
+    FailureCode,
+    LLMError,
+    RequestInterrupted,
+    RequestNotSentError,
+    StorageError,
+)
 from adam.history import Summary
 from adam.models import Completion
 from adam.outcome import ExecutionOutcome
@@ -191,6 +198,8 @@ class CompactionService:
                     ExecutionOutcome.failure(error, self._elapsed(started)),
                 )
             except Exception:
+                if isinstance(error, RequestNotSentError):
+                    raise StorageError("未发出请求的摘要结算失败；已停止，不自动重试。") from error
                 error.add_note("摘要请求用量未能保存；不能将消费视为零。")
             raise
         self._settle(

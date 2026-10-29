@@ -249,6 +249,7 @@ class SessionLog:
         else:
             raise ValueError("invalid usage")
         request["settled"] = True
+        request["usage"] = (inputs, outputs)
 
     def _validate_context(self, context: object) -> None:
         """校验摘要覆盖前缀与未覆盖历史的连续后缀；旧请求可没有选择字段。"""
@@ -309,6 +310,10 @@ class SessionLog:
             or status not in {"succeeded", "failed", "interrupted"}
         ):
             raise ValueError("invalid request transition")
+        if payload.get("reason") == "api_not_sent" and (
+            status != "failed" or request.get("usage") != (0, 0)
+        ):
+            raise ValueError("unsent request must have failed with zero usage")
         request.update(outcome_details(payload, status))
         request["status"] = status
 
@@ -445,10 +450,15 @@ class SessionLog:
         validate_turn(self._pending_messages, allow_partial=not complete)
         if self._pending_messages[0]["content"] != self.turns[turn_id]["user_text"]:
             raise ValueError("mismatched user input")
-        if any(
-            request["turn_id"] == turn_id
-            and (not request["settled"] or request["status"] != "succeeded")
-            for request in self.requests.values()
+        requests = [item for item in self.requests.values() if item["turn_id"] == turn_id]
+        # 离线导入可没有请求；发生过请求时，连接失败不能冒充产生了最终回答。
+        if requests and (
+            not any(item["status"] == "succeeded" for item in requests)
+            or any(
+                not item["settled"]
+                or (item["status"] != "succeeded" and item.get("reason") != "api_not_sent")
+                for item in requests
+            )
         ):
             raise ValueError("request did not succeed")
         turn_tools = {key[1]: tool for key, tool in self.tools.items() if key[0] == turn_id}

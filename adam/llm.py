@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 
-from adam.errors import FailureCode, LLMError, RequestInterrupted
+from adam.errors import FailureCode, LLMError, RequestInterrupted, RequestNotSentError
 from adam.models import Completion, ModelOutput
 from adam.protocol import validate_assistant
 from adam.settings import LLMConfig
@@ -94,6 +94,8 @@ class LLMClient:
                 json=body,
                 timeout=self.config.timeout_seconds,
             )
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            raise RequestNotSentError() from None
         except httpx.TimeoutException:
             raise LLMError(
                 "请求超时；用量未知，未自动重试。", code=FailureCode.API_TIMEOUT
@@ -147,6 +149,7 @@ class LLMClient:
     ) -> Completion:
         """收齐 SSE 后才交回响应；断流保留已知用量，部分文本不持久化或执行。"""
         reply = StreamReply()
+        connected = False
         try:
             with self.client.stream(
                 "POST",
@@ -155,6 +158,7 @@ class LLMClient:
                 json=body,
                 timeout=self.config.timeout_seconds,
             ) as response:
+                connected = True
                 self._check_stream_response(response)
                 events = iter(sse_events(response.iter_bytes()))
                 while True:
@@ -179,6 +183,12 @@ class LLMClient:
                         ) from None
                     if text and on_output:
                         on_output(ModelOutput("text", text))
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            if not connected:
+                raise RequestNotSentError() from None
+            raise LLMError(
+                "响应连接已建立后中断；未自动重试。", reply.usage, code=FailureCode.API_CONNECTION
+            ) from None
         except httpx.TimeoutException:
             raise LLMError(
                 "请求超时；未自动重试。", reply.usage, code=FailureCode.API_TIMEOUT

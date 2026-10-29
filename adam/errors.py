@@ -10,6 +10,7 @@ class FailureCode(StrEnum):
     API_ERROR = "api_error"
     API_TIMEOUT = "api_timeout"
     API_CONNECTION = "api_connection"
+    API_NOT_SENT = "api_not_sent"
     API_HTTP = "api_http"
     INVALID_RESPONSE = "invalid_response"
     BUDGET_EXHAUSTED = "budget_exhausted"
@@ -111,6 +112,13 @@ class LLMError(AgentError):
     ) -> None:
         super().__init__(f"模型请求错误：{message}", code=code, http_status=http_status)
         self.usage = usage
+
+
+class RequestNotSentError(LLMError):
+    """连接建立失败，HTTP 请求尚未发送；只有此类失败允许策略层有限重试。"""
+
+    def __init__(self) -> None:
+        super().__init__("连接未建立，请求未发出。", (0, 0), code=FailureCode.API_NOT_SENT)
 
 
 class StorageError(AgentError):

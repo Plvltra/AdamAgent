@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from time import monotonic_ns
 from typing import Any
 
@@ -12,6 +13,7 @@ from adam.errors import (
     FailureCode,
     LLMError,
     RequestInterrupted,
+    RequestNotSentError,
     StorageError,
     TurnSaveError,
 )
@@ -20,6 +22,7 @@ from adam.history import Summary
 from adam.models import Completion, ModelOutput, Session
 from adam.outcome import ExecutionOutcome
 from adam.ports import ModelClient
+from adam.request_policy import RequestPolicy
 from adam.settings import AgentConfig, ContextConfig
 from adam.storage import SessionStore
 from adam.tool_calls.executor import ToolBudget, ToolExecutor
@@ -29,7 +32,7 @@ from adam.tool_calls.executor import ToolBudget, ToolExecutor
 class TurnProgress:
     """本轮请求消费与自动压缩尝试；摘要同样占用模型请求次数。"""
 
-    model_requests: int = 0
+    requests: RequestPolicy
     summary_attempted: bool = False
     pruning_announced: bool = False
 
@@ -147,21 +150,20 @@ class Conversation:
         turn: list[dict[str, Any]] = [{"role": "user", "content": text}]
         seen_call_ids: set[str] = set()
 
-        progress = TurnProgress()
+        progress = TurnProgress(RequestPolicy(self.limits.max_model_requests, self.notify))
         tool_budget = ToolBudget(self.limits.max_edit_attempts)
-        while progress.model_requests < self.limits.max_model_requests:
+        while progress.requests.used < self.limits.max_model_requests:
             context = self._prepare_context(session, turn_id, turn, progress)
-            request_id, result = self._request_with_usage(
-                session.session_id, turn_id, context, on_output
+            request_id, result = progress.requests.run(
+                partial(self._request_with_usage, session.session_id, turn_id, context, on_output)
             )
-            progress.model_requests += 1
             turn.append(result.message)
             calls = result.message.get("tool_calls") or []
             if not calls:
                 return self._save_completed_turn(session.session_id, turn_id, turn, started_ns)
 
             self._check_tool_budget(
-                session.session_id, progress.model_requests - 1, calls, seen_call_ids
+                session.session_id, progress.requests.used - 1, calls, seen_call_ids
             )
             turn.extend(
                 self.tool_executor.execute(
@@ -210,12 +212,14 @@ class Conversation:
             plan = service.plan(session, prune_tools=True, min_source_tokens=desired)
             if plan is not None:
                 # 为摘要后的正式请求至少留一次额度；不花掉最后一次后才发现无法回答。
-                if progress.model_requests + 2 > self.limits.max_model_requests:
+                if progress.requests.used + 2 > self.limits.max_model_requests:
                     raise BudgetError(
                         "剩余请求次数不足以摘要并继续回答。", code=FailureCode.REQUEST_LIMIT
                     )
-                service.execute(session, self.model, plan, turn_id=turn_id)
-                progress.model_requests += 1
+                progress.requests.run(
+                    lambda: service.execute(session, self.model, plan, turn_id=turn_id),
+                    keep_requests=1,
+                )
                 context = self._build_context(session, turn)
                 self.notify("上下文> 已自动更新历史摘要；原始日志保留。")
                 progress.pruning_announced = True
@@ -229,7 +233,11 @@ class Conversation:
         service = CompactionService(
             self.store, self.client, self.context_builder.limits, self._check_session_budget
         )
-        return service.compact(session, self.model, turn_id=turn_id)
+        plan = service.plan(session)
+        if plan is None:
+            return None
+        policy = RequestPolicy(self.limits.max_model_requests, self.notify)
+        return policy.run(lambda: service.execute(session, self.model, plan, turn_id=turn_id))
 
     def _build_context(self, session: Session | None, turn: list[dict[str, Any]]) -> RequestContext:
         """读取成功历史并委托构造；预览与每次真实请求共用，工具结果加入后重新估算。"""
@@ -264,11 +272,12 @@ class Conversation:
         context: RequestContext,
         on_output: Callable[[ModelOutput], None] | None = None,
     ) -> tuple[str, Completion]:
-        """检查预算、持久登记请求，再调用 API 并结算用量；不自动重试。
+        """执行一次物理请求：检查预算、登记、调用和结算；外层策略决定是否重试。
 
         返回本次 request_id 与包含可靠用量的 Completion，供工具关联来源请求。
         turn_id 指向已记录的用户输入；context 是本次构造结果，先检查输入预算再登记请求。
         本地超限不伪造请求或未知用量；有效响应先记请求成功，缺少用量时整轮仍停止。
+        明确未发出的连接错误结算为零；只有结算成功才允许外层重试。
         中断或未知用量会阻止继续消费。最终回答记账失败时保留回答供终端显示；
         请求耗时只包含完整模型调用及响应解析，不含开始与结算日志写入。
         失败收尾不遮蔽原始异常；崩溃遗留状态由下次取得会话写锁时恢复。
@@ -290,12 +299,16 @@ class Conversation:
         except BaseException as error:
             usage = error.usage if isinstance(error, (LLMError, RequestInterrupted)) else None
             outcome = ExecutionOutcome.failure(error, self._elapsed_ms(started_ns))
-            self._save_failure(
-                lambda: self.store.finish_request(
-                    session_id, turn_id, request_id, usage, outcome=outcome
-                ),
-                error,
-            )
+            if isinstance(error, RequestNotSentError):
+                # 未发出请求允许重试的前提是失败及零用量已可靠记录；日志失败直接停止。
+                self.store.finish_request(session_id, turn_id, request_id, usage, outcome=outcome)
+            else:
+                self._save_failure(
+                    lambda: self.store.finish_request(
+                        session_id, turn_id, request_id, usage, outcome=outcome
+                    ),
+                    error,
+                )
             raise
 
         outcome = ExecutionOutcome.success(self._elapsed_ms(started_ns))

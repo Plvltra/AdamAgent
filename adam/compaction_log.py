@@ -115,4 +115,8 @@ class CompactionLog:
         status = payload.get("status")
         if status not in {"succeeded", "failed", "interrupted"}:
             raise ValueError("invalid compaction request status")
+        if payload.get("reason") == "api_not_sent" and (
+            status != "failed" or usage != {"input_tokens": 0, "output_tokens": 0}
+        ):
+            raise ValueError("unsent summary must have zero usage")
         operation.update(settled=True, usage=usage, request=outcome_details(payload, status))

@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| V5.3 有限重试 | 连接失败独立记账、请求预算、摘要重试、非重试错误、日志失败与命令不重跑 | [test_request_retry.py](test_request_retry.py) |
 | V5.2 取消本轮 | 独立 CLI 进程、真实 HTTP 等待、父子命令清理、确认取消、返回输入及用量保留 | [test_cancellation.py](test_cancellation.py) |
 | V5.1 流式输出 | UTF-8/网络任意分片、隐藏推理、工具收齐后执行、断流不保存、不自动切模式、配置校验 | [test_streaming.py](test_streaming.py) |
 | V4.2b 执行事实报告 | CLI 正常/失败/拒绝/超时/未知结果、读取失败、回答保存失败；不采信模型自述、不污染历史 | [test_execution_report.py](test_execution_report.py)、[test_repair_loop.py](test_repair_loop.py)、[test_process_crash.py](test_process_crash.py) |
