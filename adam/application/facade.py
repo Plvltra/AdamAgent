@@ -4,9 +4,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 from adam.application.conversation import Conversation
+from adam.application.memories import MemoryService
 from adam.context.builder import RequestContext
 from adam.contracts.errors import AgentError, LLMError
 from adam.contracts.history import Summary
+from adam.contracts.memory import MemoryCommand, MemoryRecord
 from adam.contracts.models import (
     ContinuationStatus,
     ExecutionReport,
@@ -23,11 +25,16 @@ class AgentApplication:
     """提供会话、模型选择和聊天入口；依赖由组装模块注入，资源也由其关闭。"""
 
     def __init__(
-        self, conversation: Conversation, store: SessionStore, models: ModelClient
+        self,
+        conversation: Conversation,
+        store: SessionStore,
+        models: ModelClient,
+        memories: MemoryService | None = None,
     ) -> None:
         self._conversation = conversation
         self._store = store
         self._models_client = models
+        self._memories = memories
         self._models: dict[str, str | None] | None = None
 
     @property
@@ -81,6 +88,12 @@ class AgentApplication:
         """取得当前会话的完整成功历史；无会话时返回空列表。"""
         session = self.session
         return self._store.load_messages(session.session_id) if session else []
+
+    def manage_memory(self, command: MemoryCommand) -> list[MemoryRecord]:
+        """执行用户明确的记忆管理；不发起模型请求，也不隐式创建会话。"""
+        if self._memories is None:
+            raise AgentError("当前应用未配置记忆管理。")
+        return self._memories.manage(command, self.session.session_id if self.session else None)
 
     def usage(self) -> SessionUsage:
         """查询当前会话消费；缺失用量保持未知，不触发模型请求。"""

@@ -2,23 +2,28 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E1.1 独立记忆契约、项目识别、可靠存储与包依赖验收。
+本次核对范围：E1.2 显式记忆命令、应用接口、组装和目录配置。
 
-核对结论：新增 memory 包与 contracts/memory.py；目前是独立组件，尚未接入 CLI 与模型请求。原聊天调用关系保持。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：CLI 的记忆命令经 AgentApplication 调用 MemoryService，bootstrap 注入独立存储；自动检索尚未接入模型请求。原聊天调用关系保持。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
-## E1.1 独立记忆存储
+## E1.1/E1.2 记忆存储与用户管理
 
 ```mermaid
 flowchart LR
+    CLI["cli/memory_commands.py"] --> APP["application/facade.py<br/>AgentApplication"]
+    APP --> SERVICE["application/memories.py<br/>MemoryService"]
+    BOOT["bootstrap.py"] --> SERVICE
+    SERVICE --> PROJECT
+    SERVICE --> STORE
     STORE["memory/store.py<br/>MemoryStore"] --> RECORD["contracts/memory.py<br/>MemoryRecord / MemorySource"]
     STORE --> ERR["contracts/errors.py<br/>MemoryStoreError / MemoryInputError"]
     PROJECT["memory/project.py<br/>project_identity"] --> ERR
     STORE --> FILE["memories.json<br/>跨进程锁 + 原子版本快照"]
 ```
 
-目前仅显式调用独立组件才会读写记忆，E1.2 后再接入应用。记忆不依赖会话存储或模型；来源会话 ID 只作为可选值保留。包依赖测试已覆盖 memory。
+命令解析与展示归 CLI，范围、来源与管理归 MemoryService；CLI 不直接导入 memory 包。记忆存储不依赖会话存储或模型；来源会话 ID 只作为可选值保留。包依赖测试已覆盖 memory 及应用对它的单向依赖。
 
 ## 包目录与依赖边界
 
@@ -26,15 +31,15 @@ flowchart LR
 
 | 包 | 归入的文件 | 允许的其他项目依赖 |
 | --- | --- | --- |
-| cli | main.py、terminal.py、reply_output.py | application、context、config、contracts；仅 main 调用 bootstrap |
-| application | facade.py、conversation.py、request_policy.py、subagents/manager.py、budget.py、account.py | context、session、tool_calls、config、contracts |
+| cli | main.py、terminal.py、reply_output.py、memory_commands.py | application、context、config、contracts；仅 main 调用 bootstrap |
+| application | facade.py、conversation.py、request_policy.py、memories.py、subagents/manager.py、budget.py、account.py | context、session、memory、tool_calls、config、contracts |
 | config | loader.py、settings.py | contracts |
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
 | session | storage.py、log.py、compaction_log.py、edit_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
 | memory | store.py、project.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限和具体工具文件 | session、config、contracts |
-| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py | 无 |
+| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py | 无 |
 
 包内使用绝对路径显式导入所属实现；类型和错误直接从定义位置导入，避免经过其他业务模块转手。新包的 `__init__.py` 仅说明职责，不批量加载实现。contracts 只承载现有跨模块契约，不作为任意辅助函数目录。
 

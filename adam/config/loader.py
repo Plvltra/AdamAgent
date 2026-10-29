@@ -117,7 +117,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     storage = data.get("storage", {})
     if isinstance(storage, dict) and "db_path" in storage:
         raise ConfigError("storage.db_path 已移除，请改用 storage.sessions_dir。")
-    storage = checked_section(storage, {"sessions_dir"}, "storage")
+    storage = checked_section(storage, {"sessions_dir", "memories_dir"}, "storage")
     chat = checked_section(data.get("chat", {}), {"system_prompt"}, "chat")
 
     directory_value = storage.get("sessions_dir", "sessions")
@@ -136,6 +136,13 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     sessions_dir = Path(directory_value)
     if not sessions_dir.is_absolute():
         sessions_dir = directory / sessions_dir
+
+    memories_value = storage.get("memories_dir", "memories")
+    if not isinstance(memories_value, str) or not memories_value.strip() or "\0" in memories_value:
+        raise ConfigError("storage.memories_dir 必须是非空且不含空字符的路径字符串。")
+    memories_dir = Path(memories_value)
+    if not memories_dir.is_absolute():
+        memories_dir = directory / memories_dir
 
     model_config_path = llm_path if llm_path is not None else directory / "llm.toml"
     llm = load_llm_config(model_config_path)
@@ -182,6 +189,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     return AppConfig(
         llm=llm,
         sessions_dir=sessions_dir,
+        memories_dir=memories_dir,
         system_prompt=prompt,
         agent=AgentConfig(**agent_data),
         permissions=PermissionConfig(**permission_roots),

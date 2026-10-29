@@ -1,6 +1,8 @@
 [storage]
 # Relative to this configuration file.
 sessions_dir = "sessions"
+# 独立记忆目录，相对当前配置文件；默认配置在 ADAM_HOME 下。
+memories_dir = "memories"
 
 [chat]
 system_prompt = "你是 Adam，一个友好的编程助手。"

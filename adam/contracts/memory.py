@@ -37,6 +37,19 @@ class MemoryRecord:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class MemoryCommand:
+    """用户显式的记忆管理请求；正文不交给模型解释，修改携带所见版本号。"""
+
+    action: str
+    content: str = ""
+    memory_id: str = ""
+    revision: int | None = None
+    global_scope: bool = False
+    expires_at: str | None = None
+    history: bool = False
+
+
 def timestamp(value: str) -> datetime:
     """解析带时区的 ISO 时间并转为 UTC；拒绝含糊的本地时间。"""
     parsed = datetime.fromisoformat(value)

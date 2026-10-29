@@ -1,7 +1,7 @@
 # E1 跨会话记忆：需求与验收
 
 更新日期：2026-10-29
-状态：E1.1 独立存储已实现并验收；E1.2～E1.5 待完成。
+状态：E1.1 存储与 E1.2 命令管理已实现并验收；E1.3～E1.5 待完成。
 任务归属：[练手 TODO 的 E1](agent-practice-todo.md)。本文件细化需求，完成状态仍以主 TODO 为准。
 
 ## 目标与现有基础
@@ -17,7 +17,26 @@
 - 项目身份取最近的 .git 文件或目录所在根；无 Git 时取规范化工作目录，工作副本与移动后的目录不自动共享身份。
 - 单条正文最多 4000 字符，整个版本文件最多 16 MiB；超过上限拒绝写入。时间须有时区。
 - 业务验收见 [存储测试](../tests/features/test_memory_storage.py)：真实双进程并发追加、重启与范围隔离、版本冲突、替换失败、损坏拒绝、过期与项目根识别。
-- 本阶段仅提供独立组件，CLI、配置和模型上下文尚未接入。
+## 已实现：E1.2 用户管理
+
+配置使用 [storage] 的 memories_dir，默认主配置同级的 memories 目录；正常启动即位于 ADAM_HOME/memories。直接组装应用且未配置目录时使用注入会话根下的 _memories，避免读写其他应用的数据。
+
+```text
+/memory add -- Python 使用绝对导入
+/memory add --global -- 回答使用中文
+/memory list
+/memory list --global
+/memory update <ID> --revision 1 -- 新约定
+/memory delete <ID> --revision 2
+/memory list --history <ID>
+/memory add --expires 2030-01-01T00:00:00+08:00 -- 临时约定
+```
+
+- 正文写在独立的 -- 后，保留正文中的空格、引号和 Windows 反斜杠；单独 /memory 显示用法。
+- list 显示 ID、版本、范围、有效/过期状态、来源及时间；--history 查看目标的版本和删除记录。全局目标使用 --global。
+- update/delete 必须提供列表中的 --revision；过时版本拒绝覆盖。update 未给 --expires 表示取消过期时间。
+- 命令不调用模型、不自动创建会话；已有会话时记录其 ID，没有时明确为空。
+- [命令验收](../tests/features/test_memory_management.py) 覆盖生命周期、全局范围、正文保真、非法参数和写入失败不声称成功。自动检索及模型输入仍待 E1.3。
 
 ## 已确认的七项决策
 

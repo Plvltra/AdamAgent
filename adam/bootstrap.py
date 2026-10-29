@@ -9,6 +9,7 @@ import httpx
 
 from adam.application.conversation import Conversation
 from adam.application.facade import AgentApplication
+from adam.application.memories import MemoryService
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.manager import SubagentManager
@@ -20,6 +21,7 @@ from adam.contracts.models import CommandRequest, EditPlan
 from adam.contracts.ports import ModelClient
 from adam.llm.client import LLMClient
 from adam.llm.http_transport import InterruptibleTransport
+from adam.memory.store import MemoryStore
 from adam.session.storage import SessionStore
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers
@@ -90,7 +92,10 @@ def build_application(
         accounting=manager.account if manager else None,
         delegation=manager,
     )
-    return AgentApplication(conversation, store, client)
+    memories = MemoryService(
+        MemoryStore(config.memories_dir or store.root / "_memories"), workspace
+    )
+    return AgentApplication(conversation, store, client, memories)
 
 
 @contextmanager

@@ -140,3 +140,4 @@ class AppConfig:
     tool_limits: ToolLimits = field(default_factory=ToolLimits)
     context: ContextConfig = field(default_factory=ContextConfig)
     subagents: SubagentConfig = field(default_factory=SubagentConfig)
+    memories_dir: Path | None = None

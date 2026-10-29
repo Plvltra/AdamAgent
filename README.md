@@ -1,5 +1,7 @@
 # Adam
 
+E1.1/E1.2 记忆存储与 `/memory` 增删改查已实现；自动检索与模型输入接入仍在后续小任务。见 [跨会话记忆](docs/cross-session-memory.md)。
+
 V6 子 Agent 协作已实现：一个终端一个主会话，主 Agent 可派发、追问和汇总辅助任务；默认并发 2 个，共用会话额度，支持单独取消和重启恢复。用法见 [V6 说明](docs/subagents.md)。
 
 V4.1 文件编辑与 V4.2 有限修正、执行事实报告已实现；专用编辑每轮默认最多 3 次尝试，可在 `[agent]` 设置 `max_edit_attempts`。测试或构建继续使用通用 `run_command`，由项目选择命令。
@@ -33,6 +35,8 @@ uv run python -m adam
 ~/.adam/
 ├── config.toml
 ├── llm.toml
+├── memories/
+│   └── memories.json
 └── sessions/
     ├── .locks/
     └── 2026/10/22/
@@ -44,6 +48,7 @@ uv run python -m adam
 ```toml
 [storage]
 sessions_dir = "sessions"
+memories_dir = "memories"
 
 [chat]
 system_prompt = "你是 Adam，一个友好的编程助手。"
@@ -56,6 +61,7 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 - `--config 路径`：覆盖主配置位置，相对路径以启动目录为基准。
 - `--llm-config 路径`：覆盖模型配置；未指定时读取主配置旁的 `llm.toml`。
 - `storage.sessions_dir`：默认 `sessions`，相对路径以主配置目录为基准。
+- `storage.memories_dir`：默认 `memories`，保存独立记忆版本文件；同样相对主配置目录。
 - `--workspace 路径`：指定工具工作目录，默认启动目录。
 - `--resume a3f9c821`：启动时恢复会话，精确匹配 8 位小写十六进制 ID。
 - 不提供 `--sessions-dir`；旧 `--db` 和 `storage.db_path` 已移除。
