@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import asdict, dataclass
+from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol
 
@@ -108,7 +109,14 @@ def validate_rules(value: object) -> None:
         seen.add(doc["path"])
         if not re.fullmatch(r"[0-9a-f]{64}", doc["version"]) or "\0" in doc["content"]:
             raise ValueError("invalid rule version or content")
-        size = len(doc["content"].encode("utf-8"))
+        raw = doc["content"].encode("utf-8")
+        # 读取器兼容 UTF-8 BOM；正文去掉 BOM 后仍能核对原始字节版本。
+        if doc["version"] not in {
+            sha256(raw).hexdigest(),
+            sha256(b"\xef\xbb\xbf" + raw).hexdigest(),
+        }:
+            raise ValueError("rule content does not match version")
+        size = len(raw)
         if size > 16384:
             raise ValueError("oversized rule")
         total += size

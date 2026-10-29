@@ -83,11 +83,19 @@ def show_context(
         f"估算输入：{estimate.input_tokens} token"
         f"（系统 {estimate.system_tokens}，历史 {estimate.history_tokens}，"
         f"本轮 {estimate.turn_tokens}，工具说明 {estimate.tools_tokens}，摘要 {estimate.summary_tokens}，"
-        f"记忆 {estimate.memory_tokens}、反思建议 {estimate.reflection_tokens}、Skill目录 {estimate.skill_tokens}）。"
+        f"记忆 {estimate.memory_tokens}、反思建议 {estimate.reflection_tokens}、"
+        f"Skill目录 {estimate.skill_tokens}、项目规则 {estimate.rules_tokens}）。"
     )
     write(
         f"历史：保留 {len(context.selected_turn_ids)} 轮，省略 {len(context.omitted_turn_ids)} 轮；原始日志保留。"
     )
+    if context.rules is not None:
+        write(
+            f"项目规则：{len(context.rules.documents)} 份；预览仅含根规则，"
+            "子目录规则在访问相关路径时加载。"
+        )
+        for rule in context.rules.documents:
+            write(f"  来源 {rule.path}；范围 {rule.scope}；版本 {rule.version[:12]}")
     if context.memory.status != "disabled":
         write(f"记忆：{context.memory.status}；选中 {len(context.memory.records)} 条。")
         if context.memory.status == "query_required":
