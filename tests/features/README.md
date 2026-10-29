@@ -1,6 +1,6 @@
 # 业务功能测试任务
 
-更新日期：2026-10-29
+更新日期：2026-10-30
 
 这里按用户可见的能力组织自动化验收。功能模块改名后，仍能按“会话恢复”“命令执行”等业务名称找到对应测试。每个文件包含可独立运行的 pytest 场景；参数化场景展开为多个用例。
 
@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T2.2 统一 Skill 加载 | 混合格式、材料按需、Unicode ID、版本变化、文本上限、实际请求和重启日志 | [test_standard_skill_loading.py](test_standard_skill_loading.py) |
 | T2.1 标准 Skill 元数据 | 标准/Unicode 字段、正文按需、双来源拒绝、恶意 YAML、目录和链接边界 | [test_standard_skill_metadata.py](test_standard_skill_metadata.py) |
 | T1.3 规则整体验收 | 预览无副作用、会话/重启隔离、旧快照保留、日志篡改拒绝、新规则超预算和关闭配置 | [test_project_rule_acceptance.py](test_project_rule_acceptance.py) |
 | T1.2 项目规则执行 | 主/子规则隔离、新规则先于编辑/命令、整批等待、变更/删除、审批与预算 | [test_project_rule_execution.py](test_project_rule_execution.py) |

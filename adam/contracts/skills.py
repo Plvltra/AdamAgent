@@ -22,20 +22,33 @@ def standard_skill_name(value: str) -> str:
 
 
 def validate_catalog(value: object) -> None:
-    """验证请求日志中的有限目录及版本，拒绝重复 ID 或多余字段。"""
+    """验证请求目录及版本；旧记录未标格式时按 TOML 校验，重复 ID 和额外字段拒绝。"""
     if not isinstance(value, (list, tuple)) or len(value) > 16:
         raise ValueError("invalid skill catalog")
     seen: set[str] = set()
     for item in value:
-        if not isinstance(item, dict) or set(item) != {"id", "name", "description", "version"}:
+        required = {"id", "name", "description", "version"}
+        if (
+            not isinstance(item, dict)
+            or not required <= item.keys()
+            or item.keys() - (required | {"format"})
+        ):
             raise ValueError("invalid skill metadata")
         if not all(isinstance(item[k], str) for k in item):
             raise ValueError("invalid skill text")
+        format_name = item.get("format", "toml")
+        if format_name not in {"standard", "toml"}:
+            raise ValueError("unknown skill format")
+        valid_id = (
+            standard_skill_name(item["id"]) == item["id"] and item["name"] == item["id"]
+            if format_name == "standard"
+            else re.fullmatch(r"[a-z][a-z0-9-]{0,63}", item["id"]) is not None
+        )
         if (
-            not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", item["id"])
+            not valid_id
             or item["id"] in seen
             or not 1 <= len(item["name"]) <= 80
-            or not 1 <= len(item["description"]) <= 300
+            or not 1 <= len(item["description"]) <= (1024 if format_name == "standard" else 300)
             or not re.fullmatch(r"[0-9a-f]{64}", item["version"])
         ):
             raise ValueError("invalid skill identity")

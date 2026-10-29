@@ -4,8 +4,9 @@ import json
 from collections.abc import Hashable
 from dataclasses import dataclass
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 import yaml
 from yaml.events import AliasEvent, CollectionEndEvent, CollectionStartEvent, NodeEvent
@@ -34,32 +35,45 @@ def read_header(path: Path, identifier: str, *, maximum: int = 8192) -> SkillHea
     """
     try:
         with path.open("rb") as stream:
-            first = stream.readline(maximum + 1)
-            raw = bytearray(first)
-            if first.removeprefix(b"\xef\xbb\xbf").rstrip(b"\r\n") != b"---":
-                raise ToolError("标准 SKILL.md 必须以 YAML frontmatter 的 --- 开始。")
-            lines = []
-            while len(raw) <= maximum:
-                line = stream.readline(maximum - len(raw) + 1)
-                if not line:
-                    raise ToolError("Skill 元数据缺少结束的 ---。")
-                raw.extend(line)
-                if len(raw) > maximum:
-                    break
-                if line.rstrip(b"\r\n") == b"---":
-                    data = _parse(b"".join(lines).decode("utf-8"))
-                    _validate(data, identifier)
-                    return SkillHeader(
-                        data["name"],
-                        data["description"].strip(),
-                        sha256(raw).hexdigest(),
-                        len(raw),
-                        data,
-                    )
-                lines.append(line)
-        raise ToolError("Skill 元数据超过8 KiB。")
-    except (UnicodeError, OSError) as error:
-        raise ToolError("Skill 元数据无法读取或不是有效 UTF-8。") from error
+            return _read_header(stream, identifier, maximum)
+    except OSError as error:
+        raise ToolError("Skill 元数据无法读取，请检查文件和权限。") from error
+
+
+def header_from_bytes(raw: bytes, identifier: str, *, maximum: int = 8192) -> SkillHeader:
+    """从已读取的完整文件解析同一份头部，让正文和版本校验使用相同字节快照。"""
+    return _read_header(BytesIO(raw), identifier, maximum)
+
+
+def _read_header(stream: BinaryIO, identifier: str, maximum: int) -> SkillHeader:
+    """解析有界头部，停在结束标记后，不解码或扫描后续正文。"""
+    first = stream.readline(maximum + 1)
+    raw = bytearray(first)
+    if first.removeprefix(b"\xef\xbb\xbf").rstrip(b"\r\n") != b"---":
+        raise ToolError("标准 SKILL.md 必须以 YAML frontmatter 的 --- 开始。")
+    lines = []
+    while len(raw) <= maximum:
+        line = stream.readline(maximum - len(raw) + 1)
+        if not line:
+            raise ToolError("Skill 元数据缺少结束的 ---。")
+        raw.extend(line)
+        if len(raw) > maximum:
+            break
+        if line.rstrip(b"\r\n") == b"---":
+            try:
+                data = _parse(b"".join(lines).decode("utf-8"))
+            except UnicodeError as error:
+                raise ToolError("Skill 元数据不是有效 UTF-8。") from error
+            _validate(data, identifier)
+            return SkillHeader(
+                data["name"],
+                data["description"].strip(),
+                sha256(raw).hexdigest(),
+                len(raw),
+                data,
+            )
+        lines.append(line)
+    raise ToolError("Skill 元数据超过8 KiB。")
 
 
 def _parse(text: str) -> dict[str, Any]:
