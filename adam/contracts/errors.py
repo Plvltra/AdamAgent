@@ -127,6 +127,14 @@ class StorageError(AgentError):
     code = FailureCode.STORAGE_ERROR
 
 
+class MemoryStoreError(AgentError):
+    """记忆读取或写入失败；不等同于会话日志失败。"""
+
+
+class MemoryInputError(AgentError):
+    """记忆参数无效、目标不存在或版本已变化；调用没有完成修改。"""
+
+
 class SessionNotFoundError(AgentError):
     """指定会话不存在。"""
 

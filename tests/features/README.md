@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| E1.1 记忆存储 | 跨会话独立存储、真实多进程写入、版本冲突、范围隔离及损坏/写入失败保留 | [test_memory_storage.py](test_memory_storage.py) |
 | V6.3 中断与边界 | 真实 HTTP 单独/整组取消、另一终端隔离、强杀后恢复已提交回答、索引失败及资源限额 | [test_subagent_recovery.py](test_subagent_recovery.py)、[test_subagent_boundaries.py](test_subagent_boundaries.py) |
 | V6.2 子 Agent 委派 | 两子任务实际重叠、读取文件、父子关联、重启追问、权限拒绝、提前回答拦截与共享额度 | [test_subagents.py](test_subagents.py) |
 | V5.5 安装与迁移 | 干净环境安装及回归、停止写入后备份 JSONL，恢复到新目录仍能追加，原目录不变 | [test_backup_restore.py](test_backup_restore.py)、[交付指南](../../docs/install-and-recovery.md) |

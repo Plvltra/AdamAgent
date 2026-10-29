@@ -2,11 +2,23 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E1 跨会话记忆需求、主 TODO 与 roadmap 的一致性；核对现有 CLI、上下文构建与 V6 子 Agent 的边界。
+本次核对范围：E1.1 独立记忆契约、项目识别、可靠存储与包依赖验收。
 
-核对结论：本次仅确定 E1 需求与验收，架构无变化；记忆功能尚未实现，不加入当前架构图。CLI 入口、核心调用关系及 Mermaid 图保持。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：新增 memory 包与 contracts/memory.py；目前是独立组件，尚未接入 CLI 与模型请求。原聊天调用关系保持。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
+
+## E1.1 独立记忆存储
+
+```mermaid
+flowchart LR
+    STORE["memory/store.py<br/>MemoryStore"] --> RECORD["contracts/memory.py<br/>MemoryRecord / MemorySource"]
+    STORE --> ERR["contracts/errors.py<br/>MemoryStoreError / MemoryInputError"]
+    PROJECT["memory/project.py<br/>project_identity"] --> ERR
+    STORE --> FILE["memories.json<br/>跨进程锁 + 原子版本快照"]
+```
+
+目前仅显式调用独立组件才会读写记忆，E1.2 后再接入应用。记忆不依赖会话存储或模型；来源会话 ID 只作为可选值保留。包依赖测试已覆盖 memory。
 
 ## 包目录与依赖边界
 
@@ -20,6 +32,7 @@
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
 | session | storage.py、log.py、compaction_log.py、edit_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
+| memory | store.py、project.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限和具体工具文件 | session、config、contracts |
 | contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py | 无 |
 

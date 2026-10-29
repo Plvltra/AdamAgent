@@ -87,6 +87,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
         ("contracts", {"contracts"}),
         ("config", {"config", "contracts"}),
         ("session", {"session", "contracts"}),
+        ("memory", {"memory", "contracts"}),
         ("llm", {"llm", "config", "contracts"}),
         ("context", {"context", "session", "config", "contracts"}),
         ("tool_calls", {"tool_calls", "session", "config", "contracts"}),
