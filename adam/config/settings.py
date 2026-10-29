@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from adam.config.mcp import MCPConfig
 from adam.contracts.errors import ConfigError
 
 
@@ -286,5 +287,6 @@ class AppConfig:
     reflection: ReflectionConfig = field(default_factory=ReflectionConfig)
     review: ReviewConfig = field(default_factory=ReviewConfig)
     skills: SkillsConfig = field(default_factory=SkillsConfig)
+    mcp: MCPConfig = field(default_factory=MCPConfig)
     documents: DocumentConfig = field(default_factory=DocumentConfig)
     documents_dir: Path | None = None

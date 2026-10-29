@@ -7,6 +7,9 @@ dependencies = [
     "colorama>=0.4.6,<0.5",
     "filelock>=3.16,<4",
     "httpx>=0.28,<0.29",
+    "anyio>=4.15,<5",
+    "mcp>=2.3,<3",
+    "jsonschema>=4.25,<5",
 ]
 
 [project.optional-dependencies]

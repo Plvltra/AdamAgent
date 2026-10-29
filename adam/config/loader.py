@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from adam.config.mcp import parse_mcp
 from adam.config.settings import (
     AgentConfig,
     AppConfig,
@@ -131,6 +132,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "review",
             "documents",
             "skills",
+            "mcp",
         },
         "主配置",
     )
@@ -270,6 +272,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         reflection=reflection,
         review=review,
         skills=skills,
+        mcp=parse_mcp(data.get("mcp", {})),
         documents=documents,
         documents_dir=documents_dir,
     )

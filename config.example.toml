@@ -74,6 +74,11 @@ tool_prune_threshold_chars = 4000
 tool_prune_head_chars = 1500
 tool_prune_tail_chars = 500
 
+[mcp]
+# Explicitly enable only trusted local servers. See docs/mcp.md.
+enabled = false
+servers = []
+
 [skills]
 # Load project skills metadata; bodies are read only on demand.
 enabled = true

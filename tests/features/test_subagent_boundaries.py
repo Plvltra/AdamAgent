@@ -261,10 +261,17 @@ def test_followup_cannot_replace_uncollected_result_in_same_turn(tmp_path):
             if count == 2:
                 deadline = time.monotonic() + 5
                 while time.monotonic() < deadline:
-                    record = json.loads(index_for(active_app[0]).read_text(encoding="utf-8"))
+                    try:
+                        record = json.loads(index_for(active_app[0]).read_text(encoding="utf-8"))
+                    except PermissionError:
+                        # 外部测试观察者不持有索引线程锁；Windows 原子替换时短暂拒绝读。
+                        time.sleep(0.01)
+                        continue
                     if record["agents"][0]["runs"][-1]["status"] == "completed":
                         break
                     time.sleep(0.01)
+                else:
+                    pytest.fail("child did not finish within the observation deadline")
                 result = tool_response(
                     [call("early", "send_message", agent_id=agent_id, task="second")]
                 )
