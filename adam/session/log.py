@@ -132,6 +132,7 @@ class SessionLog:
             "plan_updated": self._apply_plan,
             "feedback_recorded": self._apply_feedback,
             "reflection_finished": self._apply_reflection,
+            "experience_decided": self._apply_experience,
             "edit_planned": self._apply_edit,
             "edit_started": self._apply_edit,
             "edit_finished": self._apply_edit,
@@ -272,7 +273,13 @@ class SessionLog:
                 or feedback is None
                 or feedback.turn_id != turn_id
                 or context["source"]
-                != feedback_context(feedback, self.turns, self.tools, self.executions)
+                != feedback_context(
+                    feedback,
+                    self.turns,
+                    self.tools,
+                    self.executions,
+                    self.messages if "source_answer_excerpt" in context["source"] else None,
+                )
                 or type(context["estimated_input_tokens"]) is not int
                 or context["estimated_input_tokens"] < 0
             ):
@@ -407,6 +414,10 @@ class SessionLog:
         }:
             raise ValueError("edit has no final result")
         tool.update(output=payload["output"], finished=True, status="finished")
+
+    def _apply_experience(self, kind: str, payload: dict[str, Any]) -> None:
+        """人工决定独立于新聊天轮次，不创建模型请求或篡改原反思。"""
+        self.reflections.decide(payload, self.turns)
 
     def _apply_reflection(self, kind: str, payload: dict[str, Any]) -> None:
         """只给当前轮追加反思结果；原始请求状态及用量不因降级被改写。"""

@@ -74,10 +74,20 @@ class MemoryStore:
         source: MemorySource,
         *,
         expires_at: str | None = None,
+        experience: dict[str, str] | None = None,
     ) -> MemoryRecord:
-        """添加用户明确提供的事实；返回已落盘版本，失败不创建成功记录。"""
+        """添加用户明确保存的内容；经验按来源幂等，已更新或删除时返回原条目最新版本。
+
+        来源查重和写入持同一把锁，供会话日志保存失败后安全重试；不恢复已删除的经验。
+        """
         with self._locked():
             records = self._load()
+            if experience is not None:
+                previous = next((r for r in reversed(records) if r.experience == experience), None)
+                if previous:
+                    if previous.project != project:
+                        raise MemoryInputError("该经验已保存在其他项目，不能重复接受。")
+                    return previous
             existing = {record.memory_id for record in records}
             memory_id = secrets.token_hex(4)
             while memory_id in existing:
@@ -92,8 +102,17 @@ class MemoryStore:
                 now,
                 replace(source, operation="add"),
                 expires_at,
+                experience=experience,
             )
             self._append(records, record)
+            return record
+
+    def find_experience(self, origin: dict[str, str], project: str) -> MemoryRecord | None:
+        """查找已保存经验的最新版本，包括删除记录；供接受中断后的对账。"""
+        with self._locked():
+            record = next((r for r in reversed(self._load()) if r.experience == origin), None)
+            if record and record.project != project:
+                raise MemoryInputError("该经验已保存在其他项目。")
             return record
 
     def update(
@@ -191,6 +210,7 @@ class MemoryStore:
                     or record.project != previous.project
                     or timestamp(record.updated_at) < timestamp(previous.updated_at)
                     or record.source.operation == "add"
+                    or record.experience != previous.experience
                 ):
                     raise ValueError("invalid version chain")
                 latest[record.memory_id] = record

@@ -190,7 +190,7 @@ class SessionStore:
         """从同一日志快照读取反馈和有界原始事实；未知 ID 抛出 KeyError。"""
         log = self._read_log(session_id)
         return feedback_context(
-            log.feedback.records[feedback_id], log.turns, log.tools, log.executions
+            log.feedback.records[feedback_id], log.turns, log.tools, log.executions, log.messages
         )
 
     def feedback_sources(self, session_id: str, turn_id: str) -> dict[str, Any]:
@@ -217,6 +217,45 @@ class SessionStore:
             for item in self._read_log(session_id).reflections.records.values()
             if turn_id is None or item["turn_id"] == turn_id
         ]
+
+    def experience_candidates(self, session_id: str) -> list[dict[str, Any]]:
+        """投影有经验文字的反思与当前轮状态；实际证据和模型分析分开提供。"""
+        log = self._read_log(session_id)
+        return [
+            {
+                **item,
+                "turn_status": log.turns[item["turn_id"]]["status"],
+                "source": feedback_context(
+                    log.feedback.records[item["feedback_id"]],
+                    log.turns,
+                    log.tools,
+                    log.executions,
+                    log.messages,
+                ),
+            }
+            for item in log.reflections.records.values()
+            if item["status"] == "completed" and item["result"]["lesson"].strip()
+        ]
+
+    def experience_decisions(self, session_id: str) -> dict[str, dict[str, Any]]:
+        """读取候选处理结果；未决定的候选不会写入共享记忆库。"""
+        return self._read_log(session_id).reflections.decisions
+
+    def decide_experience(
+        self, session_id: str, reflection_id: str, action: str, memory_id: str | None = None
+    ) -> None:
+        """在持锁会话追加人工决定；记忆文件已成功保存后才可记录 accepted。"""
+        self._append(
+            session_id,
+            record(
+                "experience_decided",
+                {
+                    "reflection_id": reflection_id,
+                    "action": action,
+                    "memory_id": memory_id,
+                },
+            ),
+        )
 
     def load_summary(self, session_id: str) -> Summary | None:
         """返回最近完整提交的摘要；失败或中断的候选摘要不生效。"""

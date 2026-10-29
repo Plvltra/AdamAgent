@@ -138,9 +138,13 @@ class Conversation:
                 lambda: self.store.finish_turn(session.session_id, turn_id, outcome),
                 error,
             )
+            if self.reflection:
+                save_failure(self.reflection.finish, error)
             raise
         if self.delegation:
             self.delegation.end()
+        if self.reflection:
+            self.reflection.finish()
         return reply
 
     def usage(self) -> tuple[int, bool]:

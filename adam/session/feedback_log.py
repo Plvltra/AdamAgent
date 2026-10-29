@@ -91,6 +91,7 @@ def feedback_context(
     turns: dict[str, dict[str, Any]],
     tools: dict[tuple[str, str], dict[str, Any]],
     executions: dict[str, dict[str, Any]],
+    messages: list[tuple[str, dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     """提供有界的原始事实；失败轨迹只作资料，不能变成成功历史或权限指令。"""
     source = turns[feedback.source_turn_id]
@@ -102,6 +103,20 @@ def feedback_context(
     ][-8:]
     return {
         "feedback": feedback.to_dict(),
+        **(
+            {
+                "source_answer_excerpt": next(
+                    (
+                        str(message.get("content") or "")[:4000]
+                        for parent, message in reversed(messages)
+                        if parent == feedback.source_turn_id and message["role"] == "assistant"
+                    ),
+                    "",
+                )
+            }
+            if messages is not None
+            else {}
+        ),
         "source_input": source["user_text"][:4000],
         "source_status": source["status"],
         "tools": [

@@ -10,6 +10,7 @@ class ReflectionLog:
 
     def __init__(self) -> None:
         self.records: dict[str, dict[str, Any]] = {}
+        self.decisions: dict[str, dict[str, Any]] = {}
 
     def apply(
         self,
@@ -76,6 +77,31 @@ class ReflectionLog:
             else:
                 raise ValueError("invalid reflection status")
         self.records[identity] = dict(payload)
+
+    def decide(self, payload: dict[str, Any], turns: dict[str, dict[str, Any]]) -> None:
+        """用户在轮次结束后接受或丢弃候选；状态只能决定一次，重复相同决策幂等。"""
+        if set(payload) != {"reflection_id", "action", "memory_id"}:
+            raise ValueError("invalid experience decision")
+        identity = payload["reflection_id"]
+        candidate = self.records.get(identity)
+        if (
+            candidate is None
+            or candidate["status"] != "completed"
+            or not candidate["result"]["lesson"].strip()
+            or turns[candidate["turn_id"]]["status"] == "in_progress"
+        ):
+            raise ValueError("experience requires finished candidate")
+        if payload["action"] not in {"accepted", "discarded"}:
+            raise ValueError("invalid experience action")
+        memory_id = payload["memory_id"]
+        if payload["action"] == "accepted":
+            if not isinstance(memory_id, str) or len(memory_id) != 8:
+                raise ValueError("invalid experience memory")
+        elif memory_id is not None:
+            raise ValueError("discard cannot save memory")
+        if identity in self.decisions and self.decisions[identity] != payload:
+            raise ValueError("experience already decided")
+        self.decisions[identity] = dict(payload)
 
     def permits_failed_request(self, request_id: str) -> bool:
         """仅已明确记录的反思格式失败允许继续提交聊天，其他请求失败仍阻止提交。"""

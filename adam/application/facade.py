@@ -2,8 +2,10 @@
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from adam.application.conversation import Conversation
+from adam.application.experiences import ExperienceService
 from adam.application.memories import MemoryService
 from adam.context.builder import RequestContext
 from adam.contracts.errors import AgentError, LLMError
@@ -36,6 +38,7 @@ class AgentApplication:
         self._store = store
         self._models_client = models
         self._memories = memories
+        self._experiences = ExperienceService(store, memories) if memories else None
         self._models: dict[str, str | None] | None = None
 
     @property
@@ -95,6 +98,20 @@ class AgentApplication:
         if self._memories is None:
             raise AgentError("当前应用未配置记忆管理。")
         return self._memories.manage(command, self.session.session_id if self.session else None)
+
+    def experience_candidates(self) -> list[dict[str, Any]]:
+        """查询当前会话候选；不创建会话，不发模型请求。"""
+        if self.session is None or self._experiences is None:
+            return []
+        return self._experiences.candidates(self.session.session_id)
+
+    def decide_experience(
+        self, candidate_id: str, action: str, content: str = ""
+    ) -> MemoryRecord | None:
+        """执行用户明确的候选决定；只有接受才写入当前项目记忆。"""
+        if self.session is None or self._experiences is None:
+            raise AgentError("没有可处理经验的当前会话。")
+        return self._experiences.decide(self.session.session_id, candidate_id, action, content)
 
     def usage(self) -> SessionUsage:
         """查询当前会话消费；缺失用量保持未知，不触发模型请求。"""

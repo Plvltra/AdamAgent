@@ -2,9 +2,9 @@
 
 最近核对：2026-10-29
 
-本次核对范围：E4.3 主循环自动触发、report_feedback、当前轮参考资料及输入预算。
+本次核对范围：E4.4 ExperienceService、候选命令、ReflectionLog 决定事件和 MemoryStore 来源幂等写入。
 
-核对结论：聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：新增 ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -78,6 +78,10 @@ flowchart LR
     RUNNER --> PORT["contracts/ports.py<br/>ModelClient"]
     RUNNER --> STORE["session/storage.py"]
     SERVICE --> STORE
+    CLI["cli/memory_commands.py"] --> APP["application/facade.py"]
+    APP --> EXP["application/experiences.py"]
+    EXP --> STORE
+    EXP --> MEMORY["memory/store.py<br/>来源幂等写入"]
     STORE --> LOG["session/log.py"]
     LOG --> REFLECT["session/reflection_log.py"]
     LOG --> FEEDBACK["session/feedback_log.py"]
@@ -120,7 +124,7 @@ flowchart LR
 | 包 | 归入的文件 | 允许的其他项目依赖 |
 | --- | --- | --- |
 | cli | main.py、terminal.py、reply_output.py、memory_commands.py | application、context、config、contracts；仅 main 调用 bootstrap |
-| application | facade.py、conversation.py、request_policy.py、memories.py、planning.py、reflection.py、request_runner.py、subagents/manager.py、budget.py、account.py | context、session、memory、tool_calls、config、contracts |
+| application | facade.py、conversation.py、request_policy.py、memories.py、experiences.py、planning.py、reflection.py、request_runner.py、subagents/manager.py、budget.py、account.py | context、session、memory、tool_calls、config、contracts |
 | config | loader.py、settings.py | contracts |
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |

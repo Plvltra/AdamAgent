@@ -102,6 +102,7 @@ def test_correction_after_restart_quotes_current_user_and_links_previous_turn(tm
             data = tool_response([call("feedback", "report_feedback", quote=quote)])
         elif len(bodies) == 2:
             assert "tools" not in body and quote in json.dumps(body, ensure_ascii=False)
+            assert "旧回答" in json.dumps(body, ensure_ascii=False)
             data = answer(json.dumps(SUGGESTION))
         else:
             assert advice_messages(body)

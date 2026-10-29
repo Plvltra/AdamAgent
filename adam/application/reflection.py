@@ -122,6 +122,17 @@ class ReflectionService:
             )
         return self.reflect(self._session_id, pending, model, runner, policy)
 
+    def finish(self) -> None:
+        """轮次结束时只提示候选数量；不要求工具执行过程中反复确认。"""
+        count = sum(
+            item["status"] == "completed" and bool(item["result"]["lesson"].strip())
+            for item in self.store.load_reflections(self._session_id, self._turn_id)
+        )
+        if count:
+            self.notify(
+                f"经验> 本轮有 {count} 条尚未验证的候选；用 /memory candidates 查看后接受或丢弃。"
+            )
+
     def _append_feedback(self, feedback: Feedback) -> None:
         """日志拒绝或写入失败必须停止，不能被工具层吞成可继续的参数错误。"""
         try:
