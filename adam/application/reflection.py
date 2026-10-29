@@ -11,7 +11,7 @@ from adam.application.request_policy import RequestPolicy
 from adam.application.request_runner import RequestRunner
 from adam.config.settings import ContextConfig, ReflectionConfig
 from adam.context.builder import ContextBuilder
-from adam.contracts.errors import BudgetError
+from adam.contracts.errors import BudgetError, StorageError, ToolError
 from adam.contracts.reflection import Feedback, decode_reflection
 from adam.session.storage import SessionStore
 
@@ -46,6 +46,88 @@ class ReflectionService:
             limits.max_output_tokens,
         )
         self.notify = notify or (lambda _: None)
+        self._session_id = ""
+        self._turn_id = ""
+        self._source: dict[str, str] = {}
+
+    def begin(self, session_id: str, turn_id: str) -> None:
+        """切换当前轮次，来源绑定不能沿用上轮。"""
+        self._session_id, self._turn_id = session_id, turn_id
+        self._source = {}
+
+    def bind_source(self, source: dict[str, str]) -> None:
+        """接收执行器生成的真实请求与工具关联。"""
+        self._source = dict(source)
+
+    def report(self, quote: str) -> dict[str, str]:
+        """登记本次用户原文对上一轮的纠正；不能证明模型理解正确。"""
+        if self._source.get("turn_id") != self._turn_id:
+            raise ToolError("反馈没有当前工具来源。")
+        sources = self.store.feedback_sources(self._session_id, self._turn_id)
+        if not quote.strip() or len(quote) > 2000 or quote not in sources["user_text"]:
+            raise ToolError("纠正必须引用本次用户输入的连续原文，最多 2000 字符。")
+        previous = sources["previous"]
+        if previous is None:
+            raise ToolError("没有上一轮，请按普通聊天处理。")
+        if any(
+            item.kind == "user"
+            for item in self.store.load_feedback(self._session_id, self._turn_id)
+        ):
+            raise ToolError("本轮已登记用户纠正。")
+        feedback = Feedback(
+            secrets.token_hex(4),
+            self._turn_id,
+            previous["turn_id"],
+            self._source["request_id"],
+            self._source["tool_call_id"],
+            "user",
+            quote,
+        )
+        self._append_feedback(feedback)
+        return {
+            "feedback_id": feedback.feedback_id,
+            "status": "model_detected",
+            "source": "previous_turn",
+            "quote": quote,
+        }
+
+    def after_tools(
+        self, model: str, runner: RequestRunner, policy: RequestPolicy
+    ) -> dict[str, Any] | None:
+        """整批结果落盘后选择首个线索；不重试反思、不绕过原循环和编辑额度。"""
+        records = self.store.load_reflections(self._session_id, self._turn_id)
+        if len(records) >= self.limits.max_per_turn:
+            return None
+        feedbacks = self.store.load_feedback(self._session_id, self._turn_id)
+        handled = {record["feedback_id"] for record in records}
+        pending = next((item for item in feedbacks if item.feedback_id not in handled), None)
+        if pending is None:
+            failures = self.store.feedback_sources(self._session_id, self._turn_id)["failures"]
+            seen = {item.tool_call_id for item in feedbacks}
+            tool = next((item for item in failures if item["tool_call_id"] not in seen), None)
+            if tool is None:
+                return None
+            pending = Feedback(
+                secrets.token_hex(4),
+                self._turn_id,
+                self._turn_id,
+                tool["request_id"],
+                tool["tool_call_id"],
+                "tool",
+            )
+            self._append_feedback(pending)
+        if pending.kind == "user":
+            self.notify(
+                "反馈> 识别为对上一轮的纠正：" + json.dumps(pending.quote, ensure_ascii=False)
+            )
+        return self.reflect(self._session_id, pending, model, runner, policy)
+
+    def _append_feedback(self, feedback: Feedback) -> None:
+        """日志拒绝或写入失败必须停止，不能被工具层吞成可继续的参数错误。"""
+        try:
+            self.store.append_feedback(self._session_id, feedback)
+        except ValueError as error:
+            raise StorageError("反馈记录与实际来源不一致。") from error
 
     def reflect(
         self,

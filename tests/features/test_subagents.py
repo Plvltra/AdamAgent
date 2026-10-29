@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from adam.bootstrap import build_application
-from adam.config.settings import AgentConfig, AppConfig, LLMConfig, SubagentConfig
+from adam.config.settings import AgentConfig, AppConfig, LLMConfig, ReflectionConfig, SubagentConfig
 from adam.contracts.errors import BudgetError, FailureCode
 from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
@@ -32,6 +32,7 @@ def application(tmp_path, parent_handler, child_handler, *, config=None, notices
         tmp_path / "sessions",
         "ROOT_CONSTRAINT: preserve evidence",
         agent=AgentConfig(max_session_tokens=200000),
+        reflection=ReflectionConfig(enabled=False),
     )
 
     def reject_approval(_):
@@ -287,6 +288,7 @@ def test_capacity_and_new_creation_limits_are_enforced(tmp_path):
         tmp_path / "sessions",
         "system",
         agent=AgentConfig(max_session_tokens=200000),
+        reflection=ReflectionConfig(enabled=False),
         subagents=SubagentConfig(max_concurrent=1, max_created_per_turn=1),
     )
     release = threading.Event()

@@ -6,6 +6,7 @@ from functools import partial
 from time import monotonic_ns
 from typing import Any
 
+from adam.application.reflection import ReflectionService
 from adam.application.request_policy import RequestPolicy
 from adam.application.request_runner import RequestRunner, save_failure
 from adam.config.settings import AgentConfig, ContextConfig
@@ -38,6 +39,7 @@ class TurnProgress:
     summary_attempted: bool = False
     pruning_announced: bool = False
     memory: MemorySelection = MemorySelection()
+    reflections: tuple[dict[str, Any], ...] = ()
 
 
 class Conversation:
@@ -57,6 +59,7 @@ class Conversation:
         accounting: Callable[[str], RequestAccount] | None = None,
         delegation: Delegation | None = None,
         planning: TaskPlanner | None = None,
+        reflection: ReflectionService | None = None,
         cancel: CancellationToken | None = None,
         on_turn_started: Callable[[str], None] | None = None,
         memory_provider: Callable[[str, int], MemorySelection] | None = None,
@@ -77,6 +80,7 @@ class Conversation:
         self.cancel, self.on_turn_started = cancel, on_turn_started
         self.memory_provider = memory_provider
         self.planning = planning
+        self.reflection = reflection
         self.requests = RequestRunner(
             store,
             client,
@@ -119,6 +123,8 @@ class Conversation:
         try:
             if self.planning:
                 self.planning.begin(session.session_id, turn_id)
+            if self.reflection:
+                self.reflection.begin(session.session_id, turn_id)
             if self.delegation:
                 self.delegation.begin(session.session_id, turn_id, self.model)
             if self.on_turn_started:
@@ -239,6 +245,10 @@ class Conversation:
                 )
             )
             seen_call_ids.update(call["id"] for call in calls)
+            if self.reflection:
+                advice = self.reflection.after_tools(self.model, self.requests, progress.requests)
+                if advice and advice["status"] == "completed":
+                    progress.reflections += (advice,)
 
         raise BudgetError("达到本轮请求上限。", code=FailureCode.REQUEST_LIMIT)
 
@@ -256,7 +266,7 @@ class Conversation:
     ) -> RequestContext:
         """先缩旧工具，再按压力摘要，最后使用整轮选择；预览不经过此有副作用入口。"""
         self._check_session_budget(session.session_id)
-        context = self._build_context(session, turn, progress.memory)
+        context = self._build_context(session, turn, progress.memory, progress.reflections)
         # 受保护部分本身放不下时，先停止，避免花费一次无法解决问题的摘要请求。
         context.ensure_within_budget()
         limits = self.context_builder.limits
@@ -290,7 +300,7 @@ class Conversation:
                     lambda: service.execute(session, self.model, plan, turn_id=turn_id),
                     keep_requests=1,
                 )
-                context = self._build_context(session, turn, progress.memory)
+                context = self._build_context(session, turn, progress.memory, progress.reflections)
                 self.notify("上下文> 已自动更新历史摘要；原始日志保留。")
                 progress.pruning_announced = True
         if context.pruned_tools and not progress.pruning_announced:
@@ -327,6 +337,7 @@ class Conversation:
         session: Session | None,
         turn: list[dict[str, Any]],
         memory: MemorySelection | None = None,
+        reflections: tuple[dict[str, Any], ...] = (),
     ) -> RequestContext:
         """读取成功历史并委托构造；预览与每次真实请求共用，工具结果加入后重新估算。"""
         history = self.store.load_turns(session.session_id) if session is not None else []
@@ -348,6 +359,7 @@ class Conversation:
             tools=self.tool_executor.definitions(),
             summary=self.store.load_summary(session.session_id) if session is not None else None,
             memory=memory,
+            reflections=reflections,
         )
 
     def _check_session_budget(self, session_id: str) -> None:

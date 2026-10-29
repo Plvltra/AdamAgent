@@ -12,6 +12,7 @@ from adam.application.conversation import Conversation
 from adam.application.facade import AgentApplication
 from adam.application.memories import MemoryService
 from adam.application.planning import PlanningService
+from adam.application.reflection import ReflectionService
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.manager import SubagentManager
@@ -32,6 +33,8 @@ from adam.tool_calls.delegation_tools import encode_results, handlers
 from adam.tool_calls.document_tools import register_documents
 from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
+from adam.tool_calls.feedback_tools import SPECS as FEEDBACK_SPECS
+from adam.tool_calls.feedback_tools import handlers as feedback_handlers
 from adam.tool_calls.planning_tools import SPECS as PLANNING_SPECS
 from adam.tool_calls.planning_tools import handlers as planning_handlers
 
@@ -109,12 +112,22 @@ def build_application(
     if planner:
         registry = registry.extended(PLANNING_SPECS, planning_handlers(planner))
 
+    reflector = (
+        ReflectionService(store, config.reflection, config.context, on_notice)
+        if config.reflection.enabled
+        else None
+    )
+    if reflector:
+        registry = registry.extended(FEEDBACK_SPECS, feedback_handlers(reflector))
+
     def bind_source(link: dict[str, str]) -> None:
         """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
         if manager:
             manager.bind_source(link)
         if planner:
             planner.bind_source(link)
+        if reflector:
+            reflector.bind_source(link)
 
     executor = ToolExecutor(
         store,
@@ -138,6 +151,7 @@ def build_application(
         accounting=manager.account if manager else None,
         delegation=manager,
         planning=planner,
+        reflection=reflector,
         memory_provider=memories.select,
     )
     return AgentApplication(conversation, store, client, memories)

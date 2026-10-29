@@ -292,6 +292,23 @@ class SessionLog:
             raise ValueError("invalid context sources")
         if "memory" in context:
             validate_selection(context["memory"])
+        advice = context.get("reflections", [])
+        if not isinstance(advice, list) or len(advice) > 4:
+            raise ValueError("invalid reflection advice")
+        seen_advice: set[str] = set()
+        for item in advice:
+            if not isinstance(item, dict):
+                raise ValueError("invalid reflection advice")
+            identifier = item.get("reflection_id")
+            if (
+                not isinstance(identifier, str)
+                or identifier in seen_advice
+                or self.reflections.records.get(identifier) != item
+                or item["turn_id"] != turn_id
+                or item["status"] != "completed"
+            ):
+                raise ValueError("unknown reflection advice")
+            seen_advice.add(identifier)
         self._validate_pruning(context.get("pruned_tools", []), selected)
         for key in ("estimated_input_tokens", "original_history_tokens"):
             if type(context.get(key)) is not int or context[key] < 0:

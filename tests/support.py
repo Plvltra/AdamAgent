@@ -5,7 +5,14 @@ from pathlib import Path
 from adam.application.conversation import Conversation
 from adam.bootstrap import build_application
 from adam.cli.main import chat, confirm_command, confirm_edit
-from adam.config.settings import AgentConfig, AppConfig, ContextConfig, PermissionConfig, ToolLimits
+from adam.config.settings import (
+    AgentConfig,
+    AppConfig,
+    ContextConfig,
+    PermissionConfig,
+    ReflectionConfig,
+    ToolLimits,
+)
 from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
 
@@ -51,6 +58,7 @@ def run_chat(
         permissions or PermissionConfig(),
         tool_limits or ToolLimits(),
         context_config or ContextConfig(),
+        reflection=ReflectionConfig(enabled=False),
     )
     application = build_application(
         config,

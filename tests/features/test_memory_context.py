@@ -6,7 +6,7 @@ import httpx
 
 from adam.bootstrap import build_application
 from adam.cli.main import handle_command
-from adam.config.settings import AppConfig, ContextConfig, LLMConfig, MemoryConfig
+from adam.config.settings import AppConfig, ContextConfig, LLMConfig, MemoryConfig, ReflectionConfig
 from adam.contracts.memory import MemoryCommand
 from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
@@ -14,10 +14,12 @@ from adam.session.storage import SessionStore
 
 def config_at(root, *, memories_dir=None, memory=None):
     """所有数据留在测试目录，多个应用只显式共享记忆库。"""
+    # E1 场景固定关闭反思；跨能力触发由 E4 的业务场景验证。
     return AppConfig(
         LLMConfig("https://example.test", "test", "unused", stream=False),
         root / "sessions",
         "system constraint",
+        reflection=ReflectionConfig(enabled=False),
         memories_dir=memories_dir or root / "memory",
         memory=memory or MemoryConfig(),
         context=ContextConfig(auto_compact=False),

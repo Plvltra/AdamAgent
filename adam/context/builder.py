@@ -10,6 +10,7 @@ from adam.context.pruning import prune_history
 from adam.contracts.errors import BudgetError, FailureCode
 from adam.contracts.history import HistoryTurn, Summary
 from adam.contracts.memory import MemorySelection
+from adam.contracts.reflection import reflection_messages
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class ContextEstimate:
     tools_tokens: int
     summary_tokens: int = 0
     memory_tokens: int = 0
+    reflection_tokens: int = 0
 
     @property
     def input_tokens(self) -> int:
@@ -32,6 +34,7 @@ class ContextEstimate:
             + self.tools_tokens
             + self.summary_tokens
             + self.memory_tokens
+            + self.reflection_tokens
         )
 
 
@@ -54,6 +57,7 @@ class RequestContext:
     memory: MemorySelection = MemorySelection()
     memory_capacity: int = 0
     preview_query: str = ""
+    reflections: tuple[dict[str, Any], ...] = ()
 
     @property
     def candidate_input_tokens(self) -> int:
@@ -68,6 +72,7 @@ class RequestContext:
         """返回实际请求的选择依据；不含认证信息，不是完整 HTTP 请求快照。"""
         return {
             "strategy": "recent_turns_v1",
+            **({"reflections": list(self.reflections)} if self.reflections else {}),
             **({"memory": self.memory.to_dict()} if self.memory.status != "disabled" else {}),
             "summary_id": self.summary.summary_id if self.summary else None,
             "pruned_tools": list(self.pruned_tools),
@@ -112,6 +117,7 @@ class ContextBuilder:
         tools: list[dict[str, Any]],
         summary: Summary | None = None,
         memory: MemorySelection | None = None,
+        reflections: tuple[dict[str, Any], ...] = (),
     ) -> RequestContext:
         """返回独立的输入副本及组成估算；保留顺序、工具配对和服务商推理字段。
 
@@ -119,8 +125,11 @@ class ContextBuilder:
         先保留摘要与配置指定的近期轮次；其余从新往旧取连续后缀，放不下即停止。
         系统提示、本轮及近期保护轮次不截断；摘要与记忆仅作为历史资料，不提升指令权限。
         memory 是本轮固定快照，只参与请求构造，不复制进历史；其大小同时计入总预算。
+        reflections 是本轮参考建议，计入预算但不复制进聊天历史。
         预算覆盖完整工具 JSON Schema，不包含认证头、URL 或密钥。
         """
+        advice = reflection_messages(reflections)
+        reflection_tokens = sum(estimate_json_tokens(message) for message in advice)
         memory = memory or MemorySelection()
         memory_messages = memory.messages()
         memory_tokens = sum(estimate_json_tokens(message) for message in memory_messages)
@@ -142,6 +151,7 @@ class ContextBuilder:
             + tools_tokens
             + summary_tokens
             + memory_tokens
+            + reflection_tokens
             + sum(sizes)
             + self.limits.safety_margin_tokens
         )
@@ -162,6 +172,7 @@ class ContextBuilder:
             - tools_tokens
             - summary_tokens
             - memory_tokens
+            - reflection_tokens
         )
         start = len(history)
         protected_start = max(0, len(history) - self.limits.retain_recent_turns)
@@ -181,11 +192,12 @@ class ContextBuilder:
             tools_tokens,
             summary_tokens,
             memory_tokens,
+            reflection_tokens,
         )
         return RequestContext(
             model=model,
             messages=deepcopy(
-                system + summary_messages + messages + memory_messages + current_turn
+                system + summary_messages + messages + memory_messages + advice + current_turn
             ),
             tools=deepcopy(tools),
             max_output_tokens=self.max_output_tokens,
@@ -201,6 +213,7 @@ class ContextBuilder:
             summary=summary,
             memory=memory,
             memory_capacity=memory_capacity,
+            reflections=deepcopy(reflections),
         )
 
 
