@@ -74,6 +74,13 @@ tool_prune_threshold_chars = 4000
 tool_prune_head_chars = 1500
 tool_prune_tail_chars = 500
 
+[hooks]
+# T5.1 validates configuration; tool-loop wiring is delivered in T5.2.
+enabled = false
+timeout_seconds = 5
+max_input_bytes = 65536
+max_output_bytes = 8192
+
 [mcp]
 # Explicitly enable only trusted local servers. See docs/mcp.md.
 enabled = false

@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from adam.config.hooks import HooksConfig
 from adam.config.mcp import MCPConfig
 from adam.contracts.errors import ConfigError
 
@@ -310,3 +311,4 @@ class AppConfig:
     mcp: MCPConfig = field(default_factory=MCPConfig)
     documents: DocumentConfig = field(default_factory=DocumentConfig)
     documents_dir: Path | None = None
+    hooks: HooksConfig = field(default_factory=HooksConfig)

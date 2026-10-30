@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T5.1 本地 Hook 进程 | 真实 JSON 通信、环境限制、关闭零进程、超时/坏响应/非零/大小上限及阻塞输入取消；工具循环待 T5.2 | [test_hook_process.py](test_hook_process.py)、[配置与协议](../test_hooks.py) |
 | T4.3 模式组合验收 | 不可信指导与模型不能切换、MCP 只读、act 拒绝、摘要后限制、模式记录损坏/缺省及真实进程取消 | [test_mode_acceptance.py](test_mode_acceptance.py)、[test_cancellation.py](test_cancellation.py) |
 | T4.2 模式切换与继承 | 本地指令、规划后批准执行、任务期间固定、失败解除占用、会话隔离及子线程续聊；记忆对照沿用相同模式 | [test_execution_modes.py](test_execution_modes.py)、[test_memory_acceptance.py](test_memory_acceptance.py) |
 | T4.1 模式策略 | 规划时读取可用、编辑/命令无副作用、act 保留审批、未声明扩展拒绝及日志边界 | [test_mode_policy.py](test_mode_policy.py) |
