@@ -4,6 +4,7 @@ import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,16 @@ class EditCheckpoint:
             or self.before_version == self.target_version
         ):
             raise ValueError("checkpoint bytes do not match versions")
+
+
+@dataclass(frozen=True)
+class UndoResult:
+    """已落盘的用户撤销结果；失败或未知结果使用公共异常，不能返回成功。"""
+
+    undo_id: str
+    edit_id: str
+    path: Path
+    status: Literal["applied", "denied"]
 
 
 def validate_checkpoint_ids(session_id: str, edit_id: str) -> None:

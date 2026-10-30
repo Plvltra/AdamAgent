@@ -33,6 +33,7 @@ session_id：一个会话，对应一个 JSONL 文件
 | hook_started / hook_finished | 父轮次/请求/工具、hook_id、event、execution_mode、result | T5 工具前后检查；独立诊断按轮次输出 hooks，结果与工具输出独立，详见 [Hooks 契约](lifecycle-hooks.md) |
 | command_started / command_finished / command_denied | 上述三个关联 ID、execution_id 及命令细节 | run_command 的审批和进程执行记录 |
 | edit_planned / edit_started / edit_finished | 父轮次/请求/工具、edit_id、路径、版本与状态 | 计划、批准后写入边界及实际结果，详情见下文 |
+| undo_requested / undo_prepared / undo_started / undo_finished | undo_id、原 edit_id、逆向版本、source_* 来源及结果 | T7.2 用户独立撤销，顶层诊断输出 undos，不伪造模型轮次 |
 | plan_updated | turn_id、request_id、tool_call_id、version、steps、reason、replan_count、max_steps、max_replans | E3 完整计划版本；证据校验、状态与恢复见 [任务计划](task-planning.md) |
 | message | turn_id、message | 最终成功时追加的完整协议消息，包含工具请求和结果 |
 | turn_completed | turn_id、status、reason、duration_ms、error | 完整成功消息块的提交标记 |
@@ -225,6 +226,12 @@ v4 明确拒绝旧 v1/v2/v3，不自动迁移或删除。旧文件留在当前�
 恢复事件在存在未开始计划时增加 edit_ids，并将这些计划标记 not_started。已经 started 的 unknown 不改写、不猜测，也不自动重跑；它会阻止普通续聊和手动摘要。现有命令记录规则保持，用户拒绝命令/编辑则以 approval_denied 结束本轮，跳过同批后续工具。
 
 独立诊断在每轮增加 edits。完整编辑记录可以存在于失败或中断轮次，不能因为聊天历史未提交而当成文件没有变化。测试覆盖真实文件替换前后强杀，见 [文件修改与验证](file-editing.md)。
+
+## T7.2 检查点与撤销
+
+标准编辑在获批后、edit_started 前保存独立原字节快照；内部 edit_checkpoint 回调不写入 JSONL。用户 /undo 先记录来源，再保存逆向 diff；批准后的 undo_started 才表示进入写入边界。undo_finished 分别记录成功、拒绝、冲突、失败或写入前中断；只有 applied 携带恢复后版本。原编辑和聊天历史不被改写。
+
+重启恢复对尚未开始的撤销增加 undo_ids 并标记 interrupted，已开始的 unknown 保持未知。统一副作用查询阻止未确认状态继续请求模型；失败输入仍可作为诊断保存。独立诊断在顶层列出 undos；数据位置、权限与详细契约见 [修改检查点](edit-checkpoints.md)。
 
 ## V3.3 / V3.4 独立摘要事件
 

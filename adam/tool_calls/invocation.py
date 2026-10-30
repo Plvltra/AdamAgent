@@ -74,14 +74,25 @@ class ToolInvocation:
         return output
 
     def _record_action(self, kind: str, payload: dict[str, Any]) -> None:
-        """串行动作按事件类型保存边界；只读并发入口不会接收此回调。"""
+        """串行动作保存边界；只读并发入口不会接收此回调。
+
+        edit_checkpoint 的原字节只进快照，不序列化到 JSONL。
+        """
         if kind.startswith("edit_"):
             try:
-                self.store.append_edit_event(
-                    self.session_id,
-                    kind,
-                    {**payload, **self.source, "edit_id": self._execution_id},
-                )
+                if kind == "edit_checkpoint":
+                    self.store.save_edit_checkpoint(
+                        self.session_id,
+                        self._execution_id,
+                        payload["original"],
+                        max_bytes=payload["max_bytes"],
+                    )
+                else:
+                    self.store.append_edit_event(
+                        self.session_id,
+                        kind,
+                        {**payload, **self.source, "edit_id": self._execution_id},
+                    )
             except (StorageError, ValueError) as error:
                 raise EditLogError(
                     "编辑日志保存失败；实际结果可能未知，已停止且不自动重做。"

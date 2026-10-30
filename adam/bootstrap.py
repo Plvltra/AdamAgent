@@ -18,6 +18,7 @@ from adam.application.review import ReviewService
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.manager import SubagentManager
+from adam.application.undo import UndoService
 from adam.config.loader import load_config
 from adam.config.settings import AppConfig, DocumentConfig, PermissionConfig
 from adam.contracts.cancellation import CancellationToken
@@ -37,6 +38,7 @@ from adam.session.storage import SessionStore
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers
 from adam.tool_calls.document_tools import register_documents
+from adam.tool_calls.edit_tools import EditTools
 from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
 from adam.tool_calls.feedback_tools import SPECS as FEEDBACK_SPECS
@@ -76,6 +78,8 @@ def build_application(
     with ExitStack() as resources:
         modes = ModeController()
         documents_dir = config.documents_dir or store.root / "_documents"
+        checkpoints_dir = store.root / "_checkpoints"
+        protected_dirs = (documents_dir, checkpoints_dir)
         document_config = replace(
             config.documents,
             roots=tuple(
@@ -89,10 +93,15 @@ def build_application(
             config.tool_limits,
             confirm_command=confirm_command,
             confirm_edit=confirm_edit,
-            protected_dirs=(documents_dir,),
+            protected_dirs=protected_dirs,
         )
         registry = register_documents(
-            registry, workspace, document_config, documents_dir, config.permissions
+            registry,
+            workspace,
+            document_config,
+            documents_dir,
+            config.permissions,
+            (checkpoints_dir,),
         )
         registry, skills = register_skills(
             registry,
@@ -100,7 +109,7 @@ def build_application(
             config.permissions,
             enabled=config.skills.enabled,
             user_dir=config.skills.user_dir,
-            protected_dirs=(documents_dir,),
+            protected_dirs=protected_dirs,
         )
         registry = register_mcp(registry, config.mcp, workspace, resources)
         manager = None
@@ -119,6 +128,7 @@ def build_application(
                     config.memories_dir or store.root / "_memories",
                     document_config,
                     documents_dir,
+                    checkpoints_dir,
                     on_notice or (lambda _: None),
                 ),
                 on_notice or (lambda _: None),
@@ -183,7 +193,7 @@ def build_application(
             _project_rules(
                 workspace,
                 config.permissions,
-                (documents_dir, config.memories_dir or store.root / "_memories"),
+                (*protected_dirs, config.memories_dir or store.root / "_memories"),
             )
             if config.rules.enabled
             else None
@@ -243,6 +253,19 @@ def build_application(
             close_resources=resources.pop_all().close,
             skills=skills,
             modes=modes,
+            undo=UndoService(
+                store,
+                EditTools(
+                    PathPolicy(
+                        workspace,
+                        config.permissions,
+                        protected_dirs=protected_dirs,
+                    ),
+                    config.tool_limits,
+                    confirm_edit,
+                ),
+                modes.current,
+            ),
         )
 
 
@@ -253,6 +276,7 @@ def _open_child(
     memories_dir: Path,
     document_config: DocumentConfig,
     documents_dir: Path,
+    checkpoints_dir: Path,
     notify: Callable[[str], None],
     root: Path,
     agent: ChildAgent,
@@ -264,7 +288,7 @@ def _open_child(
 ) -> Iterator[Conversation]:
     """在子线程中管理独立资源，继承派发时的模式与主轮次记忆快照。
 
-    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆和文档缓存，避免绕过范围。
+    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存和检查点，避免绕过范围。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     Hooks 继承用户配置，使用子任务取消令牌；后置故障提示带子任务 ID。
     """
@@ -277,7 +301,7 @@ def _open_child(
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             config.tool_limits,
             delegated=True,
-            protected_dirs=(memories_dir, documents_dir),
+            protected_dirs=(memories_dir, documents_dir, checkpoints_dir),
         )
         registry = register_documents(
             registry,
@@ -285,7 +309,7 @@ def _open_child(
             document_config,
             documents_dir,
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
-            (memories_dir,),
+            (memories_dir, checkpoints_dir),
             check_cancel=cancel.check,
         )
         registry, skills = register_skills(
@@ -294,7 +318,7 @@ def _open_child(
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             enabled=config.skills.enabled,
             user_dir=config.skills.user_dir,
-            protected_dirs=(memories_dir, documents_dir),
+            protected_dirs=(memories_dir, documents_dir, checkpoints_dir),
         )
         rules = (
             _project_rules(
@@ -302,7 +326,7 @@ def _open_child(
                 PermissionConfig(
                     additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)
                 ),
-                (memories_dir, documents_dir),
+                (memories_dir, documents_dir, checkpoints_dir),
             )
             if config.rules.enabled
             else None

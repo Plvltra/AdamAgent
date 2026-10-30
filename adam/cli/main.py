@@ -107,6 +107,16 @@ def handle_command(
             write("用法：/usage")
         else:
             show_usage(application, write)
+    elif command == "/undo":
+        if len(parts) != 1:
+            write("用法：/undo")
+        else:
+            result = application.undo()
+            write(
+                f"已撤销文件修改：{result.path}"
+                if result.status == "applied"
+                else "已取消撤销，文件保持原状。"
+            )
     elif command == "/compact":
         if len(parts) != 1:
             write("用法：/compact")
@@ -155,7 +165,7 @@ def handle_command(
             show_model(application, write)
     else:
         write(
-            "未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context、/compact、/memory、/plan、/mode、/skills、/skill 或 /exit。"
+            "未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context、/compact、/memory、/plan、/mode、/skills、/skill、/undo 或 /exit。"
         )
     return CommandResult.HANDLED
 
@@ -248,7 +258,7 @@ def chat(
         application.resume(resume_id)
 
     write(
-        "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/compact、/memory、/plan、/mode [plan|act]、/skills、/skill <ID> <任务>、/exit；成功轮次自动保存。"
+        "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/compact、/memory、/plan、/mode [plan|act]、/skills、/skill <ID> <任务>、/undo、/exit；成功轮次自动保存。"
     )
     show_session(application, write)
     show_mode(application.mode, write)

@@ -498,6 +498,41 @@ class SessionStore:
             raise StorageError("检查点与编辑日志不一致，拒绝用于撤销。")
         return checkpoint
 
+    def undo_checkpoint(self, session_id: str, *, max_bytes: int) -> EditCheckpoint | None:
+        """选最近尚未撤销的成功编辑并核对副本；没有候选返回 None，不跳过损坏副本。"""
+        self.select_session(session_id)
+        log = self._read_log(session_id)
+        try:
+            edit = log.undos.latest_edit(log.edits.operations, log.executions)
+        except ValueError as error:
+            raise StorageError(
+                "存在未确认的执行或撤销，不能继续修改；请先核对记录。",
+                code=FailureCode.EXECUTION_UNKNOWN,
+            ) from error
+        return (
+            self.load_edit_checkpoint(session_id, edit["edit_id"], max_bytes=max_bytes)
+            if edit is not None
+            else None
+        )
+
+    def append_undo_event(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:
+        """保存用户撤销的来源、差异和执行结果；日志失败必须停止，不能自动重做。"""
+        if kind not in {"undo_requested", "undo_prepared", "undo_started", "undo_finished"}:
+            raise ValueError("unknown undo event")
+        self._append(session_id, record(kind, payload))
+
+    def load_undos(self, session_id: str) -> list[dict[str, Any]]:
+        """返回独立撤销记录；不改原编辑状态，缺失结束的写入保持 unknown。"""
+        return list(self._read_log(session_id).undos.operations.values())
+
+    def has_unconfirmed_actions(self, session_id: str) -> bool:
+        """集中判断副作用是否未确认，聊天与界面不需要枚举每种操作模块。"""
+        log = self._read_log(session_id)
+        return log.undos.unfinished() or any(
+            item["status"] == "unknown"
+            for item in (*log.executions.values(), *log.edits.operations.values())
+        )
+
     def execution_report(self, session_id: str, turn_id: str) -> ExecutionReport:
         """从同一份日志快照生成指定轮次的执行事实；读取失败遵循 StorageError 契约。"""
         return build_execution_report(self._read_log(session_id), turn_id)

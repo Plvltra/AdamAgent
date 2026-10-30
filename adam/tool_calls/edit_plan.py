@@ -1,7 +1,9 @@
 """从读取快照生成单文件替换计划；不访问文件，也不执行修改。"""
 
 from difflib import unified_diff
+from pathlib import Path
 
+from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import ToolError
 from adam.contracts.models import EditPlan as EditPlan
 from adam.tool_calls.text_file import TextSnapshot
@@ -44,17 +46,44 @@ def plan_edit(
         candidate = b"\xef\xbb\xbf" + candidate
     if len(candidate) > max_bytes:
         raise ToolError("修改后的文件超过文本大小上限。")
+    return EditPlan(
+        snapshot.path,
+        snapshot.version,
+        candidate,
+        _diff(snapshot.path, text, changed),
+        snapshot.raw,
+    )
+
+
+def plan_restore(snapshot: TextSnapshot, checkpoint: EditCheckpoint) -> EditPlan:
+    """从当前版本和原始副本生成逆向计划；版本或路径不符时拒绝覆盖外部修改。"""
+    if snapshot.path != checkpoint.path or snapshot.version != checkpoint.target_version:
+        raise EditConflictError("文件与该次修改后的版本不一致，不能撤销；请先核对外部改动。")
+    try:
+        original = checkpoint.original.decode("utf-8-sig")
+    except UnicodeError as error:
+        raise ToolError("检查点不是可恢复的 UTF-8 文本。") from error
+    return EditPlan(
+        snapshot.path,
+        snapshot.version,
+        checkpoint.original,
+        _diff(snapshot.path, _normalize(snapshot.text), _normalize(original)),
+        snapshot.raw,
+    )
+
+
+def _diff(path: Path, before: str, after: str) -> str:
+    """为普通编辑和撤销生成同一格式的完整差异；展示不重新编码实际写入字节。"""
     lines = unified_diff(
-        text.splitlines(keepends=True),
-        changed.splitlines(keepends=True),
-        fromfile=str(snapshot.path),
-        tofile=str(snapshot.path),
+        before.splitlines(keepends=True),
+        after.splitlines(keepends=True),
+        fromfile=str(path),
+        tofile=str(path),
     )
     # 没有末尾换行的删除/新增行也要独立展示，避免相邻 diff 行粘连。
-    diff = "".join(
+    return "".join(
         line if line.endswith("\n") else line + "\n\\ No newline at end of file\n" for line in lines
     )
-    return EditPlan(snapshot.path, snapshot.version, candidate, diff)
 
 
 def _normalize(text: str) -> str:

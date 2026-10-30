@@ -9,7 +9,9 @@ from adam.application.conversation import Conversation
 from adam.application.experiences import ExperienceService
 from adam.application.memories import MemoryService
 from adam.application.modes import ModeController
+from adam.application.undo import UndoService
 from adam.context.builder import RequestContext
+from adam.contracts.checkpoints import UndoResult
 from adam.contracts.errors import AgentError, LLMError
 from adam.contracts.execution import ExecutionMode
 from adam.contracts.history import Summary
@@ -41,6 +43,7 @@ class AgentApplication:
         close_resources: Callable[[], None] | None = None,
         skills: SkillProvider | None = None,
         modes: ModeController | None = None,
+        undo: UndoService | None = None,
     ) -> None:
         self._close_resources = close_resources
         self._conversation = conversation
@@ -49,6 +52,7 @@ class AgentApplication:
         self._memories = memories
         self._skills = skills
         self._modes = modes
+        self._undo = undo
         self._experiences = ExperienceService(store, memories) if memories else None
         self._models: dict[str, str | None] | None = None
 
@@ -145,14 +149,11 @@ class AgentApplication:
         """只读判断原会话能否继续请求；未知消费和未知副作用不以清零或重放修复。"""
         if self.session is None:
             return ContinuationStatus(True, "no_session", "下一条输入会新建会话。")
-        operations = self._store.load_executions(self.session.session_id) + self._store.load_edits(
-            self.session.session_id
-        )
-        if any(item["status"] == "unknown" for item in operations):
+        if self._store.has_unconfirmed_actions(self.session.session_id):
             return ContinuationStatus(
                 False,
                 "execution_unknown",
-                "执行结果未知；先核对实际副作用和日志，再用 /new 开新会话；不会自动重跑。",
+                "存在尚未完成或执行结果未知的操作；先核对文件与日志，再重启恢复或 /new；不会自动重跑。",
             )
         usage = self.usage()
         if usage.unknown:
@@ -218,6 +219,15 @@ class AgentApplication:
         if self.session is None:
             return None
         return self._store.load_plan(self.session.session_id)
+
+    def undo(self) -> UndoResult:
+        """执行用户明确的单文件撤销；无会话不创建数据，过程固定模式且不请求模型。"""
+        if self.session is None:
+            raise AgentError("当前尚无会话，没有可撤销的文件编辑。")
+        if self._undo is None:
+            raise AgentError("当前应用没有配置撤销服务，请使用标准启动入口。")
+        with self._modes.turn() if self._modes is not None else nullcontext():
+            return self._undo.undo(self.session.session_id)
 
     def compact(self) -> Summary | None:
         """生成并保存旧历史摘要，不修改原始记录。"""

@@ -19,6 +19,7 @@ from adam.session.plan_evidence import validate_evidence
 from adam.session.plan_log import PlanLog
 from adam.session.reflection_log import ReflectionLog
 from adam.session.review_log import ReviewLog
+from adam.session.undo_log import UndoLog
 
 
 class UnsupportedLogVersionError(ValueError):
@@ -97,6 +98,7 @@ class SessionLog:
         self.executions: dict[str, dict[str, Any]] = {}
         self.compactions = CompactionLog()
         self.edits = EditLog()
+        self.undos = UndoLog()
         self.hooks = HookLog()
         self.plans = PlanLog()
         self.feedback = FeedbackLog()
@@ -146,6 +148,10 @@ class SessionLog:
             "edit_planned": self._apply_edit,
             "edit_started": self._apply_edit,
             "edit_finished": self._apply_edit,
+            "undo_requested": self._apply_undo,
+            "undo_prepared": self._apply_undo,
+            "undo_started": self._apply_undo,
+            "undo_finished": self._apply_undo,
             "command_started": self._apply_command,
             "command_finished": self._apply_command,
             "command_denied": self._apply_command,
@@ -192,6 +198,7 @@ class SessionLog:
             "uncommitted_messages": len(self._pending_messages),
             **({"hook_ids": self.hooks.pending_ids()} if self.hooks.pending_ids() else {}),
             **({"edit_ids": self.edits.pending_ids()} if self.edits.pending_ids() else {}),
+            **({"undo_ids": self.undos.pending_ids()} if self.undos.pending_ids() else {}),
             **(
                 {"compaction_ids": self.compactions.pending_ids()}
                 if self.compactions.pending_ids()
@@ -220,6 +227,7 @@ class SessionLog:
             self.tools[(turn_id, call_id)].update(details)
         self.compactions.recover(details)
         self.edits.recover()
+        self.undos.recover()
         self.hooks.recover()
         # 完整物理记录留在 events；无提交标记的消息不能成为成功历史。
         self._pending_messages = []
@@ -501,6 +509,14 @@ class SessionLog:
             raise ValueError("mismatched edit id")
         self.edits.apply(kind, payload)
         tool["edit_id"] = edit_id
+
+    def _apply_undo(self, kind: str, payload: dict[str, Any]) -> None:
+        """用户操作独立于聊天，不伪造请求；正在运行的轮次或摘要禁止插入撤销。"""
+        if any(turn["status"] == "in_progress" for turn in self.turns.values()) or (
+            self.compactions.pending_ids()
+        ):
+            raise ValueError("cannot undo during active work")
+        self.undos.apply(kind, payload, self.edits.operations, self.executions)
 
     def _apply_command(self, kind: str, payload: dict[str, Any]) -> None:
         """命令事件属于已开始的 run_command 工具；缺少结束事件时保持 unknown。"""

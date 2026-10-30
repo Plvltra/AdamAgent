@@ -73,12 +73,13 @@ def valid_session_id(value: str) -> bool:
 
 @dataclass(frozen=True)
 class EditPlan:
-    """批准对象：确定的路径、原版本和候选字节；diff 只用于展示。"""
+    """批准对象：路径、原版本及前后字节；original 用于检查点，diff 只用于展示。"""
 
     path: Path
     before_version: str
     candidate: bytes
     diff: str
+    original: bytes
 
 
 @dataclass(frozen=True)

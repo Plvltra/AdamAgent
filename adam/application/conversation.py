@@ -299,11 +299,10 @@ class Conversation:
         raise BudgetError("达到本轮请求上限。", code=FailureCode.REQUEST_LIMIT)
 
     def _check_execution_state(self, session_id: str) -> None:
-        """命令或文件修改结果未知时禁止继续调用模型；只读诊断仍可使用。"""
-        operations = self.store.load_executions(session_id) + self.store.load_edits(session_id)
-        if any(item["status"] == "unknown" for item in operations):
+        """副作用或撤销未确认时禁止继续调用模型；只读诊断仍可使用。"""
+        if self.store.has_unconfirmed_actions(session_id):
             raise StorageError(
-                "会话有结果未知的命令或文件修改；请检查记录并新建会话，不自动重做。",
+                "会话有尚未完成或执行结果未知的命令、文件修改或撤销；请检查记录并新建会话，不自动重做。",
                 code=FailureCode.EXECUTION_UNKNOWN,
             )
 
