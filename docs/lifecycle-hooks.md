@@ -1,6 +1,6 @@
 # 本地生命周期 Hooks（T5）
 
-状态：T5.1～T5.2 已实现配置、进程协议、主/子工具接入和审计恢复。启用并配置事件后，普通聊天的工具循环会执行检查器；两个可运行示例与组合验收留在 T5.3。完整范围见 [能力扩展任务](agent-maturity-tasks.md)。
+状态：T5.1～T5.3 工程实现及离线验收完成。启用并配置事件后，主/子工具循环会执行检查器；两个可运行示例见 [示例说明](../examples/hooks/README.md)。完整范围见 [能力扩展任务](agent-maturity-tasks.md)。
 
 ## 已确定的边界
 
@@ -25,7 +25,7 @@ max_output_bytes = 8192
 
 启用时必须至少提供 hooks.before_tool 或 hooks.after_tool；每个子表只包含 argv 字符串数组，例如程序路径和检查脚本路径。
 相对程序路径按实际工作目录解析，普通程序名经 PATH 查找；建议指定所需 Python 的路径，避免调用系统中其他版本。
-T5.3 将提供可运行示例，此处不创建虚构的检查脚本。
+[配置模板](../examples/hooks/config.toml) 使用实际存在的检查脚本：前置限制指定目录的专用编辑，后置检查已修改 Python 文件的语法。模板保持默认关闭，使用前确认解释器和脚本路径。
 
 超时支持 0.1～60 秒；输入上限支持 256～1048576 字节；每条输出流上限支持 256～65536 字节。输入不能静默截断，stdout 与 stderr 分别有界。
 关闭状态仍校验配置，加载配置不启动检查器。
@@ -82,7 +82,7 @@ HookResult 区分 allowed、denied、observed、failed，并保留受控原因�
 - hook_started / hook_finished 关联同一 turn_id、request_id、tool_call_id，另有 hook_id、event、execution_mode；结束记录保存检查状态、原因、耗时和有界 stderr。工具名称、参数与结果引用已有工具记录，不复制为聊天消息。
 - 检查开始记录保存成功才运行程序；任何 Hook 审计失败以 hook_log_error 停止本轮，不让模型自动重试。后置审计失败仍保留此前已经落盘的 tool_finished 以及命令/编辑记录。
 - 捕获取消时清理进程并尽力保存 interrupted / cancelled；保存失败不覆盖原中断。重开会话先备份，再通过 session_recovered 把遗留检查标为 interrupted / restart_recovery，耗时未知，不自动重跑。
-- 尚有未结算检查时不能提交整轮成功。失败输入和 Hook 审计不会直接进入有效聊天历史；可通过 SessionStore.load_hooks 或 JSONL 诊断。
+- 尚有未结算检查时不能提交整轮成功。失败输入和 Hook 审计不会直接进入有效聊天历史；可通过 SessionStore.load_hooks 或独立诊断入口 python -m adam.diagnostics 查看每轮 hooks；诊断只读取已有日志。
 - Hooks 不注册为模型工具，程序不会为 Hook 再派发 Hook；关闭时不生成 Hook 事件。
 
 ## 验收
@@ -94,4 +94,8 @@ HookResult 区分 allowed、denied、observed、failed，并保留受控原因�
 - tests/features/test_tool_hooks.py：14项主/子真实流程场景，验证前后来源、模式、审批、拒绝、后置事实保留、四种日志失败和进程取消。
 - tests/test_hook_log.py：17项关联/状态与恢复边界，验证非法追加不改变日志、未结算检查不能提交成功。
 
-T5.1 的51项基础检查与 T5.2 新增31项检查均已通过；完整 Ruff、Pyright 与 pytest 随提交执行。全部使用本地临时程序，不请求付费模型。
+- tests/features/test_hook_acceptance.py：13项实际示例组合验收；保护目录、合法/非法语法、人工拒绝、关闭、模式、项目规则、外部改动、日志及展示故障。
+- tests/features/test_cancellation.py：保留原6项真实 CLI/HTTP 取消场景，新增前置/后置检查中取消；检查进程回收，已完成命令仍为 completed，模型请求可靠用量保留。
+- 独立诊断仍只读，新增每轮 hooks 投影；对应旧诊断场景已回归。
+
+T5.3 新增15项业务场景。定向检查通过，完整 Ruff、Pyright 与 pytest 随提交执行。全部使用本地临时程序和模拟模型，不请求付费 API；不把这些流程测试当作真实模型遵从效果的证明。

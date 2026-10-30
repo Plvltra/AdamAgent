@@ -1,4 +1,4 @@
-"""V5.2：独立 CLI 进程在真实 HTTP/子进程等待中收到 SIGINT，回到输入并可新建会话。"""
+"""V5.2/T5.3：独立 CLI 在真实 HTTP、命令或 Hook 等待中收到 SIGINT，回到输入并可新建会话。"""
 
 import json
 import os
@@ -62,8 +62,12 @@ def cancel_server(tmp_path):
                     self.wfile.flush()
                     ready.set()
                     release.wait(20)
-                elif first and mode in {"command", "confirm"}:
-                    argv = [sys.executable, str(tmp_path / "tree.py")]
+                elif first and mode in {"command", "confirm", "before_hook", "after_hook"}:
+                    argv = (
+                        [sys.executable, "-c", "from pathlib import Path; Path('ran').touch()"]
+                        if mode in {"before_hook", "after_hook"}
+                        else [sys.executable, str(tmp_path / "tree.py")]
+                    )
                     call = {
                         "index": 0,
                         "id": "command",
@@ -120,12 +124,36 @@ def alive(pid):
 
 
 @pytest.mark.parametrize(
-    "mode", ["headers", "body", "known_body", "command", "confirm", "plan_body"]
+    "mode",
+    [
+        "headers",
+        "body",
+        "known_body",
+        "command",
+        "confirm",
+        "plan_body",
+        "before_hook",
+        "after_hook",
+    ],
 )
 def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, mode):
     url, ready, release, requests, control = cancel_server
     control["mode"] = mode
-    (tmp_path / "config.toml").write_text('[storage]\nsessions_dir="sessions"\n', encoding="utf-8")
+    config = '[storage]\nsessions_dir="sessions"\n'
+    if mode in {"before_hook", "after_hook"}:
+        checker = tmp_path / "hook_wait.py"
+        checker.write_text(
+            "import json, os, sys, time\nfrom pathlib import Path\n"
+            "json.load(sys.stdin)\nPath('hook.pid').write_text(str(os.getpid()))\n"
+            "time.sleep(30)\n",
+            encoding="utf-8",
+        )
+        event = "before_tool" if mode == "before_hook" else "after_tool"
+        config += (
+            f"[hooks]\nenabled=true\ntimeout_seconds=20\n[hooks.{event}]\n"
+            f"argv={json.dumps([sys.executable, str(checker)])}\n"
+        )
+    (tmp_path / "config.toml").write_text(config, encoding="utf-8")
     (tmp_path / "llm.toml").write_text(
         f'[llm]\nbase_url="{url}"\nmodel="test"\napi_key="key"\ntimeout_seconds=15\n',
         encoding="utf-8",
@@ -156,7 +184,11 @@ def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, 
             while time.monotonic() < deadline:
                 if (
                     (mode == "command" and (tmp_path / "pids").exists())
-                    or (mode not in {"command", "known_body"} and ready.is_set())
+                    or (
+                        mode not in {"command", "known_body", "before_hook", "after_hook"}
+                        and ready.is_set()
+                    )
+                    or (mode in {"before_hook", "after_hook"} and (tmp_path / "hook.pid").exists())
                     or (mode == "known_body" and (tmp_path / "usage_received").exists())
                 ):
                     break
@@ -166,7 +198,9 @@ def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, 
                 raise AssertionError("worker did not reach interrupt boundary")
             if mode == "command":
                 pids = [int(item) for item in (tmp_path / "pids").read_text().split(",")]
-            # 等待正文进入客户端；测试投递与物理键盘相同的 Python SIGINT 处理路径。
+            elif mode in {"before_hook", "after_hook"}:
+                pids = [int((tmp_path / "hook.pid").read_text())]
+            # 等待正文或检查器就绪；测试投递与物理键盘相同的 Python SIGINT 处理路径。
             time.sleep(0.2)
             (tmp_path / "cancel").touch()
         stdout, stderr = process.communicate(timeout=12)
@@ -191,6 +225,17 @@ def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, 
                 item.get("content") in {"start", "again"} for item in requests[1]["messages"]
             )
             assert turn["requests"][0]["status"] == "interrupted"
+        elif mode in {"before_hook", "after_hook"}:
+            assert turn["requests"][0]["status"] == "succeeded"
+            assert len(turn["hooks"]) == 1
+            assert turn["hooks"][0]["status"] == "interrupted"
+            assert turn["hooks"][0]["error_code"] == "cancelled"
+            assert (tmp_path / "ran").exists() is (mode == "after_hook")
+            assert turn["tools"][0]["finished"] is (mode == "after_hook")
+            if mode == "after_hook":
+                assert turn["commands"][0]["status"] == "completed"
+            else:
+                assert turn["commands"] == []
         elif mode == "command":
             assert turn["commands"][0]["status"] == "interrupted"
         elif mode == "confirm":

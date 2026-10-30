@@ -30,7 +30,7 @@ session_id：一个会话，对应一个 JSONL 文件
 | turn_finished | turn_id、status、reason、duration_ms、error | 失败或中断的轮次终态，不提交消息 |
 | tool_started | turn_id、request_id、tool_call_id、name、arguments | 即将进入工具处理；arguments 为模型给出的原始 JSON 字符串 |
 | tool_finished | turn_id、request_id、tool_call_id、output | 已取得返回值；output 为实际回传模型的有界 JSON 字符串 |
-| hook_started / hook_finished | 父轮次/请求/工具、hook_id、event、execution_mode、result | T5 工具前后检查；结果与工具输出独立，详见 [Hooks 契约](lifecycle-hooks.md) |
+| hook_started / hook_finished | 父轮次/请求/工具、hook_id、event、execution_mode、result | T5 工具前后检查；独立诊断按轮次输出 hooks，结果与工具输出独立，详见 [Hooks 契约](lifecycle-hooks.md) |
 | command_started / command_finished / command_denied | 上述三个关联 ID、execution_id 及命令细节 | run_command 的审批和进程执行记录 |
 | edit_planned / edit_started / edit_finished | 父轮次/请求/工具、edit_id、路径、版本与状态 | 计划、批准后写入边界及实际结果，详情见下文 |
 | plan_updated | turn_id、request_id、tool_call_id、version、steps、reason、replan_count、max_steps、max_replans | E3 完整计划版本；证据校验、状态与恢复见 [任务计划](task-planning.md) |

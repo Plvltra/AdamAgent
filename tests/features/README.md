@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T5.3 Hook 示例与组合验收 | 真实目录保护/语法检查、审批与模式、规则等待、关闭零进程、外部改动及真实 CLI/SIGINT 取消 | [test_hook_acceptance.py](test_hook_acceptance.py)、[test_cancellation.py](test_cancellation.py) |
 | T5.2 工具 Hook 边界 | 主/子继承、来源与阶段、拒绝无动作、审批保持、后置结果不丢失、日志故障和真实进程取消 | [test_tool_hooks.py](test_tool_hooks.py)、[日志校验](../test_hook_log.py) |
 | T5.1 本地 Hook 进程 | 真实 JSON 通信、环境限制、关闭零进程、超时/坏响应/非零/大小上限及阻塞输入取消 | [test_hook_process.py](test_hook_process.py)、[配置与协议](../test_hooks.py) |
 | T4.3 模式组合验收 | 不可信指导与模型不能切换、MCP 只读、act 拒绝、摘要后限制、模式记录损坏/缺省及真实进程取消 | [test_mode_acceptance.py](test_mode_acceptance.py)、[test_cancellation.py](test_cancellation.py) |

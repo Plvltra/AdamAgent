@@ -11,7 +11,7 @@ from adam.session.log import parse_log
 
 
 def read_report(path: Path) -> dict[str, Any]:
-    """读取一个 JSONL 快照，按轮次列出输入、请求、工具及结束信息。
+    """读取一个 JSONL 快照，按轮次列出输入、请求、工具、Hook 检查及结束信息。
 
     不创建目录、不修复文件，也不把诊断输入加入模型历史。正在写入的文件可能暂时
     不完整，此时明确报错；需要稳定快照时应在聊天进程退出后读取。
@@ -48,6 +48,9 @@ def read_report(path: Path) -> dict[str, Any]:
                 "tools": [value for value in log.tools.values() if value["turn_id"] == turn_id],
                 "edits": [
                     value for value in log.edits.operations.values() if value["turn_id"] == turn_id
+                ],
+                "hooks": [
+                    value for value in log.hooks.records.values() if value["turn_id"] == turn_id
                 ],
                 "commands": [
                     value for value in log.executions.values() if value["turn_id"] == turn_id
