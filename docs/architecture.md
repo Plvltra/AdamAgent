@@ -2,11 +2,30 @@
 
 最近核对：2026-10-30
 
-本次核对范围：T7.3 真实进程撤销、持锁恢复、强杀与重复操作整体验收。新增 tests/features/test_undo_recovery.py 及独立进程入口；产品架构无变化。CLI 仍通过应用接口使用 UndoService，SessionStore 负责锁、备份与原子恢复，UndoLog 保持未知状态。
+本次核对范围：T8.1 独立附件契约与存储。新增 contracts/artifacts.py、session/artifacts.py；ArtifactStore 仅依赖契约与文件组件，负责锁、配额、原子发布和分页，尚未接到工具循环或 CLI。下图只展示当前显式 API；T8.2 接入仍待完成。
 
-核对结论：T7.3 的15项真实进程场景验证既有调用与恢复边界，未新增产品模块或修改图中关系。T7.2 完成标准编辑与撤销接入；EditPlan 保留同次读取的原字节，ToolInvocation 负责保存快照，UndoService 协调当前权限、批准、恢复原字节及独立日志。UndoLog 区分尚未写入与结果未知，SessionStore 统一查询副作用状态；主/子路径访问增加检查点保护。T7.3 真实进程、恢复过程强杀与重复撤销组合验收已完成。T6.3 已按生产组装验证并发结构。并发上限属于每个 ToolExecutor；两个子 Agent 可各执行两个读取，仍使用独立会话和协调线程、共用主会话额度。T6.2 的 ToolExecutor 协调批次，ToolInvocation 负责单次预检、日志和 Hook；ToolScheduler 仅调度，八个内置只读入口获得并发资格。准备、编码、结果保存和 Hook 均在协调线程，工作线程不接收执行日志回调。ToolCleanupError 移入公共错误契约，CLI 和 Conversation 无新增工具分支。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；模型工具的模式判定仍由 ToolRegistry 执行，用户撤销由 UndoService 应用同一模式规则；Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：T8.1 新增独立 ArtifactStore 与 ArtifactSource/Ref/Page，不改变 Conversation、ToolInvocation 或既有工具结果。45项附件场景和19项架构约束通过。T7.3 的15项真实进程场景验证既有调用与恢复边界，未新增产品模块或修改图中关系。T7.2 完成标准编辑与撤销接入；EditPlan 保留同次读取的原字节，ToolInvocation 负责保存快照，UndoService 协调当前权限、批准、恢复原字节及独立日志。UndoLog 区分尚未写入与结果未知，SessionStore 统一查询副作用状态；主/子路径访问增加检查点保护。T7.3 真实进程、恢复过程强杀与重复撤销组合验收已完成。T6.3 已按生产组装验证并发结构。并发上限属于每个 ToolExecutor；两个子 Agent 可各执行两个读取，仍使用独立会话和协调线程、共用主会话额度。T6.2 的 ToolExecutor 协调批次，ToolInvocation 负责单次预检、日志和 Hook；ToolScheduler 仅调度，八个内置只读入口获得并发资格。准备、编码、结果保存和 Hook 均在协调线程，工作线程不接收执行日志回调。ToolCleanupError 移入公共错误契约，CLI 和 Conversation 无新增工具分支。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；模型工具的模式判定仍由 ToolRegistry 执行，用户撤销由 UndoService 应用同一模式规则；Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
+
+## T8.1 独立附件存储
+
+~~~mermaid
+flowchart LR
+    ART_CALL["显式 API 调用 / T8.1"] --> ART_STORE["ArtifactStore / save、describe、read"]
+    ART_STORE --> ART_VALUE["ArtifactSource、ArtifactRef、ArtifactPage"]
+    ART_STORE --> ART_LOCK["会话锁 / 字节与数量配额"]
+    ART_STORE --> ART_FILE["单文件 JSON / 元数据与 UTF-8 正文"]
+    ART_STORE --> ART_PUBLISH["临时写入、fsync、原子发布"]
+    ART_PUBLISH --> ART_FILE
+    ART_STORE --> ART_PAGE["固定内容版本 / Unicode 字符分页"]
+~~~
+
+来源契约不验证聊天事件；真实工具来源由后续接入层对账。存储层不读取 Config，
+不创建轮次、不调用模型；格式、身份、正文版本和大小在读取时核验。
+部分保存保留明确的不完整标志，原输出总量未知时不猜测。
+当前没有 bootstrap 或工具循环到 ArtifactStore 的连接，也未注册 read_artifact；
+配置、受保护目录和聊天使用属于 T8.2。完整接口与验收见 [附件需求](tool-artifacts.md)。
 
 ## T7 检查点、编辑接入与用户撤销
 
