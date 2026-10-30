@@ -28,15 +28,19 @@ def create_tool_registry(
     confirm_edit: Callable[[EditPlan], bool] | None = None,
     delegated: bool = False,
     protected_dirs: tuple[Path, ...] = (),
+    command_output_bytes: int | None = None,
 ) -> ToolRegistry:
     """创建内置工具；工作目录无效时失败，未提供确认回调时命令及编辑默认拒绝。
 
     protected_dirs 是程序保留目录，即使位于已授权根内，文件及 Git diff 工具也拒绝读取。
     已批准命令不受路径策略约束；子任务的命令入口始终拒绝执行。
+    command_output_bytes 只控制管道捕获，不改变单次回传上限；附件在外层保存。
     """
     policy = PathPolicy(workspace, permissions or PermissionConfig(), protected_dirs=protected_dirs)
     limits = limits or ToolLimits()
-    commands = CommandTools(policy.workspace, limits, confirm_command)
+    commands = CommandTools(
+        policy.workspace, limits, confirm_command, capture_bytes=command_output_bytes
+    )
     edits = EditTools(policy, limits, confirm_edit)
     readers = _readers(policy, limits)
     handlers = {name: _path_handler(policy, handler) for name, handler in readers.items()}

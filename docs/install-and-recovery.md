@@ -36,7 +36,7 @@ ADAM_HOME 可以切换整套配置/数据根目录。--config、--llm-config 指
 ## 会话备份与迁移
 
 1. 退出所有正在使用这些会话的 Adam 进程，让 JSONL 完成写入并释放锁。
-2. 备份 config.toml、需要保留的 llm.toml，以及配置指向的整个 sessions 目录（保持年/月/日层级与原文件名；V6 的 _subagents、index.json 和子会话 JSONL 必须一并保留）。llm.toml 若含明文密钥，按个人凭据妥善保存；不要放进项目 Git。
+2. 备份 config.toml、需要保留的 llm.toml，以及配置指向的整个 sessions 目录（保持年/月/日层级与原文件名；V6 的 _subagents、index.json 和子会话 JSONL，T7 的 _checkpoints，以及 T8 的 _artifacts（包含 children 子树）必须一并保留）。llm.toml 若含明文密钥，按个人凭据妥善保存；不要放进项目 Git。
 3. 恢复时复制到一个新的数据目录，先保留原目录和备份。在 config.toml 的 storage.sessions_dir 中设置恢复目录；相对路径以配置文件所在目录为基准。
 4. 运行 /sessions 查看 ID，再 /resume 实际 ID。可以先使用独立诊断入口读取日志，不会请求模型。
 5. 跨机器还需检查模型环境变量、工作目录和额外读写权限。恢复聊天记录不会重放文件修改或命令。
@@ -50,6 +50,8 @@ ADAM_HOME 可以切换整套配置/数据根目录。--config、--llm-config 指
 V6 子 Agent 的工作目录和读取范围在创建时固定。迁移后这些配置改变时，旧子 Agent 不能获得新权限继续运行；旧结果保留供查询，主 Agent 可按新配置创建子 Agent。索引缺失而子日志存在时会报错，不清零消费。
 
 强制退出产生残缺尾行时，程序取得锁后备份原文件并恢复；中间损坏拒绝读取。不要手动删除 unknown 或改成零消费来继续。原始文件和 .bak 可用来核对恢复前后的记录。
+
+T8 附件引用保存在 JSONL，正文保存在 _artifacts。只有日志不能恢复长输出；文件缺失或与固定引用不符时 read_artifact 明确报错，不重新执行原命令。附件保存不完整的标记在迁移后仍保持，不能用备份操作补造缺失内容。
 
 ## E1 记忆备份与恢复
 

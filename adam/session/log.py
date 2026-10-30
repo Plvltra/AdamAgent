@@ -4,6 +4,7 @@ import json
 from itertools import groupby
 from typing import Any
 
+from adam.contracts.artifacts import ArtifactRef, decode_artifact_reference
 from adam.contracts.history import HistoryTurn
 from adam.contracts.memory import validate_selection
 from adam.contracts.planning import decode_plan
@@ -104,6 +105,7 @@ class SessionLog:
         self.feedback = FeedbackLog()
         self.reflections = ReflectionLog()
         self.reviews = ReviewLog()
+        self.artifacts: dict[str, ArtifactRef] = {}
         self.tokens = 0
         self._unknown_usage = False
         self._pending_turn = ""
@@ -137,6 +139,7 @@ class SessionLog:
             "turn_finished": self._finish_turn,
             "tool_started": self._apply_tool,
             "tool_finished": self._apply_tool,
+            "artifact_saved": self._apply_artifact,
             "hook_started": self._apply_hook,
             "hook_finished": self._apply_hook,
             "plan_updated": self._apply_plan,
@@ -445,6 +448,29 @@ class SessionLog:
             raise ValueError("edit has no final result")
         self.hooks.check_tool_finish(tool, payload["output"])
         tool.update(output=payload["output"], finished=True, status="finished")
+
+    def _apply_artifact(self, kind: str, payload: dict[str, Any]) -> None:
+        """仅接收本会话进行中工具的宿主引用；文件是否存在由读取边界另行验证。"""
+        reference = decode_artifact_reference(payload)
+        source = reference.source
+        link = {
+            "turn_id": source.turn_id,
+            "request_id": source.request_id,
+            "tool_call_id": source.tool_call_id,
+        }
+        self._require_turn(link)
+        request = self._require_request(link)
+        tool = self._require_tool(link)
+        if (
+            source.session_id != self.metadata["id"]
+            or request["status"] != "succeeded"
+            or tool["finished"]
+            or tool["name"] != source.tool_name
+            or reference.artifact_id in self.artifacts
+            or any(item.source == source for item in self.artifacts.values())
+        ):
+            raise ValueError("invalid or duplicate artifact source")
+        self.artifacts[reference.artifact_id] = reference
 
     def _apply_hook(self, kind: str, payload: dict[str, Any]) -> None:
         """校验检查来源及请求模式；后置观察允许工具已结束，但轮次必须仍在进行。"""

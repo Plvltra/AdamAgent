@@ -14,6 +14,7 @@ from adam.contracts.errors import (
 )
 from adam.contracts.hooks import HookService
 from adam.session.storage import SessionStore
+from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.invocation import ToolInvocation
 from adam.tool_calls.registry import PreparedAction, ToolRegistry
 from adam.tool_calls.scheduler import ToolResult, ToolScheduler, ToolTask
@@ -49,6 +50,7 @@ class ToolExecutor:
         check_call: Callable[[str], None] | None = None,
         cancel: CancellationToken | None = None,
         hooks: HookService | None = None,
+        artifacts: ToolArtifacts | None = None,
         on_notice: Callable[[str], None] | None = None,
     ) -> None:
         """注入存储和工具目录；notify 只接收工具名称，展示方式由调用方决定。
@@ -63,6 +65,7 @@ class ToolExecutor:
         self.before_call, self.cancel = before_call, cancel
         self.after_call, self.check_call = after_call, check_call
         self.hooks, self.on_notice = hooks, on_notice or (lambda _: None)
+        self.artifacts = artifacts
         # Git 取消沿用进程树清理（最多等待 taskkill 5 秒），为直接进程回收留出余量。
         self._scheduler = ToolScheduler(cancel=cancel, cleanup_timeout_seconds=7.0)
 
@@ -94,6 +97,7 @@ class ToolExecutor:
                 call["function"],
                 self.notify,
                 hooks=self.hooks,
+                artifacts=self.artifacts,
                 on_notice=self.on_notice,
                 check_call=self.check_call,
             )

@@ -74,6 +74,14 @@ tool_prune_threshold_chars = 4000
 tool_prune_head_chars = 1500
 tool_prune_tail_chars = 500
 
+[artifacts]
+# 长工具结果存入 sessions_dir/_artifacts；模型按字符分页读取固定版本。
+enabled = true
+max_bytes = 1048576
+max_session_bytes = 16777216
+max_items = 128
+max_read_chars = 4000
+
 [hooks]
 # Optional local before/after tool checks; see docs/lifecycle-hooks.md.
 enabled = false

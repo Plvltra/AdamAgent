@@ -7,6 +7,7 @@ from typing import Any
 from adam.contracts.errors import CommandLogError, EditLogError, StorageError, ToolError
 from adam.contracts.hooks import HookService
 from adam.session.storage import SessionStore
+from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.lifecycle import ToolHooks
 from adam.tool_calls.registry import PreparedAction, ToolRegistry
 
@@ -24,6 +25,7 @@ class ToolInvocation:
         notify: Callable[[str], None],
         *,
         hooks: HookService | None = None,
+        artifacts: ToolArtifacts | None = None,
         on_notice: Callable[[str], None],
         check_call: Callable[[str], None] | None = None,
     ) -> None:
@@ -33,6 +35,7 @@ class ToolInvocation:
         self.name, self.arguments = function["name"], function["arguments"]
         self.call_id = source["tool_call_id"]
         self.notify, self.check_call = notify, check_call
+        self.artifacts = artifacts
         self._execution_id = secrets.token_hex(16)
         self._hooks = (
             ToolHooks(hooks, store, session_id, source, on_notice) if hooks is not None else None
@@ -64,8 +67,17 @@ class ToolInvocation:
             return lambda _cancel: output
 
     def finish(self, result: dict[str, Any]) -> str:
-        """编码并可靠保存实际结果后运行后置 Hook；后置故障不能改写已发生的动作。"""
-        output = self.registry.encode(self.name, result)
+        """先处理长结果附件，再保存实际回传内容并运行后置 Hook。
+
+        后置故障不能改写已发生的动作；附件与来源日志失败按各自保存边界处理。
+        """
+        output = (
+            self.artifacts.encode(
+                self.session_id, self.source, self.name, result, self.registry.encode
+            )
+            if self.artifacts is not None
+            else self.registry.encode(self.name, result)
+        )
         self.store.append_tool_event(
             self.session_id, "tool_finished", {**self.source, "output": output}
         )

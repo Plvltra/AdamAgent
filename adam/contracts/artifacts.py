@@ -78,6 +78,18 @@ class ArtifactPage:
     next_offset: int | None
 
 
+def decode_artifact_reference(value: object) -> ArtifactRef:
+    """从日志或附件元数据还原同一引用契约；多余或缺失字段均拒绝。"""
+    if not isinstance(value, dict):
+        raise ValueError("invalid artifact reference")
+    try:
+        metadata = dict(value)
+        source = ArtifactSource(**metadata.pop("source"))
+        return ArtifactRef(source=source, **metadata)
+    except (KeyError, TypeError) as error:
+        raise ValueError("invalid artifact reference fields") from error
+
+
 def validate_artifact_identity(session_id: str, artifact_id: str) -> None:
     """路径只使用程序 ID，不接受用户传入的任意相对路径。"""
     _hex_identifier(session_id, 8)

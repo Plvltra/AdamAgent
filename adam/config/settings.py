@@ -71,6 +71,31 @@ class ToolLimits:
 
 
 @dataclass(frozen=True)
+class ArtifactConfig:
+    """长工具结果的文本保存与读取配额；关闭时保留原有截断行为。"""
+
+    enabled: bool = True
+    max_bytes: int = 1048576
+    max_session_bytes: int = 16777216
+    max_items: int = 128
+    max_read_chars: int = 4000
+
+    def __post_init__(self) -> None:
+        """直接构造和 TOML 共用校验，单位与 ArtifactStore 接口保持一致。"""
+        if type(self.enabled) is not bool:
+            raise ConfigError("artifacts.enabled 必须是布尔值。")
+        for name, maximum in (
+            ("max_bytes", 100000000),
+            ("max_session_bytes", 1073741824),
+            ("max_items", 4096),
+            ("max_read_chars", 1000000),
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or not 1 <= value <= maximum:
+                raise ConfigError(f"artifacts.{name} 必须是 1～{maximum} 的整数。")
+
+
+@dataclass(frozen=True)
 class ContextConfig:
     """单次输入的应用预算；不是模型窗口容量，输出额度由 AgentConfig 单独预留。"""
 
@@ -312,3 +337,4 @@ class AppConfig:
     documents: DocumentConfig = field(default_factory=DocumentConfig)
     documents_dir: Path | None = None
     hooks: HooksConfig = field(default_factory=HooksConfig)
+    artifacts: ArtifactConfig = field(default_factory=ArtifactConfig)

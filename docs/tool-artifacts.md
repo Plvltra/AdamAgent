@@ -1,12 +1,28 @@
 # 大工具结果附件与分段读取
 
-状态：T8.1 独立存储接口已实现并通过定向验收；T8.2 工具循环接入、read_artifact 和 T8.3 完整任务对照仍待完成。主需求见 [能力扩展任务](agent-maturity-tasks.md)。
+状态：T8.1 存储与 T8.2 主/子工具循环接入已实现；T8.3 完整任务对照、恢复与读取预算整体验收仍待完成。主需求见 [能力扩展任务](agent-maturity-tasks.md)。
 
 ## 目标与阶段边界
 
 长输出先可靠保存，模型只接收简短预览与固定引用，需要时再读指定范围。附件不能绕过会话隔离、原有权限和上下文预算；保存不完整或失败时必须如实报告。
 
-T8.1 提供 ArtifactSource、ArtifactRef、ArtifactPage 和 ArtifactStore，调用者可以显式保存及分页读取。目前聊天不会自动生成附件，也没有注册 read_artifact。真实工具来源对账、配置及主/子工具访问保护在 T8.2 接入，不把独立存储 API 当成完整聊天功能。
+T8.1 提供 ArtifactSource、ArtifactRef、ArtifactPage 和 ArtifactStore。T8.2 通过 ToolArtifacts 在工具动作结束、普通结果截断之前保存长结果；ToolInvocation 负责调用，Conversation 不按工具名称增加分支。短结果沿用原编码器，read_artifact 结果已经分页，不递归产生附件。
+
+附件正文是原工具结果的 JSON 文本，包含命令 stdout/stderr 和实际状态，不是任意路径下载接口。保存的是本次取得的结果；原生 read_file、Git 等工具已有的分页和上游截断保持，不能据附件完整标志声称读取了整个文件或仓库。
+
+## 模型交互与配置
+
+[artifacts] 默认开启，参数见下表及 config.example.toml；enabled=false 时不注册 read_artifact，也不扩大命令捕获范围。正文目录只在实际产生附件时创建。
+
+1. 工具结果 JSON 超过 tool_limits.max_result_chars 时尝试保存正文。
+2. 模型收到有界预览与 artifact：artifact_id、version、saved_chars、complete、format=json。命令仍保留退出码与状态；非零退出不会被描述为检查通过。
+3. read_artifact 接受 artifact_id、version，以及可选 offset/count；当前会话由宿主绑定，不接受 session_id 或文件路径。返回 text、offset、next_offset 和完整性。
+4. 分页同时服从 max_read_chars 与实际 JSON 编码后的 max_result_chars。转义导致进一步缩短时同步 next_offset，不跳过字符；读取内容进入原工具消息，因此继续受工具次数与上下文预算约束。
+5. 正文先发布，再追加 artifact_saved 来源事件，最后保存 tool_finished 和执行后置 Hook。事件核对正在进行的轮次、成功请求、实际工具名称与调用 ID；同一调用只保存一份引用。
+
+命令每条流最多捕获 artifacts.max_bytes 个字节，再持续排空其余管道；单份与会话保存配额仍独立检查。UTF-8 解码替换、管道未完整读取或捕获截断均标为不完整。command_finished 只保存有界事实预览；扩大捕获不会把长输出再次写入 JSONL，也不修改供附件保存的原结果。
+
+正文存储失败返回 artifact_unavailable，不提供虚假引用，保留动作实际状态且不重跑。正文已发布而来源日志失败时停止本轮；孤立文件不能凭文件存在直接读取。读取先查当前日志，再比较正文与记录中的完整引用，包括来源、版本、大小和完整性；丢失、篡改或旧版本只返回工具错误，不重做原命令。日志本身损坏或读取故障仍停止。
 
 ## 数据契约
 
@@ -34,7 +50,7 @@ offset 从 0 开始，单位为 Python Unicode 字符，不是 UTF-8 字节或�
 
 ## 默认限制与配额
 
-这些是存储构造参数，T8.1 尚未增加 TOML 配置：
+这些参数同时用于 [artifacts] 配置与存储构造；配置只在组装层拆分，存储不依赖配置模块：
 
 | 参数 | 缺省值 | 约束 |
 | --- | --- | --- |
@@ -51,7 +67,9 @@ offset 从 0 开始，单位为 Python Unicode 字符，不是 UTF-8 字节或�
 
 ## 文件格式与可靠性
 
-调用方传入附件根目录，结构为：
+主应用使用 <sessions_dir>/_artifacts；子任务使用该目录的 children/<主会话ID> 子目录。子任务之间仍按各自会话 ID 隔离，主/子短 ID 即使相同也不共用目录。所有主/子普通文件、Git、规则、Skill 和文档检索都保护整个附件根；已批准的任意命令仍不是操作系统沙箱。
+
+调用方传入对应附件根目录，结构为：
 
 ~~~text
 <附件根>/<session_id>/<artifact_id>.json
@@ -62,14 +80,16 @@ offset 从 0 开始，单位为 Python Unicode 字符，不是 UTF-8 字节或�
 
 同一会话的保存和读取共用 FileLock。保存先写同目录临时文件，flush/fsync 后原子发布；故障只清理本次临时文件，已有附件保持。孤立临时文件不作为附件，不因重启而自动发布。仅在当前受控写入流程内保证不覆盖已有 ID；外部替换内容后，持旧版本的读取仍会失败。
 
-目录和文件链接重定向均拒绝，包括指向另一会话的链接。这里的隔离是存储 API 的身份与路径检查，不是操作系统沙箱；T8.2 还须将实际附件目录加入普通工具的保留范围。
+目录和文件链接重定向均拒绝，包括指向另一会话的链接。这里的隔离是存储身份、宿主来源与路径检查，不是操作系统沙箱。
 
-备份显式使用本接口的数据时应保留整个附件根目录。T8.2 接入后由组装层选定 <会话根>/_artifacts，届时会话备份也必须包含它；只有 JSONL 而没有正文不能恢复附件。
+备份必须保留整个 sessions_dir，包含 _artifacts 及其 children 子树；只有 JSONL 而没有正文不能恢复附件。停止所有写入后再复制，见 [备份指南](install-and-recovery.md)。
 
 ## 验收与后续接入责任
 
 - [附件存储业务](../tests/features/test_artifact_storage.py)：长 Unicode 文本重启后精确拼回、单份/会话/数量限制、上游不完整、旧引用与外部替换、跨会话拒绝、真实 IO 故障、锁与并发配额、孤立临时文件。
 - [格式边界](../tests/test_artifacts.py)：来源、非法范围、14 种损坏输入、无效文本/ID 与不可变引用。
-- T8.1 新增45项与19项架构约束共64项定向检查通过；Ruff、Pyright 通过，完整回归随独立提交执行。链接重定向测试模拟真实路径解析结果，不声称测试了 Windows 创建链接的权限。
+- T8.1 新增45项与19项架构约束共64项定向检查通过；Ruff、Pyright 与完整回归已通过，提交 9edbd4e。链接重定向测试模拟真实路径解析结果，不声称测试了 Windows 创建链接的权限。
 
-T8.2 必须在原输出被截断前接入保留机制；特别是命令管道当前有较小的字节捕获上限，不能把已丢失内容的预览当完整附件。命令退出码、实际状态与日志事实仍需保留；附件保存失败不能变成再次执行命令的理由。read_artifact 的会话来源由程序绑定，不能由模型任意指定其他会话。后续完整对照与读取超预算验收属于 T8.3。
+T8.2 新增34项验收：实际命令长日志及尾部读取、通用目录结果、计划模式和重启读取、正文/来源保存失败不重跑、篡改/丢失/旧版本拒绝、转义分页、捕获与配额不完整、开关及非法参数、真实主/子隔离。入口见 [工具附件](../tests/features/test_tool_artifacts.py)、[主子边界](../tests/features/test_artifact_subagents.py)、[参数及关闭](../tests/features/test_artifact_arguments.py)、[配置与来源](../tests/test_artifact_integration.py)。
+
+首轮业务测试的预期忽略 Windows 文本 stdout 的换行转换，长重复字符串差异比较耗时；命令改用显式 UTF-8 字节输出，先核对长度再比较内容，未放宽产品行为或断言。已有存储、架构、命令、子任务91项回归通过；完整检查随本项提交执行。T8.3 将继续比较全量与引用输入，并验证故障恢复及读取超预算；没有调用付费模型。

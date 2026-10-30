@@ -14,6 +14,7 @@ from adam.config.mcp import parse_mcp
 from adam.config.settings import (
     AgentConfig,
     AppConfig,
+    ArtifactConfig,
     ContextConfig,
     DocumentConfig,
     LLMConfig,
@@ -137,6 +138,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "rules",
             "mcp",
             "hooks",
+            "artifacts",
         },
         "主配置",
     )
@@ -293,6 +295,13 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         rules=rules,
         mcp=parse_mcp(data.get("mcp", {})),
         hooks=parse_hooks(data.get("hooks", {})),
+        artifacts=ArtifactConfig(
+            **checked_section(
+                data.get("artifacts", {}),
+                {item.name for item in fields(ArtifactConfig)},
+                "artifacts",
+            )
+        ),
         documents=documents,
         documents_dir=documents_dir,
     )

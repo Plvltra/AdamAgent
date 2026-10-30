@@ -24,6 +24,14 @@ class _Output:
         self.data = bytearray()
         self.truncated = False
 
+    def text(self) -> str:
+        """按 UTF-8 解码；替换非法字节时标记不完整，不宣称保留原始输出。"""
+        try:
+            return self.data.decode("utf-8")
+        except UnicodeError:
+            self.truncated = True
+            return self.data.decode("utf-8", errors="replace")
+
     def drain(self, stream: BinaryIO) -> None:
         try:
             with stream:
@@ -41,10 +49,16 @@ class CommandTools:
         workspace: Path,
         limits: ToolLimits,
         confirm: Callable[[CommandRequest], bool] | None = None,
+        *,
+        capture_bytes: int | None = None,
     ) -> None:
+        """注入命令确认与每条输出流的字节捕获上限；回传字符上限仍由 limits 控制。"""
         self.workspace = workspace
         self.limits = limits
         self.confirm = confirm
+        self.capture_bytes = limits.max_result_chars if capture_bytes is None else capture_bytes
+        if type(self.capture_bytes) is not int or self.capture_bytes <= 0:
+            raise ValueError("command capture limit must be positive")
 
     def run_command(
         self, args: dict[str, Any], record: ExecutionRecorder | None = None
@@ -74,14 +88,21 @@ class CommandTools:
         except (KeyboardInterrupt, EOFError):
             self._record(record, "command_finished", self._result("interrupted", started))
             raise
-        self._record(record, "command_finished", result)
+        # 命令事实日志保留有界预览；完整捕获结果交给外层附件处理，不在 JSONL 重复展开。
+        self._record(record, "command_finished", json.loads(self.encode_result(result)))
         return result
 
     def encode_result(self, output: dict[str, Any]) -> str:
-        """裁剪命令输出时保留退出码和状态，避免模型误把截断预览当执行结果。"""
+        """返回有界副本并保留退出码与状态，避免模型把截断预览当成完整输出。
+
+        不修改后续附件需要的原捕获结果。
+        """
+        output = dict(output)
         encoded = json.dumps(output, ensure_ascii=False)
         while len(encoded) > self.limits.max_result_chars:
             key = "stdout" if len(output["stdout"]) >= len(output["stderr"]) else "stderr"
+            if not output[key]:
+                raise ToolError("结果上限不足以容纳命令状态。")
             output[key] = output[key][: len(output[key]) // 2]
             output["truncated"] = True
             encoded = json.dumps(output, ensure_ascii=False)
@@ -156,8 +177,8 @@ class CommandTools:
             return self._result("start_failed", started)
 
         assert process.stdout is not None and process.stderr is not None
-        stdout = _Output(self.limits.max_result_chars)
-        stderr = _Output(self.limits.max_result_chars)
+        stdout = _Output(self.capture_bytes)
+        stderr = _Output(self.capture_bytes)
         readers = [
             threading.Thread(target=stdout.drain, args=(process.stdout,), daemon=True),
             threading.Thread(target=stderr.drain, args=(process.stderr,), daemon=True),
@@ -187,8 +208,8 @@ class CommandTools:
         result = self._result(status, started)
         result.update(
             exit_code=process.returncode,
-            stdout=stdout.data.decode("utf-8", errors="replace"),
-            stderr=stderr.data.decode("utf-8", errors="replace"),
+            stdout=stdout.text(),
+            stderr=stderr.text(),
             truncated=stdout.truncated or stderr.truncated or any(r.is_alive() for r in readers),
         )
         return result

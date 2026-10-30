@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T8.2 工具附件 | 真实长命令与目录、预览/分页、来源/日志故障、主子隔离、关闭/参数及重启；34项新增场景 | [test_tool_artifacts.py](test_tool_artifacts.py)、[test_artifact_subagents.py](test_artifact_subagents.py)、[test_artifact_arguments.py](test_artifact_arguments.py)、[配置与来源](../test_artifact_integration.py) |
 | T8.1 附件存储 | 长文本重启分页、完整性/配额、固定版本、会话隔离、真实 IO 故障和并发；当前为显式存储 API | [test_artifact_storage.py](test_artifact_storage.py)、[格式边界](../test_artifacts.py) |
 | T7.3 撤销整体验收 | 独立进程真实编辑/撤销、六个强杀边界、恢复发布中断、重复撤销、未知编辑和会话锁；15项场景 | [test_undo_recovery.py](test_undo_recovery.py)、[进程入口](support/undo_worker.py) |
 | T7.2 用户撤销 | 实际编辑自动快照、逆向批准、当前版本/权限、拒绝和故障、取消、来源、无模型消费、主/子副本访问保护 | [test_undo.py](test_undo.py)、[test_checkpoint_access.py](test_checkpoint_access.py)、[状态边界](../test_undo_log.py) |

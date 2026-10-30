@@ -17,6 +17,7 @@ from adam.contracts.artifacts import (
     ArtifactPage,
     ArtifactRef,
     ArtifactSource,
+    decode_artifact_reference,
     validate_artifact_identity,
 )
 from adam.contracts.errors import StorageError
@@ -207,9 +208,7 @@ class ArtifactStore:
                 raise ValueError("unsupported artifact format")
             if not isinstance(payload["reference"], dict) or not isinstance(payload["text"], str):
                 raise ValueError("invalid artifact values")
-            metadata = dict(payload["reference"])
-            source = ArtifactSource(**metadata.pop("source"))
-            reference = ArtifactRef(source=source, **metadata)
+            reference = decode_artifact_reference(payload["reference"])
             text = payload["text"]
             data = text.encode("utf-8")
             if (

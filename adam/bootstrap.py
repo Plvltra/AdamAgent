@@ -20,7 +20,7 @@ from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.manager import SubagentManager
 from adam.application.undo import UndoService
 from adam.config.loader import load_config
-from adam.config.settings import AppConfig, DocumentConfig, PermissionConfig
+from adam.config.settings import AppConfig, ArtifactConfig, DocumentConfig, PermissionConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.execution import ExecutionMode, ToolCapability
@@ -34,7 +34,9 @@ from adam.llm.http_transport import InterruptibleTransport
 from adam.memory.store import MemoryStore
 from adam.rules.catalog import RuleCatalog
 from adam.rules.tracker import RuleTracker
+from adam.session.artifacts import ArtifactStore
 from adam.session.storage import SessionStore
+from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers
 from adam.tool_calls.document_tools import register_documents
@@ -79,7 +81,11 @@ def build_application(
         modes = ModeController()
         documents_dir = config.documents_dir or store.root / "_documents"
         checkpoints_dir = store.root / "_checkpoints"
-        protected_dirs = (documents_dir, checkpoints_dir)
+        artifacts_dir = store.root / "_artifacts"
+        protected_dirs = (documents_dir, checkpoints_dir, artifacts_dir)
+        artifacts = _artifact_tools(
+            config.artifacts, store, artifacts_dir, config.tool_limits.max_result_chars
+        )
         document_config = replace(
             config.documents,
             roots=tuple(
@@ -94,6 +100,7 @@ def build_application(
             confirm_command=confirm_command,
             confirm_edit=confirm_edit,
             protected_dirs=protected_dirs,
+            command_output_bytes=config.artifacts.max_bytes if config.artifacts.enabled else None,
         )
         registry = register_documents(
             registry,
@@ -101,7 +108,7 @@ def build_application(
             document_config,
             documents_dir,
             config.permissions,
-            (checkpoints_dir,),
+            (checkpoints_dir, artifacts_dir),
         )
         registry, skills = register_skills(
             registry,
@@ -112,6 +119,8 @@ def build_application(
             protected_dirs=protected_dirs,
         )
         registry = register_mcp(registry, config.mcp, workspace, resources)
+        if artifacts:
+            registry = artifacts.register(registry)
         manager = None
         if child_client_factory:
             manager = SubagentManager(
@@ -129,6 +138,7 @@ def build_application(
                     document_config,
                     documents_dir,
                     checkpoints_dir,
+                    artifacts_dir,
                     on_notice or (lambda _: None),
                 ),
                 on_notice or (lambda _: None),
@@ -221,6 +231,7 @@ def build_application(
             after_call=planner.publish if planner else None,
             check_call=reviewer.check_call if reviewer else None,
             hooks=HookRunner(config.hooks, workspace) if config.hooks.enabled else None,
+            artifacts=artifacts,
             on_notice=on_notice,
         )
         memories = MemoryService(
@@ -277,6 +288,7 @@ def _open_child(
     document_config: DocumentConfig,
     documents_dir: Path,
     checkpoints_dir: Path,
+    artifacts_dir: Path,
     notify: Callable[[str], None],
     root: Path,
     agent: ChildAgent,
@@ -288,7 +300,7 @@ def _open_child(
 ) -> Iterator[Conversation]:
     """在子线程中管理独立资源，继承派发时的模式与主轮次记忆快照。
 
-    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存和检查点，避免绕过范围。
+    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存、检查点和附件，避免绕过范围。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     Hooks 继承用户配置，使用子任务取消令牌；后置故障提示带子任务 ID。
     """
@@ -296,12 +308,19 @@ def _open_child(
     with SessionStore(root) as store, client_factory(cancel) as client:
         store.select_session(agent.agent_id)
         account = SessionAccount(store, agent.agent_id, budget)
+        # 子任务按所属主会话分组；主/子短 ID 即使相同，也不会共享附件命名空间。
+        artifacts = _artifact_tools(
+            config.artifacts,
+            store,
+            artifacts_dir / "children" / root.parent.name,
+            config.tool_limits.max_result_chars,
+        )
         registry = create_tool_registry(
             Path(agent.workspace),
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             config.tool_limits,
             delegated=True,
-            protected_dirs=(memories_dir, documents_dir, checkpoints_dir),
+            protected_dirs=(memories_dir, documents_dir, checkpoints_dir, artifacts_dir),
         )
         registry = register_documents(
             registry,
@@ -309,7 +328,7 @@ def _open_child(
             document_config,
             documents_dir,
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
-            (memories_dir, checkpoints_dir),
+            (memories_dir, checkpoints_dir, artifacts_dir),
             check_cancel=cancel.check,
         )
         registry, skills = register_skills(
@@ -318,7 +337,7 @@ def _open_child(
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             enabled=config.skills.enabled,
             user_dir=config.skills.user_dir,
-            protected_dirs=(memories_dir, documents_dir, checkpoints_dir),
+            protected_dirs=(memories_dir, documents_dir, checkpoints_dir, artifacts_dir),
         )
         rules = (
             _project_rules(
@@ -326,13 +345,15 @@ def _open_child(
                 PermissionConfig(
                     additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)
                 ),
-                (memories_dir, documents_dir, checkpoints_dir),
+                (memories_dir, documents_dir, checkpoints_dir, artifacts_dir),
             )
             if config.rules.enabled
             else None
         )
         if rules:
             registry = registry.guarded(rules.check)
+        if artifacts:
+            registry = artifacts.register(registry)
         registry = registry.with_mode(lambda: mode)
         conversation = Conversation(
             store,
@@ -349,6 +370,7 @@ def _open_child(
                     else None
                 ),
                 on_notice=lambda message: notify(f"子 Agent> {agent.agent_id} {message}"),
+                artifacts=artifacts,
             ),
             config.agent,
             model=run.model,
@@ -363,6 +385,25 @@ def _open_child(
         )
         conversation.resume(agent.agent_id)
         yield conversation
+
+
+def _artifact_tools(
+    config: ArtifactConfig, store: SessionStore, root: Path, max_result_chars: int
+) -> ToolArtifacts | None:
+    """组装每个应用独立的附件入口；关闭时不创建存储或注册读取工具。"""
+    if not config.enabled:
+        return None
+    return ToolArtifacts(
+        store,
+        ArtifactStore(
+            root,
+            max_bytes=config.max_bytes,
+            max_session_bytes=config.max_session_bytes,
+            max_items=config.max_items,
+            max_read_chars=config.max_read_chars,
+        ),
+        max_result_chars,
+    )
 
 
 def _project_rules(
