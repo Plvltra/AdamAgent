@@ -25,6 +25,7 @@ class FailureCode(StrEnum):
     STORAGE_ERROR = "storage_error"
     COMMAND_LOG_ERROR = "command_log_error"
     EDIT_LOG_ERROR = "edit_log_error"
+    HOOK_LOG_ERROR = "hook_log_error"
     APPROVAL_DENIED = "approval_denied"
     EXECUTION_UNKNOWN = "execution_unknown"
     INTERNAL_ERROR = "internal_error"
@@ -62,6 +63,12 @@ class EditLogError(AgentError):
     """编辑记录失败后停止，不能将未知副作用当作可重试参数错误。"""
 
     code = FailureCode.EDIT_LOG_ERROR
+
+
+class HookLogError(AgentError):
+    """Hook 审计失败后停止，不把未记录的决策当作可重试工具错误。"""
+
+    code = FailureCode.HOOK_LOG_ERROR
 
 
 class ApprovalDeniedError(AgentError):
@@ -141,6 +148,10 @@ class SessionNotFoundError(AgentError):
 
 class ToolError(AgentError):
     """可以安全回传给模型的工具参数或权限错误。"""
+
+
+class ToolHookError(ToolError):
+    """前置检查阻止本次动作；不代表用户拒绝整个轮次，也不能触发自动反思。"""
 
 
 class ToolModeError(ToolError):

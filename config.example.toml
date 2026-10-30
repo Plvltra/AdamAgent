@@ -75,7 +75,7 @@ tool_prune_head_chars = 1500
 tool_prune_tail_chars = 500
 
 [hooks]
-# T5.1 validates configuration; tool-loop wiring is delivered in T5.2.
+# Optional local before/after tool checks; see docs/lifecycle-hooks.md.
 enabled = false
 timeout_seconds = 5
 max_input_bytes = 65536

@@ -4,7 +4,7 @@ import json
 import re
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from adam.contracts.execution import ExecutionMode
 
@@ -78,6 +78,18 @@ class HookResult:
     def to_record(self) -> dict[str, Any]:
         """返回可独立存储的结果副本，不包含程序环境或模型认证配置。"""
         return asdict(self)
+
+
+class HookService(Protocol):
+    """工具边界只依赖检查接口；实现不得获得模型客户端或自行派发工具。"""
+
+    def configured(self, event: HookEvent) -> bool:
+        """事件关闭时不创建进程或审计开始记录。"""
+        ...
+
+    def run(self, request: HookRequest) -> HookResult | None:
+        """返回检查结果；取消与日志之外的程序故障继续传播。"""
+        ...
 
 
 def parse_reply(

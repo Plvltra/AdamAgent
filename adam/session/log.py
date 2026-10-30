@@ -13,6 +13,7 @@ from adam.contracts.skills import validate_catalog, validate_skill_selection
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
 from adam.session.feedback_log import FeedbackLog, feedback_context
+from adam.session.hook_log import HookLog
 from adam.session.outcome import outcome_details
 from adam.session.plan_evidence import validate_evidence
 from adam.session.plan_log import PlanLog
@@ -96,6 +97,7 @@ class SessionLog:
         self.executions: dict[str, dict[str, Any]] = {}
         self.compactions = CompactionLog()
         self.edits = EditLog()
+        self.hooks = HookLog()
         self.plans = PlanLog()
         self.feedback = FeedbackLog()
         self.reflections = ReflectionLog()
@@ -133,6 +135,8 @@ class SessionLog:
             "turn_finished": self._finish_turn,
             "tool_started": self._apply_tool,
             "tool_finished": self._apply_tool,
+            "hook_started": self._apply_hook,
+            "hook_finished": self._apply_hook,
             "plan_updated": self._apply_plan,
             "feedback_recorded": self._apply_feedback,
             "reflection_finished": self._apply_reflection,
@@ -186,6 +190,7 @@ class SessionLog:
                 list(key) for key, value in self.tools.items() if value["status"] == "in_progress"
             ],
             "uncommitted_messages": len(self._pending_messages),
+            **({"hook_ids": self.hooks.pending_ids()} if self.hooks.pending_ids() else {}),
             **({"edit_ids": self.edits.pending_ids()} if self.edits.pending_ids() else {}),
             **(
                 {"compaction_ids": self.compactions.pending_ids()}
@@ -215,6 +220,7 @@ class SessionLog:
             self.tools[(turn_id, call_id)].update(details)
         self.compactions.recover(details)
         self.edits.recover()
+        self.hooks.recover()
         # 完整物理记录留在 events；无提交标记的消息不能成为成功历史。
         self._pending_messages = []
         self._pending_turn = ""
@@ -429,7 +435,20 @@ class SessionLog:
             "unknown",
         }:
             raise ValueError("edit has no final result")
+        self.hooks.check_tool_finish(tool, payload["output"])
         tool.update(output=payload["output"], finished=True, status="finished")
+
+    def _apply_hook(self, kind: str, payload: dict[str, Any]) -> None:
+        """校验检查来源及请求模式；后置观察允许工具已结束，但轮次必须仍在进行。"""
+        self._require_turn(payload)
+        request = self._require_request(payload)
+        tool = self._require_tool(payload)
+        mode = request.get("context", {}).get("execution_mode")
+        if request["status"] != "succeeded" or (
+            mode is not None and mode != payload.get("execution_mode")
+        ):
+            raise ValueError("hook request or mode mismatch")
+        self.hooks.apply(kind, payload, tool)
 
     def _apply_review(self, kind: str, payload: dict[str, Any]) -> None:
         """审查事件须来自本轮实际工具；子日志证据由应用读取，不接受模型自报。"""
@@ -540,6 +559,8 @@ class SessionLog:
         details = outcome_details(payload, "succeeded")
         if not self._pending_messages or self._pending_turn != turn_id:
             raise ValueError("unmatched completion")
+        if self.hooks.pending_ids(turn_id):
+            raise ValueError("cannot commit with unfinished hook")
         self._validate_pending(complete=True)
         self.messages.extend((turn_id, message) for message in self._pending_messages)
         self.turns[turn_id].update(details)

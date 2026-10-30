@@ -27,6 +27,7 @@ from adam.contracts.memory import MemorySelection
 from adam.contracts.models import CommandRequest, EditPlan
 from adam.contracts.planning import PlanReport
 from adam.contracts.ports import ModelClient
+from adam.hooks.runner import HookRunner
 from adam.llm.client import LLMClient
 from adam.llm.http_transport import InterruptibleTransport
 from adam.memory.store import MemoryStore
@@ -118,6 +119,7 @@ def build_application(
                     config.memories_dir or store.root / "_memories",
                     document_config,
                     documents_dir,
+                    on_notice or (lambda _: None),
                 ),
                 on_notice or (lambda _: None),
                 mode_provider=modes.current,
@@ -208,6 +210,8 @@ def build_application(
             before_call=bind_source,
             after_call=planner.publish if planner else None,
             check_call=reviewer.check_call if reviewer else None,
+            hooks=HookRunner(config.hooks, workspace) if config.hooks.enabled else None,
+            on_notice=on_notice,
         )
         memories = MemoryService(
             MemoryStore(config.memories_dir or store.root / "_memories"), workspace, config.memory
@@ -249,6 +253,7 @@ def _open_child(
     memories_dir: Path,
     document_config: DocumentConfig,
     documents_dir: Path,
+    notify: Callable[[str], None],
     root: Path,
     agent: ChildAgent,
     run: ChildRun,
@@ -261,6 +266,7 @@ def _open_child(
 
     不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆和文档缓存，避免绕过范围。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
+    Hooks 继承用户配置，使用子任务取消令牌；后置故障提示带子任务 ID。
     """
     mode = ExecutionMode(run.execution_mode)
     with SessionStore(root) as store, client_factory(cancel) as client:
@@ -308,7 +314,18 @@ def _open_child(
             store,
             client,
             "",
-            ToolExecutor(store, registry, lambda _: None, cancel=cancel),
+            ToolExecutor(
+                store,
+                registry,
+                lambda _: None,
+                cancel=cancel,
+                hooks=(
+                    HookRunner(config.hooks, Path(agent.workspace), cancel)
+                    if config.hooks.enabled
+                    else None
+                ),
+                on_notice=lambda message: notify(f"子 Agent> {agent.agent_id} {message}"),
+            ),
             config.agent,
             model=run.model,
             context_config=config.context,

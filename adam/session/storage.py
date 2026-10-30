@@ -404,6 +404,16 @@ class SessionStore:
             raise ValueError("unknown tool event")
         self._append(session_id, record(kind, payload))
 
+    def append_hook_event(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:
+        """保存工具前后检查的来源与结果；日志失败必须阻止后续执行，不自动重跑检查。"""
+        if kind not in {"hook_started", "hook_finished"}:
+            raise ValueError("unknown hook event")
+        self._append(session_id, record(kind, payload))
+
+    def load_hooks(self, session_id: str) -> list[dict[str, Any]]:
+        """返回实际检查状态；缺少结束记录在持锁恢复后标为中断，工具结果独立保留。"""
+        return list(self._read_log(session_id).hooks.records.values())
+
     def append_command_event(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:
         """独立保存命令开始、结束或拒绝事件，不依赖本轮模型最终回答成功。
 

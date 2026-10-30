@@ -2,28 +2,45 @@
 
 最近核对：2026-10-30
 
-本次核对范围：T5.1 新增 config/hooks.py、contracts/hooks.py 和 hooks 包。主配置严格解析事件程序和限额；HookRunner 只接配置、工作目录和取消令牌，通过独立进程传输有界 JSON。新增进程/协议/配置验收及 hooks 包依赖约束。工具注册表、执行器和普通聊天尚未接入 Hooks，保留 T5.2 待办。
+本次核对范围：T5.2 接入主/子工具 Hooks；新增 tool_calls/lifecycle.py 与 session/hook_log.py。通过 HookService 注入检查器，前置放在规则后与工具前，后置放在实际结果落盘后；同步取消、审计故障、持锁恢复与依赖边界验收。
 
-核对结论：T5.1 新增独立 Hooks 配置、协议及进程模块；未改变现有工具执行关系。T4.2 的用户模式控制与子任务快照关系保持；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
-## T5.1 本地 Hook 基础
+## T5 工具生命周期 Hooks
 
 ~~~mermaid
 flowchart LR
-    HOOK_LOAD["config.loader / load_config"] --> HOOK_CONFIG["config/hooks.py / HooksConfig"]
-    HOOK_CONFIG --> HOOK_APP_CONFIG["AppConfig.hooks / 默认关闭"]
-    HOOK_CALLER["显式调用方 / 当前业务测试"] --> HOOK_RUNNER["hooks/runner.py / HookRunner"]
+    HOOK_BOOT["bootstrap / 主与子应用"] --> HOOK_CONFIG["config/hooks.py / HooksConfig"]
+    HOOK_BOOT --> HOOK_RUNNER["hooks/runner.py / HookRunner"]
     HOOK_CONFIG --> HOOK_RUNNER
-    HOOK_CONTRACT["contracts/hooks.py / HookRequest 与 HookResult"] --> HOOK_RUNNER
-    HOOK_RUNNER --> HOOK_PROCESS["hooks/process.py / 有界 stdin stdout stderr"]
-    HOOK_PROCESS --> HOOK_PROGRAM["用户配置的本地检查器"]
-    HOOK_CANCEL["CancellationToken"] --> HOOK_PROCESS
-    HOOK_RUNNER --> HOOK_REPLY["严格响应解析 / 不修补协议"]
+    HOOK_RUNNER -.实现.-> HOOK_PORT["contracts/hooks.py / HookService"]
+    HOOK_BOOT --> HOOK_EXEC["tool_calls/executor.py / ToolExecutor"]
+    HOOK_EXEC --> HOOK_COORD["tool_calls/lifecycle.py / 每次调用的 ToolHooks"]
+    HOOK_COORD --> HOOK_PORT
+    HOOK_RUNNER --> HOOK_PROCESS["hooks/process.py / 有界 JSON 子进程"]
+    HOOK_CANCEL["子取消令牌 / 主 KeyboardInterrupt"] --> HOOK_PROCESS
+    HOOK_COORD --> HOOK_STORE["SessionStore / append_hook_event"]
+    HOOK_STORE --> HOOK_LOG["SessionLog / HookLog"]
+    HOOK_LOG --> HOOK_RECOVER["session_recovered / 关闭遗留检查"]
 ~~~
 
-基础模块不导入工具、会话或模型实现。before_tool 只返回允许/拒绝，after_tool 只接受观察说明；故障保留独立原因码。传输线程避免输入管道堵塞阻止取消，输出超限不能被当作有效响应。当前仅配置加载和显式 HookRunner 可用；ToolRegistry/ToolExecutor 的前后检查、审计与原结果保留将在 T5.2 接入，不在本图中预先声明。详见 [Hooks 契约](lifecycle-hooks.md)。
+~~~mermaid
+flowchart TD
+    HSTART["tool_started"] --> HVALID["ToolRegistry / 参数、模式、路径规则"]
+    HVALID --> HBEFORE["ToolHooks.before / 前置审计及检查"]
+    HBEFORE -->|允许或未配置| HACTION["具体工具 / 权限、批准、执行"]
+    HBEFORE -->|拒绝或检查失败| HBLOCK["hook_blocked / 无实际工具动作"]
+    HACTION --> HFINISH["tool_finished / 原结果可靠落盘"]
+    HBLOCK --> HBF["tool_finished / 保存阻止结果"]
+    HBF --> HRETURN["回传本次工具结果"]
+    HFINISH --> HAFTER["ToolHooks.after / 后置审计及观察"]
+    HAFTER --> HRETURN
+    HAFTER -->|检查失败| HNOTICE["提示用户 / 不改写工具结果"]
+~~~
+
+HookRunner 不导入工具、会话或模型；ToolHooks 经 HookService 调用，独立协调存储与提示。ToolRegistry 只获得前置回调，不持有检查进程或存储实现。关闭或未配置事件不产生 Hook 记录；参数、模式或规则拦截时不运行检查器。后置仅接收已落盘的有界工具 JSON，失败不更改 ok、status 或退出码；子任务继承配置，用自己的来源、取消令牌和日志，提示包含子任务 ID。任意审计故障停止本轮；取消尽力结算，重启恢复遗留检查且不重跑。工具结果记录、有效聊天历史与 Hook 审计各自保留原有语义。详见 [Hooks 契约](lifecycle-hooks.md)。
 
 ## T4 工具能力、用户模式与子任务继承
 

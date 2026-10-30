@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from adam.config.settings import ToolLimits
-from adam.contracts.errors import ToolDeferredError, ToolError, ToolModeError
+from adam.contracts.errors import ToolDeferredError, ToolError, ToolHookError, ToolModeError
 from adam.contracts.execution import ExecutionMode, ToolCapability, check_tool_mode
 from adam.contracts.models import ExecutionRecorder
 
@@ -16,6 +16,7 @@ ResultEncoder = Callable[[dict[str, Any]], str]
 ArgumentValidator = Callable[[object], None]
 PathSelector = Callable[[dict[str, Any]], tuple[Path, ...]]
 ExecutionGuard = Callable[[tuple[Path, ...]], None]
+BeforeTool = Callable[[str, dict[str, Any], ExecutionMode], None]
 
 
 class ToolRegistry:
@@ -125,28 +126,35 @@ class ToolRegistry:
         ]
 
     def execute(
-        self, name: str, arguments: str, *, record_execution: ExecutionRecorder | None = None
+        self,
+        name: str,
+        arguments: str,
+        *,
+        record_execution: ExecutionRecorder | None = None,
+        before_tool: BeforeTool | None = None,
     ) -> str:
         """校验 JSON 参数并执行工具，返回有界 JSON 字符串；工具错误作为结果回传。
 
         record_execution 接收命令或编辑的状态事件，普通只读工具忽略该参数。
-        参数校验后先检查模式，再运行路径规则检查，最后进入工具处理与批准流程。
-        CommandLogError / EditLogError 不转换为普通结果，调用方应停止以免自动重试。
+        参数校验后先检查模式和路径规则，再调用 before_tool，最后进入工具与批准流程。
+        命令、编辑及 Hook 日志错误不转换为普通结果，调用方应停止以免自动重试。
         """
         try:
             if name not in self._specs:
                 raise ToolError("未知工具。")
             args = json.loads(arguments)
             self._validate(name, args)
-            check_tool_mode(
-                self._mode_provider() if self._mode_provider is not None else ExecutionMode.ACT,
-                self._capabilities.get(name, ToolCapability.UNKNOWN),
-            )
+            mode = self._mode_provider() if self._mode_provider is not None else ExecutionMode.ACT
+            check_tool_mode(mode, self._capabilities.get(name, ToolCapability.UNKNOWN))
             if self._guard:
                 select = self._path_selectors.get(name)
                 self._guard(select(args) if select else ())
+            if before_tool:
+                before_tool(name, args, mode)
             result = self._handlers[name](args, record_execution)
             output = {"ok": True, **result}
+        except ToolHookError as error:
+            output = {"ok": False, "status": "hook_blocked", "error": str(error)}
         except ToolModeError as error:
             output = {"ok": False, "status": "mode_blocked", "error": str(error)}
         except ToolDeferredError as error:
@@ -162,7 +170,7 @@ class ToolRegistry:
         if (
             name in self._encoders
             and "status" in output
-            and output["status"] not in {"deferred", "mode_blocked"}
+            and output["status"] not in {"deferred", "mode_blocked", "hook_blocked"}
         ):
             return self._encoders[name](output)
         encoded = json.dumps(output, ensure_ascii=False)

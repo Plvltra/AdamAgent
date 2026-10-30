@@ -16,7 +16,9 @@ from adam.contracts.errors import (
     StorageError,
     ToolError,
 )
+from adam.contracts.hooks import HookService
 from adam.session.storage import SessionStore
+from adam.tool_calls.lifecycle import ToolHooks
 from adam.tool_calls.registry import ToolRegistry
 
 
@@ -49,17 +51,21 @@ class ToolExecutor:
         after_call: Callable[[], None] | None = None,
         check_call: Callable[[str], None] | None = None,
         cancel: CancellationToken | None = None,
+        hooks: HookService | None = None,
+        on_notice: Callable[[str], None] | None = None,
     ) -> None:
         """注入存储和工具目录；notify 只接收工具名称，展示方式由调用方决定。
 
         after_call 在结果落盘后发布业务变化，界面异常向上传播。
         check_call 在副作用之前检查协作限制；ToolError 留下失败结果供模型调整。
+        hooks 只接检查接口，on_notice 报告后置检查故障；未配置事件不产生检查记录。
         """
         self.store = store
         self.registry = registry
         self.notify = notify
         self.before_call, self.cancel = before_call, cancel
         self.after_call, self.check_call = after_call, check_call
+        self.hooks, self.on_notice = hooks, on_notice or (lambda _: None)
 
     def definitions(self) -> list[dict[str, Any]]:
         """返回此执行器实际支持的工具说明，供模型提出调用。"""
@@ -101,7 +107,10 @@ class ToolExecutor:
         return results
 
     def _execute_call(self, session_id: str, link: dict[str, str], function: dict[str, Any]) -> str:
-        """保留参数和回传结果；命令及编辑独立记录批准与副作用边界。"""
+        """保留参数和回传结果；命令及编辑独立记录批准与副作用边界。
+
+        Hook 前置在分派前，后置在实际结果落盘后，检查失败不能改写已发生的动作。
+        """
         self.store.append_tool_event(
             session_id,
             "tool_started",
@@ -139,6 +148,11 @@ class ToolExecutor:
             else:
                 record_command(kind, payload)
 
+        hooks = (
+            ToolHooks(self.hooks, self.store, session_id, link, self.on_notice)
+            if self.hooks is not None
+            else None
+        )
         self.notify(function["name"])
         # 通用开始事件表示进入工具处理；命令和编辑的批准/副作用边界分别由 command_* / edit_* 记录。
         try:
@@ -148,8 +162,11 @@ class ToolExecutor:
                 function["name"],
                 function["arguments"],
                 record_execution=record_action,
+                before_tool=hooks.before if hooks else None,
             )
         except ToolError as error:
             output = json.dumps({"ok": False, "error": str(error)}, ensure_ascii=False)
         self.store.append_tool_event(session_id, "tool_finished", {**link, "output": output})
+        if hooks:
+            hooks.after(output)
         return output
