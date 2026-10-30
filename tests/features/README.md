@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T7.3 撤销整体验收 | 独立进程真实编辑/撤销、六个强杀边界、恢复发布中断、重复撤销、未知编辑和会话锁；15项场景 | [test_undo_recovery.py](test_undo_recovery.py)、[进程入口](support/undo_worker.py) |
 | T7.2 用户撤销 | 实际编辑自动快照、逆向批准、当前版本/权限、拒绝和故障、取消、来源、无模型消费、主/子副本访问保护 | [test_undo.py](test_undo.py)、[test_checkpoint_access.py](test_checkpoint_access.py)、[状态边界](../test_undo_log.py) |
 | T7.1 编辑检查点 | 原字节和来源、真实编辑与重启、未知/失败不升级、写入故障与损坏拒绝；自动接入和撤销另见 T7.2 | [test_edit_checkpoints.py](test_edit_checkpoints.py)、[存储边界](../test_checkpoints.py) |
 | T6.3 并发组合验收 | 真实 Git/文件无副作用、规则/Hook/模式/额度组合、双子任务独立取消及 CLI/SIGINT 后线程回收；旧取消观察避免 Windows 索引竞争 | [test_parallel_tool_acceptance.py](test_parallel_tool_acceptance.py)、[test_parallel_subagents.py](test_parallel_subagents.py)、[test_cancellation.py](test_cancellation.py)、[test_subagent_recovery.py](test_subagent_recovery.py) |
