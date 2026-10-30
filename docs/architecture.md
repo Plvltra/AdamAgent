@@ -2,11 +2,32 @@
 
 最近核对：2026-10-30
 
-本次核对范围：T5.3 增加两个独立标准库 Hook 示例、默认关闭模板和组合验收；现有只读诊断增加每轮 Hook 投影。验证实际编辑、规则/模式/审批、关闭、外部改动、日志/界面故障及真实 CLI/SIGINT 取消。
+本次核对范围：T6.1 新增独立 ToolScheduler、可信并发任务与结果契约，验证实际读取并发、串行屏障、有序交付、取消和清理失败。当前尚未接入 ToolExecutor；普通聊天及既有 Hook 调用关系保持。
 
-核对结论：T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：T6.1 新增 tool_calls/scheduler.py，仅依赖取消及工具能力契约和标准库；准备与结果回调始终在协调线程，工作线程不操作会话。此阶段未改变普通聊天执行路径。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
+
+## T6.1 独立只读工具调度
+
+~~~mermaid
+flowchart LR
+    SCHED_TASK["ToolTask / 调用 ID、prepare 与可信并发声明"] --> SCHED_RUN["tool_calls/scheduler.py / ToolScheduler"]
+    SCHED_CAP["contracts/execution.py / ToolCapability"] --> SCHED_TASK
+    SCHED_CANCEL["contracts/cancellation.py / CancellationToken"] --> SCHED_RUN
+    SCHED_RUN --> SCHED_PREP["协调线程 / 有序 prepare"]
+    SCHED_PREP --> SCHED_READ["最多两个工作线程 / 只执行读取动作"]
+    SCHED_PREP --> SCHED_SERIAL["协调线程 / 串行动作与前后屏障"]
+    SCHED_READ --> SCHED_VALUE["ToolResult / 原调用 ID 与结果"]
+    SCHED_SERIAL --> SCHED_VALUE
+    SCHED_VALUE --> SCHED_DELIVER["协调线程 / 按原序 on_result"]
+    SCHED_RUN --> SCHED_CLEAN["协作取消、有限等待 / 失败禁用调度器"]
+~~~
+
+此图是已实现独立组件的协作关系；普通 ToolExecutor 目前没有调用 ToolScheduler，接入属于 T6.2。
+ToolTask 的并发声明来自可信组装代码，不能由模型参数打开；READ_ONLY 本身不意味着可并行。
+业务失败可作为返回值继续交付，程序异常和回调异常停止本批；清理期限内仍未退出的线程明确报告，
+不声称已被强制终止。详细契约及验收见 [只读工具并发](parallel-tools.md)。
 
 ## T5 工具生命周期 Hooks
 
