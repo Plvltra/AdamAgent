@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T7.1 编辑检查点 | 原字节和来源、真实编辑与重启、未知/失败不升级、写入故障与损坏拒绝；自动接入和撤销留在 T7.2 | [test_edit_checkpoints.py](test_edit_checkpoints.py)、[存储边界](../test_checkpoints.py) |
 | T6.3 并发组合验收 | 真实 Git/文件无副作用、规则/Hook/模式/额度组合、双子任务独立取消及 CLI/SIGINT 后线程回收；旧取消观察避免 Windows 索引竞争 | [test_parallel_tool_acceptance.py](test_parallel_tool_acceptance.py)、[test_parallel_subagents.py](test_parallel_subagents.py)、[test_cancellation.py](test_cancellation.py)、[test_subagent_recovery.py](test_subagent_recovery.py) |
 | T6.2 并发工具循环 | 生产读取并发、实际 Hook、混合动作与审批、所有日志线程身份、结果配对、日志故障及文件/Git 取消 | [test_parallel_tool_loop.py](test_parallel_tool_loop.py)、[test_read_cancellation.py](test_read_cancellation.py)、[注册策略](../test_parallel_registry.py) |
 | T6.1 只读并发调度 | 实际文件读取重叠、最多两项、空闲槽补位、有序回调与串行屏障；故障、取消、清理失败及禁止重入；聊天接入另见 T6.2 | [test_parallel_tool_scheduling.py](test_parallel_tool_scheduling.py)、[基础边界](../test_tool_scheduler.py) |

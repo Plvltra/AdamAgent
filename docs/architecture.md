@@ -2,11 +2,32 @@
 
 最近核对：2026-10-30
 
-本次核对范围：T6.3 组合验收；真实 Git/文件并发、规则/Hook/模式/额度边界、双子任务并发与独立取消、真实 CLI/SIGINT 后回收和继续交互。新增业务测试并扩展已有取消辅助进程；旧子任务取消测试改用独立状态快照，避免 Windows 读取句柄阻塞业务索引替换。生产代码与架构无变化。
+本次核对范围：T7.1 检查点契约、有界存储、原子发布及 SessionStore 显式接口；补充真实编辑/重启与故障测试。新增 contracts/checkpoints.py 和 session/checkpoints.py，依赖保持 session → contracts；工具循环与 CLI 尚未接入。
 
-核对结论：T6.3 已按生产组装验证以下结构，架构无变化。并发上限属于每个 ToolExecutor；两个子 Agent 可各执行两个读取，仍使用独立会话和协调线程、共用主会话额度。T6.2 的 ToolExecutor 协调批次，ToolInvocation 负责单次预检、日志和 Hook；ToolScheduler 仅调度，八个内置只读入口获得并发资格。准备、编码、结果保存和 Hook 均在协调线程，工作线程不接收执行日志回调。ToolCleanupError 移入公共错误契约，CLI 和 Conversation 无新增工具分支。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：T7.1 在会话模块内增加独立快照存储与日志对账，修改成功仍以 EditLog 为准，快照不新增执行权限。下图明确只包含本阶段已有接口；工具自动保存和 /undo 留待 T7.2。T6.3 已按生产组装验证并发结构。并发上限属于每个 ToolExecutor；两个子 Agent 可各执行两个读取，仍使用独立会话和协调线程、共用主会话额度。T6.2 的 ToolExecutor 协调批次，ToolInvocation 负责单次预检、日志和 Hook；ToolScheduler 仅调度，八个内置只读入口获得并发资格。准备、编码、结果保存和 Hook 均在协调线程，工作线程不接收执行日志回调。ToolCleanupError 移入公共错误契约，CLI 和 Conversation 无新增工具分支。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
+
+## T7.1 编辑检查点存储
+
+~~~mermaid
+flowchart LR
+    CP_API["SessionStore / 显式保存与读取"] --> CP_LOG["SessionLog / EditLog"]
+    CP_API --> CP_VALUE["contracts/checkpoints.py / EditCheckpoint"]
+    CP_API --> CP_STORE["session/checkpoints.py / CheckpointStore"]
+    CP_STORE --> CP_VALUE
+    CP_STORE --> CP_LOCK["会话级快照锁"]
+    CP_STORE --> CP_DISK["_checkpoints / 不可变原字节与来源"]
+    CP_LOG --> CP_SUCCESS["applied 与已确认版本"]
+    CP_SUCCESS --> CP_COMPARE["SessionStore / 来源及版本对账"]
+    CP_DISK --> CP_COMPARE
+~~~
+
+EditCheckpoint 不做 IO；CheckpointStore 负责有界序列化、锁、原子发布和完整性校验，
+不打开目标文件，也不推断成功。SessionStore 从原编辑计划建立快照，只有成功日志与副本一致
+才返回用于后续撤销的内容。原 JSONL 与快照不是同一事务，未知结果仍保持未知。
+目前仅提供显式 API；编辑工具及 CLI 尚未接入，不在图中把未实现的 /undo 画成已有调用。
+验收与边界见 [修改检查点](edit-checkpoints.md)。
 
 ## T6 只读并发与单次调用边界
 

@@ -12,12 +12,14 @@ from typing import Any, Self
 
 from filelock import FileLock, Timeout
 
+from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import FailureCode, SessionNotFoundError, StorageError
 from adam.contracts.history import HistoryTurn, Summary
 from adam.contracts.models import ExecutionReport, Message, Session, valid_session_id
 from adam.contracts.planning import PlanReport, PlanSnapshot
 from adam.contracts.protocol import validate_turn
 from adam.contracts.reflection import Feedback
+from adam.session.checkpoints import CheckpointStore
 from adam.session.execution_report import build_execution_report
 from adam.session.feedback_log import failure_signal, feedback_context, previous_turn
 from adam.session.log import (
@@ -430,6 +432,71 @@ class SessionStore:
         if kind not in {"edit_planned", "edit_started", "edit_finished"}:
             raise ValueError("unknown edit event")
         self._append(session_id, record(kind, payload))
+
+    def save_edit_checkpoint(
+        self, session_id: str, edit_id: str, original: bytes, *, max_bytes: int
+    ) -> None:
+        """在编辑开始前保存原字节，来源和版本从已登记计划取得。
+
+        调用方须先持有会话锁并记录 edit_planned；max_bytes 沿用编辑工具文件上限。
+        只接受进行中轮次里尚未开始的修改，保存失败抛出 StorageError，不能继续写文件。
+        原字节与计划版本不符属于调用契约错误，抛出 ValueError。
+        """
+        self.select_session(session_id)
+        log = self._read_log(session_id)
+        edit = log.edits.operations.get(edit_id)
+        if (
+            edit is None
+            or edit["status"] != "planned"
+            or log.turns[edit["turn_id"]]["status"] != "in_progress"
+        ):
+            raise StorageError("编辑没有有效的待执行计划，不能保存检查点。")
+        checkpoint = EditCheckpoint(
+            session_id=session_id,
+            edit_id=edit_id,
+            turn_id=edit["turn_id"],
+            request_id=edit["request_id"],
+            tool_call_id=edit["tool_call_id"],
+            path=Path(edit["path"]),
+            original=original,
+            before_version=edit["before_version"],
+            target_version=edit["target_version"],
+        )
+        CheckpointStore(self.root / "_checkpoints", max_bytes=max_bytes).put(checkpoint)
+
+    def load_edit_checkpoint(
+        self, session_id: str, edit_id: str, *, max_bytes: int
+    ) -> EditCheckpoint:
+        """持有会话锁并读取已确认成功编辑的原内容；首次选中时按原规则恢复日志。
+
+        本接口不执行撤销，也不检查当前目标文件版本。
+
+        快照和 JSONL 来源必须一致；缺少成功记录、损坏或缺失副本均抛出 StorageError。
+        失败、未知和未开始的修改不能因磁盘上存在快照而变成可撤销的成功记录。
+        """
+        self.select_session(session_id)
+        edit = self._read_log(session_id).edits.operations.get(edit_id)
+        if edit is None or edit["status"] != "applied":
+            raise StorageError("该编辑未确认成功，不能读取可撤销检查点。")
+        checkpoint = CheckpointStore(self.root / "_checkpoints", max_bytes=max_bytes).load(
+            session_id, edit_id
+        )
+        if (
+            any(
+                getattr(checkpoint, field) != edit[field]
+                for field in (
+                    "turn_id",
+                    "request_id",
+                    "tool_call_id",
+                    "before_version",
+                    "target_version",
+                )
+            )
+            or str(checkpoint.path) != edit["path"]
+            or checkpoint.target_version != edit["after_version"]
+        ):
+            raise StorageError("检查点与编辑日志不一致，拒绝用于撤销。")
+        return checkpoint
 
     def execution_report(self, session_id: str, turn_id: str) -> ExecutionReport:
         """从同一份日志快照生成指定轮次的执行事实；读取失败遵循 StorageError 契约。"""
