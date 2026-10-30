@@ -16,7 +16,12 @@ root = Path(sys.argv[1])
 mode = sys.argv[2]
 output = []
 prompts = []
-inputs = iter(["start", "again", "/new next", "after", "/exit"])
+# 规划中取消后显式切回 act，验证占用已解除；未知用量仍需新建会话。
+inputs = iter(
+    ["/mode plan", "start", "/mode act", "again", "/new next", "after", "/exit"]
+    if mode == "plan_body"
+    else ["start", "again", "/new next", "after", "/exit"]
+)
 
 
 def read(prompt):

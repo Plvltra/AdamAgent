@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T4.3 模式组合验收 | 不可信指导与模型不能切换、MCP 只读、act 拒绝、摘要后限制、模式记录损坏/缺省及真实进程取消 | [test_mode_acceptance.py](test_mode_acceptance.py)、[test_cancellation.py](test_cancellation.py) |
 | T4.2 模式切换与继承 | 本地指令、规划后批准执行、任务期间固定、失败解除占用、会话隔离及子线程续聊；记忆对照沿用相同模式 | [test_execution_modes.py](test_execution_modes.py)、[test_memory_acceptance.py](test_memory_acceptance.py) |
 | T4.1 模式策略 | 规划时读取可用、编辑/命令无副作用、act 保留审批、未声明扩展拒绝及日志边界 | [test_mode_policy.py](test_mode_policy.py) |
 | T3.3 Skill 组合验收 | 跨项目与新会话、真实子任务权限、轮中快照、失效覆盖、流式取消及自动摘要 | [test_skill_acceptance.py](test_skill_acceptance.py) |

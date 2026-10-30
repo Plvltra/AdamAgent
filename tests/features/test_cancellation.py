@@ -53,7 +53,7 @@ def cancel_server(tmp_path):
             self.send_header("Content-Type", "text/event-stream")
             self.end_headers()
             try:
-                if first and mode in {"body", "known_body"}:
+                if first and mode in {"body", "known_body", "plan_body"}:
                     self.wfile.write(frame({"content": "partial"}))
                     if mode == "known_body":
                         self.wfile.write(
@@ -119,7 +119,9 @@ def alive(pid):
     return True
 
 
-@pytest.mark.parametrize("mode", ["headers", "body", "known_body", "command", "confirm"])
+@pytest.mark.parametrize(
+    "mode", ["headers", "body", "known_body", "command", "confirm", "plan_body"]
+)
 def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, mode):
     url, ready, release, requests, control = cancel_server
     control["mode"] = mode
@@ -178,10 +180,18 @@ def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, 
         assert "已取消本轮" in "\n".join(result["output"])
         assert len(result["reports"]) == 2
         assert all(not alive(pid) for pid in pids)
-        assert interrupted["unknown_usage"] is (mode in {"headers", "body"})
+        assert interrupted["unknown_usage"] is (mode in {"headers", "body", "plan_body"})
         assert "继续方式>" in "\n".join(result["output"])
-        assert len(requests) == (2 if mode in {"headers", "body"} else 3)
-        if mode == "command":
+        assert len(requests) == (2 if mode in {"headers", "body", "plan_body"} else 3)
+        if mode == "plan_body":
+            assert "当前执行模式：plan。" in requests[0]["messages"][0]["content"]
+            assert "当前执行模式：act。" in requests[1]["messages"][0]["content"]
+            assert requests[1]["messages"][-1]["content"] == "after"
+            assert not any(
+                item.get("content") in {"start", "again"} for item in requests[1]["messages"]
+            )
+            assert turn["requests"][0]["status"] == "interrupted"
+        elif mode == "command":
             assert turn["commands"][0]["status"] == "interrupted"
         elif mode == "confirm":
             assert turn["commands"] == []

@@ -1,6 +1,6 @@
 # Adam
 
-T4.2 已支持 `/mode plan` 调查规划和 `/mode act` 执行；默认 act，修改与命令仍需逐次批准。子任务继承派发时的模式，详见 [执行模式](docs/execution-modes.md)。
+T4 已支持 `/mode plan` 调查规划和 `/mode act` 执行；默认 act，修改与命令仍需逐次批准。子任务继承派发时的模式，详见 [执行模式](docs/execution-modes.md)。
 
 T3.2 已支持用户/项目 Skill 目录与显式启用：`/skills` 查看来源和覆盖关系，`/skill <ID> <任务>` 为本轮指定指导。用户目录默认位于主配置旁的 `skills/`，项目同名技能优先；见 [Skill 使用](docs/skills.md)。
 
