@@ -10,6 +10,7 @@ from threading import Event, Lock, Thread
 from typing import Generic, TypeVar
 
 from adam.contracts.cancellation import CancellationToken
+from adam.contracts.errors import ToolCleanupError
 from adam.contracts.execution import ToolCapability
 
 T = TypeVar("T")
@@ -44,14 +45,6 @@ class ToolResult(Generic[T]):
 
     call_id: str
     value: T
-
-
-class ToolCleanupError(RuntimeError):
-    """清理期限内仍有读取线程未退出；本调度器之后拒绝再运行任务。"""
-
-    def __init__(self, call_ids: tuple[str, ...]) -> None:
-        self.call_ids = call_ids
-        super().__init__("只读工具线程未能及时退出，已停止继续派发：" + "、".join(call_ids))
 
 
 @dataclass

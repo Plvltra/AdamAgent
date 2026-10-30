@@ -7,11 +7,14 @@ from pathlib import Path
 from typing import Any
 
 from adam.config.settings import ToolLimits
+from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ToolDeferredError, ToolError, ToolHookError, ToolModeError
 from adam.contracts.execution import ExecutionMode, ToolCapability, check_tool_mode
 from adam.contracts.models import ExecutionRecorder
 
 ToolHandler = Callable[[dict[str, Any], ExecutionRecorder | None], dict[str, Any]]
+ParallelHandler = Callable[[dict[str, Any], CancellationToken], dict[str, Any]]
+PreparedAction = Callable[[CancellationToken], dict[str, Any]]
 ResultEncoder = Callable[[dict[str, Any]], str]
 ArgumentValidator = Callable[[object], None]
 PathSelector = Callable[[dict[str, Any]], tuple[Path, ...]]
@@ -34,10 +37,12 @@ class ToolRegistry:
         guard: ExecutionGuard | None = None,
         capabilities: dict[str, ToolCapability] | None = None,
         mode_provider: Callable[[], ExecutionMode] | None = None,
+        parallel_handlers: dict[str, ParallelHandler] | None = None,
     ) -> None:
         """说明与实现必须一一对应；可注册编码器、校验器和可信能力声明。
 
         未声明能力按 UNKNOWN 处理；模式提供者只由组装方注入，不接受模型控制。
+        parallel_handlers 只接收参数和取消令牌，不接收日志回调；必须是可协作取消的无状态读取。
         """
         if (
             specs.keys() != handlers.keys()
@@ -49,6 +54,11 @@ class ToolRegistry:
             or (mode_provider is not None and not callable(mode_provider))
         ):
             raise ValueError("工具说明、处理函数、校验器、能力或模式策略未正确配对。")
+        if (parallel_handlers or {}).keys() - specs.keys() or any(
+            (capabilities or {}).get(name) is not ToolCapability.READ_ONLY or not callable(handler)
+            for name, handler in (parallel_handlers or {}).items()
+        ):
+            raise ValueError("并发处理函数必须属于本次注册的可信只读工具。")
         self._specs = specs
         self._handlers = handlers
         self.limits = limits
@@ -58,6 +68,7 @@ class ToolRegistry:
         self._guard = guard
         self._capabilities = dict(capabilities or {})
         self._mode_provider = mode_provider
+        self._parallel_handlers = dict(parallel_handlers or {})
 
     def extended(
         self,
@@ -68,9 +79,12 @@ class ToolRegistry:
         *,
         path_selectors: dict[str, PathSelector] | None = None,
         capabilities: dict[str, ToolCapability] | None = None,
+        parallel_handlers: dict[str, ParallelHandler] | None = None,
     ) -> "ToolRegistry":
         """返回扩展后的独立目录；不覆盖同名工具，也不改变已有目录。"""
-        if (capabilities or {}).keys() - specs.keys():
+        if (capabilities or {}).keys() - specs.keys() or (
+            parallel_handlers or {}
+        ).keys() - specs.keys():
             raise ValueError("扩展只能声明本次注册工具的能力。")
         if self._specs.keys() & specs.keys():
             raise ValueError("duplicate tool registration")
@@ -84,6 +98,7 @@ class ToolRegistry:
             guard=self._guard,
             capabilities={**self._capabilities, **(capabilities or {})},
             mode_provider=self._mode_provider,
+            parallel_handlers={**self._parallel_handlers, **(parallel_handlers or {})},
         )
 
     def guarded(self, guard: ExecutionGuard) -> "ToolRegistry":
@@ -100,6 +115,7 @@ class ToolRegistry:
             guard=guard,
             capabilities=self._capabilities,
             mode_provider=self._mode_provider,
+            parallel_handlers=self._parallel_handlers,
         )
 
     def with_mode(self, provider: Callable[[], ExecutionMode]) -> "ToolRegistry":
@@ -116,6 +132,7 @@ class ToolRegistry:
             guard=self._guard,
             capabilities=self._capabilities,
             mode_provider=provider,
+            parallel_handlers=self._parallel_handlers,
         )
 
     def definitions(self) -> list[dict[str, Any]]:
@@ -125,6 +142,14 @@ class ToolRegistry:
             for name, spec in self._specs.items()
         ]
 
+    def capability(self, name: str) -> ToolCapability:
+        """返回注册代码声明的能力；未知工具保持 UNKNOWN。"""
+        return self._capabilities.get(name, ToolCapability.UNKNOWN)
+
+    def can_parallelize(self, name: str) -> bool:
+        """仅显式注册取消接口的只读工具可并行，能力声明本身不授予并发资格。"""
+        return name in self._parallel_handlers
+
     def execute(
         self,
         name: str,
@@ -132,12 +157,33 @@ class ToolRegistry:
         *,
         record_execution: ExecutionRecorder | None = None,
         before_tool: BeforeTool | None = None,
+        cancel: CancellationToken | None = None,
     ) -> str:
-        """校验 JSON 参数并执行工具，返回有界 JSON 字符串；工具错误作为结果回传。
+        """同步校验并执行工具，返回有界 JSON；保留原直接调用入口。
 
-        record_execution 接收命令或编辑的状态事件，普通只读工具忽略该参数。
-        参数校验后先检查模式和路径规则，再调用 before_tool，最后进入工具与批准流程。
-        命令、编辑及 Hook 日志错误不转换为普通结果，调用方应停止以免自动重试。
+        record_execution 接收命令或编辑状态，普通只读工具不使用它。
+        顺序仍为参数、模式、路径规则、前置 Hook、动作及批准；日志错误继续向上传播。
+        """
+        token = cancel or CancellationToken()
+        token.check()
+        action = self.prepare(
+            name, arguments, record_execution=record_execution, before_tool=before_tool
+        )
+        token.check()
+        return self.encode(name, action(token))
+
+    def prepare(
+        self,
+        name: str,
+        arguments: str,
+        *,
+        record_execution: ExecutionRecorder | None = None,
+        before_tool: BeforeTool | None = None,
+    ) -> PreparedAction:
+        """在协调线程预检，返回尚未执行的动作；预检拒绝返回失败值，不进入处理函数。
+
+        参数校验后先检查模式和路径规则，再调用 before_tool；批准仍由具体动作处理。
+        并行入口不捕获或传递 record_execution。命令、编辑及 Hook 日志故障不能转为普通结果。
         """
         try:
             if name not in self._specs:
@@ -145,28 +191,24 @@ class ToolRegistry:
             args = json.loads(arguments)
             self._validate(name, args)
             mode = self._mode_provider() if self._mode_provider is not None else ExecutionMode.ACT
-            check_tool_mode(mode, self._capabilities.get(name, ToolCapability.UNKNOWN))
+            check_tool_mode(mode, self.capability(name))
             if self._guard:
                 select = self._path_selectors.get(name)
                 self._guard(select(args) if select else ())
             if before_tool:
                 before_tool(name, args, mode)
-            result = self._handlers[name](args, record_execution)
-            output = {"ok": True, **result}
-        except ToolHookError as error:
-            output = {"ok": False, "status": "hook_blocked", "error": str(error)}
-        except ToolModeError as error:
-            output = {"ok": False, "status": "mode_blocked", "error": str(error)}
-        except ToolDeferredError as error:
-            output = {"ok": False, "status": "deferred", "error": str(error)}
         except (ToolError, OSError, ValueError, subprocess.SubprocessError) as error:
-            # 操作系统异常可能包含敏感路径；只回传已控制的业务提示。
-            output = {
-                "ok": False,
-                "error": str(error)
-                if isinstance(error, ToolError)
-                else "工具执行失败：文件编码、访问权限、Git或参数格式无效。",
-            }
+            output = self._failure(error)
+            return lambda _cancel: output
+
+        parallel = self._parallel_handlers.get(name)
+        if parallel is not None:
+            return lambda cancel: self._invoke(lambda: parallel(args, cancel))
+        handler = self._handlers[name]
+        return lambda _cancel: self._invoke(lambda: handler(args, record_execution))
+
+    def encode(self, name: str, output: dict[str, Any]) -> str:
+        """在协调线程编码原动作结果，保留自定义编码器及既有截断语义。"""
         if (
             name in self._encoders
             and "status" in output
@@ -189,6 +231,32 @@ class ToolRegistry:
                 ensure_ascii=False,
             )
         return encoded
+
+    def _invoke(self, action: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+        """仅转换受控工具故障；取消、日志失败和意外程序错误均向上传播。"""
+        try:
+            return {"ok": True, **action()}
+        except (ToolError, OSError, ValueError, subprocess.SubprocessError) as error:
+            return self._failure(error)
+
+    @staticmethod
+    def _failure(error: Exception) -> dict[str, Any]:
+        """模式、规则和 Hook 拒绝保留各自状态，避免误触发自动反思。"""
+        statuses = {
+            ToolHookError: "hook_blocked",
+            ToolModeError: "mode_blocked",
+            ToolDeferredError: "deferred",
+        }
+        for kind, status in statuses.items():
+            if isinstance(error, kind):
+                return {"ok": False, "status": status, "error": str(error)}
+        # 操作系统异常可能包含敏感路径；只回传已控制的业务提示。
+        return {
+            "ok": False,
+            "error": str(error)
+            if isinstance(error, ToolError)
+            else "工具执行失败：文件编码、访问权限、Git或参数格式无效。",
+        }
 
     def _validate(self, name: str, args: object) -> None:
         """扩展工具可注册完整 Schema 校验器；原生工具保持既有参数契约。"""

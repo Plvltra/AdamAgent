@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from adam.config.settings import ToolLimits
+from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ToolError
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.text_file import read_snapshot
@@ -17,12 +18,17 @@ IGNORED = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cach
 
 
 class FileTools:
-    def __init__(self, policy: PathPolicy, limits: ToolLimits) -> None:
+    def __init__(
+        self, policy: PathPolicy, limits: ToolLimits, cancel: CancellationToken | None = None
+    ) -> None:
+        """每次读取可绑定独立取消令牌，路径规则与限制只读共享。"""
         self.policy = policy
         self.limits = limits
+        self._cancel = cancel
 
     def file_info(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
         """返回文件类型、大小与修改时间。"""
+        self._check_cancel()
         stat = path.stat()
         return {
             "path": str(path),
@@ -33,12 +39,14 @@ class FileTools:
 
     def list_directory(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
         """按 offset 返回排序后的目录项及下一页位置。"""
+        self._check_cancel()
         offset = args.get("offset", 0)
         if offset < 0 or not path.is_dir():
             raise ToolError("offset必须非负，path必须是目录。")
         entries = []
         with os.scandir(path) as scan:
             for entry in scan:
+                self._check_cancel()
                 if len(entries) >= self.limits.max_scan_entries:
                     raise ToolError("目录过大，请使用更小的目录。")
                 entries.append(entry.name)
@@ -53,9 +61,10 @@ class FileTools:
         start, count = args.get("start_line", 1), args.get("max_lines", self.limits.max_read_lines)
         if start < 1 or not 1 <= count <= self.limits.max_read_lines:
             raise ToolError("读取行号或行数超限。")
-        snapshot = read_snapshot(path, self.limits.max_text_file_bytes)
+        snapshot = read_snapshot(path, self.limits.max_text_file_bytes, self._cancel)
         lines, chars, next_line, truncated = [], 0, None, False
         for number, line in enumerate(StringIO(snapshot.text, newline=None), 1):
+            self._check_cancel()
             line = line.rstrip("\r\n")
             if number < start:
                 continue
@@ -100,6 +109,11 @@ class FileTools:
                 continue
         return {"results": results, "truncated": False}
 
+    def _check_cancel(self) -> None:
+        """在扫描与文本处理边界响应取消，不把取消当作跳过文件的普通错误。"""
+        if self._cancel:
+            self._cancel.check()
+
     def _matching_files(self, path: Path, pattern: str) -> Iterator[tuple[Path, str]]:
         base = path if path.is_dir() else path.parent
         for file in self._walk(path):
@@ -108,6 +122,8 @@ class FileTools:
                 yield file, relative
 
     def _walk(self, root: Path) -> Iterator[Path]:
+        """遍历有限目录项；每项检查取消，异常退出仍关闭 scandir。"""
+        self._check_cancel()
         if root.is_file():
             yield root
             return
@@ -115,9 +131,11 @@ class FileTools:
         stack = [root]
         scanned = 0
         while stack:
+            self._check_cancel()
             directory = stack.pop()
             with os.scandir(directory) as entries:
                 for entry in entries:
+                    self._check_cancel()
                     scanned += 1
                     if scanned > self.limits.max_scan_entries or time.monotonic() > deadline:
                         raise ToolError("扫描达到数量或时间上限，请缩小搜索目录。")
@@ -136,10 +154,8 @@ class FileTools:
                         yield path
 
     def _lines(self, path: Path) -> Iterator[tuple[int, str]]:
-        if not path.is_file() or path.stat().st_size > self.limits.max_text_file_bytes:
-            raise ToolError("不是普通文件或超过文件扫描上限。")
-        with path.open("r", encoding="utf-8-sig") as file:
-            for number, line in enumerate(file, 1):
-                if "\0" in line:
-                    raise ToolError("不支持二进制文件。")
-                yield number, line.rstrip("\r\n")
+        """从有界快照逐行搜索，防止扫描期间文件增长或超长行形成无限读取。"""
+        snapshot = read_snapshot(path, self.limits.max_text_file_bytes, self._cancel)
+        for number, line in enumerate(StringIO(snapshot.text, newline=None), 1):
+            self._check_cancel()
+            yield number, line.rstrip("\r\n")

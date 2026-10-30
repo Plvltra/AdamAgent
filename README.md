@@ -1,5 +1,7 @@
 # Adam
 
+T6.2 已接入只读工具并发：同批文件/Git 查询最多两项同时运行，编辑、命令和有状态扩展仍串行；结果按原 ID 回传，日志与 Hook 留在协调线程。详见 [并发与取消边界](docs/parallel-tools.md)。
+
 T5 已支持默认关闭的工具前后 Hooks：前置可阻止动作，后置观察已保存结果，审计可追溯并支持取消恢复。配置和两个实际示例见 [Hooks 使用](docs/lifecycle-hooks.md)。
 
 T4 已支持 `/mode plan` 调查规划和 `/mode act` 执行；默认 act，修改与命令仍需逐次批准。子任务继承派发时的模式，详见 [执行模式](docs/execution-modes.md)。

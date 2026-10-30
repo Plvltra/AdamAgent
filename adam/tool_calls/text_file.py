@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 
+from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ToolError
 
 
@@ -20,12 +21,28 @@ class TextSnapshot:
         return sha256(self.raw).hexdigest()
 
 
-def read_snapshot(path: Path, max_bytes: int) -> TextSnapshot:
+def read_snapshot(
+    path: Path, max_bytes: int, cancel: CancellationToken | None = None
+) -> TextSnapshot:
     """有界读取普通 UTF-8 文件；版本与文本来自同一次读取，不再次打开文件计算摘要。"""
+    if cancel:
+        cancel.check()
     if not path.is_file():
         raise ToolError("不是普通文件。")
+    parts = []
+    remaining = max_bytes + 1
     with path.open("rb") as stream:
-        raw = stream.read(max_bytes + 1)
+        while remaining > 0:
+            if cancel:
+                cancel.check()
+            chunk = stream.read(min(65536, remaining))
+            if not chunk:
+                break
+            parts.append(chunk)
+            remaining -= len(chunk)
+    if cancel:
+        cancel.check()
+    raw = b"".join(parts)
     if len(raw) > max_bytes:
         raise ToolError("文件超过文本大小上限。")
     try:

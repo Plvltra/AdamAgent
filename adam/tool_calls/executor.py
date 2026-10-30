@@ -1,25 +1,22 @@
 """执行模型请求的工具并独立记录轨迹，后续模型失败也保留执行证据。"""
 
 import json
-import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import (
     ApprovalDeniedError,
     BudgetError,
-    CommandLogError,
-    EditLogError,
     FailureCode,
-    StorageError,
-    ToolError,
 )
 from adam.contracts.hooks import HookService
 from adam.session.storage import SessionStore
-from adam.tool_calls.lifecycle import ToolHooks
-from adam.tool_calls.registry import ToolRegistry
+from adam.tool_calls.invocation import ToolInvocation
+from adam.tool_calls.registry import PreparedAction, ToolRegistry
+from adam.tool_calls.scheduler import ToolResult, ToolScheduler, ToolTask
 
 
 @dataclass
@@ -66,6 +63,8 @@ class ToolExecutor:
         self.before_call, self.cancel = before_call, cancel
         self.after_call, self.check_call = after_call, check_call
         self.hooks, self.on_notice = hooks, on_notice or (lambda _: None)
+        # Git 取消沿用进程树清理（最多等待 taskkill 5 秒），为直接进程回收留出余量。
+        self._scheduler = ToolScheduler(cancel=cancel, cleanup_timeout_seconds=7.0)
 
     def definitions(self) -> list[dict[str, Any]]:
         """返回此执行器实际支持的工具说明，供模型提出调用。"""
@@ -79,94 +78,53 @@ class ToolExecutor:
         calls: list[dict[str, Any]],
         budget: ToolBudget,
     ) -> list[dict[str, Any]]:
-        """串行执行 calls，返回与调用 ID 配对的 tool 消息。
+        """执行 calls，安全读取最多两项并发，其他动作串行；返回原 ID 顺序的 tool 消息。
 
         turn_id 和 request_id 指向产生这些工具调用的轮次与模型请求。
         budget 在同轮各批工具间共用，编辑超限时保留先前已执行结果并停止。
-        开始记录写入后才执行，结果落盘后才返回；存储错误通过 AgentError 契约向上抛，
-        禁止模型在执行轨迹无法保存时继续行动；拒绝结果保存后立即停止本批和本轮。
+        预检、Hook、来源绑定和所有日志由本线程完成；工作线程只执行已注册的读取动作。
+        开始记录写入后才执行，结果落盘后才返回；存储错误停止本轮，拒绝停止剩余动作。
         """
-        results = []
-        for call in calls:
-            if self.cancel:
-                self.cancel.check()
-            budget.consume(call["function"]["name"])
-            link = {
-                "turn_id": turn_id,
-                "request_id": request_id,
-                "tool_call_id": call["id"],
-            }
-            if self.before_call:
-                self.before_call(link)
-            output = self._execute_call(session_id, link, call["function"])
-            results.append({"role": "tool", "tool_call_id": call["id"], "content": output})
+        invocations = [
+            ToolInvocation(
+                self.store,
+                self.registry,
+                session_id,
+                {"turn_id": turn_id, "request_id": request_id, "tool_call_id": call["id"]},
+                call["function"],
+                self.notify,
+                hooks=self.hooks,
+                on_notice=self.on_notice,
+                check_call=self.check_call,
+            )
+            for call in calls
+        ]
+        by_id = {item.call_id: item for item in invocations}
+        results: list[dict[str, Any]] = []
+
+        def finish(result: ToolResult[dict[str, Any]]) -> None:
+            output = by_id[result.call_id].finish(result.value)
+            results.append({"role": "tool", "tool_call_id": result.call_id, "content": output})
             if self.after_call:
                 self.after_call()
             if json.loads(output).get("status") == "denied":
                 raise ApprovalDeniedError("已拒绝本次动作，本轮已停止；此前完成的动作保留。")
+
+        tasks = [
+            ToolTask(
+                item.call_id,
+                partial(self._prepare, item, budget),
+                self.registry.capability(item.name),
+                self.registry.can_parallelize(item.name),
+            )
+            for item in invocations
+        ]
+        self._scheduler.run(tasks, on_result=finish)
         return results
 
-    def _execute_call(self, session_id: str, link: dict[str, str], function: dict[str, Any]) -> str:
-        """保留参数和回传结果；命令及编辑独立记录批准与副作用边界。
-
-        Hook 前置在分派前，后置在实际结果落盘后，检查失败不能改写已发生的动作。
-        """
-        self.store.append_tool_event(
-            session_id,
-            "tool_started",
-            {**link, "name": function["name"], "arguments": function["arguments"]},
-        )
-        execution_id = secrets.token_hex(16)
-
-        def record_command(kind: str, payload: dict[str, Any]) -> None:
-            try:
-                self.store.append_command_event(
-                    session_id, kind, {**payload, **link, "execution_id": execution_id}
-                )
-            except StorageError as error:
-                raise CommandLogError(
-                    "命令执行日志保存失败；执行状态可能未知，未自动重试。"
-                ) from error
-            except ValueError as error:
-                # 日志关联错误不能被注册表当成模型参数错误后继续执行。
-                raise CommandLogError("命令执行日志校验失败；已停止本轮，未自动重试。") from error
-
-        def record_edit(kind: str, payload: dict[str, Any]) -> None:
-            try:
-                self.store.append_edit_event(
-                    session_id, kind, {**payload, **link, "edit_id": execution_id}
-                )
-            except (StorageError, ValueError) as error:
-                raise EditLogError(
-                    "编辑日志保存失败；实际结果可能未知，已停止且不自动重做。"
-                ) from error
-
-        def record_action(kind: str, payload: dict[str, Any]) -> None:
-            """按日志事件类型保存边界；注册表无需识别具体工具或存储实现。"""
-            if kind.startswith("edit_"):
-                record_edit(kind, payload)
-            else:
-                record_command(kind, payload)
-
-        hooks = (
-            ToolHooks(self.hooks, self.store, session_id, link, self.on_notice)
-            if self.hooks is not None
-            else None
-        )
-        self.notify(function["name"])
-        # 通用开始事件表示进入工具处理；命令和编辑的批准/副作用边界分别由 command_* / edit_* 记录。
-        try:
-            if self.check_call:
-                self.check_call(function["name"])
-            output = self.registry.execute(
-                function["name"],
-                function["arguments"],
-                record_execution=record_action,
-                before_tool=hooks.before if hooks else None,
-            )
-        except ToolError as error:
-            output = json.dumps({"ok": False, "error": str(error)}, ensure_ascii=False)
-        self.store.append_tool_event(session_id, "tool_finished", {**link, "output": output})
-        if hooks:
-            hooks.after(output)
-        return output
+    def _prepare(self, invocation: ToolInvocation, budget: ToolBudget) -> PreparedAction:
+        """在协调线程占用额度并绑定本次来源；串行动作因此不会使用别的调用来源。"""
+        budget.consume(invocation.name)
+        if self.before_call:
+            self.before_call(invocation.source)
+        return invocation.prepare()

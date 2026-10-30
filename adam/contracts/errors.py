@@ -26,6 +26,7 @@ class FailureCode(StrEnum):
     COMMAND_LOG_ERROR = "command_log_error"
     EDIT_LOG_ERROR = "edit_log_error"
     HOOK_LOG_ERROR = "hook_log_error"
+    TOOL_CLEANUP_ERROR = "tool_cleanup_error"
     APPROVAL_DENIED = "approval_denied"
     EXECUTION_UNKNOWN = "execution_unknown"
     INTERNAL_ERROR = "internal_error"
@@ -69,6 +70,16 @@ class HookLogError(AgentError):
     """Hook 审计失败后停止，不把未记录的决策当作可重试工具错误。"""
 
     code = FailureCode.HOOK_LOG_ERROR
+
+
+class ToolCleanupError(AgentError):
+    """清理期限内仍有读取线程未退出；本调度器之后拒绝再运行任务。"""
+
+    code = FailureCode.TOOL_CLEANUP_ERROR
+
+    def __init__(self, call_ids: tuple[str, ...]) -> None:
+        self.call_ids = call_ids
+        super().__init__("只读工具线程未能及时退出，已禁止继续派发工具；请结束本次进程后再运行。")
 
 
 class ApprovalDeniedError(AgentError):

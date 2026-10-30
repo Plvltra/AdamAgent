@@ -10,6 +10,7 @@ from adam.contracts.errors import CommandLogError, LLMError, StorageError
 from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
 from adam.tool_calls.factory import create_tool_registry
+from adam.tool_calls.file_tools import FileTools
 from tests.support import build_conversation
 
 
@@ -162,6 +163,7 @@ def test_tool_journal_failure_stops_before_further_actions(tmp_path, monkeypatch
     """开始日志失败不执行工具；结束日志失败不把未落盘结果交给下一次模型请求。"""
     requests = []
     executions = []
+    (tmp_path / "sample.txt").write_text("real evidence", encoding="utf-8")
 
     def handle(request):
         requests.append(request)
@@ -180,12 +182,14 @@ def test_tool_journal_failure_stops_before_further_actions(tmp_path, monkeypatch
                 raise StorageError("tool record failed")
             return append(session_id, kind, payload)
 
-        def execute(name, arguments, **kwargs):
-            executions.append(name)
-            return '{"ok":true}'
+        read_file = FileTools.read_file
+
+        def read(self, path, arguments):
+            executions.append("read_file")
+            return read_file(self, path, arguments)
 
         monkeypatch.setattr(store, "append_tool_event", append_or_fail)
-        monkeypatch.setattr(conversation.tool_executor.registry, "execute", execute)
+        monkeypatch.setattr(FileTools, "read_file", read)
         with pytest.raises(StorageError, match="tool record failed"):
             conversation.send("read")
         assert len(requests) == 1

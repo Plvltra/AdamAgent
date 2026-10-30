@@ -8,7 +8,8 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
-| T6.1 只读并发调度 | 实际文件读取重叠、最多两项、空闲槽补位、有序回调与串行屏障；故障、取消、清理失败及禁止重入；尚未接入聊天 | [test_parallel_tool_scheduling.py](test_parallel_tool_scheduling.py)、[基础边界](../test_tool_scheduler.py) |
+| T6.2 并发工具循环 | 生产读取并发、实际 Hook、混合动作与审批、所有日志线程身份、结果配对、日志故障及文件/Git 取消 | [test_parallel_tool_loop.py](test_parallel_tool_loop.py)、[test_read_cancellation.py](test_read_cancellation.py)、[注册策略](../test_parallel_registry.py) |
+| T6.1 只读并发调度 | 实际文件读取重叠、最多两项、空闲槽补位、有序回调与串行屏障；故障、取消、清理失败及禁止重入；聊天接入另见 T6.2 | [test_parallel_tool_scheduling.py](test_parallel_tool_scheduling.py)、[基础边界](../test_tool_scheduler.py) |
 | T5.3 Hook 示例与组合验收 | 真实目录保护/语法检查、审批与模式、规则等待、关闭零进程、外部改动及真实 CLI/SIGINT 取消 | [test_hook_acceptance.py](test_hook_acceptance.py)、[test_cancellation.py](test_cancellation.py) |
 | T5.2 工具 Hook 边界 | 主/子继承、来源与阶段、拒绝无动作、审批保持、后置结果不丢失、日志故障和真实进程取消 | [test_tool_hooks.py](test_tool_hooks.py)、[日志校验](../test_hook_log.py) |
 | T5.1 本地 Hook 进程 | 真实 JSON 通信、环境限制、关闭零进程、超时/坏响应/非零/大小上限及阻塞输入取消 | [test_hook_process.py](test_hook_process.py)、[配置与协议](../test_hooks.py) |

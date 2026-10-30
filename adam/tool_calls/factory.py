@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from adam.config.settings import PermissionConfig, ToolLimits
+from adam.contracts.cancellation import CancellationToken
 from adam.contracts.execution import ToolCapability
 from adam.contracts.models import CommandRequest, EditPlan, ExecutionRecorder
 from adam.tool_calls.catalog import SPECS
@@ -13,7 +14,9 @@ from adam.tool_calls.edit_tools import EditTools
 from adam.tool_calls.file_tools import FileTools
 from adam.tool_calls.git_tools import GitTools
 from adam.tool_calls.policy import PathPolicy
-from adam.tool_calls.registry import ToolHandler, ToolRegistry
+from adam.tool_calls.registry import ParallelHandler, ToolHandler, ToolRegistry
+
+PathHandler = Callable[[Path, dict[str, Any]], dict[str, Any]]
 
 
 def create_tool_registry(
@@ -33,20 +36,9 @@ def create_tool_registry(
     """
     policy = PathPolicy(workspace, permissions or PermissionConfig(), protected_dirs=protected_dirs)
     limits = limits or ToolLimits()
-    files = FileTools(policy, limits)
-    git = GitTools(policy, limits)
     commands = CommandTools(policy.workspace, limits, confirm_command)
     edits = EditTools(policy, limits, confirm_edit)
-    readers = {
-        "file_info": files.file_info,
-        "list_directory": files.list_directory,
-        "read_file": files.read_file,
-        "find_files": files.find_files,
-        "search_text": files.search_text,
-        "git_status": git.git_status,
-        "git_diff": git.git_diff,
-        "git_log": git.git_log,
-    }
+    readers = _readers(policy, limits)
     handlers = {name: _path_handler(policy, handler) for name, handler in readers.items()}
     # 命令批准后的进程不受只读路径规则限制；只读工具在适配器中检查路径。
     handlers["run_command"] = commands.run_command
@@ -60,6 +52,7 @@ def create_tool_registry(
         handlers,
         limits,
         {} if delegated else {"run_command": commands.encode_result},
+        parallel_handlers={name: _parallel_path_handler(policy, limits, name) for name in readers},
         capabilities={
             **dict.fromkeys(readers, ToolCapability.READ_ONLY),
             "replace_text": ToolCapability.EDIT_FILE,
@@ -96,5 +89,35 @@ def _path_handler(
 
     def execute(args: dict[str, Any], record: ExecutionRecorder | None) -> dict[str, Any]:
         return handler(policy.resolve(args["path"]), args)
+
+    return execute
+
+
+def _readers(
+    policy: PathPolicy, limits: ToolLimits, cancel: CancellationToken | None = None
+) -> dict[str, PathHandler]:
+    """生成无共享调用状态的文件和 Git 读取实例，取消令牌只属于本次动作。"""
+    files = FileTools(policy, limits, cancel)
+    git = GitTools(policy, limits, cancel)
+    return {
+        "file_info": files.file_info,
+        "list_directory": files.list_directory,
+        "read_file": files.read_file,
+        "find_files": files.find_files,
+        "search_text": files.search_text,
+        "git_status": git.git_status,
+        "git_diff": git.git_diff,
+        "git_log": git.git_log,
+    }
+
+
+def _parallel_path_handler(policy: PathPolicy, limits: ToolLimits, name: str) -> ParallelHandler:
+    """适配可信读取到取消接口；不接收或捕获会话日志及界面回调。"""
+
+    def execute(args: dict[str, Any], cancel: CancellationToken) -> dict[str, Any]:
+        cancel.check()
+        path = policy.resolve(args["path"])
+        cancel.check()
+        return _readers(policy, limits, cancel)[name](path, args)
 
     return execute

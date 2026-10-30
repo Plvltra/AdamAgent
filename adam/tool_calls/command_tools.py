@@ -3,7 +3,6 @@
 import json
 import os
 import shutil
-import signal
 import subprocess
 import threading
 import time
@@ -14,6 +13,7 @@ from typing import Any, BinaryIO
 from adam.config.settings import ToolLimits
 from adam.contracts.errors import CommandLogError, ToolError
 from adam.contracts.models import CommandRequest, ExecutionRecorder
+from adam.tool_calls.processes import terminate_process
 
 
 class _Output:
@@ -177,9 +177,9 @@ class CommandTools:
                     continue
         except subprocess.TimeoutExpired:
             status = "timed_out"
-            self._terminate(process)
+            terminate_process(process)
         except BaseException:
-            self._terminate(process)
+            terminate_process(process)
             raise
         finally:
             for reader in readers:
@@ -192,30 +192,6 @@ class CommandTools:
             truncated=stdout.truncated or stderr.truncated or any(r.is_alive() for r in readers),
         )
         return result
-
-    @staticmethod
-    def _terminate(process: subprocess.Popen[bytes]) -> None:
-        """尽力终止进程树，保证直接子进程被回收；不是防逃逸的沙箱。"""
-        try:
-            if os.name == "nt":
-                taskkill = (
-                    Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/taskkill.exe"
-                )
-                subprocess.run(
-                    [str(taskkill), "/PID", str(process.pid), "/T", "/F"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=5,
-                    check=False,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
-            else:
-                os.killpg(process.pid, signal.SIGKILL)
-        except (OSError, subprocess.SubprocessError):
-            pass
-        if process.poll() is None:
-            process.kill()
-        process.wait()
 
     @staticmethod
     def _result(status: str, started: float | None = None) -> dict[str, Any]:

@@ -325,7 +325,7 @@ def test_tool_batch_over_budget_executes_none(tmp_path, monkeypatch):
         SessionStore(tmp_path / "sessions") as store,
     ):
         conversation = make_conversation(store, http, tmp_path, AgentConfig(max_tool_calls=1))
-        monkeypatch.setattr(conversation.tool_executor.registry, "execute", forbidden)
+        monkeypatch.setattr(conversation.tool_executor.registry, "prepare", forbidden)
         with pytest.raises(BudgetError):
             conversation.send("inspect twice")
         session_id = conversation.session.session_id

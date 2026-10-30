@@ -73,7 +73,9 @@ HookResult 区分 allowed、denied、observed、failed，并保留受控原因�
 
 ## 工具流程与审计
 
-实际顺序为：tool_started → 参数/模式/规则检查 → 前置 Hook → 工具自身权限与批准 → 实际执行 → tool_finished → 后置 Hook → 回传模型。
+每项实际顺序为：tool_started → 参数/模式/规则检查 → 前置 Hook → 工具自身权限与批准 → 实际执行 → tool_finished → 后置 Hook → 回传模型。
+
+T6.2 允许同批安全读取的动作重叠；ToolInvocation 固定每项来源与检查快照。预检、Hook 和所有日志仍在协调线程运行，结果按原调用 ID 顺序保存与回传；编辑和命令保持串行。
 
 - 参数、模式或规则未通过时，不启动检查器。前置 Hook 通过不能绕过后续工具权限与人工批准。
 - 前置拒绝或失败返回 hook_blocked，本次工具不执行；不混同用户拒绝整轮，也不触发自动反思。模型可以在原有额度内调整后续动作。

@@ -2,32 +2,44 @@
 
 最近核对：2026-10-30
 
-本次核对范围：T6.1 新增独立 ToolScheduler、可信并发任务与结果契约，验证实际读取并发、串行屏障、有序交付、取消和清理失败。当前尚未接入 ToolExecutor；普通聊天及既有 Hook 调用关系保持。
+本次核对范围：T6.2 将只读并发接入主/子工具循环；新增 ToolInvocation 固定单次来源，Registry 分离预检、动作和编码。文件/Git 读取支持取消，命令与 Git 共用进程清理；验证混合动作、Hook、预算、日志故障和公共错误。
 
-核对结论：T6.1 新增 tool_calls/scheduler.py，仅依赖取消及工具能力契约和标准库；准备与结果回调始终在协调线程，工作线程不操作会话。此阶段未改变普通聊天执行路径。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：T6.2 的 ToolExecutor 协调批次，ToolInvocation 负责单次预检、日志和 Hook；ToolScheduler 仅调度，八个内置只读入口获得并发资格。准备、编码、结果保存和 Hook 均在协调线程，工作线程不接收执行日志回调。ToolCleanupError 移入公共错误契约，CLI 和 Conversation 无新增工具分支。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
-## T6.1 独立只读工具调度
+## T6 只读并发与单次调用边界
 
 ~~~mermaid
 flowchart LR
-    SCHED_TASK["ToolTask / 调用 ID、prepare 与可信并发声明"] --> SCHED_RUN["tool_calls/scheduler.py / ToolScheduler"]
-    SCHED_CAP["contracts/execution.py / ToolCapability"] --> SCHED_TASK
-    SCHED_CANCEL["contracts/cancellation.py / CancellationToken"] --> SCHED_RUN
-    SCHED_RUN --> SCHED_PREP["协调线程 / 有序 prepare"]
-    SCHED_PREP --> SCHED_READ["最多两个工作线程 / 只执行读取动作"]
-    SCHED_PREP --> SCHED_SERIAL["协调线程 / 串行动作与前后屏障"]
-    SCHED_READ --> SCHED_VALUE["ToolResult / 原调用 ID 与结果"]
-    SCHED_SERIAL --> SCHED_VALUE
-    SCHED_VALUE --> SCHED_DELIVER["协调线程 / 按原序 on_result"]
-    SCHED_RUN --> SCHED_CLEAN["协作取消、有限等待 / 失败禁用调度器"]
+    S_CONV["Conversation / 主与子"] --> S_EXEC["ToolExecutor / 批次与预算"]
+    S_EXEC --> S_REG["ToolRegistry / 可信能力和可取消读取入口"]
+    S_EXEC --> S_RUN["ToolScheduler / 最多两个读取与串行屏障"]
+    S_RUN --> S_PREP["协调线程 / ToolInvocation.prepare"]
+    S_PREP --> S_CHECK["Registry.prepare / 参数、模式、规则、前置 Hook"]
+    S_CHECK --> S_ACTION["已预检动作"]
+    S_RUN --> S_WORK["工作线程 / FileTools 与 GitTools"]
+    S_ACTION --> S_WORK
+    S_RUN --> S_SERIAL["协调线程 / 编辑、命令及有状态工具"]
+    S_WORK --> S_RESULT["ToolResult / 原调用 ID"]
+    S_SERIAL --> S_RESULT
+    S_RESULT --> S_FINISH["协调线程 / ToolInvocation.finish"]
+    S_FINISH --> S_ENCODE["Registry.encode / 结果格式与限长"]
+    S_FINISH --> S_STORE["SessionStore / tool_finished"]
+    S_FINISH --> S_AFTER["ToolHooks.after / 后置审计"]
+    S_RUN --> S_CANCEL["CancellationToken / 组内取消"]
+    S_CANCEL --> S_WORK
+    S_WORK --> S_PROC["processes.py / 终止 Git 进程"]
+    S_RUN --> S_ERROR["contracts/errors.py / ToolCleanupError"]
 ~~~
 
-此图是已实现独立组件的协作关系；普通 ToolExecutor 目前没有调用 ToolScheduler，接入属于 T6.2。
-ToolTask 的并发声明来自可信组装代码，不能由模型参数打开；READ_ONLY 本身不意味着可并行。
-业务失败可作为返回值继续交付，程序异常和回调异常停止本批；清理期限内仍未退出的线程明确报告，
-不声称已被强制终止。详细契约及验收见 [只读工具并发](parallel-tools.md)。
+ToolInvocation 为每项固定来源和检查快照；开始记录成功才交出动作，结果编码与保存后才运行后置 Hook。
+Registry 的 parallel_handlers 独立于 READ_ONLY 能力，扩展、规则和模式包装均保留声明；
+八个文件/Git 入口每次创建绑定本组令牌的读取实例，其他扩展默认串行。
+源绑定、审批、所有 JSONL 和自定义编码器只在协调线程执行；串行动作隔开前后读取批次。
+Git 与通用命令共用进程树清理，取消不再等待正常查询超时。清理失败使用公共原因码停止，
+该调度器不再派发；不声称 Python 线程能被强制终止。详细边界见 [只读工具并发](parallel-tools.md)。
+T6.1/T6.2 已实现并验证；跨能力的完整并发验收仍在 T6.3。
 
 ## T5 工具生命周期 Hooks
 
@@ -38,7 +50,8 @@ flowchart LR
     HOOK_CONFIG --> HOOK_RUNNER
     HOOK_RUNNER -.实现.-> HOOK_PORT["contracts/hooks.py / HookService"]
     HOOK_BOOT --> HOOK_EXEC["tool_calls/executor.py / ToolExecutor"]
-    HOOK_EXEC --> HOOK_COORD["tool_calls/lifecycle.py / 每次调用的 ToolHooks"]
+    HOOK_EXEC --> HOOK_CALL["tool_calls/invocation.py / ToolInvocation"]
+    HOOK_CALL --> HOOK_COORD["tool_calls/lifecycle.py / 每次调用的 ToolHooks"]
     HOOK_COORD --> HOOK_PORT
     HOOK_RUNNER --> HOOK_PROCESS["hooks/process.py / 有界 JSON 子进程"]
     HOOK_PROCESS --> HOOK_EXAMPLES["examples/hooks / 目录编辑保护与 Python 语法检查"]
@@ -442,7 +455,9 @@ flowchart TD
     CLI --> OUTPUT
     CONV -->|"工具说明与执行"| EXEC["tool_calls.ToolExecutor"]
     CONV --> STORE
-    EXEC -->|"保存执行记录"| STORE
+    EXEC --> INVOKE["tool_calls/invocation.py / ToolInvocation"]
+    INVOKE -->|"保存执行记录"| STORE
+    EXEC --> SCHEDULER["tool_calls/scheduler.py / ToolScheduler"]
     STORE --> FILE["会话 JSONL 文件与恢复备份"]
     DIAG["session/diagnostics.py<br/>独立只读报告"] -->|读取快照| FILE
     DIAG --> LOG
@@ -469,7 +484,10 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    E["executor.py<br/>轮次关联、编辑额度与留痕"] --> R["registry.py<br/>工具说明、参数校验与分派"]
+    E["executor.py<br/>批次与编辑额度"] --> R["registry.py<br/>说明、预检、动作与编码"]
+    E --> I["invocation.py<br/>固定来源、留痕与 Hook"]
+    E --> SCHED["scheduler.py<br/>只读并发与串行屏障"]
+    I --> R
     FACTORY["factory.py<br/>创建工具并注册处理函数"] --> R
     FACTORY --> CATALOG["catalog.py<br/>工具说明"]
     FACTORY --> F
@@ -488,6 +506,8 @@ flowchart TD
     R --> G["git_tools.py<br/>状态、差异与提交查询"]
     R --> C["command_tools.py<br/>执行外部程序并收集结果"]
     C -->|"请求用户确认"| UI["cli/main.py<br/>展示命令或 diff，取得 y/N"]
+    C --> PROCESS["processes.py<br/>进程树清理与直接进程回收"]
+    G --> PROCESS
 
     FACTORY --> P["policy.py<br/>路径规则、读写权限"]
     F -.-> P
@@ -498,9 +518,9 @@ flowchart TD
 
 `CommandTools` 只需要工作目录、资源限制和确认回调，不接收与其权限模型不相符的 PathPolicy。批准的通用命令按当前系统账户权限运行；额外读取目录只限制只读工具，不是命令进程的操作系统沙箱。
 
-`ToolExecutor` 负责调用所属轮次、请求和执行轨迹；`ToolRegistry` 负责工具目录、参数校验与分派；具体工具负责动作本身。命令和编辑通过记录回调把副作用边界交给协调层保存，通过确认回调取得用户决定。拒绝结果保存后停止同批剩余调用及本轮请求；失败输入不进入有效历史。
+`ToolExecutor` 负责批次、预算与回传顺序，`ToolInvocation` 固定所属轮次、请求和单次执行轨迹；`ToolRegistry` 负责目录、预检、动作和结果编码；具体工具负责动作本身。命令和编辑通过记录回调把副作用边界交给协调层保存，通过确认回调取得用户决定。拒绝结果保存后停止同批剩余调用及本轮请求；失败输入不进入有效历史。
 
-ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模型。命令/编辑沿同一回调上报事件，执行器按 command_* / edit_* 分别记录；注册表不按工具名称分支。日志保存失败仍停止本轮。执行层通知工具名称，`工具>` 等展示文字由 CLI 生成。
+ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付；ToolScheduler 只把明确安全的读取交给工作线程。命令/编辑在协调线程沿同一回调上报事件，单次调用按 command_* / edit_* 分别记录；注册表不按工具名称分支。日志保存失败仍停止本轮。执行层通知工具名称，`工具>` 等展示文字由 CLI 生成。
 
 ## 模块职责
 
@@ -541,8 +561,11 @@ ToolExecutor 在开始记录写入后调用工具，在结果落盘后回传模�
 | [session/storage.py](../adam/session/storage.py) | `SessionStore` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
 | [session/edit_log.py](../adam/session/edit_log.py) | `EditLog` | 编辑状态纯投影；未开始计划恢复为 not_started，写入未知结果不猜测 |
 | [session/log.py](../adam/session/log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，重建状态、有效历史及用量，规划并回放恢复事件；自身不访问文件 |
-| [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor`、`ToolBudget` | 编辑尝试计数、组织工具执行，将轨迹关联到轮次与请求，并形成回传模型的工具消息 |
-| [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，校验参数、分派调用并统一结果格式 |
+| [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor`、`ToolBudget` | 编辑计数、组装批次任务、绑定来源并形成有序工具消息 |
+| [tool_calls/invocation.py](../adam/tool_calls/invocation.py) | `ToolInvocation` | 单次调用预检、开始/结束及副作用日志、前后 Hook；仅协调线程访问 |
+| [tool_calls/scheduler.py](../adam/tool_calls/scheduler.py) | `ToolScheduler`、`ToolTask`、`ToolResult` | 有限只读并发、串行屏障、取消、清理与有序交付 |
+| [tool_calls/processes.py](../adam/tool_calls/processes.py) | `terminate_process` | 通用命令与固定 Git 查询共用进程清理 |
+| [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，在协调线程预检及编码，返回可独立执行的动作，保留可信并发声明 |
 | [tool_calls/text_file.py](../adam/tool_calls/text_file.py) | `TextSnapshot`、`read_snapshot` | 同一次读取的完整字节、UTF-8 文本和版本 |
 | [tool_calls/edit_tools.py](../adam/tool_calls/edit_tools.py) | `EditTools` | 规划前检查写入权限，批准后复查版本，以同目录临时文件替换；不提供跨程序事务 |
 | [tool_calls/edit_plan.py](../adam/tool_calls/edit_plan.py) | `EditPlan`、`plan_edit` | 校验版本与唯一匹配，保留编码形式，生成候选内容和 diff；不写文件 |
@@ -592,7 +615,7 @@ flowchart TD
 - AgentError 提供受控的 user_message、可选 partial_reply、稳定 code 与可选数值 http_status，不决定恢复或重试。展示层仍只使用前两个字段，不逐个匹配具体异常；ExecutionOutcome 将后两个字段转换为持久化结束信息。
 - ConfigError、LLMError、StorageError、SessionNotFoundError、ToolError 和 CommandLogError 集中定义在 contracts/errors.py，调用方直接从定义模块导入。预算使用 BudgetError，回答未保存使用 TurnSaveError；新增业务错误类型无需增加 CLI 分支。
 - 原始 HTTP 异常和响应错误由模型模块转换。原始 OSError 仅在 SessionStore 的实际文件/锁操作边界转为 StorageError，保留原因链且不直接展示系统异常文本。
-- Conversation 在最终回答或其用量无法保存时转为 TurnSaveError，保留回答。ToolExecutor 将命令记录的存储或关联失败转为 CommandLogError，确保它不会被工具注册表当作可修正参数错误继续执行。
+- Conversation 在最终回答或其用量无法保存时转为 TurnSaveError，保留回答。ToolInvocation 将命令记录的存储或关联失败转为 CommandLogError，确保它不会被工具注册表当作可修正参数错误继续执行。
 - 仅明确未发出的连接失败由 RequestPolicy 最多额外重试两次，每次独立记账；其他失败不因公共契约而自动重试。未识别的程序错误继续传播；终端输出自身的 OSError 也不会被误报为会话文件失败。open_application 的清理范围覆盖组件初始化、会话恢复与交互循环，初始界面或回答展示失败时均释放会话锁。
 - 对公开存储接口做故障替身时使用 StorageError；模拟真实文件系统故障时在 IO 边界注入 OSError，验证实际转换、回滚和原因链。
 
