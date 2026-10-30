@@ -2,9 +2,9 @@
 
 最近核对：2026-10-30
 
-本次核对范围：T6.2 将只读并发接入主/子工具循环；新增 ToolInvocation 固定单次来源，Registry 分离预检、动作和编码。文件/Git 读取支持取消，命令与 Git 共用进程清理；验证混合动作、Hook、预算、日志故障和公共错误。
+本次核对范围：T6.3 组合验收；真实 Git/文件并发、规则/Hook/模式/额度边界、双子任务并发与独立取消、真实 CLI/SIGINT 后回收和继续交互。新增业务测试并扩展已有取消辅助进程；旧子任务取消测试改用独立状态快照，避免 Windows 读取句柄阻塞业务索引替换。生产代码与架构无变化。
 
-核对结论：T6.2 的 ToolExecutor 协调批次，ToolInvocation 负责单次预检、日志和 Hook；ToolScheduler 仅调度，八个内置只读入口获得并发资格。准备、编码、结果保存和 Hook 均在协调线程，工作线程不接收执行日志回调。ToolCleanupError 移入公共错误契约，CLI 和 Conversation 无新增工具分支。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：T6.3 已按生产组装验证以下结构，架构无变化。并发上限属于每个 ToolExecutor；两个子 Agent 可各执行两个读取，仍使用独立会话和协调线程、共用主会话额度。T6.2 的 ToolExecutor 协调批次，ToolInvocation 负责单次预检、日志和 Hook；ToolScheduler 仅调度，八个内置只读入口获得并发资格。准备、编码、结果保存和 Hook 均在协调线程，工作线程不接收执行日志回调。ToolCleanupError 移入公共错误契约，CLI 和 Conversation 无新增工具分支。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
@@ -39,7 +39,7 @@ Registry 的 parallel_handlers 独立于 READ_ONLY 能力，扩展、规则和�
 源绑定、审批、所有 JSONL 和自定义编码器只在协调线程执行；串行动作隔开前后读取批次。
 Git 与通用命令共用进程树清理，取消不再等待正常查询超时。清理失败使用公共原因码停止，
 该调度器不再派发；不声称 Python 线程能被强制终止。详细边界见 [只读工具并发](parallel-tools.md)。
-T6.1/T6.2 已实现并验证；跨能力的完整并发验收仍在 T6.3。
+T6.1～T6.3 工程实现及组合验收完成，真实文件/Git、子任务和 CLI 中断均有可运行场景；测试中的同步屏障与等待注入不属于生产架构。
 
 ## T5 工具生命周期 Hooks
 

@@ -29,12 +29,21 @@ def observe_usage(self, event):
 
 
 def pause_after_child_commit(self, agent_id, run_id, **changes):
-    """只在子 JSONL 已成功提交、索引完成标记尚未保存时暂停，等待父进程强杀。"""
+    """强杀场景在子 JSONL 已成功提交、索引完成标记尚未保存时暂停。
+
+    普通取消后另发已保存状态的观察快照，外部测试不读取正在替换的业务索引。
+    """
     if mode == "committed" and changes.get("status") == "completed":
         (root / ("committed-" + agent_id)).touch()
         while True:
             time.sleep(0.1)
-    return original_update(self, agent_id, run_id, **changes)
+    result = original_update(self, agent_id, run_id, **changes)
+    if mode == "run" and changes.get("status") == "interrupted":
+        # 在所属进程内取得已保存状态；外部测试不轮询可能正在原子替换的业务索引。
+        states = {agent.name: agent.runs[-1].status for agent in self.agents() if agent.runs}
+        (root / "cancelled-states.json").write_text(json.dumps(states), encoding="utf-8")
+        (root / "cancelled-states.ready").touch()
+    return result
 
 
 def interrupt_when_requested():

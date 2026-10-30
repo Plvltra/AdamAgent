@@ -200,6 +200,7 @@ def cleanup(process):
 
 
 def read_index(root, sessions=None):
+    """只在相关请求已停在测试屏障、不再更新索引时读取一次；不能用于活动索引轮询。"""
     session_id = (root / "session-id").read_text(encoding="utf-8")
     return json.loads(
         ((sessions or root / "sessions") / "_subagents" / session_id / "index.json").read_text(
@@ -213,26 +214,16 @@ def test_real_single_child_cancel_preserves_sibling_and_releases_threads(tmp_pat
     prepare(api, tmp_path, "main", "body", single=True)
     process = launch(tmp_path, "run", "main")
     try:
-
-        def stopped_only_a():
-            if not (tmp_path / "session-id").exists():
-                return False
-            index_path = (
-                tmp_path
-                / "sessions"
-                / "_subagents"
-                / (tmp_path / "session-id").read_text()
-                / "index.json"
-            )
-            if not index_path.exists():
-                return False
-            agents = read_index(tmp_path)["agents"]
-            states = {
-                agent["name"]: agent["runs"][-1]["status"] for agent in agents if agent["runs"]
-            }
-            return states.get("A") == "interrupted" and states.get("B") == "running"
-
-        wait_for(process, stopped_only_a, "single cancellation did not leave B running")
+        # 独立观察文件写完再发布 ready；不打开仍由业务进程原子替换的 index.json。
+        wait_for(
+            process,
+            lambda: (
+                (tmp_path / "cancelled-states.ready").exists() and api.ready[("main", "b")].is_set()
+            ),
+            "single cancellation did not leave B running",
+        )
+        states = json.loads((tmp_path / "cancelled-states.json").read_text(encoding="utf-8"))
+        assert states == {"A": "interrupted", "B": "running"}
         api.releases[("main", "b")].set()
         result = finish(process)
         states = {agent["name"]: agent["runs"][-1]["status"] for agent in result["index"]["agents"]}

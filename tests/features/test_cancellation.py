@@ -1,4 +1,4 @@
-"""V5.2/T5.3：独立 CLI 在真实 HTTP、命令或 Hook 等待中收到 SIGINT，回到输入并可新建会话。"""
+"""V5.2/T5.3/T6.3：独立 CLI 在 HTTP、命令、Hook 或并发读取中收到 SIGINT，恢复交互。"""
 
 import json
 import os
@@ -62,6 +62,26 @@ def cancel_server(tmp_path):
                     self.wfile.flush()
                     ready.set()
                     release.wait(20)
+                elif first and mode == "parallel_reads":
+                    calls = [
+                        {
+                            "index": index,
+                            "id": name,
+                            "type": "function",
+                            "function": {
+                                "name": "read_file",
+                                "arguments": json.dumps({"path": name + ".txt"}),
+                            },
+                        }
+                        for index, name in enumerate(("a", "b", "pending"))
+                    ]
+                    self.wfile.write(frame({"tool_calls": calls}))
+                    self.wfile.write(
+                        frame(
+                            reason="tool_calls", usage={"prompt_tokens": 4, "completion_tokens": 2}
+                        )
+                    )
+                    self.wfile.write(b"data: [DONE]\n\n")
                 elif first and mode in {"command", "confirm", "before_hook", "after_hook"}:
                     argv = (
                         [sys.executable, "-c", "from pathlib import Path; Path('ran').touch()"]
@@ -134,6 +154,7 @@ def alive(pid):
         "plan_body",
         "before_hook",
         "after_hook",
+        "parallel_reads",
     ],
 )
 def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, mode):
@@ -165,6 +186,9 @@ def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, 
         "time.sleep(30)\n",
         encoding="utf-8",
     )
+    if mode == "parallel_reads":
+        for name in ("a", "b", "pending"):
+            (tmp_path / (name + ".txt")).write_text("actual " + name, encoding="utf-8")
     project = Path(__file__).resolve().parents[2]
     worker = Path(__file__).parent / "support" / "cancel_worker.py"
     process = subprocess.Popen(
@@ -185,11 +209,22 @@ def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, 
                 if (
                     (mode == "command" and (tmp_path / "pids").exists())
                     or (
-                        mode not in {"command", "known_body", "before_hook", "after_hook"}
+                        mode
+                        not in {
+                            "command",
+                            "known_body",
+                            "before_hook",
+                            "after_hook",
+                            "parallel_reads",
+                        }
                         and ready.is_set()
                     )
                     or (mode in {"before_hook", "after_hook"} and (tmp_path / "hook.pid").exists())
                     or (mode == "known_body" and (tmp_path / "usage_received").exists())
+                    or (
+                        mode == "parallel_reads"
+                        and all((tmp_path / f"reader-{name}.ready").exists() for name in ("a", "b"))
+                    )
                 ):
                     break
                 assert process.poll() is None
@@ -236,6 +271,18 @@ def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, 
                 assert turn["commands"][0]["status"] == "completed"
             else:
                 assert turn["commands"] == []
+        elif mode == "parallel_reads":
+            assert turn["requests"][0]["status"] == "succeeded"
+            assert len(turn["tools"]) == 2 and not any(t["finished"] for t in turn["tools"])
+            assert result["parallel"]["stopped"] == ["a", "b"]
+            assert result["parallel"]["remaining_at_prompt"]
+            assert all(not names for names in result["parallel"]["remaining_at_prompt"])
+            assert result["parallel"]["live_after_close"] == []
+            assert not (tmp_path / "reader-pending.ready").exists()
+            for body in requests[1:]:
+                assert not any(
+                    m["role"] == "tool" or m.get("content") == "start" for m in body["messages"]
+                )
         elif mode == "command":
             assert turn["commands"][0]["status"] == "interrupted"
         elif mode == "confirm":
