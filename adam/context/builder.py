@@ -8,6 +8,7 @@ from typing import Any
 from adam.config.settings import ContextConfig
 from adam.context.pruning import prune_history
 from adam.contracts.errors import BudgetError, FailureCode
+from adam.contracts.execution import ExecutionMode, mode_instructions
 from adam.contracts.history import HistoryTurn, Summary
 from adam.contracts.memory import MemorySelection
 from adam.contracts.reflection import reflection_messages
@@ -67,6 +68,7 @@ class RequestContext:
     skills: tuple[dict[str, str], ...] = ()
     selected_skill: SkillSelection | None = None
     rules: RuleSelection | None = None
+    execution_mode: ExecutionMode | None = None
 
     @property
     def candidate_input_tokens(self) -> int:
@@ -81,6 +83,11 @@ class RequestContext:
         """返回实际请求的选择依据；不含认证信息，不是完整 HTTP 请求快照。"""
         return {
             "strategy": "recent_turns_v1",
+            **(
+                {"execution_mode": self.execution_mode.value}
+                if self.execution_mode is not None
+                else {}
+            ),
             **({"skills": list(self.skills)} if self.skills else {}),
             **({"selected_skill": self.selected_skill.to_record()} if self.selected_skill else {}),
             **({"rules": self.rules.to_record()} if self.rules is not None else {}),
@@ -133,6 +140,7 @@ class ContextBuilder:
         skills: tuple[dict[str, str], ...] = (),
         selected_skill: SkillSelection | None = None,
         rules: RuleSelection | None = None,
+        execution_mode: ExecutionMode | None = None,
     ) -> RequestContext:
         """返回独立的输入副本及组成估算；保留顺序、工具配对和服务商推理字段。
 
@@ -144,6 +152,7 @@ class ContextBuilder:
         skills 只含固定目录；selected_skill 是用户为本轮指定的正文，只注入一份并整体计入预算。
         未指定的正文及引用材料仍由工具按需返回；指定正文不复制进聊天历史。
         rules 为本次规则快照，整体计入受保护预算，不能截断或改写为摘要。
+        execution_mode 为程序的实际模式，说明计入受保护系统预算，不复制进历史。
         预算覆盖完整工具 JSON Schema，不包含认证头、URL 或密钥。
         """
         rule_messages = rules.messages() if rules is not None else []
@@ -162,6 +171,10 @@ class ContextBuilder:
         history = history[covered:]
         summary_messages = [summary.message()] if summary else []
         summary_tokens = sum(estimate_json_tokens(message) for message in summary_messages)
+        if execution_mode is not None:
+            system_prompt = "\n\n".join(
+                filter(None, (system_prompt, mode_instructions(execution_mode)))
+            )
         system = [{"role": "system", "content": system_prompt}] if system_prompt else []
         system_tokens = sum(estimate_json_tokens(message) for message in system)
         turn_tokens = sum(estimate_json_tokens(message) for message in current_turn)
@@ -255,6 +268,7 @@ class ContextBuilder:
             skills=deepcopy(skills),
             selected_skill=selected_skill,
             rules=rules,
+            execution_mode=execution_mode,
         )
 
 

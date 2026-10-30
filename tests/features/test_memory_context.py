@@ -204,5 +204,6 @@ def test_memory_budget_does_not_evict_protected_input(tmp_path):
         assert preview.estimate.memory_tokens == 0
         app.send("Python 导入")
         assert memory_records(payloads[-1]) == []
-        assert payloads[-1]["messages"][0]["content"] == "system constraint"
+        system = payloads[-1]["messages"][0]["content"]
+        assert system.startswith("system constraint\n\n") and "当前执行模式：act。" in system
         assert payloads[-1]["messages"][-1]["content"] == "Python 导入"

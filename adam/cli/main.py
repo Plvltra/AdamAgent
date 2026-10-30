@@ -17,6 +17,7 @@ from adam.cli.terminal import (
     show_context,
     show_execution_report,
     show_failure,
+    show_mode,
     show_plan,
     show_skills,
 )
@@ -79,6 +80,10 @@ def handle_command(
         application.new(parts[1] if len(parts) == 2 else "新对话")
         show_session(application, write)
         write("已新建会话，原会话仍保留。")
+    elif command == "/mode":
+        if len(parts) == 2:
+            application.select_mode(parts[1])
+        show_mode(application.mode, write)
     elif command == "/memory":
         handle_memory_command(parts[1] if len(parts) == 2 else "", application, write)
     elif command == "/skills":
@@ -150,7 +155,7 @@ def handle_command(
             show_model(application, write)
     else:
         write(
-            "未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context、/compact、/memory、/plan、/skills、/skill 或 /exit。"
+            "未知命令，请使用 /new、/sessions、/resume、/model、/usage、/context、/compact、/memory、/plan、/mode、/skills、/skill 或 /exit。"
         )
     return CommandResult.HANDLED
 
@@ -243,9 +248,10 @@ def chat(
         application.resume(resume_id)
 
     write(
-        "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/compact、/memory、/plan、/skills、/skill <ID> <任务>、/exit；成功轮次自动保存。"
+        "Adam — /new [名称]、/sessions、/resume <ID>、/model、/usage、/context [full]、/compact、/memory、/plan、/mode [plan|act]、/skills、/skill <ID> <任务>、/exit；成功轮次自动保存。"
     )
     show_session(application, write)
+    show_mode(application.mode, write)
     try:
         if not application.refresh_models():
             write("模型目录暂时无法获取，仍可继续聊天。")

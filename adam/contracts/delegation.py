@@ -9,7 +9,7 @@ from adam.contracts.memory import MemorySelection
 
 @dataclass
 class ChildRun:
-    """一次派发的来源与结果；child_turn_id 连接子会话的真实请求和工具轨迹。"""
+    """一次派发的来源、模式与结果；child_turn_id 连接子会话的真实请求和工具轨迹。"""
 
     run_id: str
     parent_turn_id: str
@@ -21,6 +21,7 @@ class ChildRun:
     child_turn_id: str | None = None
     reply: str = ""
     error: str = ""
+    execution_mode: str = "act"
 
 
 @dataclass

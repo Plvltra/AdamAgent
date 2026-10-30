@@ -112,6 +112,8 @@ class DelegationStore:
         if len({run.run_id for run in runs}) != len(runs):
             raise ValueError("duplicate child run")
         for run in runs:
+            if run.execution_mode not in ("plan", "act"):
+                raise ValueError("invalid child execution mode")
             if run.status not in {"running", "completed", "failed", "interrupted"}:
                 raise ValueError("invalid child state")
             if not all(

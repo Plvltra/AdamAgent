@@ -17,6 +17,7 @@ from adam.config.settings import PermissionConfig, SubagentConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.errors import AgentError, StorageError, ToolError
+from adam.contracts.execution import ExecutionMode
 from adam.contracts.memory import MemorySelection
 from adam.session.delegation import DelegationStore
 from adam.session.storage import SessionStore
@@ -52,11 +53,14 @@ class SubagentManager:
         result_limit: int,
         open_child: ChildOpener,
         notify: Callable[[str], None],
+        *,
+        mode_provider: Callable[[], ExecutionMode] | None = None,
     ) -> None:
         self.store, self.workspace = store, workspace.resolve()
         self.permissions, self.limits = permissions, limits
         self.token_limit, self.result_limit = token_limit, result_limit
         self.open_child, self.notify = open_child, notify
+        self.mode_provider = mode_provider
         self._session_id: str | None = None
         self._index: DelegationStore | None = None
         self._budget = SharedTokenBudget(token_limit)
@@ -314,6 +318,8 @@ class SubagentManager:
         self._budget.check()
 
     def _launch(self, agent: ChildAgent, task: str) -> dict[str, Any]:
+        """先固定派发时的模式并保存索引，再启动子线程；续聊捕获所在新轮次的模式。"""
+        mode = self.mode_provider() if self.mode_provider is not None else ExecutionMode.ACT
         run = ChildRun(
             secrets.token_hex(8),
             self._turn_id,
@@ -321,6 +327,7 @@ class SubagentManager:
             self._source["tool_call_id"],
             task,
             self._model,
+            execution_mode=mode.value,
         )
         agent.runs.append(run)
         self._index_required().put(agent)

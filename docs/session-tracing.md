@@ -45,6 +45,10 @@ session_id：一个会话，对应一个 JSONL 文件
 - tool_finished 说明工具返回了结果；文件不存在、参数错误和用户拒绝也能返回结果，业务是否成功应读取 output。
 - tool_started 说明进入工具处理，可能随后在参数校验或用户确认处结束；它不证明命令进程已经启动。命令的实际执行边界由 command_* 描述。
 
+## T4 执行模式记录
+
+标准启动的聊天 request_started.context.execution_mode 保存实际 plan/act 模式，参与请求快照校验。模式说明加入当次 system 输入并计入预算，不改写会话 system_prompt 或成功消息；旧日志可没有该字段。子任务每次派发在 ChildRun.execution_mode 中独立记录，子请求记录同一模式，续聊可以捕获新主轮次模式。记录用于追溯，不用于恢复当前终端模式，也不会触发重发。
+
 ## E1 记忆选择记录
 
 request_started.context.memory 是可选字段，strategy 为 keyword_v1，保存查询、选择状态、完整条目版本与来源。旧请求没有此字段仍可读取；已记录快照不会随记忆库未来修改或删除而变化。条目作为资料参与本次请求，不追加为普通 message；日志解释器复用 contracts/memory.py 校验记录格式。

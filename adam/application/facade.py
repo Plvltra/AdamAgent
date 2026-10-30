@@ -1,14 +1,17 @@
 """面向界面的应用操作；隐藏存储访问与模型目录策略，沿用公共错误契约。"""
 
 from collections.abc import Callable
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
 from adam.application.conversation import Conversation
 from adam.application.experiences import ExperienceService
 from adam.application.memories import MemoryService
+from adam.application.modes import ModeController
 from adam.context.builder import RequestContext
 from adam.contracts.errors import AgentError, LLMError
+from adam.contracts.execution import ExecutionMode
 from adam.contracts.history import Summary
 from adam.contracts.memory import MemoryCommand, MemoryRecord
 from adam.contracts.models import (
@@ -37,6 +40,7 @@ class AgentApplication:
         *,
         close_resources: Callable[[], None] | None = None,
         skills: SkillProvider | None = None,
+        modes: ModeController | None = None,
     ) -> None:
         self._close_resources = close_resources
         self._conversation = conversation
@@ -44,6 +48,7 @@ class AgentApplication:
         self._models_client = models
         self._memories = memories
         self._skills = skills
+        self._modes = modes
         self._experiences = ExperienceService(store, memories) if memories else None
         self._models: dict[str, str | None] | None = None
 
@@ -66,6 +71,17 @@ class AgentApplication:
     def models(self) -> dict[str, str | None] | None:
         """已查询的模型目录副本；None 表示尚未取得可靠目录。"""
         return dict(self._models) if self._models is not None else None
+
+    @property
+    def mode(self) -> ExecutionMode:
+        """当前终端模式；旧的固定执行入口保持 act，不据旧会话恢复模式。"""
+        return self._modes.current() if self._modes is not None else ExecutionMode.ACT
+
+    def select_mode(self, mode: str) -> None:
+        """执行用户明确的切换，不请求模型、不创建会话；未绑定策略的入口拒绝切换。"""
+        if self._modes is None:
+            raise AgentError("当前应用没有绑定模式策略，不能切换；请使用标准启动入口。")
+        self._modes.select(mode)
 
     def refresh_models(self) -> bool:
         """刷新可选模型；目录服务失败仍可聊天，并允许用户提供模型 ID。"""
@@ -171,18 +187,20 @@ class AgentApplication:
         """执行完整一轮并返回已保存回答；已知失败以 AgentError 交给界面。
 
         skill_id 由用户显式选择，正文只作用于本轮；读取失败不提交轮次或请求模型。
+        已绑定模式时固定到本轮及子任务收尾结束，异常也会释放占用。
         """
-        if skill_id is not None:
-            self._conversation.clear_execution_report()
-            if self._skills is None:
-                raise AgentError("当前应用未启用 Skill。")
-            selection = self._skills.select(skill_id)
-            return self._conversation.send(text, on_output=on_output, selected_skill=selection)
-        return (
-            self._conversation.send(text, on_output=on_output)
-            if on_output
-            else self._conversation.send(text)
-        )
+        with self._modes.turn() if self._modes is not None else nullcontext():
+            if skill_id is not None:
+                self._conversation.clear_execution_report()
+                if self._skills is None:
+                    raise AgentError("当前应用未启用 Skill。")
+                selection = self._skills.select(skill_id)
+                return self._conversation.send(text, on_output=on_output, selected_skill=selection)
+            return (
+                self._conversation.send(text, on_output=on_output)
+                if on_output
+                else self._conversation.send(text)
+            )
 
     def close(self) -> None:
         """释放组装时注册的子任务与服务资源；外部注入的主存储和模型由调用方关闭。"""

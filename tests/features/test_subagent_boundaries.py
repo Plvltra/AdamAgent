@@ -167,7 +167,9 @@ def test_switching_main_session_does_not_leak_pending_child_ids_into_preview(tmp
         app.new("another main session")
         preview = app.preview_context()
         assert agent_id not in json.dumps(preview.messages)
-        assert preview.messages[0] == {"role": "system", "content": "system"}
+        assert preview.messages[0]["role"] == "system"
+        assert preview.messages[0]["content"].startswith("system\n\n")
+        assert "当前执行模式：act。" in preview.messages[0]["content"]
 
 
 def test_child_read_scope_inherits_only_authorized_directories(tmp_path):

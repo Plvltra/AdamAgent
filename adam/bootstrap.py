@@ -11,6 +11,7 @@ import httpx
 from adam.application.conversation import Conversation
 from adam.application.facade import AgentApplication
 from adam.application.memories import MemoryService
+from adam.application.modes import ModeController
 from adam.application.planning import PlanningService
 from adam.application.reflection import ReflectionService
 from adam.application.review import ReviewService
@@ -21,7 +22,7 @@ from adam.config.loader import load_config
 from adam.config.settings import AppConfig, DocumentConfig, PermissionConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
-from adam.contracts.execution import ToolCapability
+from adam.contracts.execution import ExecutionMode, ToolCapability
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import CommandRequest, EditPlan
 from adam.contracts.planning import PlanReport
@@ -72,6 +73,7 @@ def build_application(
     组装失败会回收已创建资源，主模型与主存储仍由调用方持有。
     """
     with ExitStack() as resources:
+        modes = ModeController()
         documents_dir = config.documents_dir or store.root / "_documents"
         document_config = replace(
             config.documents,
@@ -118,6 +120,7 @@ def build_application(
                     documents_dir,
                 ),
                 on_notice or (lambda _: None),
+                mode_provider=modes.current,
             )
             resources.callback(manager.close)
             registry = registry.extended(
@@ -185,6 +188,7 @@ def build_application(
         )
         if rules:
             registry = registry.guarded(rules.check)
+        registry = registry.with_mode(modes.current)
 
         def bind_source(link: dict[str, str]) -> None:
             """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
@@ -223,6 +227,7 @@ def build_application(
             reflection=reflector,
             review=reviewer,
             memory_provider=memories.select,
+            mode_provider=modes.current,
             skills=skills.summaries() if skills else (),
             rules=rules,
         )
@@ -233,6 +238,7 @@ def build_application(
             memories,
             close_resources=resources.pop_all().close,
             skills=skills,
+            modes=modes,
         )
 
 
@@ -251,11 +257,12 @@ def _open_child(
     started: Callable[[str], None],
     memory: MemorySelection,
 ) -> Iterator[Conversation]:
-    """在子线程中管理独立资源，只继承主轮次记忆快照。
+    """在子线程中管理独立资源，继承派发时的模式与主轮次记忆快照。
 
     不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆和文档缓存，避免绕过范围。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     """
+    mode = ExecutionMode(run.execution_mode)
     with SessionStore(root) as store, client_factory(cancel) as client:
         store.select_session(agent.agent_id)
         account = SessionAccount(store, agent.agent_id, budget)
@@ -296,6 +303,7 @@ def _open_child(
         )
         if rules:
             registry = registry.guarded(rules.check)
+        registry = registry.with_mode(lambda: mode)
         conversation = Conversation(
             store,
             client,
@@ -308,6 +316,7 @@ def _open_child(
             cancel=cancel,
             on_turn_started=started,
             memory_provider=lambda _query, _capacity: memory,
+            mode_provider=lambda: mode,
             skills=skills.summaries() if skills else (),
             rules=rules,
         )

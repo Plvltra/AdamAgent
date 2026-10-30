@@ -81,7 +81,10 @@ def test_context_commands_are_read_only_and_full_is_opt_in(tmp_path):
     assert len(previews) == 2 and all("尚未包含下一条用户输入" in text for text in previews)
     full = [json.loads(text) for text in shown if text.startswith("{")]
     assert len(full) == 1
-    assert full[0]["messages"] == [{"role": "system", "content": "system-only"}]
+    assert len(full[0]["messages"]) == 1
+    assert full[0]["messages"][0]["role"] == "system"
+    assert full[0]["messages"][0]["content"].startswith("system-only\n\n")
+    assert "当前执行模式：act。" in full[0]["messages"][0]["content"]
     assert full[0]["tools"]
     assert any("用法：/context [full]" == text for text in shown)
     assert "private-api-key" not in "\n".join(shown)

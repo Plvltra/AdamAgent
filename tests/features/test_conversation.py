@@ -47,18 +47,19 @@ def test_multiturn_failure_and_reset():
             LLMConfig("https://example.test/v1", "test-model", "secret", stream=False), http
         )
         chat(client, "system", read=lambda _: next(entries), write=output.append)
-    assert requests[0]["messages"] == [
-        {"role": "system", "content": "system"},
+    for request in requests:
+        system = request["messages"][0]
+        assert system["role"] == "system" and system["content"].startswith("system\n\n")
+        assert "当前执行模式：act。" in system["content"]
+    assert requests[0]["messages"][1:] == [
         {"role": "user", "content": "one"},
     ]
-    assert requests[2]["messages"] == [
-        {"role": "system", "content": "system"},
+    assert requests[2]["messages"][1:] == [
         {"role": "user", "content": "one"},
         {"role": "assistant", "content": "reply1"},
         {"role": "user", "content": "two"},
     ]
-    assert requests[3]["messages"] == [
-        {"role": "system", "content": "system"},
+    assert requests[3]["messages"][1:] == [
         {"role": "user", "content": "three"},
     ]
     assert all(r["stream"] is False for r in requests)
@@ -156,7 +157,10 @@ def test_commands_do_not_reach_model_and_exit_stops_input():
         client = LLMClient(LLMConfig("https://example.test", "model", "secret", stream=False), http)
         chat(client, "", read=lambda _: next(entries), write=output.append)
     assert len(requests) == 1
-    assert requests[0]["messages"] == [{"role": "user", "content": "hello"}]
+    assert requests[0]["messages"][1:] == [{"role": "user", "content": "hello"}]
+    assert requests[0]["messages"][0]["role"] == "system"
+    assert "当前执行模式：act。" in requests[0]["messages"][0]["content"]
+    assert "/unknown" not in json.dumps(requests[0]["messages"])
     assert sum("未知命令" in line for line in output) == 2
     assert next(entries) == "unread"
     assert output[-1] == "再见。"

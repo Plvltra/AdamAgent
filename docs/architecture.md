@@ -2,18 +2,18 @@
 
 最近核对：2026-10-30
 
-本次核对范围：T4.1 新增 contracts/execution.py 的模式与能力契约；ToolRegistry 在参数校验后、路径规则和审批之前执行模式检查。原生与扩展注册声明能力，扩展/规则包装保留策略；mode_blocked 留工具日志但不触发反思。当前应用仍默认 act，用户切换及子任务继承待 T4.2。此前 T3.3 组合验收已完成。核对主/子应用各自组装目录、用户材料授权不扩展普通工具、本轮指定快照不复制给子任务、新会话与取消隔离，以及摘要后仍保留指定正文。下述 T3.2 结构保持：CLI 经 AgentApplication 和 SkillProvider 查看/选择指导；bootstrap 给主/子应用组装两级目录。SkillSelection 是本轮只读正文快照，ContextBuilder 纳入受保护预算，SessionLog 校验与目录来源一致。原始输入与成功历史不粘贴指定正文；选择失败清除旧操作报告。SkillCatalog 统一标准/TOML 包，SkillPackage 冻结目录元数据与材料路径；标准正文与头部使用同一字节快照。请求目录保存格式，工具结果保存元数据/内容版本；原日志目录字段继续可读。两份项目示例迁移到标准格式和 references/。ReviewService 分开处理历史读取凭据与当前目标有效性，文件删除后仍能收集为 stale；SkillCatalog 在目录与请求校验前统一去除名称、用途两端空白。保留 ToolExecutor 协作限制回调的契约说明。
+本次核对范围：T4.2 新增 application/modes.py 的 ModeController，由应用持有用户切换入口，工具、上下文与子任务调度只读取模式。bootstrap 绑定同一来源；聊天期间固定模式直至子任务收尾。模式说明计入受保护预算并保存在请求选择快照，ChildRun 保存派发模式，子应用使用固定值。CLI 展示实际模式，不请求模型；新建/恢复会话不改变运行设置，新启动默认 act。核对相关命令、隔离、取消和预算测试；记忆对照的基线显式采用相同模式，仍只比较条目选择。同步使用、需求和日志文档。
 
-核对结论：新增 ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：T4.2 增加用户模式控制与子任务快照两条调用关系；权限判定仍集中在 ToolRegistry，Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
-## T4.1 工具能力与模式策略
+## T4 工具能力、用户模式与子任务继承
 
 ~~~mermaid
 flowchart LR
     MODE_REG["factory / 各扩展注册 / bootstrap"] --> CAPABILITY["ToolCapability / 可信能力声明"]
-    MODE_SOURCE["调用方模式读取器"] --> MODE_POLICY["contracts/execution.py / check_tool_mode"]
+    MODE_SOURCE["主 ModeController.current / 子固定模式读取器"] --> MODE_POLICY["contracts/execution.py / check_tool_mode"]
     CAPABILITY --> MODE_POLICY
     MODE_EXEC["ToolRegistry / JSON 参数校验"] --> MODE_POLICY
     MODE_POLICY -->|允许| RULE_GUARD["路径规则检查"]
@@ -23,7 +23,24 @@ flowchart LR
     MODE_LOG --> FEEDBACK_FILTER["FeedbackLog / 不触发自动反思"]
 ~~~
 
-当前只提供可组合的模式策略；CLI 切换与子任务继承尚未接入。架构图不把 T4.2 待办当成已实现，使用与边界见 [执行模式](execution-modes.md)。
+~~~mermaid
+flowchart LR
+    MODE_CLI["CLI /mode 与状态展示"] --> MODE_APP["AgentApplication / select_mode 与 send"]
+    MODE_BOOT["bootstrap / 同一来源组装"] --> MODE_CONTROL["application/modes.py / ModeController"]
+    MODE_APP --> MODE_CONTROL
+    MODE_CONTROL --> MODE_READ["current 只读入口"]
+    MODE_READ --> MODE_REGISTRY["主 ToolRegistry / 能力检查"]
+    MODE_READ --> MODE_CONV["Conversation / ContextBuilder"]
+    MODE_CONV --> MODE_CONTEXT["受保护 system 说明 / 请求 execution_mode"]
+    MODE_CONTEXT --> MODE_SESSION["SessionLog / 快照校验"]
+    MODE_READ --> MODE_MANAGER["SubagentManager / 派发时捕获"]
+    MODE_MANAGER --> MODE_CHILD_RECORD["ChildRun / DelegationStore"]
+    MODE_CHILD_RECORD --> MODE_CHILD_BOOT["bootstrap._open_child / 固定模式"]
+    MODE_CHILD_BOOT --> MODE_CHILD_REG["子 ToolRegistry / 原权限与模式"]
+    MODE_CHILD_BOOT --> MODE_CHILD_CONTEXT["子 Conversation / 同一固定模式"]
+~~~
+
+ModeController 保证一次任务中模式不变，包括子任务收尾；异常也释放占用。只有应用公开切换接口，注册表和上下文只获得读取器。请求说明与原系统提示合并，计入预算，不复制进有效历史；/context 使用相同来源。ChildRun 在启动线程前保存派发模式，续聊按新主轮次捕获；子 act 仍没有主审批回调。会话切换不恢复旧模式，重启默认 act。当前 T4.1/T4.2 已实现，T4.3 组合验收待完成，使用与边界见 [执行模式](execution-modes.md)。
 
 ## T3 多来源技能与显式启用
 

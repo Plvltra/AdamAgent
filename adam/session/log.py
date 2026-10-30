@@ -272,7 +272,7 @@ class SessionLog:
         request["usage"] = (inputs, outputs)
 
     def _validate_context(self, context: object, turn_id: str) -> None:
-        """校验摘要覆盖前缀、连续历史后缀或反思反馈快照；旧请求可没有选择字段。"""
+        """校验摘要覆盖前缀、连续历史后缀、模式或反思反馈快照；旧请求可没有选择及模式字段。"""
         if isinstance(context, dict) and context.get("strategy") == "reflection_v1":
             feedback = self.feedback.records.get(context.get("feedback_id", ""))
             if (
@@ -304,6 +304,8 @@ class SessionLog:
             raise ValueError("invalid context summary")
         if covered + omitted + selected != [turn.turn_id for turn in self.history_turns()]:
             raise ValueError("invalid context sources")
+        if "execution_mode" in context and context["execution_mode"] not in ("plan", "act"):
+            raise ValueError("invalid execution mode")
         if "rules" in context:
             validate_rules(context["rules"])
         if "skills" in context:

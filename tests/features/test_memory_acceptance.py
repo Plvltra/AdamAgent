@@ -68,6 +68,7 @@ def test_all_injection_vs_relevant_selection_uses_identical_inputs(tmp_path):
                 current_turn=[{"role": "user", "content": query}],
                 tools=preview.tools,
                 memory=MemorySelection(scoped, query, "selected"),
+                execution_mode=preview.execution_mode,
             )
             app.send(query)
             actual = payloads[-1]

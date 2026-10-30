@@ -9,6 +9,7 @@ from colorama import Fore, Style
 
 from adam.context.builder import RequestContext
 from adam.contracts.errors import AgentError
+from adam.contracts.execution import ExecutionMode
 from adam.contracts.models import ExecutionReport
 from adam.contracts.planning import PlanReport
 from adam.contracts.skills import SkillListing
@@ -34,6 +35,16 @@ def role_prefix(role: str, *, unsaved: bool = False) -> str:
         color = Fore.CYAN if role == "user" else Fore.YELLOW
         return f"{Style.BRIGHT}{color}{label}{Style.RESET_ALL} "
     return label + " "
+
+
+def show_mode(mode: ExecutionMode, write: Callable[[str], None] = print) -> None:
+    """展示程序实际模式及限制；不根据模型自报判断能否执行。"""
+    detail = (
+        "仅调查和规划；修改与通用命令已禁止。"
+        if mode is ExecutionMode.PLAN
+        else "执行模式；修改与通用命令仍需逐次批准。"
+    )
+    write(f"模式> {mode.value} — {detail}")
 
 
 def show_skills(listings: tuple[SkillListing, ...], write: Callable[[str], None] = print) -> None:
@@ -87,6 +98,8 @@ def show_context(
 ) -> None:
     """按需展示基础预览及估算；full 展开消息/工具原文，不展示连接配置或认证头。"""
     estimate, limits = context.estimate, context.limits
+    if context.execution_mode is not None:
+        show_mode(context.execution_mode, write)
     if context.preview_query:
         write("上下文> 指定问题的假设预览；未提交消息、未请求模型。")
     else:

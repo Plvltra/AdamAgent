@@ -114,7 +114,12 @@ def test_usage_is_only_shown_on_request_and_not_sent_to_model(tmp_path, interact
     assert len(usage) == 1 and "15" in usage[0] and "100" in usage[0]
     posts = [request for request in requests if request.method == "POST"]
     assert len(posts) == 1
-    assert json.loads(posts[0].content)["messages"] == [{"role": "user", "content": "hello"}]
+    messages = json.loads(posts[0].content)["messages"]
+    assert messages[1:] == [{"role": "user", "content": "hello"}]
+    assert messages[0]["role"] == "system" and "当前执行模式：act。" in messages[0]["content"]
+    assert "/usage" not in json.dumps(messages) and "用量>" not in json.dumps(
+        messages, ensure_ascii=False
+    )
     assert all(prompt == role_prefix("user") for prompt in prompts)
     assert role_prefix("assistant") + "reply" in shown
     for path in (tmp_path / "sessions").rglob("*.jsonl"):

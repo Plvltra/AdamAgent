@@ -22,6 +22,7 @@ from adam.contracts.errors import (
     StorageError,
     TurnSaveError,
 )
+from adam.contracts.execution import ExecutionMode
 from adam.contracts.history import Summary
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import ExecutionReport, ModelOutput, Session
@@ -70,6 +71,7 @@ class Conversation:
         memory_provider: Callable[[str, int], MemorySelection] | None = None,
         skills: tuple[dict[str, str], ...] = (),
         rules: ProjectRules | None = None,
+        mode_provider: Callable[[], ExecutionMode] | None = None,
     ) -> None:
         self.store = store
         self.client = client
@@ -87,6 +89,7 @@ class Conversation:
         self.cancel, self.on_turn_started = cancel, on_turn_started
         self.memory_provider, self.skills = memory_provider, skills
         self.rules = rules
+        self.mode_provider = mode_provider
         self.planning = planning
         self.reflection, self.review = reflection, review
         self.requests = RequestRunner(
@@ -405,7 +408,7 @@ class Conversation:
         rules_preview: bool = False,
         selected_skill: SkillSelection | None = None,
     ) -> RequestContext:
-        """读取成功历史并委托构造；预览与每次真实请求共用，工具结果加入后重新估算。"""
+        """读取成功历史并委托构造；预览与每次真实请求共用，模式同步且工具结果加入后重新估算。"""
         history = self.store.load_turns(session.session_id) if session is not None else []
         return self.context_builder.build(
             model=self.model,
@@ -434,6 +437,7 @@ class Conversation:
             skills=self.skills,
             selected_skill=selected_skill,
             rules=self.rules.snapshot(preview=rules_preview) if self.rules else None,
+            execution_mode=self.mode_provider() if self.mode_provider is not None else None,
         )
 
     def _check_session_budget(self, session_id: str) -> None:
