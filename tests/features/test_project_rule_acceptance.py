@@ -215,7 +215,9 @@ def test_rules_config_rejects_unknown_or_non_boolean_fields(tmp_path, section):
 
 
 def test_disabled_rules_skip_invalid_source_and_keep_existing_tool_loop(tmp_path):
-    (tmp_path / "config.toml").write_text("[rules]\nenabled=false", encoding="utf-8")
+    (tmp_path / "config.toml").write_text(
+        '[rules]\nenabled=false\n[tool_discovery]\nmode="full"\n', encoding="utf-8"
+    )
     (tmp_path / "llm.toml").write_text(LLM, encoding="utf-8")
     (tmp_path / "AGENTS.md").write_bytes(b"\xff")
     (tmp_path / "data.txt").write_text("evidence", encoding="utf-8")

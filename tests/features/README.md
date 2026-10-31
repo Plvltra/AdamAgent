@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T12.2 聊天按需发现 | 默认首请求、实际读取、提前猜名/同批编辑、每轮重置/预览、预算/保存失败/批准、模式过滤与离线重放；12项业务，13项配置/分页/日志边界 | [业务流程](test_tool_discovery_loop.py)、[基础边界](../test_tool_discovery_integration.py) |
 | T12.1 工具目录与可见性 | 分组/模式/整批选择、固定 Schema、预览隔离、真实路径与批准/子任务限制；13项 API 业务场景，聊天接入待 T12.2 | [业务验收](test_tool_discovery.py)、[13项基础边界](../test_tool_catalog.py) |
 | T11.3 提案整体验收 | 双子任务冲突/非冲突、拒绝、外部改动、失败隔离和跨会话来源；8个真实强杀边界、重启零执行、显式应用/撤销，共14项场景 | [协作场景](test_proposal_acceptance.py)、[强杀恢复](test_proposal_recovery.py)、[独立进程入口](support/proposal_worker.py) |
 | T11.2 提案协作与应用 | 实际子线程、批准/检查点/撤销、拒绝/模式/额度、版本/权限、分页、规则/Hook、计划证据/审查限制、保存故障及来源篡改；30项业务场景 | [test_proposal_application.py](test_proposal_application.py) |

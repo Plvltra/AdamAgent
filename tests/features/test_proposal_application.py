@@ -17,6 +17,7 @@ from adam.config.settings import (
     LLMConfig,
     PermissionConfig,
     ReflectionConfig,
+    ToolDiscoveryConfig,
     ToolLimits,
 )
 from adam.contracts.errors import ApprovalDeniedError, BudgetError, EditLogError, StorageError
@@ -36,6 +37,7 @@ def config_at(root, **changes):
             "",
             agent=AgentConfig(max_session_tokens=500000),
             reflection=ReflectionConfig(enabled=False),
+            tool_discovery=ToolDiscoveryConfig(mode="full"),
         ),
         **changes,
     )
@@ -110,7 +112,8 @@ def proposal_workflow(
         body = json.loads(request.content)
         env.parent_requests.append(body)
         names = {item["function"]["name"] for item in body["tools"]}
-        assert {"apply_proposal", "collect_proposals"} <= names
+        assert "collect_proposals" in names
+        assert ("apply_proposal" in names) is (env.app.mode.value == "act")
         assert "submit_proposal" not in names
         phase = len(env.parent_requests)
         if phase == 1:

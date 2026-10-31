@@ -160,7 +160,7 @@ def alive(pid):
 def test_interrupt_real_io_keeps_cli_and_records_state(tmp_path, cancel_server, mode):
     url, ready, release, requests, control = cancel_server
     control["mode"] = mode
-    config = '[storage]\nsessions_dir="sessions"\n'
+    config = '[storage]\nsessions_dir="sessions"\n[tool_discovery]\nmode="full"\n'
     if mode in {"before_hook", "after_hook"}:
         checker = tmp_path / "hook_wait.py"
         checker.write_text(

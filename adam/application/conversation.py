@@ -261,6 +261,7 @@ class Conversation:
             )
             ready = ready and (not self.review or not self.review.pending())
             output = on_output if ready else None
+            provided_names = tuple(tool["function"]["name"] for tool in context.tools)
             request_id, result = progress.requests.run(
                 partial(self.requests.run, session.session_id, turn_id, context, output)
             )
@@ -290,7 +291,12 @@ class Conversation:
             )
             turn.extend(
                 self.tool_executor.execute(
-                    session.session_id, turn_id, request_id, calls, tool_budget
+                    session.session_id,
+                    turn_id,
+                    request_id,
+                    calls,
+                    tool_budget,
+                    provided_names=provided_names,
                 )
             )
             seen_call_ids.update(call["id"] for call in calls)
@@ -320,6 +326,7 @@ class Conversation:
             progress.memory,
             progress.reflections,
             selected_skill=progress.selected_skill,
+            tool_turn_id=turn_id,
         )
         # 受保护部分本身放不下时，先停止，避免花费一次无法解决问题的摘要请求。
         context.ensure_within_budget()
@@ -360,6 +367,7 @@ class Conversation:
                     progress.memory,
                     progress.reflections,
                     selected_skill=progress.selected_skill,
+                    tool_turn_id=turn_id,
                 )
                 self.notify("上下文> 已自动更新历史摘要；原始日志保留。")
                 progress.pruning_announced = True
@@ -409,6 +417,7 @@ class Conversation:
         *,
         rules_preview: bool = False,
         selected_skill: SkillSelection | None = None,
+        tool_turn_id: str | None = None,
     ) -> RequestContext:
         """读取成功历史并委托构造；预览与每次真实请求共用，模式同步且工具结果加入后重新估算。"""
         history = self.store.load_turns(session.session_id) if session is not None else []
@@ -432,7 +441,7 @@ class Conversation:
             ),
             history=history,
             current_turn=turn,
-            tools=self.tool_executor.definitions(),
+            tools=self.tool_executor.definitions(turn_id=tool_turn_id),
             summary=self.store.load_summary(session.session_id) if session is not None else None,
             memory=memory,
             reflections=reflections,

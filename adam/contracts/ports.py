@@ -31,8 +31,8 @@ class ModelClient(Protocol):
 class ToolRunner(Protocol):
     """提供工具说明并执行有来源的批次；允许在不改主循环时装饰录制或离线结果。"""
 
-    def definitions(self) -> list[dict[str, Any]]:
-        """返回实际工具说明，不执行工具。"""
+    def definitions(self, *, turn_id: str | None = None) -> list[dict[str, Any]]:
+        """取得本轮实际说明；None 预览下一轮初始目录，不改变当前选择。"""
         ...
 
     def execute(
@@ -42,6 +42,8 @@ class ToolRunner(Protocol):
         request_id: str,
         calls: list[dict[str, Any]],
         budget: ToolBudget,
+        *,
+        provided_names: tuple[str, ...] | None = None,
     ) -> list[dict[str, Any]]:
         """沿用共享编辑额度，返回按调用 ID 配对的工具消息；失败保持原异常。"""
         ...

@@ -4,7 +4,13 @@ import secrets
 from collections.abc import Callable
 from typing import Any
 
-from adam.contracts.errors import CommandLogError, EditLogError, StorageError, ToolError
+from adam.contracts.errors import (
+    CommandLogError,
+    EditLogError,
+    StorageError,
+    ToolError,
+    ToolModeError,
+)
 from adam.contracts.hooks import HookService
 from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
@@ -64,6 +70,8 @@ class ToolInvocation:
             )
         except ToolError as error:
             output = {"ok": False, "error": str(error)}
+            if isinstance(error, ToolModeError):
+                output["status"] = "mode_blocked"
             return lambda _cancel: output
 
     def finish(self, result: dict[str, Any]) -> str:

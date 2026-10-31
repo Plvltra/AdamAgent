@@ -9,7 +9,7 @@ import pytest
 
 from adam.bootstrap import build_application
 from adam.cli.main import chat
-from adam.config.settings import AgentConfig, AppConfig, LLMConfig
+from adam.config.settings import AgentConfig, AppConfig, LLMConfig, ToolDiscoveryConfig
 from adam.contracts.errors import AgentError, BudgetError, LLMError, StorageError
 from adam.llm.client import LLMClient
 from adam.session.diagnostics import read_report
@@ -123,7 +123,10 @@ def test_unknown_action_blocks_chat_and_manual_compaction(tmp_path, monkeypatch,
         )
 
     config = AppConfig(
-        LLMConfig("https://example.test", "test", "key", stream=False), tmp_path / "sessions", ""
+        LLMConfig("https://example.test", "test", "key", stream=False),
+        tmp_path / "sessions",
+        "",
+        tool_discovery=ToolDiscoveryConfig(mode="full"),
     )
     with (
         SessionStore(config.sessions_dir) as store,
@@ -182,7 +185,10 @@ def test_cli_guides_unknown_usage_to_new_session(tmp_path):
         )
 
     config = AppConfig(
-        LLMConfig("https://example.test", "test", "key", stream=False), tmp_path / "sessions", ""
+        LLMConfig("https://example.test", "test", "key", stream=False),
+        tmp_path / "sessions",
+        "",
+        tool_discovery=ToolDiscoveryConfig(mode="full"),
     )
     with (
         SessionStore(config.sessions_dir) as store,

@@ -8,7 +8,7 @@ import pytest
 from adam.bootstrap import build_application
 from adam.cli.main import chat
 from adam.config.loader import load_llm_config
-from adam.config.settings import AppConfig, LLMConfig
+from adam.config.settings import AppConfig, LLMConfig, ToolDiscoveryConfig
 from adam.contracts.errors import ConfigError, LLMError
 from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
@@ -76,7 +76,12 @@ def test_default_stream_shows_text_once_and_saves_complete_history(tmp_path):
         httpx.Client(transport=httpx.MockTransport(respond)) as http,
         SessionStore(tmp_path / "sessions") as store,
     ):
-        config = AppConfig(LLMConfig("https://example.test", "test", "secret"), store.root, "")
+        config = AppConfig(
+            LLMConfig("https://example.test", "test", "secret"),
+            store.root,
+            "",
+            tool_discovery=ToolDiscoveryConfig(mode="full"),
+        )
         app = build_application(config, store, LLMClient(config.llm, http), tmp_path)
         chat(app, read=lambda _: next(inputs), write=output.append, fragment=fragments.append)
         history = app.history()
@@ -127,7 +132,12 @@ def test_tool_arguments_wait_for_complete_stream_and_return_paired_result(tmp_pa
         return sse([event({"content": "found"}), event(reason="stop", usage=USAGE), DONE])
 
     with store, httpx.Client(transport=httpx.MockTransport(respond)) as http:
-        config = AppConfig(LLMConfig("https://example.test", "test", "secret"), store.root, "")
+        config = AppConfig(
+            LLMConfig("https://example.test", "test", "secret"),
+            store.root,
+            "",
+            tool_discovery=ToolDiscoveryConfig(mode="full"),
+        )
         app = build_application(config, store, LLMClient(config.llm, http), tmp_path)
         assert app.send("read", on_output=output.append) == "found"
         assert len(app.history()) == 4
@@ -162,7 +172,12 @@ def test_partial_stream_never_enters_history_or_automatically_retries(tmp_path, 
         SessionStore(tmp_path / "sessions") as store,
         httpx.Client(transport=httpx.MockTransport(respond)) as http,
     ):
-        config = AppConfig(LLMConfig("https://example.test", "test", "secret"), store.root, "")
+        config = AppConfig(
+            LLMConfig("https://example.test", "test", "secret"),
+            store.root,
+            "",
+            tool_discovery=ToolDiscoveryConfig(mode="full"),
+        )
         app = build_application(config, store, LLMClient(config.llm, http), tmp_path)
         inputs = iter(["hello", "/exit"])
         chat(app, read=lambda _: next(inputs), write=shown.append, fragment=fragments.append)

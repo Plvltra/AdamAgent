@@ -315,6 +315,17 @@ class RulesConfig:
 
 
 @dataclass(frozen=True)
+class ToolDiscoveryConfig:
+    """工具说明默认按需加载；full 用于全量目录对照，不改变执行权限。"""
+
+    mode: str = "on_demand"
+
+    def __post_init__(self) -> None:
+        if self.mode not in ("on_demand", "full"):
+            raise ConfigError("tool_discovery.mode 必须为 on_demand 或 full。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
@@ -338,3 +349,4 @@ class AppConfig:
     documents_dir: Path | None = None
     hooks: HooksConfig = field(default_factory=HooksConfig)
     artifacts: ArtifactConfig = field(default_factory=ArtifactConfig)
+    tool_discovery: ToolDiscoveryConfig = field(default_factory=ToolDiscoveryConfig)

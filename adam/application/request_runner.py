@@ -18,6 +18,7 @@ from adam.contracts.errors import (
 )
 from adam.contracts.models import Completion, ModelOutput
 from adam.contracts.ports import ModelClient
+from adam.contracts.tool_catalog import tool_schema_record
 from adam.session.outcome import ExecutionOutcome
 from adam.session.storage import SessionStore
 
@@ -82,7 +83,13 @@ class RequestRunner:
         if self.cancel:
             self.cancel.check()
         request_id = self.store.start_request(
-            session_id, turn_id, context.model, context=record_context or context.selection_record()
+            session_id,
+            turn_id,
+            context.model,
+            context={
+                **(record_context or context.selection_record()),
+                "tool_schema": tool_schema_record(context.tools),
+            },
         )
         is_reflection = (
             record_context is not None and record_context.get("strategy") == "reflection_v1"

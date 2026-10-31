@@ -12,6 +12,7 @@ from adam.config.settings import (
     PermissionConfig,
     ReflectionConfig,
     SkillsConfig,
+    ToolDiscoveryConfig,
     ToolLimits,
 )
 from adam.tool_calls.executor import ToolExecutor
@@ -63,6 +64,8 @@ def run_chat(
         tool_limits or ToolLimits(),
         context_config or ContextConfig(),
         reflection=ReflectionConfig(enabled=False),
+        # 固定全量说明，保留原场景的请求脚本与预算；按需模式由 T12 业务场景验收。
+        tool_discovery=ToolDiscoveryConfig(mode="full"),
         # 通用聊天场景固定关闭 Skill；E6 专门场景启用临时目录中的指导。
         skills=SkillsConfig(enabled=False),
     )

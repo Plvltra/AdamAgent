@@ -15,6 +15,7 @@ from adam.config.settings import (
     ContextConfig,
     LLMConfig,
     PermissionConfig,
+    ToolDiscoveryConfig,
     ToolLimits,
 )
 from adam.contracts.errors import BudgetError, StorageError
@@ -28,6 +29,7 @@ def settings(tmp_path, **changes):
         tmp_path / "sessions",
         "system",
         agent=AgentConfig(max_session_tokens=200000),
+        tool_discovery=ToolDiscoveryConfig(mode="full"),
         context=ContextConfig(auto_compact=False, retain_recent_turns=0),
     )
     return replace(config, **changes)

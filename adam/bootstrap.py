@@ -42,6 +42,7 @@ from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers
+from adam.tool_calls.discovery_tools import register_discovery
 from adam.tool_calls.document_tools import register_documents
 from adam.tool_calls.edit_tools import EditTools
 from adam.tool_calls.executor import ToolExecutor
@@ -237,6 +238,7 @@ def build_application(
         if rules:
             registry = registry.guarded(rules.check)
         registry = registry.with_mode(modes.current)
+        registry, discovery = register_discovery(registry, config.tool_discovery, modes.current)
 
         def bind_source(link: dict[str, str]) -> None:
             """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
@@ -254,6 +256,7 @@ def build_application(
             registry,
             on_tool or (lambda _: None),
             before_call=bind_source,
+            discovery=discovery,
             after_call=planner.publish if planner else None,
             check_call=reviewer.check_call if reviewer else None,
             hooks=HookRunner(config.hooks, workspace) if config.hooks.enabled else None,
@@ -400,6 +403,7 @@ def _open_child(
             )
             registry = register_submission(registry, submission)
         registry = registry.with_mode(lambda: mode)
+        registry, discovery = register_discovery(registry, config.tool_discovery, lambda: mode)
         conversation = Conversation(
             store,
             client,
@@ -410,6 +414,7 @@ def _open_child(
                 lambda _: None,
                 cancel=cancel,
                 before_call=submission.bind_source if submission else None,
+                discovery=discovery,
                 hooks=(
                     HookRunner(config.hooks, Path(agent.workspace), cancel)
                     if config.hooks.enabled

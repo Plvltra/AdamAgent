@@ -12,6 +12,7 @@ from adam.contracts.planning import decode_plan
 from adam.contracts.protocol import validate_turn
 from adam.contracts.rules import validate_rules
 from adam.contracts.skills import validate_catalog, validate_skill_selection
+from adam.contracts.tool_catalog import validate_tool_schema_record
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
 from adam.session.feedback_log import FeedbackLog, feedback_context
@@ -294,10 +295,13 @@ class SessionLog:
 
     def _validate_context(self, context: object, turn_id: str) -> None:
         """校验摘要覆盖前缀、连续历史后缀、模式或反思反馈快照；旧请求可没有选择及模式字段。"""
+        if isinstance(context, dict) and "tool_schema" in context:
+            validate_tool_schema_record(context["tool_schema"])
         if isinstance(context, dict) and context.get("strategy") == "reflection_v1":
             feedback = self.feedback.records.get(context.get("feedback_id", ""))
             if (
-                set(context) != {"strategy", "feedback_id", "source", "estimated_input_tokens"}
+                set(context) - {"tool_schema"}
+                != {"strategy", "feedback_id", "source", "estimated_input_tokens"}
                 or feedback is None
                 or feedback.turn_id != turn_id
                 or context["source"]

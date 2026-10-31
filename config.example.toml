@@ -115,6 +115,11 @@ additional_read_dirs = []
 # Separate write authorization; editing still requires approval of each diff.
 additional_write_dirs = []
 
+# Discover full schemas only when needed; full is available for controlled comparison.
+# Discovery requests and calls consume the existing agent budgets.
+[tool_discovery]
+mode = "on_demand"
+
 [tool_limits]
 max_read_lines = 200
 max_result_chars = 8000

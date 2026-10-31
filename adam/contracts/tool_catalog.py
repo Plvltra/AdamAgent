@@ -43,10 +43,44 @@ class ToolExposure:
 
     @property
     def schema_bytes(self) -> int:
-        """返回完整 tools 数组默认 JSON 编码的 UTF-8 字节数，不是 token 数。"""
+        """返回 tools 数组以 ensure_ascii=False、默认分隔符编码的字节数，非 HTTP 线长。"""
         return len(("[" + ", ".join(self._schemas) + "]").encode("utf-8"))
 
     def require(self, name: str) -> None:
         """未出现在此快照时拒绝；通过后仍须原工具的模式、路径、Hook 和批准检查。"""
         if name not in self.names:
             raise ToolError("本次请求尚未提供该工具的完整说明；请先发现工具，再在后续请求调用。")
+
+
+def tool_schema_record(definitions: list[dict[str, Any]]) -> dict[str, Any]:
+    """记录实际提供的名称及统一 JSON 编码大小；不保存参数正文，也不计作精确 token。"""
+    if not isinstance(definitions, list) or any(
+        not isinstance(tool, dict)
+        or not isinstance(tool.get("function"), dict)
+        or "name" not in tool["function"]
+        for tool in definitions
+    ):
+        raise ValueError("invalid tool definitions")
+    record = {
+        "names": [tool["function"]["name"] for tool in definitions],
+        "utf8_bytes": len(
+            json.dumps(definitions, ensure_ascii=False, allow_nan=False).encode("utf-8")
+        ),
+    }
+    validate_tool_schema_record(record)
+    return record
+
+
+def validate_tool_schema_record(value: object) -> None:
+    """校验可选请求说明记录；旧日志缺少此项时保持未知，不伪造为全量或空目录。"""
+    if not isinstance(value, dict) or value.keys() != {"names", "utf8_bytes"}:
+        raise ValueError("invalid tool schema record")
+    names = value["names"]
+    if (
+        not isinstance(names, list)
+        or any(not isinstance(name, str) or not name for name in names)
+        or len(names) != len(set(names))
+        or type(value["utf8_bytes"]) is not int
+        or value["utf8_bytes"] < 2
+    ):
+        raise ValueError("invalid tool schema metadata")

@@ -260,3 +260,7 @@ proposal_submitted 在本子轮 submit_proposal 进行中保存，read 指向同
 真实进程在候选半行、候选保存、子成功提交、主编辑计划/开始/实际替换/结束及主成功提交八个边界强杀后恢复。
 候选存在不等于子轮成功；父编辑 started 无 finished 仍保持 unknown，不以文件当前内容升级成功。
 已保存 applied 即使主轮中断也保留，可显式撤销。重复重开不请求模型、不批准、不写目标；完整矩阵见 [提案验收](edit-proposals.md)。
+
+## T12.2 实际工具说明
+
+request_started.context.tool_schema 可选记录 names 与 utf8_bytes，来自实际该次 RequestContext.tools；大小按 ensure_ascii=False 的默认 JSON 编码统计，不等于 HTTP 字节或 token。整段输入估算仍在 estimated_input_tokens，旧记录缺省保持未知。工具开始/结束继续绑定原 turn_id、request_id、tool_call_id；同批发现不能扩展触发本批请求的工具名单。

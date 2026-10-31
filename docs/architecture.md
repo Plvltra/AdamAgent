@@ -2,38 +2,47 @@
 
 最近核对：2026-10-31
 
-本次核对范围：T12.1 可信工具目录、注册分组、单轮可见性与固定请求说明快照。新增 contracts/tool_catalog.py 和 tool_calls/discovery.py；注册表及已有组装入口只新增分组元数据。26项新增验收和37项相关回归通过，Ruff/Pyright 通过。
+本次核对范围：T12.2 动态工具说明、配置、固定请求名单、日志和录制重放。新增 tool_calls/discovery_tools.py，主/子分别注入 ToolDiscovery；Conversation 仍沿同一请求与工具循环，执行器组合可见性与原审查检查。
 
-核对结论：新增独立目录策略 API，复用原模式规则；ToolRegistry 仍负责执行检查，ToolVisibility 不持有处理函数或权限。当前聊天仍走原全量 definitions()，动态接入留在 T12.2。原关键注释均保留，新增快照、选择和权限契约已审查；T11.3 完整检查已通过（db16e59），本项完整检查随独立提交执行。
+核对结论：发现只改变后续说明，不批准执行。实际请求固定名单阻止同批提前调用；模式拒绝仍保留 mode_blocked，预览不修改选择。请求开始日志补充实际名称与统一编码大小，录制/重放传递同一名单。25项新增及相关回归、Ruff/Pyright 通过；完整检查随本项提交执行。有效旧注释已保留，变化的说明按新契约更新。
 
-本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
+本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-
-## T12.1 工具目录与单轮可见性 API
+## T12 工具目录与实际请求可见性
 
 ~~~mermaid
 flowchart LR
-    DISC_BOOT["factory / bootstrap / 扩展注册"] --> DISC_REG["ToolRegistry / 说明、分组、可信能力与动作"]
-    DISC_REG -->|"directory() 独立快照"| DISC_DIR["ToolDirectory / 冻结 JSON 与简短目录"]
-    DISC_DIR --> DISC_MODE["原 check_tool_mode / 能力过滤"]
-    DISC_API["显式 API 调用方"] --> DISC_SELECTION["ToolVisibility / 单轮选择"]
-    DISC_SELECTION -->|"listings / snapshot"| DISC_DIR
-    DISC_DIR -->|"构造"| DISC_EXPOSURE["ToolExposure / 固定名称和 Schema"]
-    DISC_API -->|"副本、大小与名称检查"| DISC_EXPOSURE
-    DISC_CONVERSATION["Conversation / 现有请求循环"] --> DISC_EXECUTOR["ToolExecutor / 当前全量说明"]
-    DISC_EXECUTOR -->|"definitions() 保持原行为"| DISC_REG
-    DISC_REG -->|"execute / prepare"| DISC_GUARD["原模式、路径、规则、Hook 与批准"]
+    DISC_BOOT["bootstrap / 主任务与子任务分别组装"] --> DISC_REG["ToolRegistry / 说明、分组、可信能力与动作"]
+    DISC_BOOT --> DISC_SERVICE["ToolDiscovery / 单轮选择与发现入口"]
+    DISC_SERVICE --> DISC_SELECTION["ToolVisibility / 选择、模式过滤"]
+    DISC_REG -->|"directory() 快照"| DISC_DIR["ToolDirectory / 冻结目录"]
+    DISC_SELECTION --> DISC_DIR
+    DISC_DIR --> DISC_EXPOSURE["ToolExposure / 名称与 Schema 副本"]
+    DISC_CONVERSATION["Conversation / 原请求循环"] -->|"turn_id；预览为 None"| DISC_EXECUTOR["ToolExecutor"]
+    DISC_EXECUTOR -->|"definitions / 名单检查"| DISC_SERVICE
+    DISC_CONVERSATION -->|"固定 tools 及名单"| DISC_REQUEST["RequestRunner / 实际模型请求"]
+    DISC_REQUEST --> DISC_LOG["SessionStore / 请求工具名称与大小"]
+    DISC_CONVERSATION -->|"返回调用 + 固定名单"| DISC_EXECUTOR
+    DISC_EXECUTOR --> DISC_INVOKE["ToolInvocation / 原调度与日志"]
+    DISC_INVOKE --> DISC_REG
+    DISC_REG -->|"发现入口"| DISC_SERVICE
+    DISC_REG --> DISC_GUARD["原模式、路径、规则、Hook、批准及实际动作"]
+    DISC_CAPTURE["RecordingTools"] -->|"透传 turn_id、名单和结果"| DISC_EXECUTOR
+    DISC_REPLAY["ReplayTools"] -->|"核对目录、名单并返回已录结果"| DISC_TAPE["ReplayTape / 录制轨迹"]
 ~~~
 
-[tool_catalog.py](../adam/contracts/tool_catalog.py) 定义加载方式、只读条目及请求说明快照。
-[discovery.py](../adam/tool_calls/discovery.py) 负责冻结、模式过滤、准确名称/分组选择及整批校验，
-不导入文件、模型、应用或存储实现。新轮次与预览用独立 ToolVisibility，完整 Schema 以编码字符串保存，
-返回 JSON 时解码成独立副本。
+[tool_catalog.py](../adam/contracts/tool_catalog.py) 定义目录条目、请求快照和日志元数据；
+[discovery.py](../adam/tool_calls/discovery.py) 冻结目录、按能力过滤并校验整批选择。
+[discovery_tools.py](../adam/tool_calls/discovery_tools.py) 提供 list_tools/discover_tools、
+精简分组预览和每轮选择；完整 Schema 仅进入后续请求，不重复写入发现结果。
 
-[registry.py](../adam/tool_calls/registry.py) 新增分组与 directory()；扩展、模式及规则包装保留元数据，
-原执行顺序不变。工具分组来自 factory 和各扩展注册入口，不由模型声明，也不授予权限。
-当前尚未将选择器接入实际模型请求；图中的显式 API 已由真实工具和文件验收，下一阶段才改变聊天说明。
-需求、接口和13项业务/13项基础验收见 [按需工具说明](tool-discovery.md)。
+[executor.py](../adam/tool_calls/executor.py) 接收 Conversation 在请求前固定的 provided_names，
+先检查名单再进入原动作路径；隐藏且模式禁止的调用保留原拒绝分类，不触发普通错误反思。
+每个主/子执行器有独立服务，普通预览使用初始副本。未注入服务的显式基础执行器保持原全量 API。
+
+[request_runner.py](../adam/application/request_runner.py) 保存实际 tools 名称与统一 JSON 字节数；
+不把字节当精确 token。录制适配器记录真实目录与名单，离线重放核对并替代外部执行，
+不创建新发现状态或重新执行工具。配置与完整契约见 [按需工具说明](tool-discovery.md)。
 
 ## T11.2 子任务提案与主任务批准应用
 

@@ -95,6 +95,7 @@ class TurnRecorder:
         calls: list[dict[str, Any]],
         edit_attempts: int,
         max_edit_attempts: int,
+        provided_names: tuple[str, ...] | None = None,
     ) -> list[dict[str, Any]]:
         """采集原执行器的整批调用、结果与内部记录；operation 仍执行全部原有检查。
 
@@ -109,6 +110,7 @@ class TurnRecorder:
                 "calls": calls,
                 "edit_attempts": edit_attempts,
                 "max_edit_attempts": max_edit_attempts,
+                **({"provided_names": list(provided_names)} if provided_names is not None else {}),
             },
             lambda _: operation(),
             lambda value: value,
@@ -233,11 +235,16 @@ class RecordingTools:
         self._delegate, self._recorder = delegate, recorder
         self._observe_definitions = observe_definitions
 
-    def definitions(self) -> list[dict[str, Any]]:
-        """返回原目录，不增加、隐藏或过滤工具；完整运行录制可同时采集目录查询。"""
+    def definitions(self, *, turn_id: str | None = None) -> list[dict[str, Any]]:
+        """录制该轮实际说明或初始预览；选择仍由原执行器维护。"""
         if self._observe_definitions and self._recorder.active:
-            return self._recorder.exchange("context", "tools", {}, self._delegate.definitions)
-        return self._delegate.definitions()
+            return self._recorder.exchange(
+                "context",
+                "tools",
+                {"turn_id": turn_id},
+                lambda: self._delegate.definitions(turn_id=turn_id),
+            )
+        return self._delegate.definitions(turn_id=turn_id)
 
     def execute(
         self,
@@ -246,16 +253,26 @@ class RecordingTools:
         request_id: str,
         calls: list[dict[str, Any]],
         budget: ToolBudget,
+        *,
+        provided_names: tuple[str, ...] | None = None,
     ) -> list[dict[str, Any]]:
         """捕获执行前的额度值，动作及额度消费仍交给原执行器。"""
         return self._recorder.call_tools(
-            lambda: self._delegate.execute(session_id, turn_id, request_id, calls, budget),
+            lambda: self._delegate.execute(
+                session_id,
+                turn_id,
+                request_id,
+                calls,
+                budget,
+                provided_names=provided_names,
+            ),
             session_id=session_id,
             turn_id=turn_id,
             request_id=request_id,
             calls=calls,
             edit_attempts=budget.edit_attempts,
             max_edit_attempts=budget.max_edit_attempts,
+            provided_names=provided_names,
         )
 
 

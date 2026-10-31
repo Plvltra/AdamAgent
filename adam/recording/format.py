@@ -14,6 +14,7 @@ from adam.contracts.errors import (
 )
 from adam.contracts.models import ModelOutput
 from adam.contracts.protocol import validate_assistant
+from adam.contracts.tool_catalog import tool_schema_record
 from adam.recording.snapshot import validate_seed
 from adam.session.log import SessionLog
 
@@ -170,6 +171,7 @@ class TraceState:
         self.session_id = ""
         self.user_text = ""
         self.last_calls: list[dict[str, Any]] = []
+        self.last_tool_names: list[str] = []
         self.output_ended = False
 
     def accept(self, event: dict[str, Any]) -> None:
@@ -282,6 +284,11 @@ class TraceState:
                     "calls",
                     "edit_attempts",
                     "max_edit_attempts",
+                    *(
+                        {"provided_names"}
+                        if isinstance(value, dict) and "provided_names" in value
+                        else set()
+                    ),
                 },
             )
             for key, size in (("session_id", 8), ("turn_id", 32), ("request_id", 32)):
@@ -296,6 +303,8 @@ class TraceState:
                 raise ValueError("tool batch does not match recorded model request")
             if not value["calls"]:
                 raise ValueError("empty tools batch")
+            if "provided_names" in value and value["provided_names"] != self.last_tool_names:
+                raise ValueError("tool visibility differs from its actual model request")
             validate_assistant({"role": "assistant", "content": None, "tool_calls": value["calls"]})
             if any(
                 type(value[key]) is not int or value[key] < 0
@@ -324,6 +333,7 @@ class TraceState:
             validate_assistant(result["message"])
             _usage(result["usage"])
             self.last_calls = result["message"].get("tool_calls") or []
+            self.last_tool_names = tool_schema_record(arguments["tools"] or [])["names"]
         else:
             messages = item["value"]
             calls = arguments["calls"]

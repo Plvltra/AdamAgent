@@ -6,7 +6,14 @@ import httpx
 
 from adam.bootstrap import build_application
 from adam.cli.main import handle_command
-from adam.config.settings import AppConfig, ContextConfig, LLMConfig, MemoryConfig, ReflectionConfig
+from adam.config.settings import (
+    AppConfig,
+    ContextConfig,
+    LLMConfig,
+    MemoryConfig,
+    ReflectionConfig,
+    ToolDiscoveryConfig,
+)
 from adam.contracts.memory import MemoryCommand
 from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
@@ -20,6 +27,7 @@ def config_at(root, *, memories_dir=None, memory=None):
         root / "sessions",
         "system constraint",
         reflection=ReflectionConfig(enabled=False),
+        tool_discovery=ToolDiscoveryConfig(mode="full"),
         memories_dir=memories_dir or root / "memory",
         memory=memory or MemoryConfig(),
         context=ContextConfig(auto_compact=False),

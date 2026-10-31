@@ -148,7 +148,7 @@ def prepare(api, root, tag, phase, *, single=False, sessions=None):
     (root / "config.toml").write_text(
         "[storage]\nsessions_dir="
         + json.dumps(str(sessions))
-        + "\n[agent]\nmax_session_tokens=200000\n",
+        + '\n[agent]\nmax_session_tokens=200000\n[tool_discovery]\nmode="full"\n',
         encoding="utf-8",
     )
     (root / "llm.toml").write_text(

@@ -26,6 +26,7 @@ from adam.config.settings import (
     RulesConfig,
     SkillsConfig,
     SubagentConfig,
+    ToolDiscoveryConfig,
     ToolLimits,
 )
 from adam.contracts.errors import ConfigError
@@ -139,6 +140,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "mcp",
             "hooks",
             "artifacts",
+            "tool_discovery",
         },
         "主配置",
     )
@@ -295,6 +297,13 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         rules=rules,
         mcp=parse_mcp(data.get("mcp", {})),
         hooks=parse_hooks(data.get("hooks", {})),
+        tool_discovery=ToolDiscoveryConfig(
+            **checked_section(
+                data.get("tool_discovery", {}),
+                {item.name for item in fields(ToolDiscoveryConfig)},
+                "tool_discovery",
+            )
+        ),
         artifacts=ArtifactConfig(
             **checked_section(
                 data.get("artifacts", {}),

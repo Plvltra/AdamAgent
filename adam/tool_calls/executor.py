@@ -6,11 +6,12 @@ from functools import partial
 from typing import Any
 
 from adam.contracts.cancellation import CancellationToken
-from adam.contracts.errors import ApprovalDeniedError
+from adam.contracts.errors import ApprovalDeniedError, ToolError
 from adam.contracts.execution import ToolBudget
 from adam.contracts.hooks import HookService
 from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
+from adam.tool_calls.discovery_tools import ToolDiscovery
 from adam.tool_calls.invocation import ToolInvocation
 from adam.tool_calls.registry import PreparedAction, ToolRegistry
 from adam.tool_calls.scheduler import ToolResult, ToolScheduler, ToolTask
@@ -32,6 +33,7 @@ class ToolExecutor:
         hooks: HookService | None = None,
         artifacts: ToolArtifacts | None = None,
         on_notice: Callable[[str], None] | None = None,
+        discovery: ToolDiscovery | None = None,
     ) -> None:
         """注入存储和工具目录；notify 只接收工具名称，展示方式由调用方决定。
 
@@ -45,12 +47,14 @@ class ToolExecutor:
         self.before_call, self.cancel = before_call, cancel
         self.after_call, self.check_call = after_call, check_call
         self.hooks, self.on_notice = hooks, on_notice or (lambda _: None)
-        self.artifacts = artifacts
+        self.artifacts, self.discovery = artifacts, discovery
         # Git 取消沿用进程树清理（最多等待 taskkill 5 秒），为直接进程回收留出余量。
         self._scheduler = ToolScheduler(cancel=cancel, cleanup_timeout_seconds=7.0)
 
-    def definitions(self) -> list[dict[str, Any]]:
-        """返回此执行器实际支持的工具说明，供模型提出调用。"""
+    def definitions(self, *, turn_id: str | None = None) -> list[dict[str, Any]]:
+        """取得本轮选择或无副作用初始预览；未接发现策略的显式执行器保持全量目录。"""
+        if self.discovery:
+            return self.discovery.definitions(turn_id)
         return self.registry.definitions()
 
     def execute(
@@ -60,14 +64,30 @@ class ToolExecutor:
         request_id: str,
         calls: list[dict[str, Any]],
         budget: ToolBudget,
+        *,
+        provided_names: tuple[str, ...] | None = None,
     ) -> list[dict[str, Any]]:
         """执行 calls，安全读取最多两项并发，其他动作串行；返回原 ID 顺序的 tool 消息。
 
         turn_id 和 request_id 指向产生这些工具调用的轮次与模型请求。
         budget 在同轮各批工具间共用，编辑超限时保留先前已执行结果并停止。
+        provided_names 固定触发此批调用的实际请求名单，同批发现不会扩展它；
+        只有未接发现服务的显式执行器可以省略，聊天入口始终传入。
         预检、Hook、来源绑定和所有日志由本线程完成；工作线程只执行已注册的读取动作。
         开始记录写入后才执行，结果落盘后才返回；存储错误停止本轮，拒绝停止剩余动作。
         """
+        if self.discovery is not None and provided_names is None:
+            raise ValueError("发现执行器缺少本次请求的工具名单。")
+        provided = frozenset(provided_names) if provided_names is not None else None
+
+        def check(name: str) -> None:
+            if self.discovery is not None and provided is not None:
+                self.discovery.require_provided(name, provided)
+            if provided is not None and name not in provided:
+                raise ToolError("本次请求尚未提供该工具的完整说明；请先发现，再在后续请求调用。")
+            if self.check_call:
+                self.check_call(name)
+
         invocations = [
             ToolInvocation(
                 self.store,
@@ -79,7 +99,7 @@ class ToolExecutor:
                 hooks=self.hooks,
                 artifacts=self.artifacts,
                 on_notice=self.on_notice,
-                check_call=self.check_call,
+                check_call=check,
             )
             for call in calls
         ]

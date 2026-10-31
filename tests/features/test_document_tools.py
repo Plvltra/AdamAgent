@@ -9,7 +9,14 @@ import pytest
 
 from adam.bootstrap import build_application
 from adam.config.loader import load_config
-from adam.config.settings import AppConfig, ContextConfig, DocumentConfig, LLMConfig, ToolLimits
+from adam.config.settings import (
+    AppConfig,
+    ContextConfig,
+    DocumentConfig,
+    LLMConfig,
+    ToolDiscoveryConfig,
+    ToolLimits,
+)
 from adam.contracts.errors import BudgetError, ConfigError
 from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
@@ -23,6 +30,7 @@ def config_at(root, **kwargs):
         root / "sessions",
         "只根据证据回答",
         documents=DocumentConfig(roots=(root / "docs",)),
+        tool_discovery=ToolDiscoveryConfig(mode="full"),
         context=ContextConfig(auto_compact=False),
         **kwargs,
     )

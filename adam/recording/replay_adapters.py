@@ -65,9 +65,11 @@ class ReplayTools:
     def __init__(self, tape: ReplayTape, store: ReplayStore) -> None:
         self.tape, self.store = tape, store
 
-    def definitions(self) -> list[dict[str, Any]]:
-        """按资料查询顺序重放目录，仍由真实上下文构造器计算 Schema 开销。"""
-        return self.tape.exchange("context", "tools", {}, lambda: list[dict[str, Any]]())
+    def definitions(self, *, turn_id: str | None = None) -> list[dict[str, Any]]:
+        """重放指定轮次实际说明，仍由真实构造器计算 Schema 开销；不执行发现工具。"""
+        return self.tape.exchange(
+            "context", "tools", {"turn_id": turn_id}, lambda: list[dict[str, Any]]()
+        )
 
     def execute(
         self,
@@ -76,6 +78,8 @@ class ReplayTools:
         request_id: str,
         calls: list[dict[str, Any]],
         budget: ToolBudget,
+        *,
+        provided_names: tuple[str, ...] | None = None,
     ) -> list[dict[str, Any]]:
         """验证本批来源及编辑额度，导入工具内部事实后返回配对结果；不调用执行器。"""
         call_id = self.tape.begin_call(
@@ -87,6 +91,7 @@ class ReplayTools:
                 "calls": calls,
                 "edit_attempts": budget.edit_attempts,
                 "max_edit_attempts": budget.max_edit_attempts,
+                **({"provided_names": list(provided_names)} if provided_names is not None else {}),
             },
         )
         # 例如 report_feedback 在工具内部生成身份；这些资料属于已替代的工具实现。
