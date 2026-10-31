@@ -19,6 +19,7 @@ from adam.contracts.errors import FailureCode, SessionNotFoundError, StorageErro
 from adam.contracts.history import HistoryTurn, Summary
 from adam.contracts.models import ExecutionReport, Message, Session, valid_session_id
 from adam.contracts.planning import PlanReport, PlanSnapshot
+from adam.contracts.proposals import EditProposal
 from adam.contracts.protocol import validate_turn
 from adam.contracts.reflection import Feedback
 from adam.session.checkpoints import CheckpointStore
@@ -188,6 +189,27 @@ class SessionStore:
             item
             for item in self._read_log(session_id).reviews.records.values()
             if turn_id is None or item["turn_id"] == turn_id
+        ]
+
+    def tool_record(self, session_id: str, turn_id: str, tool_call_id: str) -> dict[str, Any]:
+        """从一次已校验日志读取指定轮次工具；缺失抛 KeyError，不搜索其他轮次或会话。"""
+        return dict(self._read_log(session_id).tools[(turn_id, tool_call_id)])
+
+    def validate_proposal(self, session_id: str, proposal: EditProposal) -> None:
+        """预检候选的实际来源，不写文件；追加时仍重复校验。"""
+        log = self._read_log(session_id)
+        log.extend(decode_records(record("proposal_submitted", proposal.to_dict())))
+
+    def append_proposal(self, session_id: str, proposal: EditProposal) -> None:
+        """持锁保存不可变候选；失败不声明保存成功，更不执行候选修改。"""
+        self._append(session_id, record("proposal_submitted", proposal.to_dict()))
+
+    def load_proposals(self, session_id: str, turn_id: str | None = None) -> list[EditProposal]:
+        """返回历史候选，含未完成子轮已保存项；是否可收集/应用须由主任务另行验证。"""
+        return [
+            proposal
+            for proposal in self._read_log(session_id).proposals.records.values()
+            if turn_id is None or proposal.turn_id == turn_id
         ]
 
     def load_plan(self, session_id: str, turn_id: str | None = None) -> PlanReport | None:

@@ -1,6 +1,6 @@
 # V1.3：会话执行轨迹与状态
 
-更新日期：2026-10-30
+更新日期：2026-10-31
 
 这一版把“用户输入 → 模型请求 → 工具处理”关联起来。即使最后一次模型请求失败，已经落盘的输入、请求与工具结果仍能查询 JSONL；它们不自动成为下一次模型请求的有效聊天历史。
 
@@ -34,6 +34,7 @@ session_id：一个会话，对应一个 JSONL 文件
 | command_started / command_finished / command_denied | 上述三个关联 ID、execution_id 及命令细节 | run_command 的审批和进程执行记录 |
 | edit_planned / edit_started / edit_finished | 父轮次/请求/工具、edit_id、路径、版本与状态 | 计划、批准后写入边界及实际结果，详情见下文 |
 | undo_requested / undo_prepared / undo_started / undo_finished | undo_id、原 edit_id、逆向版本、source_* 来源及结果 | T7.2 用户独立撤销，顶层诊断输出 undos，不伪造模型轮次 |
+| proposal_submitted | proposal_id、owner、子轮次/请求/提交调用、read、edit、target_version | T11.1 不可变候选；核对实际读取和提交参数，不代表批准或应用，见 [修改提案](edit-proposals.md) |
 | plan_updated | turn_id、request_id、tool_call_id、version、steps、reason、replan_count、max_steps、max_replans | E3 完整计划版本；证据校验、状态与恢复见 [任务计划](task-planning.md) |
 | message | turn_id、message | 最终成功时追加的完整协议消息，包含工具请求和结果 |
 | turn_completed | turn_id、status、reason、duration_ms、error | 完整成功消息块的提交标记 |
@@ -242,3 +243,8 @@ v4 明确拒绝旧 v1/v2/v3，不自动迁移或删除。旧文件留在当前�
 - 摘要操作不生成普通用户消息或成功问答。原始 message 保留，后续请求只通过摘要 ID 引用其历史替代视图。
 - 未结算摘要请求和缺失用量纳入会话未知消费。session_recovered 在有遗留摘要时增加 compaction_ids，关闭状态，不重发或猜测费用；较早 v4 的恢复事件仍可读。
 - 独立诊断报告新增 compactions 列表，显示素材来源、请求及操作状态、耗时和用量。普通 requests 列表不混入摘要操作；计算该轮总模型调用次数时，需加上 turn_id 相同的摘要请求。新事件沿用 v4 扩展，旧程序不保证能够读取。
+## T11.1 修改提案记录
+
+proposal_submitted 在本子轮 submit_proposal 进行中保存，read 指向同子轮已完成 read_file 的实际输出。路径、版本和可见行不由模型自报；读取/提交来源与参数在追加和回放时共同校验。事件沿用 v4，旧程序不保证可读取。
+
+候选落盘后退出，即使工具结果或子轮尚未成功提交，也保留候选供诊断；原恢复只结束遗留执行，不应用文件、不自动重发。load_proposals 返回保存事实，主任务收集前仍须验证实际委派及子任务完成状态（T11.2）。回放不读取当前源文件；应用时必须重新核对权限、原版本和目标版本。

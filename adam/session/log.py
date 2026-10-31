@@ -18,6 +18,7 @@ from adam.session.hook_log import HookLog
 from adam.session.outcome import outcome_details
 from adam.session.plan_evidence import validate_evidence
 from adam.session.plan_log import PlanLog
+from adam.session.proposal_log import ProposalLog
 from adam.session.reflection_log import ReflectionLog
 from adam.session.review_log import ReviewLog
 from adam.session.undo_log import UndoLog
@@ -102,6 +103,7 @@ class SessionLog:
         self.undos = UndoLog()
         self.hooks = HookLog()
         self.plans = PlanLog()
+        self.proposals = ProposalLog()
         self.feedback = FeedbackLog()
         self.reflections = ReflectionLog()
         self.reviews = ReviewLog()
@@ -143,6 +145,7 @@ class SessionLog:
             "hook_started": self._apply_hook,
             "hook_finished": self._apply_hook,
             "plan_updated": self._apply_plan,
+            "proposal_submitted": self._apply_proposal,
             "feedback_recorded": self._apply_feedback,
             "reflection_finished": self._apply_reflection,
             "review_requested": self._apply_review,
@@ -509,6 +512,19 @@ class SessionLog:
     def _apply_feedback(self, kind: str, payload: dict[str, Any]) -> None:
         """反馈只记录可核对的来源；具体内容解释留给反思服务。"""
         self.feedback.apply(payload, self.turns, self.tools, self.executions)
+
+    def _apply_proposal(self, kind: str, payload: dict[str, Any]) -> None:
+        """候选只能来自本子轮进行中的提交工具；已读正文及参数在投影中再次核对。"""
+        self._require_turn(payload)
+        request = self._require_request(payload)
+        tool = self._require_tool(payload)
+        if (
+            request["status"] != "succeeded"
+            or tool["name"] != "submit_proposal"
+            or tool["finished"]
+        ):
+            raise ValueError("invalid proposal tool source")
+        self.proposals.apply(payload, self.metadata["id"], self.tools, tool)
 
     def _apply_plan(self, kind: str, payload: dict[str, Any]) -> None:
         """计划更新只能来自本轮尚在执行的 update_plan；非法关联拒绝落盘。"""

@@ -91,7 +91,7 @@ SPECS = {
         ["path", "pattern"],
     ),
     "read_file": schema(
-        "按行读取UTF-8文件，返回完整文件version与行号；超长行截断，可用start_line继续。",
+        "按行读取UTF-8文件，返回实际path、完整文件version与行号；超长行截断，可用start_line继续。",
         {
             "path": PATH,
             "start_line": ("integer", "从1开始，默认1"),

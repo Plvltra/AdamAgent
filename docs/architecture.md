@@ -2,11 +2,37 @@
 
 最近核对：2026-10-31
 
-本次核对范围：T10.3 代码定位整体验收。新增12项真实项目、重启更新、轮中故障、权限/规则/Hook/模式/取消/额度及子线程场景，专项检查通过；产品代码无需修改，架构无结构变化。T10.2 完整检查已通过（a167b2b），本项全量回归在独立提交钩子执行。
+本次核对范围：T11.1 修改提案契约、真实读取依据及保存/重启。新增 contracts/proposals.py、application/proposals.py 与 session/proposal_log.py；read_file 固定实际路径，SessionStore 提供候选接口。生产工具与主任务审批应用未接入；完整检查在本项提交钩子执行。
 
-核对结论：T10.3 验证已有调用关系与失败边界，以下图形和模块职责保持；新增测试已直接阅读并审查，未删除或改写原产品注释。T10.2 的工具适配器依赖独立 code_index；ReferenceIndex 只处理快照，复杂动态情况保留未知。CLI、Conversation 和存储结构保持。Definition 的作用域说明改为语法父定义，避免把类体误当方法闭包；原设计注释保留，新增契约及边界已审查。T10.1 的 code_index 只依赖共享错误契约及标准库；CodeIndex 经回调调用宿主权限，和模型、CLI、会话存储独立。解析结果按文件版本、词法作用域和定义位置区分，刷新失败不返回旧资料。新增接口均说明权限、版本、资源及失败边界；没有删除原设计注释。T9.3 修复了数据缺失后的清理调用误报差异；原调用依赖保持，仅统一停止原因，图中游标说明已同步。重要说明保留并补充失败边界，强杀控制仅放在测试。T9.2 的 recording/runtime.py 是离线组装入口，可依赖 application；应用层不反向依赖录制包。Conversation 通过 ReviewParticipant 访问审查状态，宿主可观察输入起点；实际控制、上下文、计划、反思、摘要和预算仍由生产模块执行。SessionStore 允许可信宿主注入执行身份，正常路径保持随机生成；共享账本观察发生在原锁内。bootstrap 是真实执行组装入口，新增独立 recordings.py 开发入口。原注释保留或更新，未删除有效设计说明。T9.1 的 ToolRunner 与 ToolBudget 边界保持。T8.3 的8项业务验收通过，产品架构无变化，以下图形和调用关系保持；不新增生产故障开关，原注释无需删除或改写。T8.2 在 ToolInvocation 增加可选 ToolArtifacts，注册会话内分页工具并保存实际来源；长结果正文与模型预览分开，34项新增验收通过。ArtifactStore 与共享契约保持独立，Conversation 和 CLI 无结构变化。T7.3 的15项真实进程场景验证既有调用与恢复边界，未新增产品模块或修改图中关系。T7.2 完成标准编辑与撤销接入；EditPlan 保留同次读取的原字节，ToolInvocation 负责保存快照，UndoService 协调当前权限、批准、恢复原字节及独立日志。UndoLog 区分尚未写入与结果未知，SessionStore 统一查询副作用状态；主/子路径访问增加检查点保护。T7.3 真实进程、恢复过程强杀与重复撤销组合验收已完成。T6.3 已按生产组装验证并发结构。并发上限属于每个 ToolExecutor；两个子 Agent 可各执行两个读取，仍使用独立会话和协调线程、共用主会话额度。T6.2 的 ToolExecutor 协调批次，ToolInvocation 负责单次预检、日志和 Hook；ToolScheduler 仅调度，八个内置只读入口获得并发资格。准备、编码、结果保存和 Hook 均在协调线程，工作线程不接收执行日志回调。ToolCleanupError 移入公共错误契约，CLI 和 Conversation 无新增工具分支。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；模型工具的模式判定仍由 ToolRegistry 执行，用户撤销由 UndoService 应用同一模式规则；Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：候选校验、文件读取和日志投影分别承担独立职责，Conversation 与 CLI 无新分支。宿主输入派发身份，实际读取与当前权限/版本共同限制提案；只保存候选，不修改目标，不将候选当成子任务成功。原读取说明保留并补充实际路径来源，新增关键接口及失败说明已审查；下图仅展示已实现 API。之前 T10.3 完整检查已通过（9d1c8f5），既有图形和其他模块职责保持。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
+
+## T11.1 有读取依据的修改候选
+
+~~~mermaid
+flowchart LR
+    PROP_HOST["显式宿主 / 派发身份与工具来源"] --> PROP_SERVICE["ProposalSubmission.submit"]
+    PROP_SERVICE --> PROP_SOURCE["SessionStore.tool_record / 同子轮真实读取"]
+    PROP_SOURCE --> PROP_OBSERVE["contracts/proposals / observe_read"]
+    PROP_SERVICE --> PROP_CURRENT["PathPolicy + read_snapshot / 当前权限与完整版本"]
+    PROP_CURRENT --> PROP_PLAN["plan_edit / 唯一替换与目标字节"]
+    PROP_OBSERVE --> PROP_VALUE["不可变 EditProposal"]
+    PROP_PLAN --> PROP_VALUE
+    PROP_VALUE --> PROP_STORE["SessionStore.validate_proposal / append_proposal"]
+    PROP_STORE --> PROP_LOG["SessionLog + ProposalLog / 关联和参数校验"]
+    PROP_LOG --> PROP_JSONL["现有子会话 JSONL / proposal_submitted"]
+    PROP_JSONL --> PROP_LOAD["load_proposals / 仅历史候选"]
+~~~
+
+application/proposals.py 协调实际读取、当前文件校验与候选持久化，不申请批准或写目标文件。
+contracts/proposals.py 是纯数据和读取证据校验；session/proposal_log.py 回放已保存事实，
+不访问源文件、不授予权限、不把候选当成成功子任务或已应用修改。
+read_file 新增实际路径返回值，与原完整字节版本和可见行共同固定读取来源。
+
+本图只描述已实现的显式 API；生产工具注册、实际父派发核对及审批应用仍待 T11.2，
+不在 Conversation 或 CLI 增加工具名称分支。详细契约见 [修改提案](edit-proposals.md)。
+
 
 ## T10 Python 结构与静态引用查询
 
@@ -721,6 +747,9 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [llm/streaming.py](../adam/llm/streaming.py) | `sse_events`、`StreamReply` | 有界 SSE 解析、工具参数拼接、结束校验 |
 | [cli/reply_output.py](../adam/cli/reply_output.py) | `ReplyOutput` | 正文增量、换行、去重及未完成提示 |
 | [llm/client.py](../adam/llm/client.py) | `LLMClient` | 访问模型服务，将一次请求转换为模型消息和用量；模型消息也可能是工具请求 |
+| [contracts/proposals.py](../adam/contracts/proposals.py) | ProposalOwner、ReadEvidence、ProposalEdit、EditProposal | 不可变候选与真实读取窗口校验，不访问文件或授予权限 |
+| [application/proposals.py](../adam/application/proposals.py) | ProposalSubmission | 当前读取权限/字节版本、唯一替换与候选保存，不写目标 |
+| [session/proposal_log.py](../adam/session/proposal_log.py) | ProposalLog | 回放候选来源、提交参数及数量约束，不重读源文件或执行修改 |
 | [contracts/protocol.py](../adam/contracts/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
 | [session/storage.py](../adam/session/storage.py) | `SessionStore` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
 | [session/edit_log.py](../adam/session/edit_log.py) | `EditLog` | 编辑状态纯投影；未开始计划恢复为 not_started，写入未知结果不猜测 |

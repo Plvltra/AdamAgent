@@ -57,7 +57,10 @@ class FileTools:
         }
 
     def read_file(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
-        """按行展示同一读取快照；返回完整文件版本、行号、截断与续读位置。"""
+        """按行展示同一读取快照，保留实际路径、完整文件版本、行号、截断与续读位置。
+
+        path 由调用适配器解析；来源随结果保存，后续提案不重新猜测原路径指向。
+        """
         start, count = args.get("start_line", 1), args.get("max_lines", self.limits.max_read_lines)
         if start < 1 or not 1 <= count <= self.limits.max_read_lines:
             raise ToolError("读取行号或行数超限。")
@@ -77,6 +80,7 @@ class FileTools:
             lines.append({"line": number, "text": text})
             chars += len(text) + 40
         return {
+            "path": str(path),
             "version": snapshot.version,
             "lines": lines,
             "truncated": truncated,
