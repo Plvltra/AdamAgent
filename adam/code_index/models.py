@@ -22,6 +22,7 @@ class CodeLimits:
     max_ast_nodes: int = 100000
     max_ast_depth: int = 100
     max_symbols: int = 20000
+    max_references: int = 100000
     timeout_seconds: float = 5.0
 
     def __post_init__(self) -> None:
@@ -34,6 +35,7 @@ class CodeLimits:
             ("max_ast_nodes", 1000000),
             ("max_ast_depth", 200),
             ("max_symbols", 100000),
+            ("max_references", 1000000),
         ):
             value = getattr(self, name)
             if type(value) is not int or not 1 <= value <= maximum:
@@ -59,7 +61,7 @@ class CodeIssue:
 
 @dataclass(frozen=True)
 class Definition:
-    """有来源版本的语法定义；scope_id 指向词法父定义，不表示运行时对象身份。"""
+    """有来源版本的语法定义；scope_id 指向语法父定义，不表示运行时对象身份。"""
 
     identifier: str
     path: str
@@ -89,6 +91,44 @@ class ImportBinding:
     level: int
     start_line: int
     end_line: int
+    aliased: bool = False
+
+
+@dataclass(frozen=True)
+class CodeScope:
+    """名字查询范围；blocked_names 表示赋值/参数等遮蔽，wildcard 表示有星号导入。"""
+
+    identifier: str
+    parent_id: str | None
+    kind: str
+    blocked_names: tuple[str, ...] = ()
+    wildcard: bool = False
+
+
+@dataclass(frozen=True)
+class NameUse:
+    """一次名字或属性链的语法使用；列为从零开始的 UTF-8 字节位置。"""
+
+    scope_id: str
+    parts: tuple[str, ...]
+    start_line: int
+    end_line: int
+    column: int
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class CodeReference:
+    """有源版本的引用判断；definition_id 未知时必须保留 reason，不伪造目标。"""
+
+    path: str
+    version: str
+    expression: str
+    start_line: int
+    end_line: int
+    column: int
+    definition_id: str | None
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -102,6 +142,8 @@ class CodeModule:
     definitions: tuple[Definition, ...] = ()
     imports: tuple[ImportBinding, ...] = ()
     issue: CodeIssue | None = None
+    scopes: tuple[CodeScope, ...] = ()
+    uses: tuple[NameUse, ...] = ()
 
 
 @dataclass(frozen=True)

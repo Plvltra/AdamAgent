@@ -26,6 +26,7 @@ class _Scan:
     files: int = 0
     bytes: int = 0
     symbols: int = 0
+    references: int = 0
     skipped: int = 0
 
 
@@ -76,6 +77,9 @@ class CodeIndex:
                     relative = path.relative_to(base)
                     modules[path] = self._module(path, relative, scan, check)
                     scan.symbols += len(modules[path].definitions) + len(modules[path].imports)
+                    scan.references += len(modules[path].uses)
+                    if scan.references > self.limits.max_references:
+                        raise CodeIndexError("代码引用总数超限，请缩小目录。")
                     if scan.symbols > self.limits.max_symbols:
                         raise CodeIndexError("代码定义和导入总数超限，请缩小目录。")
                 check()

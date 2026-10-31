@@ -1,4 +1,4 @@
-"""只解析 Python 3.11 语法，提取带作用域的定义及导入；不导入、编译执行或求值源码。"""
+"""只解析 Python 3.11 语法，提取定义、导入和名字使用；不导入、编译执行或求值源码。"""
 
 import ast
 import codecs
@@ -8,6 +8,7 @@ from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 
+from adam.code_index.bindings import BindingCollector, ReferenceLimitError
 from adam.code_index.models import CodeIssue, CodeLimits, CodeModule, Definition, ImportBinding
 
 
@@ -81,7 +82,18 @@ def parse_module(
     try:
         _check_tree(tree, limits, check_cancel)
         definitions, imports = _extract(path, name, version, tree, text, limits, check_cancel)
-    except _ParseLimitError as error:
+        scopes, uses = BindingCollector(definitions, limits.max_references, check_cancel).collect(
+            tree
+        )
+    except (RecursionError, MemoryError):
+        return CodeModule(
+            str(path),
+            relative.as_posix(),
+            name,
+            version,
+            issue=CodeIssue("resource_limit", "结构或引用遍历资源不足，未建立该文件索引。"),
+        )
+    except (_ParseLimitError, ReferenceLimitError) as error:
         return CodeModule(
             str(path),
             relative.as_posix(),
@@ -90,7 +102,14 @@ def parse_module(
             issue=CodeIssue("resource_limit", str(error)),
         )
     return CodeModule(
-        str(path), relative.as_posix(), name, version, tuple(definitions), tuple(imports)
+        str(path),
+        relative.as_posix(),
+        name,
+        version,
+        tuple(definitions),
+        tuple(imports),
+        scopes=scopes,
+        uses=uses,
     )
 
 
@@ -202,6 +221,7 @@ def _extract(
                         0 if isinstance(node, ast.Import) else node.level,
                         alias.lineno,
                         alias.end_lineno or alias.lineno,
+                        aliased=alias.asname is not None,
                     )
                 )
         else:
