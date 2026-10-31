@@ -15,6 +15,7 @@ from adam.contracts.errors import (
 from adam.contracts.models import ModelOutput
 from adam.contracts.protocol import validate_assistant
 from adam.contracts.tool_catalog import tool_schema_record
+from adam.contracts.usage import OBSERVATION_FIELDS, decode_observations, encode_observations
 from adam.recording.snapshot import validate_seed
 from adam.session.log import SessionLog
 
@@ -44,7 +45,7 @@ class RecordingLimits:
 
 
 def error_record(error: BaseException) -> dict[str, Any]:
-    """记录影响控制流的错误类别与已知用量；不序列化原始异常文字或对象属性。"""
+    """记录受控错误类别、已知用量和输入观测；不序列化原始异常文字或任意对象属性。"""
     if isinstance(error, RequestNotSentError):
         kind, code = "not_sent", FailureCode.API_NOT_SENT
     elif isinstance(error, RequestInterrupted):
@@ -65,11 +66,19 @@ def error_record(error: BaseException) -> dict[str, Any]:
         "code": code.value,
         "usage": list(usage) if usage is not None else None,
         "http_status": error.http_status if isinstance(error, AgentError) else None,
+        **(
+            encode_observations(error.cache_usage, error.input_prefix)
+            if isinstance(error, (LLMError, RequestInterrupted))
+            else {}
+        ),
     }
 
 
-def _fields(value: object, keys: set[str]) -> dict[str, Any]:
-    if not isinstance(value, dict) or value.keys() != keys:
+def _fields(
+    value: object, keys: set[str], *, optional: frozenset[str] = frozenset()
+) -> dict[str, Any]:
+    """校验必需字段和明确声明的可选字段；其他字段仍严格拒绝。"""
+    if not isinstance(value, dict) or not keys <= value.keys() or value.keys() - keys - optional:
         raise ValueError("invalid recording fields")
     return value
 
@@ -85,7 +94,7 @@ def _usage(value: object) -> None:
 
 def _error(value: object) -> None:
     """只允许受控类别和数值状态；未发出请求必须保留零用量语义。"""
-    item = _fields(value, {"kind", "code", "usage", "http_status"})
+    item = _fields(value, {"kind", "code", "usage", "http_status"}, optional=OBSERVATION_FIELDS)
     if item["kind"] not in {
         "not_sent",
         "request_interrupted",
@@ -98,6 +107,13 @@ def _error(value: object) -> None:
         raise ValueError("invalid recording error kind")
     FailureCode(item["code"])
     _usage(item["usage"])
+    if OBSERVATION_FIELDS & item.keys() and item["kind"] not in {
+        "llm",
+        "not_sent",
+        "request_interrupted",
+    }:
+        raise ValueError("non-model error contains model observation")
+    decode_observations(item, item["usage"][0] if item["usage"] is not None else None)
     status = item["http_status"]
     if status is not None and (type(status) is not int or not 100 <= status <= 599):
         raise ValueError("invalid recording HTTP status")
@@ -327,11 +343,16 @@ class TraceState:
             if item["value"] is not None:
                 raise ValueError("failed call contains result")
         elif name == "model":
-            result = _fields(item["value"], {"message", "usage"})
+            result = _fields(item["value"], {"message", "usage"}, optional=OBSERVATION_FIELDS)
             if not isinstance(result["message"], dict):
                 raise ValueError("invalid model completion")
             validate_assistant(result["message"])
             _usage(result["usage"])
+            decode_observations(
+                result,
+                result["usage"][0] if result["usage"] is not None else None,
+                model=arguments["model"],
+            )
             self.last_calls = result["message"].get("tool_calls") or []
             self.last_tool_names = tool_schema_record(arguments["tools"] or [])["names"]
         else:

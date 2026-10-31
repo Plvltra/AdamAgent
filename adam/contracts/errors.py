@@ -2,6 +2,8 @@
 
 from enum import StrEnum
 
+from adam.contracts.usage import CacheUsage, InputPrefix
+
 
 class FailureCode(StrEnum):
     """持久化使用的稳定失败类别；不依赖异常提示文字进行分类。"""
@@ -126,7 +128,7 @@ class ConfigError(AgentError):
 
 
 class LLMError(AgentError):
-    """模型通信或响应失败；已取得的用量仍由会话流程结算。"""
+    """模型通信或响应失败；已取得的用量与观测仍交给会话流程结算和保存。"""
 
     code = FailureCode.API_ERROR
 
@@ -137,9 +139,13 @@ class LLMError(AgentError):
         *,
         code: FailureCode | None = None,
         http_status: int | None = None,
+        cache_usage: CacheUsage | None = None,
+        input_prefix: InputPrefix | None = None,
     ) -> None:
         super().__init__(f"模型请求错误：{message}", code=code, http_status=http_status)
         self.usage = usage
+        self.cache_usage = cache_usage
+        self.input_prefix = input_prefix
 
 
 class RequestNotSentError(LLMError):
@@ -192,6 +198,14 @@ class CommandLogError(AgentError):
 class RequestInterrupted(KeyboardInterrupt):
     """请求中断；保留在中断前已收到的可靠用量，不把取消当模型失败。"""
 
-    def __init__(self, usage: tuple[int, int] | None = None) -> None:
+    def __init__(
+        self,
+        usage: tuple[int, int] | None = None,
+        *,
+        cache_usage: CacheUsage | None = None,
+        input_prefix: InputPrefix | None = None,
+    ) -> None:
         super().__init__()
         self.usage = usage
+        self.cache_usage = cache_usage
+        self.input_prefix = input_prefix

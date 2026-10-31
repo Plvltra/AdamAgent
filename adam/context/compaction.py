@@ -22,6 +22,7 @@ from adam.contracts.errors import (
 from adam.contracts.history import Summary
 from adam.contracts.models import Completion, Session
 from adam.contracts.ports import ModelClient
+from adam.contracts.usage import CacheUsage, InputPrefix, encode_observations
 from adam.session.outcome import ExecutionOutcome
 from adam.session.storage import SessionStore
 
@@ -215,6 +216,12 @@ class CompactionService:
                     operation_id,
                     usage,
                     ExecutionOutcome.failure(error, self._elapsed(started)),
+                    cache_usage=error.cache_usage
+                    if isinstance(error, (LLMError, RequestInterrupted))
+                    else None,
+                    input_prefix=error.input_prefix
+                    if isinstance(error, (LLMError, RequestInterrupted))
+                    else None,
                 )
             except Exception:
                 if isinstance(error, RequestNotSentError):
@@ -222,7 +229,12 @@ class CompactionService:
                 error.add_note("摘要请求用量未能保存；不能将消费视为零。")
             raise
         self._settle(
-            session_id, operation_id, result.usage, ExecutionOutcome.success(self._elapsed(started))
+            session_id,
+            operation_id,
+            result.usage,
+            ExecutionOutcome.success(self._elapsed(started)),
+            cache_usage=result.cache_usage,
+            input_prefix=result.input_prefix,
         )
         if result.usage is None:
             raise LLMError("摘要请求用量未知；已停止，未启用摘要。", code=FailureCode.USAGE_UNKNOWN)
@@ -234,6 +246,9 @@ class CompactionService:
         operation_id: str,
         usage: tuple[int, int] | None,
         outcome: ExecutionOutcome,
+        *,
+        cache_usage: CacheUsage | None = None,
+        input_prefix: InputPrefix | None = None,
     ) -> None:
         """在一个事件中记录请求终态和用量，与摘要是否提交分别保存。"""
         self.store.append_compaction_event(
@@ -244,6 +259,7 @@ class CompactionService:
                 "input_tokens": usage[0] if usage else None,
                 "output_tokens": usage[1] if usage else None,
                 **outcome.payload(),
+                **encode_observations(cache_usage, input_prefix),
             },
         )
 

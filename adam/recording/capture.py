@@ -6,6 +6,7 @@ from typing import Any, TypeVar
 from adam.contracts.execution import ToolBudget
 from adam.contracts.models import Completion, ModelOutput
 from adam.contracts.ports import ModelClient, ToolRunner
+from adam.contracts.usage import encode_observations
 from adam.recording.format import RecordingError, TraceState, error_record
 from adam.recording.journal import RecordingWriter
 
@@ -151,6 +152,7 @@ class TurnRecorder:
             lambda result: {
                 "message": result.message,
                 "usage": list(result.usage) if result.usage is not None else None,
+                **encode_observations(result.cache_usage, result.input_prefix),
             },
         )
 

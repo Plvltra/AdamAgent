@@ -157,7 +157,15 @@ def test_http_failure_preserves_original_error_and_excludes_remote_error_body(tm
         assert store.usage(app.session.session_id)[1] is True
     recording = read_recording(path)
     error = finished(recording)[0]["error"]
-    assert error == {"kind": "llm", "code": "api_http", "usage": None, "http_status": 503}
+    assert {key: value for key, value in error.items() if key != "input_prefix"} == {
+        "kind": "llm",
+        "code": "api_http",
+        "usage": None,
+        "http_status": 503,
+    }
+    assert error["input_prefix"]["sequence"] == 1
+    assert error["input_prefix"]["input_bytes"] > 0
+    assert error["input_prefix"]["common_prefix_bytes"] is None
     assert recording.complete and recording.events[-1]["data"]["error"] == error
     assert SECRET not in path.read_text(encoding="utf-8")
 

@@ -25,7 +25,7 @@ session_id：一个会话，对应一个 JSONL 文件
 | --- | --- | --- |
 | turn_started | turn_id、user_text | 用户提交时保存输入，尚未成为成功聊天历史 |
 | request_started | turn_id、request_id、model、context | 调用模型前记录本次请求及上下文选择依据 |
-| request_usage | turn_id、request_id、input_tokens、output_tokens | 结算可用用量；未知时保留 null，不算成零 |
+| request_usage | turn_id、request_id、input_tokens、output_tokens；可选 cache_usage、input_prefix | 总用量独立结算；未知保持 null，缓存与本地输入前缀仅作诊断，见 [缓存观测](cache-observation.md) |
 | request_finished | turn_id、request_id、status、reason、duration_ms、error | 请求终态；与 request_usage 同一追加块保存 |
 | turn_finished | turn_id、status、reason、duration_ms、error | 失败或中断的轮次终态，不提交消息 |
 | tool_started | turn_id、request_id、tool_call_id、name、arguments | 即将进入工具处理；arguments 为模型给出的原始 JSON 字符串 |
@@ -234,6 +234,10 @@ v4 明确拒绝旧 v1/v2/v3，不自动迁移或删除。旧文件留在当前�
 标准编辑在获批后、edit_started 前保存独立原字节快照；内部 edit_checkpoint 回调不写入 JSONL。用户 /undo 先记录来源，再保存逆向 diff；批准后的 undo_started 才表示进入写入边界。undo_finished 分别记录成功、拒绝、冲突、失败或写入前中断；只有 applied 携带恢复后版本。原编辑和聊天历史不被改写。
 
 重启恢复对尚未开始的撤销增加 undo_ids 并标记 interrupted，已开始的 unknown 保持未知。统一副作用查询阻止未确认状态继续请求模型；失败输入仍可作为诊断保存。独立诊断在顶层列出 undos；数据位置、权限与详细契约见 [修改检查点](edit-checkpoints.md)。T7.3 已通过真实进程强杀、物理半行和恢复发布中断验收；目标文件即使已恢复，缺少 undo_finished 仍保持 unknown，不根据内容补造成功。
+
+## B03.1 可选模型观测
+
+request_usage 和 compaction_usage 可携带 cache_usage/input_prefix，字段缺省兼容旧 v4 并保持未知；有字段时严格验证格式、计数、模型与前缀长度。服务端缓存计数不减少会话 token 预算，本地前缀表示输入准备，不证明请求已发出或缓存命中。独立诊断直接展示投影；详细口径见 [缓存观测](cache-observation.md)。
 
 ## V3.3 / V3.4 独立摘要事件
 

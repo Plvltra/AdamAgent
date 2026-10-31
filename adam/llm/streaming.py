@@ -6,6 +6,8 @@ from typing import Any
 
 from adam.contracts.models import Completion
 from adam.contracts.protocol import validate_assistant
+from adam.contracts.usage import CacheUsage
+from adam.llm.usage import parse_cache_usage, parse_usage
 
 MAX_EVENT_BYTES = 1024 * 1024
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
@@ -47,20 +49,12 @@ def sse_events(chunks: Iterable[bytes]) -> Iterator[str]:
         raise ValueError("incomplete event")
 
 
-def parse_usage(value: object) -> tuple[int, int] | None:
-    """仅接受服务端报告的非负整数用量；缺失或非法值保持未知。"""
-    if isinstance(value, dict):
-        inputs, outputs = value.get("prompt_tokens"), value.get("completion_tokens")
-        if type(inputs) is int and type(outputs) is int and inputs >= 0 and outputs >= 0:
-            return inputs, outputs
-    return None
-
-
 class StreamReply:
     """组装一个候选回答；保留推理字段供协议回传，但只返回可展示的正文增量。"""
 
     def __init__(self) -> None:
         self.usage: tuple[int, int] | None = None
+        self.cache_usage: CacheUsage | None = None
         self.message: dict[str, Any] = {"role": "assistant", "content": None}
         self.calls: dict[int, dict[str, Any]] = {}
         self.finish_reason: str | None = None
@@ -72,6 +66,7 @@ class StreamReply:
             raise ValueError("invalid event")
         if data.get("usage") is not None:
             self.usage = parse_usage(data["usage"])
+            self.cache_usage = parse_cache_usage(data["usage"])
         choices = data["choices"]
         if not isinstance(choices, list) or len(choices) > 1:
             raise ValueError("invalid choices")
@@ -116,7 +111,7 @@ class StreamReply:
         expected = "tool_calls" if self.calls else "stop"
         if self.finish_reason != expected:
             raise ValueError("unfinished response")
-        return Completion(self.message, self.usage)
+        return Completion(self.message, self.usage, cache_usage=self.cache_usage)
 
     def _append_call(self, fragment: dict[str, Any]) -> None:
         """按 index 拼接工具 ID、名称和 JSON 参数；此处不执行任何工具。"""

@@ -104,7 +104,10 @@ class RequestRunner:
                 on_output=on_output,
             )
         except BaseException as error:
-            usage = error.usage if isinstance(error, (LLMError, RequestInterrupted)) else None
+            known_model_error = isinstance(error, (LLMError, RequestInterrupted))
+            usage = error.usage if known_model_error else None
+            cache_usage = error.cache_usage if known_model_error else None
+            input_prefix = error.input_prefix if known_model_error else None
             outcome = ExecutionOutcome.failure(error, (self.clock() - started_ns) // 1_000_000)
             degradable = (
                 is_reflection
@@ -114,22 +117,47 @@ class RequestRunner:
             )
             if isinstance(error, RequestNotSentError) or degradable:
                 # 未发出请求允许重试、反思格式错误允许降级，都必须先可靠保存失败及用量。
-                self.store.finish_request(session_id, turn_id, request_id, usage, outcome=outcome)
+                self.store.finish_request(
+                    session_id,
+                    turn_id,
+                    request_id,
+                    usage,
+                    outcome=outcome,
+                    cache_usage=cache_usage,
+                    input_prefix=input_prefix,
+                )
             else:
                 save_failure(
                     lambda: self.store.finish_request(
-                        session_id, turn_id, request_id, usage, outcome=outcome
+                        session_id,
+                        turn_id,
+                        request_id,
+                        usage,
+                        outcome=outcome,
+                        cache_usage=cache_usage,
+                        input_prefix=input_prefix,
                     ),
                     error,
                 )
             if degradable:
-                return request_id, Completion({"role": "assistant", "content": ""}, usage)
+                return request_id, Completion(
+                    {"role": "assistant", "content": ""},
+                    usage,
+                    cache_usage=cache_usage,
+                    input_prefix=input_prefix,
+                )
             raise
 
         outcome = ExecutionOutcome.success((self.clock() - started_ns) // 1_000_000)
         try:
             self.store.finish_request(
-                session_id, turn_id, request_id, result.usage, outcome=outcome
+                session_id,
+                turn_id,
+                request_id,
+                result.usage,
+                outcome=outcome,
+                cache_usage=result.cache_usage,
+                input_prefix=result.input_prefix,
             )
         except StorageError as error:
             if not is_reflection and not result.message.get("tool_calls"):

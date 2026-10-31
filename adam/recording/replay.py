@@ -12,6 +12,7 @@ from adam.contracts.errors import (
     RequestInterrupted,
     RequestNotSentError,
 )
+from adam.contracts.usage import decode_observations
 from adam.recording.format import RecordingError, error_record, validate_exchange
 from adam.recording.journal import Recording
 
@@ -74,16 +75,26 @@ def restore_error(value: dict[str, Any]) -> BaseException:
     code = FailureCode(value["code"])
     usage = tuple(value["usage"]) if value["usage"] is not None else None
     pair = (usage[0], usage[1]) if usage is not None else None
+    cache, prefix = decode_observations(value, pair[0] if pair is not None else None)
     if kind == "not_sent":
-        return RequestNotSentError()
+        error = RequestNotSentError()
+        error.cache_usage, error.input_prefix = cache, prefix
+        return error
     if kind == "request_interrupted":
-        return RequestInterrupted(pair)
+        return RequestInterrupted(pair, cache_usage=cache, input_prefix=prefix)
     if kind == "interrupted":
         return KeyboardInterrupt()
     if kind == "exit":
         return SystemExit()
     if kind == "llm":
-        return LLMError("录制中的模型失败。", pair, code=code, http_status=value["http_status"])
+        return LLMError(
+            "录制中的模型失败。",
+            pair,
+            code=code,
+            http_status=value["http_status"],
+            cache_usage=cache,
+            input_prefix=prefix,
+        )
     if kind == "agent":
         return AgentError("录制中的业务失败。", code=code, http_status=value["http_status"])
     return RuntimeError("录制中的内部失败。")

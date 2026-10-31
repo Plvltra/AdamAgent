@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B03.1 缓存与输入观测 | 29 项基础、14 项业务：JSON/SSE、真实工具、缓存与总量分离、前缀、摘要/主子、故障/保存失败、日志校验及旧新重放；相关回归共156项 | [test_cache_observation.py](test_cache_observation.py)、[基础契约](../test_model_observation.py) |
 | B02.3 显式评估与报告 | 29 项场景覆盖实际来源/效果/用量、未知与未暴露、人工引用判读、API 失败后证据保留、捕获失败不请求、批次停止/隔离及报告零网络零修改；真实质量待验收 | [test_injection_evaluation.py](test_injection_evaluation.py) |
 | B02.2 成对权限流程 | 14 个变体真实经过文件/MCP/记忆/Skill，模式与实际批准保持；正常读/写/命令成功、敏感内容未泄露、用量/来源记录；11 项夹具保存和批准变更拒绝 | [test_injection_boundaries.py](test_injection_boundaries.py)、[夹具边界](../test_injection_fixture.py) |
 | B02.1 成对评估样本 | 版本/来源哈希、5 类入口与正常读取/编辑/命令判据、只读 CLI、损坏/冲突/伪造变量拒绝；17 项检查，未运行模型效果评估 | [test_injection_cases.py](test_injection_cases.py) |

@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from adam.contracts.usage import CacheUsage, InputPrefix
+
 
 @dataclass(frozen=True)
 class Session:
@@ -30,10 +32,12 @@ class Message:
 
 @dataclass(frozen=True)
 class Completion:
-    """一次有效模型响应；usage 为输入/输出 token，缺失时为 None。"""
+    """一次有效响应；usage 为输入/输出 token，缓存和前缀独立记录；缺失保持 None。"""
 
     message: dict[str, Any]
     usage: tuple[int, int] | None
+    cache_usage: CacheUsage | None = None
+    input_prefix: InputPrefix | None = None
 
 
 @dataclass(frozen=True)

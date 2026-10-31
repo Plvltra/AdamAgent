@@ -2,11 +2,40 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B02.3 显式模型评估、上下文捕获和只读效果报告；29 项工程验收。
+本次核对范围：B03.1 模型缓存和输入前缀观测、普通/摘要结算、录制重放及43项专项验收。
 
-核对结论：新增独立评估入口、模型边界捕获与报告模块；生产 Agent 架构无变化。run 仅由显式配置/付费开关启动，report 只读文件；复用原权限和批准，未知与实际违规分开。新增接口契约已审查，未删除既有 Python 注释。
+核对结论：模型适配层新增可选观测，应用仅传递，日志/录制严格校验并兼容缺省；send 和 CLI 未增加缓存策略。总用量解析及其说明从 streaming 迁到 llm/usage，原 complete 的参数/协议说明保留，非流式实现拆入 _complete_json；其他关键注释保留或随新契约更新。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B03.1 模型缓存与输入前缀观测
+
+~~~mermaid
+flowchart LR
+    CACHE_APP["RequestRunner / CompactionService"] --> CACHE_CLIENT["LLMClient.complete"]
+    CACHE_CLIENT --> CACHE_PREFIX["PrefixTracker / 本客户端上一份逻辑输入字节"]
+    CACHE_CLIENT --> CACHE_PARSE["_complete_json / StreamReply / usage 解析"]
+    CACHE_PREFIX --> CACHE_DATA["contracts.usage / InputPrefix、CacheUsage"]
+    CACHE_PARSE --> CACHE_DATA
+    CACHE_DATA --> CACHE_RESULT["Completion / 已知模型错误；可选观测"]
+    CACHE_RESULT --> CACHE_SAVE["请求和摘要结算 / 可选字段"]
+    CACHE_SAVE --> CACHE_LOG["SessionLog / CompactionLog / 严格校验，独立总量"]
+    CACHE_LOG --> CACHE_DIAG["diagnostics.read_report"]
+    CACHE_RESULT --> CACHE_RECORD["recording.capture / format 校验"]
+    CACHE_RECORD --> CACHE_REPLAY["ReplayModel / restore_error；恢复原观察"]
+    CACHE_REPLAY --> CACHE_SAVE
+~~~
+
+[usage 契约](../adam/contracts/usage.py) 定义可选计数与前缀，
+[远端解析](../adam/llm/usage.py) 不补填未知字段，
+[输入观察](../adam/llm/input_observation.py) 仅串行比较同客户端的逻辑字节；不持有全部历史。
+[模型适配器](../adam/llm/client.py) 统一携带观测，
+[请求编排](../adam/application/request_runner.py) 与 [摘要服务](../adam/context/compaction.py) 只传递结果。
+[存储](../adam/session/storage.py)、[会话投影](../adam/session/log.py)、[摘要投影](../adam/session/compaction_log.py) 保留原计费与失败语义。
+
+[录制](../adam/recording/capture.py) 保存可选字段，[协议校验](../adam/recording/format.py) 不放开任意字段，
+[重放适配](../adam/recording/replay_adapters.py) 与 [错误恢复](../adam/recording/replay.py) 直接恢复原数据，离线不创建新模型客户端。
+字节布局、兼容及验收边界见 [缓存观测](cache-observation.md)；B03.2 的上下文排列尚未修改。
 
 ## B02 成对评估、显式运行与只读报告
 

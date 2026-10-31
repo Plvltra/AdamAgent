@@ -1,0 +1,65 @@
+# B03 缓存用量与输入前缀观测
+
+B03.1 已完成观测和记录链；B03.2 的上下文排列、B03.3 的真实延时/费用对照尚未完成。目标是先查清输入变化和服务端统计，不根据本地字节数声称节省费用。
+
+## 两类数据分别保存
+
+| 数据 | 来源 | 能说明什么 |
+| --- | --- | --- |
+| usage 输入/输出 token | 服务端响应 | 会话与主子共享预算的消费，仍按原规则累加 |
+| cache_usage 命中/未命中 token | 服务端响应的缓存字段 | 本次输入中服务端报告的缓存计数；缺失保持未知 |
+| input_prefix 字节、哈希、公共前缀 | 本地模型适配器 | 同客户端相邻输入的变化；不代表已发送、实际 token 或缓存命中 |
+
+DeepSeek 的 Chat Completions 响应提供 `prompt_cache_hit_tokens` 和 `prompt_cache_miss_tokens`，两者合计对应 `prompt_tokens`；`prompt_tokens_details.cached_tokens` 是命中数的同义字段。[官方接口](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/)
+
+缓存是服务端尽力提供的能力，前缀重复不保证命中；本地观察不能替代服务端统计。[官方缓存说明](https://api-docs.deepseek.com/zh-cn/guides/kv_cache/)。以上来源核对日期为 2026-11-01。
+
+`cache_usage` 使用 `chat_completions_cache_v1` 格式，保存 `hit_tokens`、`miss_tokens`。只返回命中数时，未命中数为 null，不用总输入相减补填。两项均未知时省略整个字段；已报告的零仍是已知零。布尔值、负值、超过输入总量、hit/miss 合计矛盾、两种命中字段冲突会使缓存观察未知，可靠的总输入/输出仍然保存，聊天和预算不因此失效。
+
+远端统计不可信时可降级未知，本地日志有非法字段或关联时明确拒绝读取；两种边界不同。缓存命中不会从会话的 token 上限中扣除，也不会重复计入总消费。
+
+## 公共前缀的口径
+
+`input_prefix.layout_version=chat_completions_input_v1` 定义一个明确的逻辑字节表示：按模型、工具、消息三块组成数组，JSON 紧凑编码、字典键排序、UTF-8 编码，保留工具和消息数组顺序。认证头、API 密钥、连接地址及输出上限不在这个表示中。
+
+这是用于比较输入变化的表示，不是 HTTP 原始 body，也不是服务端组装后的完整提示词。`layout_version` 描述此字节表示，当前还没有重排系统提示或动态状态。
+
+记录字段：
+
+- `scope_id`、`sequence`：一个模型客户端及其输入准备序号。
+- `input_bytes`、`input_sha256`：本次逻辑输入的 UTF-8 字节数与哈希。
+- `previous_sequence`、`previous_bytes`、`previous_sha256`：可比较的前一次输入。
+- `common_prefix_bytes`：两份字节从头连续相同的长度，包含 JSON 结构字节，不换算为 token。
+
+首次调用、换模型或重建客户端没有可比较前项，previous 和 common 为 null。每个客户端只在内存保留上一份输入字节；不读取历史日志来重建原文，日志只增加长度与哈希。主/子客户端各自独立，摘要与聊天复用同一客户端时可以关联相邻输入。
+
+观察发生在 HTTP 调用之前：连接建立失败也可能留下输入准备记录，不能据此声称请求已经发送。客户端按现有串行模型调用使用；工具并行不会同时修改同一个模型观察器。
+
+## 记录、失败与重放
+
+[LLMClient](../adam/llm/client.py) 在适配层取得缓存与前缀数据，通过 `Completion` 或已知模型错误交给调用方。`RequestRunner` 和摘要服务只负责传递；`send` 不识别缓存字段，也不维护比较状态。
+
+普通请求在 `request_usage` 中增加可选的 `cache_usage` / `input_prefix`，摘要在 `compaction_usage` 中保存相同字段。独立诊断在 requests 及 compactions 的请求信息中展示；终端仍按需查询，不增加每轮打印。
+
+~~~powershell
+.\.venv\Scripts\python.exe -m adam.session.diagnostics "会话JSONL的完整路径"
+~~~
+
+流式响应在最后内容块或独立 usage 块取得统计；之后的断流、取消或协议失败仍保留已收到的可靠统计，部分回答仍不加入成功历史。非流式坏回答也保留已解析的统计。结算文件写入失败时，记录仍为未知，不因内存里有统计就声称已保存或可继续消费。
+
+非流式的原生 KeyboardInterrupt 保持原异常对象传播，不为观测包装或替换它；这类未返回 Completion/已知模型错误的路径不保存 input_prefix，统计保持未知。请求开始与中断状态仍按原流程记录。
+
+字段缺省兼容已有 v4 会话和 v1 录制，不迁移旧文件；旧记录没有观察时仍为未知。新字段的格式、非负数、总量一致性、模型、哈希与前缀长度都需验证。
+
+录制保存实际返回的观测，重放直接恢复同一份数据，不创建真实 HTTP 客户端、不生成新的随机 scope，也不重新计算缓存命中。成功、失败、取消和旧录制均走原日志比较规则。该数据不作防篡改证明。
+
+## 验收
+
+2026-11-01：29 项基础场景、14 项业务场景通过；连同相关 LLM、流式、摘要、录制、重放和架构回归共 156 项通过。提交门禁运行全量 pytest 及静态检查。
+
+- [基础验收](../tests/test_model_observation.py)：实际 UTF-8 字节、稳定键顺序与数组顺序、首次/模型切换/客户端重开、部分/缺失/零/矛盾缓存字段、本地记录校验。
+- [业务验收](../tests/features/test_cache_observation.py)：真实文件工具的连续请求、JSON/SSE、诊断、断流/取消/坏回答、摘要、主子独立来源与共享消费、结算失败、旧/新录制离线重放。
+
+测试使用模拟 HTTP，未调用付费 API。真实缓存命中、延时与费用收益将在 B03.3 单独评估；当前不能给出省钱比例。
+
+接口与调用关系见 [当前架构](architecture.md)，日志事件见 [执行轨迹](session-tracing.md)，录制边界见 [单轮录制与重放](turn-recording.md)。

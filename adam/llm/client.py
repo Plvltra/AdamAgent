@@ -1,6 +1,7 @@
 """Chat Completions 传输适配器；支持完整 JSON 与有界 SSE 增量解析。"""
 
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any
 
 import httpx
@@ -9,13 +10,16 @@ from adam.config.settings import LLMConfig
 from adam.contracts.errors import FailureCode, LLMError, RequestInterrupted, RequestNotSentError
 from adam.contracts.models import Completion, ModelOutput
 from adam.contracts.protocol import validate_assistant
-from adam.llm.streaming import StreamReply, parse_usage, sse_events
+from adam.llm.input_observation import PrefixTracker
+from adam.llm.streaming import StreamReply, sse_events
+from adam.llm.usage import parse_cache_usage, parse_usage
 
 
 class LLMClient:
     def __init__(self, config: LLMConfig, client: httpx.Client) -> None:
         self.config = config
         self.client = client
+        self.prefixes = PrefixTracker()
 
     def list_models(self) -> dict[str, str | None]:
         try:
@@ -68,11 +72,12 @@ class LLMClient:
 
         Returns:
             Completion：普通回答或工具请求；usage 为输入/输出 token 数，
-            服务端未报告可靠用量时为 None。
+            服务端未报告可靠用量时为 None；缓存计数和本地输入前缀单独携带，不能相互推算。
 
         Raises:
             LLMError: 网络、HTTP 或协议错误；携带受控原因码、HTTP 状态及已解析用量。
             RequestInterrupted: 流式请求被取消，携带中断前已收到的可靠用量。
+            KeyboardInterrupt: 非流式原生中断保持原对象传播，没有已解析统计时不补造观测。
 
         协议参考：https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/
         """
@@ -84,9 +89,20 @@ class LLMClient:
         }
         if tools:
             body["tools"] = tools
-        if self.config.stream:
-            body["stream_options"] = {"include_usage": True}
-            return self._stream(body, on_output)
+        prefix = self.prefixes.observe(body["model"], messages, tools)
+        try:
+            if self.config.stream:
+                body["stream_options"] = {"include_usage": True}
+                result = self._stream(body, on_output)
+            else:
+                result = self._complete_json(body)
+        except (LLMError, RequestInterrupted) as error:
+            error.input_prefix = prefix
+            raise
+        return replace(result, input_prefix=prefix)
+
+    def _complete_json(self, body: dict[str, Any]) -> Completion:
+        """请求完整 JSON；保留已解析统计，协议失败不提交正文或猜测缺失用量。"""
         try:
             response = self.client.post(
                 self.config.base_url + "/chat/completions",
@@ -118,9 +134,11 @@ class LLMClient:
                 code=FailureCode.INVALID_RESPONSE,
             )
         usage = None
+        cache_usage = None
         try:
             data = response.json()
             usage = parse_usage(data.get("usage"))
+            cache_usage = parse_cache_usage(data.get("usage"))
             # choices 是候选回答列表；当前只使用第一个候选。
             choice = data["choices"][0]
             message = choice["message"]
@@ -135,12 +153,13 @@ class LLMClient:
                 for key in ("role", "content", "tool_calls", "reasoning_content")
                 if key in message
             }
-            return Completion(clean, usage)
+            return Completion(clean, usage, cache_usage=cache_usage)
         # JSON、字段和类型错误统一转换，但保留已经解析出的用量。
         except (ValueError, KeyError, IndexError, TypeError, AttributeError):
             raise LLMError(
                 "模型响应格式无效或回答未完整结束；本轮不加入历史。",
                 usage,
+                cache_usage=cache_usage,
                 code=FailureCode.INVALID_RESPONSE,
             ) from None
 
@@ -179,6 +198,7 @@ class LLMClient:
                         raise LLMError(
                             "流式响应格式无效或未完整结束；本轮不加入历史。",
                             reply.usage,
+                            cache_usage=reply.cache_usage,
                             code=FailureCode.INVALID_RESPONSE,
                         ) from None
                     if text and on_output:
@@ -187,18 +207,27 @@ class LLMClient:
             if not connected:
                 raise RequestNotSentError() from None
             raise LLMError(
-                "响应连接已建立后中断；未自动重试。", reply.usage, code=FailureCode.API_CONNECTION
+                "响应连接已建立后中断；未自动重试。",
+                reply.usage,
+                cache_usage=reply.cache_usage,
+                code=FailureCode.API_CONNECTION,
             ) from None
         except httpx.TimeoutException:
             raise LLMError(
-                "请求超时；未自动重试。", reply.usage, code=FailureCode.API_TIMEOUT
+                "请求超时；未自动重试。",
+                reply.usage,
+                cache_usage=reply.cache_usage,
+                code=FailureCode.API_TIMEOUT,
             ) from None
         except httpx.RequestError:
             raise LLMError(
-                "网络连接或流式读取失败；未自动重试。", reply.usage, code=FailureCode.API_CONNECTION
+                "网络连接或流式读取失败；未自动重试。",
+                reply.usage,
+                cache_usage=reply.cache_usage,
+                code=FailureCode.API_CONNECTION,
             ) from None
         except KeyboardInterrupt:
-            raise RequestInterrupted(reply.usage) from None
+            raise RequestInterrupted(reply.usage, cache_usage=reply.cache_usage) from None
         finally:
             if on_output:
                 on_output(ModelOutput("response_end"))

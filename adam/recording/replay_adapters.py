@@ -6,6 +6,7 @@ from typing import Any
 
 from adam.contracts.execution import ToolBudget
 from adam.contracts.models import Completion, ModelOutput
+from adam.contracts.usage import decode_observations
 from adam.recording.replay import ReplayTape, restore_error
 from adam.recording.replay_store import ReplayStore
 
@@ -54,8 +55,14 @@ class ReplayModel:
             raise restore_error(data["error"])
         value = data["value"]
         usage = value["usage"]
+        cache, prefix = decode_observations(
+            value, usage[0] if usage is not None else None, model=model
+        )
         return Completion(
-            deepcopy(value["message"]), (usage[0], usage[1]) if usage is not None else None
+            deepcopy(value["message"]),
+            (usage[0], usage[1]) if usage is not None else None,
+            cache_usage=cache,
+            input_prefix=prefix,
         )
 
 

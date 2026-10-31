@@ -22,6 +22,7 @@ from adam.contracts.planning import PlanReport, PlanSnapshot
 from adam.contracts.proposals import EditProposal
 from adam.contracts.protocol import validate_turn
 from adam.contracts.reflection import Feedback
+from adam.contracts.usage import CacheUsage, InputPrefix, encode_observations
 from adam.session.checkpoints import CheckpointStore
 from adam.session.execution_report import build_execution_report
 from adam.session.feedback_log import failure_signal, feedback_context, previous_turn
@@ -382,10 +383,13 @@ class SessionStore:
         usage: tuple[int, int] | None,
         *,
         outcome: ExecutionOutcome | None = None,
+        cache_usage: CacheUsage | None = None,
+        input_prefix: InputPrefix | None = None,
     ) -> None:
         """在同一追加块内保存请求用量和终态；非法关联或重复结束抛出 ValueError。
 
         usage 是 (输入 token, 输出 token)；None 表示未知，不能按零处理。
+        cache_usage 和 input_prefix 是独立诊断，不减少总 token 计费；缺字段保持未知。
         outcome 描述模型请求本身，与后续整轮结果独立；省略时按成功处理，耗时未知。
         有效响应缺少用量时请求仍可成功，不将用量未知当作请求失败。
         可捕获的写入失败回滚整个块；后续轮次失败不会删除已落盘的消费记录。
@@ -397,6 +401,7 @@ class SessionStore:
                 **link,
                 "input_tokens": usage[0] if usage else None,
                 "output_tokens": usage[1] if usage else None,
+                **encode_observations(cache_usage, input_prefix),
             },
         )
         data += record(

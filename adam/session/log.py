@@ -13,6 +13,7 @@ from adam.contracts.protocol import validate_turn
 from adam.contracts.rules import validate_rules
 from adam.contracts.skills import validate_catalog, validate_skill_selection
 from adam.contracts.tool_catalog import validate_tool_schema_record
+from adam.contracts.usage import decode_observations, encode_observations
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
 from adam.session.feedback_log import FeedbackLog, feedback_context
@@ -284,6 +285,7 @@ class SessionLog:
         inputs, outputs = payload.get("input_tokens"), payload.get("output_tokens")
         if "input_tokens" not in payload or "output_tokens" not in payload:
             raise ValueError("missing usage")
+        cache, prefix = decode_observations(payload, inputs, model=request["model"])
         if inputs is None and outputs is None:
             self._unknown_usage = True
         elif type(inputs) is int and type(outputs) is int and inputs >= 0 and outputs >= 0:
@@ -292,6 +294,7 @@ class SessionLog:
             raise ValueError("invalid usage")
         request["settled"] = True
         request["usage"] = (inputs, outputs)
+        request.update(encode_observations(cache, prefix))
 
     def _validate_context(self, context: object, turn_id: str) -> None:
         """校验摘要覆盖前缀、连续历史后缀、模式或反思反馈快照；旧请求可没有选择及模式字段。"""

@@ -3,6 +3,7 @@
 from typing import Any
 
 from adam.contracts.history import Summary
+from adam.contracts.usage import decode_observations, encode_observations
 from adam.session.outcome import outcome_details
 
 
@@ -105,6 +106,7 @@ class CompactionLog:
         inputs, outputs = payload.get("input_tokens"), payload.get("output_tokens")
         if "input_tokens" not in payload or "output_tokens" not in payload:
             raise ValueError("missing compaction usage")
+        cache, prefix = decode_observations(payload, inputs, model=operation["model"])
         if inputs is None and outputs is None:
             usage = None
         elif type(inputs) is int and type(outputs) is int and inputs >= 0 and outputs >= 0:
@@ -119,4 +121,8 @@ class CompactionLog:
             status != "failed" or usage != {"input_tokens": 0, "output_tokens": 0}
         ):
             raise ValueError("unsent summary must have zero usage")
-        operation.update(settled=True, usage=usage, request=outcome_details(payload, status))
+        operation.update(
+            settled=True,
+            usage=usage,
+            request={**outcome_details(payload, status), **encode_observations(cache, prefix)},
+        )
