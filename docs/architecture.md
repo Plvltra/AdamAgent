@@ -2,11 +2,27 @@
 
 最近核对：2026-10-31
 
-本次核对范围：T12.3 同任务全量/按需对照，以及 MCP、Skills、会话重开、输入预算、路径/Hook 和主子隔离的7项业务验收。产品代码无变化；T1～T12 的36项需求与测试导航已同步。
+本次核对范围：B01.1 连续失败检测策略 API、配置值对象、实际工具验收与 B01～B42 完整路线。
 
-核对结论：架构无变化，保留以下已实现关系。实际对照确认发现不授予权限，新增说明仍受预算约束；主/子选择独立，共享原累计用量。7项专项通过，注释已审查且没有删除旧说明；T12.2 完整检查已通过（7c1cb62），本项全量检查作为独立提交门禁。
+核对结论：新增 NoProgressGuard 纯策略及 NoProgressConfig；生产工具执行器尚未接入，聊天行为无变化。既有注释保留，原书差距表保留基线，执行进度单独记录。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B01.1 连续失败策略 API
+
+~~~mermaid
+flowchart LR
+    PROG_HOST["显式 API 调用方 / 已完成工具的原始结果"] --> PROG_GUARD["NoProgressGuard.observe / 每轮独立状态"]
+    PROG_CONFIG["NoProgressConfig / 开关与阈值"] --> PROG_GUARD
+    PROG_VERSION["宿主核实的可选外部版本"] --> PROG_GUARD
+    PROG_GUARD --> PROG_DECISION["ProgressDecision / 继续、提醒、停止与指纹"]
+~~~
+
+[progress.py](../adam/tool_calls/progress.py) 仅识别连续同类失败，返回值不包含完整工具参数；
+[settings.py](../adam/config/settings.py) 校验阈值。成功、正常等待与策略拒绝不当作业务失败，
+命令非零退出单独识别，可信外部版本变化重新计数。策略不执行工具或写日志。
+本步没有把策略接到 Conversation/ToolExecutor；TOML、模型反馈、停止和日志将在 B01.2 接入，
+不能将下面既有生产调用链理解为已经启用检测。完整契约见 [无进展检测](no-progress.md)。
 
 ## T12 工具目录与实际请求可见性
 

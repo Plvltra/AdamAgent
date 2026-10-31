@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B01.1 连续失败策略 API | 真实缺失文件、外部修复、重复读取/翻页、非零进程与批准边界；聊天接入待 B01.2 | [业务 API](test_no_progress.py)、[策略边界](../test_no_progress.py) |
 | T12.3 发现整体验收 | 同任务体积/请求对照，真实 MCP 与 Skill、会话重开、扩展预算、路径/Hook、主子隔离和共享用量；7项业务场景 | [test_tool_discovery_acceptance.py](test_tool_discovery_acceptance.py) |
 | T12.2 聊天按需发现 | 默认首请求、实际读取、提前猜名/同批编辑、每轮重置/预览、预算/保存失败/批准、模式过滤与离线重放；12项业务，13项配置/分页/日志边界 | [业务流程](test_tool_discovery_loop.py)、[基础边界](../test_tool_discovery_integration.py) |
 | T12.1 工具目录与可见性 | 分组/模式/整批选择、固定 Schema、预览隔离、真实路径与批准/子任务限制；13项 API 业务场景，聊天接入见 T12.2 | [业务验收](test_tool_discovery.py)、[13项基础边界](../test_tool_catalog.py) |

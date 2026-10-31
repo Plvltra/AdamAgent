@@ -32,6 +32,28 @@ class AgentConfig:
 
 
 @dataclass(frozen=True)
+class NoProgressConfig:
+    """连续相同工具失败的提醒与停止阈值；独立于请求和工具总次数预算。"""
+
+    enabled: bool = True
+    warn_after: int = 2
+    stop_after: int = 3
+
+    def __post_init__(self) -> None:
+        """提醒后至少留一次实际尝试；不允许布尔值、无界计数或先停止后提醒。"""
+        if type(self.enabled) is not bool:
+            raise ConfigError("no_progress.enabled 必须是布尔值。")
+        if (
+            type(self.warn_after) is not int
+            or type(self.stop_after) is not int
+            or not 2 <= self.warn_after < self.stop_after <= 64
+        ):
+            raise ConfigError(
+                "no_progress 阈值必须是整数且满足 2 <= warn_after < stop_after <= 64。"
+            )
+
+
+@dataclass(frozen=True)
 class SubagentConfig:
     """单个主会话的子任务上限；子 Agent 不允许再委派，消费沿用 agent 总额度。"""
 
