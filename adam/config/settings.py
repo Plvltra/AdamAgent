@@ -372,3 +372,4 @@ class AppConfig:
     hooks: HooksConfig = field(default_factory=HooksConfig)
     artifacts: ArtifactConfig = field(default_factory=ArtifactConfig)
     tool_discovery: ToolDiscoveryConfig = field(default_factory=ToolDiscoveryConfig)
+    no_progress: NoProgressConfig = field(default_factory=NoProgressConfig)

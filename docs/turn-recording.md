@@ -16,7 +16,7 @@
 
 ## 已实现的使用边界
 
-调用方持有所选会话锁，在开始前调用 capture_seed，取得原历史、用户输入、工作目录、模型名称、运行模式及流程配置。配置显式选择 agent、context、tool_limits、memory、planning、reflection、review、subagents、artifacts；不序列化完整 AppConfig。
+调用方持有所选会话锁，在开始前调用 capture_seed，取得原历史、用户输入、工作目录、模型名称、运行模式及流程配置。配置显式选择 agent、context、tool_limits、memory、planning、reflection、review、subagents、artifacts、no_progress；不序列化完整 AppConfig。B01.2 之前的录制可缺少 no_progress；重放只导入当时的工具反馈和停止原因，不使用当前默认阈值重做工具。
 
 用 RecordingWriter 创建一个新文件，TurnRecorder 接收实际会话事件读取回调。RecordingModel 装饰原 ModelClient；build_application 的 decorate_tools 可将主执行器装饰为 RecordingTools。最后通过 TurnRecorder.run 包围一次原应用 send。可运行的组装示例见 [业务测试](../tests/features/test_turn_recording.py) 中的 recording_app。
 

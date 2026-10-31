@@ -16,6 +16,7 @@ class FailureCode(StrEnum):
     BUDGET_EXHAUSTED = "budget_exhausted"
     REQUEST_LIMIT = "request_limit"
     TOOL_LIMIT = "tool_limit"
+    NO_PROGRESS = "no_progress"
     EDIT_LIMIT = "edit_limit"
     SESSION_TOKEN_LIMIT = "session_token_limit"
     CONTEXT_INPUT_LIMIT = "context_input_limit"
@@ -86,6 +87,15 @@ class ApprovalDeniedError(AgentError):
     """用户拒绝当前动作，终止本轮剩余工具与模型请求。"""
 
     code = FailureCode.APPROVAL_DENIED
+
+
+class NoProgressError(AgentError):
+    """重复失败达到本轮上限；执行证据已按原边界保存，不隐式重试。"""
+
+    code = FailureCode.NO_PROGRESS
+
+    def __init__(self, repeats: int) -> None:
+        super().__init__(f"相同工具调用已连续失败 {repeats} 次，本轮已停止；请检查原因后调整任务。")
 
 
 class BudgetError(AgentError):

@@ -2,27 +2,44 @@
 
 最近核对：2026-10-31
 
-本次核对范围：B01.1 连续失败检测策略 API、配置值对象、实际工具验收与 B01～B42 完整路线。
+本次核对范围：B01.2 配置加载、主/子工具执行、模型可见反馈、JSONL 停止原因与离线回放。
 
-核对结论：新增 NoProgressGuard 纯策略及 NoProgressConfig；生产工具执行器尚未接入，聊天行为无变化。既有注释保留，原书差距表保留基线，执行进度单独记录。
+核对结论：NoProgressGuard 已接入 ToolExecutor，ToolInvocation 保存有界反馈；CLI 和 Conversation 无新增分支。新增输出适配器，录制快照保存策略配置；原有权限、额度、审批和取消边界保持。既有关键注释保留，迁移的结果收尾说明已补充。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-## B01.1 连续失败策略 API
+## B01 连续失败策略与生产接入
 
 ~~~mermaid
 flowchart LR
-    PROG_HOST["显式 API 调用方 / 已完成工具的原始结果"] --> PROG_GUARD["NoProgressGuard.observe / 每轮独立状态"]
-    PROG_CONFIG["NoProgressConfig / 开关与阈值"] --> PROG_GUARD
-    PROG_VERSION["宿主核实的可选外部版本"] --> PROG_GUARD
-    PROG_GUARD --> PROG_DECISION["ProgressDecision / 继续、提醒、停止与指纹"]
+    PROG_CONFIG["loader / NoProgressConfig"] --> PROG_BOOT["bootstrap / 主子分别组装"]
+    PROG_BOOT --> PROG_EXEC["ToolExecutor / 按会话与轮次保持状态"]
+    PROG_EXEC --> PROG_INVOKE["ToolInvocation / 原预检、动作与结果保存"]
+    PROG_INVOKE --> PROG_REG["ToolRegistry / 权限、Hook、批准、实际动作"]
+    PROG_REG -->|"实际结果；原序交付"| PROG_EXEC
+    PROG_EXEC --> PROG_GUARD["NoProgressGuard.observe / 连续失败指纹"]
+    PROG_GUARD --> PROG_DECISION["ProgressDecision / 继续、提醒、停止"]
+    PROG_DECISION --> PROG_INVOKE
+    PROG_INVOKE --> PROG_ENCODING["progress_output / 有界模型反馈"]
+    PROG_ENCODING --> PROG_LOG["tool_finished.output / 实际回传内容"]
+    PROG_EXEC -->|"保存结果后停止"| PROG_ERROR["NoProgressError / 公共错误契约"]
+    PROG_ERROR --> PROG_TURN["Conversation 原收尾 / turn_finished"]
+    PROG_LOG --> PROG_MODEL["下一次模型请求 / 提醒时"]
+    PROG_CAPTURE["RecordingTools / 实际结果与异常"] --> PROG_EXEC
+    PROG_REPLAY["ReplayTools / 读取录制，无外部执行"] --> PROG_LOG
 ~~~
 
-[progress.py](../adam/tool_calls/progress.py) 仅识别连续同类失败，返回值不包含完整工具参数；
-[settings.py](../adam/config/settings.py) 校验阈值。成功、正常等待与策略拒绝不当作业务失败，
-命令非零退出单独识别，可信外部版本变化重新计数。策略不执行工具或写日志。
-本步没有把策略接到 Conversation/ToolExecutor；TOML、模型反馈、停止和日志将在 B01.2 接入，
-不能将下面既有生产调用链理解为已经启用检测。完整契约见 [无进展检测](no-progress.md)。
+[progress.py](../adam/tool_calls/progress.py) 是无 IO 的检测策略；
+[executor.py](../adam/tool_calls/executor.py) 管理轮次作用域及停止，
+[invocation.py](../adam/tool_calls/invocation.py) 通过
+[progress_output.py](../adam/tool_calls/progress_output.py) 把反馈放入最终保存/回传的工具结果。
+结果太长时只缩短预览，保留命令状态及附件引用；原附件正文保持不变。
+
+NoProgressError 由 [errors.py](../adam/contracts/errors.py) 提供公共原因码，
+[outcome.py](../adam/session/outcome.py) 和 [log.py](../adam/session/log.py) 沿用既有收尾及验证。
+CLI 和 send 不识别工具种类或检测器。主子各有独立实例，同轮跨请求累计，新轮重建。
+录制保存配置及实际反馈；重放恢复已记录结果/错误，不创建实时检测器或重做动作。
+契约和验证见 [无进展检测](no-progress.md)，并发/重启整体验收在 B01.3 继续。
 
 ## T12 工具目录与实际请求可见性
 

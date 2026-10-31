@@ -15,6 +15,8 @@ from adam.contracts.hooks import HookService
 from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.lifecycle import ToolHooks
+from adam.tool_calls.progress import ProgressDecision
+from adam.tool_calls.progress_output import encode_progress
 from adam.tool_calls.registry import PreparedAction, ToolRegistry
 
 
@@ -74,11 +76,13 @@ class ToolInvocation:
                 output["status"] = "mode_blocked"
             return lambda _cancel: output
 
-    def finish(self, result: dict[str, Any]) -> str:
+    def finish(self, result: dict[str, Any], *, progress: ProgressDecision | None = None) -> str:
         """先处理长结果附件，再保存实际回传内容并运行后置 Hook。
 
         后置故障不能改写已发生的动作；附件与来源日志失败按各自保存边界处理。
+        progress 只能由宿主检测产生；追加反馈仍受回传上限约束，不改写原附件正文。
         """
+        result = {key: value for key, value in result.items() if key != "no_progress"}
         output = (
             self.artifacts.encode(
                 self.session_id, self.source, self.name, result, self.registry.encode
@@ -86,6 +90,8 @@ class ToolInvocation:
             if self.artifacts is not None
             else self.registry.encode(self.name, result)
         )
+        if progress is not None:
+            output = encode_progress(output, progress, self.registry.limits.max_result_chars)
         self.store.append_tool_event(
             self.session_id, "tool_finished", {**self.source, "output": output}
         )

@@ -19,6 +19,7 @@ from adam.config.settings import (
     DocumentConfig,
     LLMConfig,
     MemoryConfig,
+    NoProgressConfig,
     PermissionConfig,
     PlanningConfig,
     ReflectionConfig,
@@ -141,6 +142,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "hooks",
             "artifacts",
             "tool_discovery",
+            "no_progress",
         },
         "主配置",
     )
@@ -297,6 +299,13 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         rules=rules,
         mcp=parse_mcp(data.get("mcp", {})),
         hooks=parse_hooks(data.get("hooks", {})),
+        no_progress=NoProgressConfig(
+            **checked_section(
+                data.get("no_progress", {}),
+                {item.name for item in fields(NoProgressConfig)},
+                "no_progress",
+            )
+        ),
         tool_discovery=ToolDiscoveryConfig(
             **checked_section(
                 data.get("tool_discovery", {}),

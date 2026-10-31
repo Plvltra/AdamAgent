@@ -10,6 +10,7 @@ from adam.config.settings import (
     ArtifactConfig,
     ContextConfig,
     MemoryConfig,
+    NoProgressConfig,
     PlanningConfig,
     ReflectionConfig,
     ReviewConfig,
@@ -33,6 +34,7 @@ CONTROL_TYPES = {
     "review": ReviewConfig,
     "subagents": SubagentConfig,
     "artifacts": ArtifactConfig,
+    "no_progress": NoProgressConfig,
 }
 
 
@@ -90,10 +92,12 @@ def validate_seed(seed: object) -> None:
     if seed["mode"] not in {"act", "plan"} or type(seed["stream"]) is not bool:
         raise ValueError("invalid mode or stream")
     controls = seed["controls"]
-    if not isinstance(controls, dict) or controls.keys() != CONTROL_TYPES.keys():
+    # 早期录制没有检测配置；重放读取已保存结果，不以今天的默认策略重做旧工具。
+    required = CONTROL_TYPES.keys() - {"no_progress"}
+    if not isinstance(controls, dict) or not required <= controls.keys() <= CONTROL_TYPES.keys():
         raise ValueError("invalid recording controls")
-    for name, cls in CONTROL_TYPES.items():
-        values = controls[name]
+    for name, values in controls.items():
+        cls = CONTROL_TYPES[name]
         if not isinstance(values, dict) or set(values) != {field.name for field in fields(cls)}:
             raise ValueError("invalid recording control fields")
         defaults = asdict(cls())

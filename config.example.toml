@@ -34,6 +34,13 @@ max_edit_attempts = 3
 max_session_tokens = 50000
 max_output_tokens = 4096
 
+[no_progress]
+# 同一轮内连续同名、同参数、同类失败；第二次提醒，第三次停止。
+# 主任务与每个子任务独立计数，仍受 agent 总额度约束。
+enabled = true
+warn_after = 2
+stop_after = 3
+
 [subagents]
 # 同一主会话并发运行的子 Agent 数量；不同终端分别限制。
 max_concurrent = 2

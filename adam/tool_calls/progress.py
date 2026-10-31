@@ -34,6 +34,11 @@ class NoProgressGuard:
         self._config = config or NoProgressConfig()
         self._decision = ProgressDecision()
 
+    @property
+    def decision(self) -> ProgressDecision:
+        """读取最近结论；停止状态供宿主在下一批开始之前拒绝继续执行。"""
+        return self._decision
+
     def observe(
         self,
         name: str,
@@ -91,6 +96,7 @@ def _failure_category(result: dict[str, Any]) -> str | None:
         "running",
         "interrupted",
         "cancelled",
+        "unknown",
     ):
         return None
     exit_code = result.get("exit_code")
@@ -99,7 +105,8 @@ def _failure_category(result: dict[str, Any]) -> str | None:
     if result.get("ok") is not False:
         return None
     if isinstance(status, str) and status not in {"", "completed"}:
-        return f"tool_status:{status}"
+        encoded = json.dumps(status, ensure_ascii=True).encode("ascii")
+        return f"tool_status:{sha256(encoded).hexdigest()}"
     # 原工具错误没有统一机器码，以受控错误说明区分原因，避免把修复后的新错误合并。
     error = result.get("error")
     detail = " ".join(error.split()) if isinstance(error, str) else "unspecified"

@@ -257,6 +257,7 @@ def build_application(
             on_tool or (lambda _: None),
             before_call=bind_source,
             discovery=discovery,
+            no_progress=config.no_progress,
             after_call=planner.publish if planner else None,
             check_call=reviewer.check_call if reviewer else None,
             hooks=HookRunner(config.hooks, workspace) if config.hooks.enabled else None,
@@ -415,6 +416,7 @@ def _open_child(
                 cancel=cancel,
                 before_call=submission.bind_source if submission else None,
                 discovery=discovery,
+                no_progress=config.no_progress,
                 hooks=(
                     HookRunner(config.hooks, Path(agent.workspace), cancel)
                     if config.hooks.enabled
