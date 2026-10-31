@@ -8,3 +8,5 @@
 *.yml text eol=lf
 .gitattributes text eol=lf
 .gitignore text eol=lf
+# Preserve the byte identity of versioned evaluation inputs across checkouts.
+examples/injection-evaluation/*.json text eol=lf
