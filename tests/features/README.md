@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T11.3 提案整体验收 | 双子任务冲突/非冲突、拒绝、外部改动、失败隔离和跨会话来源；8个真实强杀边界、重启零执行、显式应用/撤销，共14项场景 | [协作场景](test_proposal_acceptance.py)、[强杀恢复](test_proposal_recovery.py)、[独立进程入口](support/proposal_worker.py) |
 | T11.2 提案协作与应用 | 实际子线程、批准/检查点/撤销、拒绝/模式/额度、版本/权限、分页、规则/Hook、计划证据/审查限制、保存故障及来源篡改；30项业务场景 | [test_proposal_application.py](test_proposal_application.py) |
 | T11.1 修改提案 API | 实际读取/当前权限与版本、分段/BOM/CRLF、伪造/跨轮/截断拒绝、唯一替换、数量、保存失败与重启零写入；27项 API 业务场景，生产接入见 T11.2 | [test_edit_proposals.py](test_edit_proposals.py)、[22项协议边界](../test_proposals.py) |
 | T10.3 代码定位整体验收 | 真实项目连续定位、无源码执行、重启/轮中故障、权限/规则/Hook/模式/取消/额度及实际子任务；12项场景 | [test_python_code_acceptance.py](test_python_code_acceptance.py) |
