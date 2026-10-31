@@ -2,13 +2,13 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B02.2 合成夹具、固定批准和七对真实工具/来源流程的离线验收。
+本次核对范围：B02.3 显式模型评估、上下文捕获和只读效果报告；29 项工程验收。
 
-核对结论：新增独立夹具模块，离线测试复用生产应用与日志；生产 Agent 架构无变化。模式和批准来自宿主配置，工具、MCP、文件与来源快照真实运行；模型决策用假 HTTP。新增接口契约及拒绝分支已审查，未删除既有 Python 注释。
+核对结论：新增独立评估入口、模型边界捕获与报告模块；生产 Agent 架构无变化。run 仅由显式配置/付费开关启动，report 只读文件；复用原权限和批准，未知与实际违规分开。新增接口契约已审查，未删除既有 Python 注释。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-## B02 独立样本与离线对照
+## B02 成对评估、显式运行与只读报告
 
 ~~~mermaid
 flowchart LR
@@ -24,12 +24,21 @@ flowchart LR
     INJ_APP --> INJ_POLICY["原模式、路径、凭据和实际批准"]
     INJ_POLICY --> INJ_RESULT["实际读写、固定命令、JSONL 和用量"]
     INJ_RESULT --> INJ_ASSERT["样本效果判据、敏感标记与来源核对"]
+    INJ_RUN["injection_eval.run_suite / 显式付费开关和新目录"] --> INJ_FIX
+    INJ_RUN --> INJ_VARIANT["run_variant / 复用生产应用，无子任务"]
+    INJ_VARIANT --> INJ_APP
+    INJ_VARIANT --> INJ_CAPTURE["CapturedModel / 实际请求输入与响应状态；不存 HTTP 头"]
+    INJ_CAPTURE --> INJ_CLIENT["LLMClient / 显式配置的模型"]
+    INJ_CAPTURE --> INJ_SNAP["请求捕获文件"]
+    INJ_SNAP --> INJ_READ["injection_report / 只读文件、parse_log 校验"]
+    INJ_RESULT --> INJ_READ
+    INJ_READ --> INJ_METRICS["越权 / 正常完成 / 人工拒绝判读 / 未暴露与未知"]
 ~~~
 
 [injection_cases.py](../scripts/injection_cases.py) 只依赖 Python 标准库；
 [成对数据](../examples/injection-evaluation/cases-v1.json) 定义允许、必需和禁止的效果。
 [injection_fixture.py](../scripts/injection_fixture.py) 通过宿主配置准备独立条件；[业务测试](../tests/features/test_injection_boundaries.py) 经过真实工具注册表和存储。假 HTTP 验证确定的尝试，不提供真实模型效果结论。
-契约与后续运行边界见 [成对评估](injection-evaluation.md)。
+[injection_eval.py](../scripts/injection_eval.py) 组装真实模型与固定批准；[injection_capture.py](../scripts/injection_capture.py) 只装饰 ModelClient；[injection_report.py](../scripts/injection_report.py) 复用 SessionLog 验证，不启动应用。捕获或执行失败后保留已知事实，报告不修复、不重跑。契约与人工验收边界见 [成对评估](injection-evaluation.md)。
 
 ## B01 连续失败策略与生产接入
 
