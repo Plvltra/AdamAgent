@@ -2,38 +2,18 @@
 
 import json
 from collections.abc import Callable
-from dataclasses import dataclass
 from functools import partial
 from typing import Any
 
 from adam.contracts.cancellation import CancellationToken
-from adam.contracts.errors import (
-    ApprovalDeniedError,
-    BudgetError,
-    FailureCode,
-)
+from adam.contracts.errors import ApprovalDeniedError
+from adam.contracts.execution import ToolBudget
 from adam.contracts.hooks import HookService
 from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.invocation import ToolInvocation
 from adam.tool_calls.registry import PreparedAction, ToolRegistry
 from adam.tool_calls.scheduler import ToolResult, ToolScheduler, ToolTask
-
-
-@dataclass
-class ToolBudget:
-    """单轮专用编辑额度；每次派发前占用，参数错误或写入失败也不退还。"""
-
-    max_edit_attempts: int
-    edit_attempts: int = 0
-
-    def consume(self, name: str) -> None:
-        """超限时在开始记录、确认与文件操作之前停止；普通工具不消耗编辑额度。"""
-        if name != "replace_text":
-            return
-        if self.edit_attempts >= self.max_edit_attempts:
-            raise BudgetError("达到本轮编辑尝试次数上限。", code=FailureCode.EDIT_LIMIT)
-        self.edit_attempts += 1
 
 
 class ToolExecutor:

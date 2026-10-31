@@ -1,6 +1,6 @@
 # 业务功能测试任务
 
-更新日期：2026-10-30
+更新日期：2026-10-31
 
 这里按用户可见的能力组织自动化验收。功能模块改名后，仍能按“会话恢复”“命令执行”等业务名称找到对应测试。每个文件包含可独立运行的 pytest 场景；参数化场景展开为多个用例。
 
@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T9.1 单轮录制 | 原模型/工具/流式/计划与会话增量、凭据排除、失败不重跑、显示异常及保存失败保留原异常；46项新增场景 | [test_turn_recording.py](test_turn_recording.py)、[格式与上限](../test_recordings.py) |
 | T8.3 附件整体验收 | 相同日志输入对照、读取超预算、实际发布故障、备份迁移、四个真实强杀边界且不重跑；8项场景 | [test_artifact_acceptance.py](test_artifact_acceptance.py)、[test_artifact_recovery.py](test_artifact_recovery.py)、[进程入口](support/artifact_worker.py) |
 | T8.2 工具附件 | 真实长命令与目录、预览/分页、来源/日志故障、主子隔离、关闭/参数及重启；34项新增场景 | [test_tool_artifacts.py](test_tool_artifacts.py)、[test_artifact_subagents.py](test_artifact_subagents.py)、[test_artifact_arguments.py](test_artifact_arguments.py)、[配置与来源](../test_artifact_integration.py) |
 | T8.1 附件存储 | 长文本重启分页、完整性/配额、固定版本、会话隔离、真实 IO 故障和并发；当前为显式存储 API | [test_artifact_storage.py](test_artifact_storage.py)、[格式边界](../test_artifacts.py) |

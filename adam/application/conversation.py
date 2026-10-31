@@ -22,17 +22,16 @@ from adam.contracts.errors import (
     StorageError,
     TurnSaveError,
 )
-from adam.contracts.execution import ExecutionMode
+from adam.contracts.execution import ExecutionMode, ToolBudget
 from adam.contracts.history import Summary
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import ExecutionReport, ModelOutput, Session
 from adam.contracts.planning import TaskPlanner
-from adam.contracts.ports import ModelClient
+from adam.contracts.ports import ModelClient, ToolRunner
 from adam.contracts.rules import ProjectRules
 from adam.contracts.skills import SkillSelection
 from adam.session.outcome import ExecutionOutcome
 from adam.session.storage import SessionStore
-from adam.tool_calls.executor import ToolBudget, ToolExecutor
 
 
 @dataclass
@@ -55,7 +54,7 @@ class Conversation:
         store: SessionStore,
         client: ModelClient,
         system_prompt: str,
-        tools: ToolExecutor,
+        tools: ToolRunner,
         limits: AgentConfig,
         *,
         model: str,

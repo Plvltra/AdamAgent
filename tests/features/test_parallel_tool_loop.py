@@ -13,12 +13,12 @@ import pytest
 from adam.application.conversation import Conversation
 from adam.bootstrap import build_application
 from adam.contracts.errors import ApprovalDeniedError, StorageError, ToolCleanupError
-from adam.contracts.execution import ExecutionMode, ToolCapability
+from adam.contracts.execution import ExecutionMode, ToolBudget, ToolCapability
 from adam.hooks.runner import HookRunner
 from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
 from adam.tool_calls.catalog import schema
-from adam.tool_calls.executor import ToolBudget, ToolExecutor
+from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
 from adam.tool_calls.file_tools import FileTools
 from tests.features.test_memory_context import config_at

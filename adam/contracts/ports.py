@@ -1,8 +1,9 @@
-"""应用使用的能力接口；模型适配器与技能加载器分别实现，不向界面暴露底层配置。"""
+"""应用使用的模型、工具与技能接口；适配器各自实现，不向界面暴露底层配置。"""
 
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from adam.contracts.execution import ToolBudget
 from adam.contracts.models import Completion, ModelOutput
 from adam.contracts.skills import SkillListing, SkillSelection
 
@@ -24,6 +25,25 @@ class ModelClient(Protocol):
         on_output: Callable[[ModelOutput], None] | None = None,
     ) -> Completion:
         """取得一次模型响应；失败时抛出携带已知用量的 LLMError。"""
+        ...
+
+
+class ToolRunner(Protocol):
+    """提供工具说明并执行有来源的批次；允许在不改主循环时装饰录制或离线结果。"""
+
+    def definitions(self) -> list[dict[str, Any]]:
+        """返回实际工具说明，不执行工具。"""
+        ...
+
+    def execute(
+        self,
+        session_id: str,
+        turn_id: str,
+        request_id: str,
+        calls: list[dict[str, Any]],
+        budget: ToolBudget,
+    ) -> list[dict[str, Any]]:
+        """沿用共享编辑额度，返回按调用 ID 配对的工具消息；失败保持原异常。"""
         ...
 
 

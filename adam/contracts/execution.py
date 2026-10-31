@@ -1,8 +1,25 @@
-"""运行模式与工具能力声明；来自可信注册代码，不从模型参数或工具描述推断权限。"""
+"""运行模式、工具能力与单轮编辑额度；权限来自可信注册代码，不从模型参数或描述推断。"""
 
+from dataclasses import dataclass
 from enum import StrEnum
 
-from adam.contracts.errors import ToolModeError
+from adam.contracts.errors import BudgetError, FailureCode, ToolModeError
+
+
+@dataclass
+class ToolBudget:
+    """单轮专用编辑额度；每次派发前占用，参数错误或写入失败也不退还。"""
+
+    max_edit_attempts: int
+    edit_attempts: int = 0
+
+    def consume(self, name: str) -> None:
+        """超限时在开始记录、确认与文件操作之前停止；普通工具不消耗编辑额度。"""
+        if name != "replace_text":
+            return
+        if self.edit_attempts >= self.max_edit_attempts:
+            raise BudgetError("达到本轮编辑尝试次数上限。", code=FailureCode.EDIT_LIMIT)
+        self.edit_attempts += 1
 
 
 class ExecutionMode(StrEnum):

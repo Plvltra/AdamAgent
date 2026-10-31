@@ -1,5 +1,7 @@
 # Adam
 
+T9.1 提供显式单轮录制接口，保存实际模型输入、响应、工具结果与会话增量，排除连接凭据。正常聊天不自动录制；离线重放入口仍待 T9.2，见 [录制需求与边界](docs/turn-recording.md)。
+
 T8.1～T8.2 已接入长工具结果附件：先返回预览与固定引用，模型可用 read_artifact 按段读取；主/子会话隔离，命令状态和输出完整性分别保留。[artifacts] 可配置或关闭，见 [附件需求与接口](docs/tool-artifacts.md)。
 
 T7.2 已支持编辑检查点与 `/undo`：标准编辑获批后保存原字节；撤销再次展示逆向 diff，只有当前文件仍匹配修改后版本才允许恢复。独立日志保留来源、失败和未知结果，不请求模型、不撤销任意 shell 命令。T7.3 已通过真实进程强杀、恢复中断与重复撤销整体验收，详见 [修改检查点](docs/edit-checkpoints.md)。
@@ -169,7 +171,8 @@ Ctrl+C 停止当前主任务及其子任务；其他终端不受影响。
 | adam/llm/ | 模型请求、SSE 与可取消 HTTP |
 | adam/session/ | JSONL、锁、状态投影、恢复、委派索引和只读诊断 |
 | adam/tool_calls/ | 工具组装、参数校验、执行、权限和留痕 |
-| adam/contracts/ | 共享数据、错误、模型接口与消息协议 |
+| adam/contracts/ | 共享数据、错误、模型/工具接口与消息协议 |
+| adam/recording/ | 显式单轮录制、配置快照、有界协议与只读加载 |
 
 根目录 `bootstrap.py` 负责组装与资源关闭。启动仍使用 `python -m adam`，只读日志仍使用 `python -m adam.diagnostics <JSONL路径>`。
 

@@ -27,7 +27,7 @@ from adam.contracts.execution import ExecutionMode, ToolCapability
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import CommandRequest, EditPlan
 from adam.contracts.planning import PlanReport
-from adam.contracts.ports import ModelClient
+from adam.contracts.ports import ModelClient, ToolRunner
 from adam.hooks.runner import HookRunner
 from adam.llm.client import LLMClient
 from adam.llm.http_transport import InterruptibleTransport
@@ -68,12 +68,14 @@ def build_application(
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,
     child_client_factory: ChildClientFactory | None = None,
+    decorate_tools: Callable[[ToolRunner], ToolRunner] | None = None,
 ) -> AgentApplication:
     """将已打开的依赖组装为应用，不接管调用方的主存储或主模型资源。
 
     config 只在此拆分；模型密钥仅传给模型适配器，工具只得到权限和资源限制。
     on_tool 接收工具名称；标签、颜色和输出位置由界面决定。
     child_client_factory 在工作线程中创建独立模型资源；未提供时不启用委派。
+    decorate_tools 供宿主显式装饰主轮次工具边界，例如录制；不从配置或模型加载执行代码。
     启用子任务或 MCP 的调用方须在释放主会话锁前调用 application.close；
     组装失败会回收已创建资源，主模型与主存储仍由调用方持有。
     """
@@ -241,7 +243,7 @@ def build_application(
             store,
             client,
             config.system_prompt,
-            executor,
+            decorate_tools(executor) if decorate_tools else executor,
             config.agent,
             model=config.llm.model,
             context_config=config.context,
