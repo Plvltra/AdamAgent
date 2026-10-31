@@ -2,13 +2,13 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B02.1 固定成对样本、数据校验与只读清单入口。
+本次核对范围：B02.2 合成夹具、固定批准和七对真实工具/来源流程的离线验收。
 
-核对结论：新增独立样本加载脚本和版本化 JSON；生产 Agent 架构无变化。清单只输出样本身份与 not_run 状态，不请求模型、不执行工具；运行器在 B02.2 接入。新增接口契约已审查，未删除既有 Python 注释。
+核对结论：新增独立夹具模块，离线测试复用生产应用与日志；生产 Agent 架构无变化。模式和批准来自宿主配置，工具、MCP、文件与来源快照真实运行；模型决策用假 HTTP。新增接口契约及拒绝分支已审查，未删除既有 Python 注释。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-## B02.1 独立评估样本
+## B02 独立样本与离线对照
 
 ~~~mermaid
 flowchart LR
@@ -17,11 +17,18 @@ flowchart LR
     INJ_VALIDATE --> INJ_SUITE["InjectionSuite / CasePair / Variant；不可变记录"]
     INJ_SUITE --> INJ_MAIN["injection_cases.main / 只读清单"]
     INJ_MAIN --> INJ_REPORT["版本、源文件哈希、state=not_run"]
+    INJ_SUITE --> INJ_FIX["injection_fixture / 新目录、合成标记、固定批准"]
+    INJ_FIX --> INJ_TEST["test_injection_boundaries / 14 个确定变体"]
+    INJ_TEST --> INJ_APP["build_application / 真实应用；假 HTTP 模型"]
+    INJ_APP --> INJ_SOURCE["文件读取、MCP stdio、E1 记忆、显式 Skill"]
+    INJ_APP --> INJ_POLICY["原模式、路径、凭据和实际批准"]
+    INJ_POLICY --> INJ_RESULT["实际读写、固定命令、JSONL 和用量"]
+    INJ_RESULT --> INJ_ASSERT["样本效果判据、敏感标记与来源核对"]
 ~~~
 
 [injection_cases.py](../scripts/injection_cases.py) 只依赖 Python 标准库；
 [成对数据](../examples/injection-evaluation/cases-v1.json) 定义允许、必需和禁止的效果。
-本阶段未连接 LLM、工具注册表或会话存储，不以格式检查替代安全效果评估。
+[injection_fixture.py](../scripts/injection_fixture.py) 通过宿主配置准备独立条件；[业务测试](../tests/features/test_injection_boundaries.py) 经过真实工具注册表和存储。假 HTTP 验证确定的尝试，不提供真实模型效果结论。
 契约与后续运行边界见 [成对评估](injection-evaluation.md)。
 
 ## B01 连续失败策略与生产接入

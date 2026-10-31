@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B02.2 成对权限流程 | 14 个变体真实经过文件/MCP/记忆/Skill，模式与实际批准保持；正常读/写/命令成功、敏感内容未泄露、用量/来源记录；11 项夹具保存和批准变更拒绝 | [test_injection_boundaries.py](test_injection_boundaries.py)、[夹具边界](../test_injection_fixture.py) |
 | B02.1 成对评估样本 | 版本/来源哈希、5 类入口与正常读取/编辑/命令判据、只读 CLI、损坏/冲突/伪造变量拒绝；17 项检查，未运行模型效果评估 | [test_injection_cases.py](test_injection_cases.py) |
 | B01.3 循环停止整体验收 | 真实文件版本/批准后冲突、合法复查、并发清理与未交付恢复、双子任务隔离、伪造观察；9 项业务及 2 个真实强杀边界 | [业务验收](test_no_progress_acceptance.py)、[强杀恢复](test_no_progress_recovery.py)、[独立进程](support/no_progress_worker.py) |
 | B01.2 聊天重复失败控制 | 按需工具→提醒→停止、修复/换参、预算/取消/保存失败、反思、长命令附件、子任务阈值与离线重放；12 项业务、11 项适配边界 | [生产场景](test_no_progress_loop.py)、[配置与边界](../test_no_progress_integration.py) |
