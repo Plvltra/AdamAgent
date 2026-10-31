@@ -63,6 +63,15 @@ def create_tool_registry(
             **({} if delegated else {"run_command": commands.encode_result}),
         },
         parallel_handlers={name: _parallel_path_handler(policy, limits, name) for name in readers},
+        groups={
+            **dict.fromkeys(
+                ("file_info", "list_directory", "read_file", "find_files", "search_text"), "files"
+            ),
+            **dict.fromkeys(("git_status", "git_diff", "git_log"), "git"),
+            **dict.fromkeys(("code_structure", "find_definitions", "find_references"), "code"),
+            "replace_text": "editing",
+            "run_command": "commands",
+        },
         capabilities={
             **dict.fromkeys(readers, ToolCapability.READ_ONLY),
             "replace_text": ToolCapability.EDIT_FILE,

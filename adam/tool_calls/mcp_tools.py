@@ -50,6 +50,7 @@ def register_mcp(
                     {name: _handler(connection, tool["name"])},
                     validators={name: validator_for(schema)},
                     capabilities={name: ToolCapability.READ_ONLY},
+                    groups={name: "mcp"},
                 )
             except ValueError as error:
                 raise ToolError("MCP 工具名称冲突；未覆盖已有工具。") from error

@@ -172,6 +172,7 @@ def build_application(
                 handlers(manager),
                 {"wait_agents": encode_results},
                 capabilities=dict.fromkeys(DELEGATION_SPECS, ToolCapability.DELEGATE),
+                groups=dict.fromkeys(DELEGATION_SPECS, "agents"),
             )
         planner = (
             PlanningService(store, config.planning, on_change=on_plan, notify=on_notice)
@@ -183,6 +184,7 @@ def build_application(
                 PLANNING_SPECS,
                 planning_handlers(planner),
                 capabilities=dict.fromkeys(PLANNING_SPECS, ToolCapability.SESSION_STATE),
+                groups=dict.fromkeys(PLANNING_SPECS, "planning"),
             )
 
         reflector = (
@@ -195,6 +197,7 @@ def build_application(
                 FEEDBACK_SPECS,
                 feedback_handlers(reflector),
                 capabilities=dict.fromkeys(FEEDBACK_SPECS, ToolCapability.SESSION_STATE),
+                groups=dict.fromkeys(FEEDBACK_SPECS, "reflection"),
             )
 
         reviewer = (
@@ -214,6 +217,7 @@ def build_application(
                 REVIEW_SPECS,
                 review_handlers(reviewer),
                 capabilities=dict.fromkeys(REVIEW_SPECS, ToolCapability.DELEGATE),
+                groups=dict.fromkeys(REVIEW_SPECS, "review"),
                 path_selectors={
                     "request_review": lambda args: tuple(
                         Path(path) for path in args["paths"] if isinstance(path, str)

@@ -74,4 +74,5 @@ def register_skills(
             ),
         },
         capabilities={"load_skill": ToolCapability.READ_ONLY},
+        groups={"load_skill": "skills"},
     ), library

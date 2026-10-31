@@ -59,6 +59,7 @@ def register_submission(registry: ToolRegistry, service: ProposalSubmitter) -> T
         SUBMIT_SPEC,
         {"submit_proposal": submit},
         capabilities={"submit_proposal": ToolCapability.SESSION_STATE},
+        groups={"submit_proposal": "proposals"},
     )
 
 
@@ -76,4 +77,5 @@ def register_review(registry: ToolRegistry, service: ProposalReviewer) -> ToolRe
             "apply_proposal": ToolCapability.EDIT_FILE,
         },
         path_selectors={"apply_proposal": lambda args: (Path(args["path"]),)},
+        groups={"collect_proposals": "proposals", "apply_proposal": "editing"},
     )

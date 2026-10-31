@@ -73,6 +73,7 @@ def register_documents(
         {"search_documents": adapter.search_documents},
         {"search_documents": encode_result},
         capabilities={"search_documents": ToolCapability.READ_ONLY},
+        groups={"search_documents": "documents"},
     )
 
 

@@ -43,6 +43,7 @@ class ToolArtifacts:
             {"read_artifact": _SPEC},
             {"read_artifact": self.read},
             capabilities={"read_artifact": ToolCapability.READ_ONLY},
+            groups={"read_artifact": "artifacts"},
         )
 
     def encode(

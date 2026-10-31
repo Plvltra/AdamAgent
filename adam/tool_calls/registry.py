@@ -11,6 +11,7 @@ from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ToolDeferredError, ToolError, ToolHookError, ToolModeError
 from adam.contracts.execution import ExecutionMode, ToolCapability, check_tool_mode
 from adam.contracts.models import ExecutionRecorder
+from adam.tool_calls.discovery import ToolDirectory, validate_groups
 
 ToolHandler = Callable[[dict[str, Any], ExecutionRecorder | None], dict[str, Any]]
 ParallelHandler = Callable[[dict[str, Any], CancellationToken], dict[str, Any]]
@@ -38,12 +39,15 @@ class ToolRegistry:
         capabilities: dict[str, ToolCapability] | None = None,
         mode_provider: Callable[[], ExecutionMode] | None = None,
         parallel_handlers: dict[str, ParallelHandler] | None = None,
+        groups: dict[str, str] | None = None,
     ) -> None:
         """说明与实现必须一一对应；可注册编码器、校验器和可信能力声明。
 
         未声明能力按 UNKNOWN 处理；模式提供者只由组装方注入，不接受模型控制。
+        groups 仅供发现目录分组，省略时归入 extensions；分组不改变执行能力或权限。
         parallel_handlers 只接收参数和取消令牌，不接收日志回调；必须是可协作取消的无状态读取。
         """
+        validate_groups(groups or {}, specs)
         if (
             specs.keys() != handlers.keys()
             or (encoders or {}).keys() - specs.keys()
@@ -67,6 +71,7 @@ class ToolRegistry:
         self._path_selectors = path_selectors or {}
         self._guard = guard
         self._capabilities = dict(capabilities or {})
+        self._groups = dict(groups or {})
         self._mode_provider = mode_provider
         self._parallel_handlers = dict(parallel_handlers or {})
 
@@ -80,8 +85,10 @@ class ToolRegistry:
         path_selectors: dict[str, PathSelector] | None = None,
         capabilities: dict[str, ToolCapability] | None = None,
         parallel_handlers: dict[str, ParallelHandler] | None = None,
+        groups: dict[str, str] | None = None,
     ) -> "ToolRegistry":
-        """返回扩展后的独立目录；不覆盖同名工具，也不改变已有目录。"""
+        """返回扩展后的独立目录；不覆盖同名工具，也不改变已有目录和分组。"""
+        validate_groups(groups or {}, specs)
         if (capabilities or {}).keys() - specs.keys() or (
             parallel_handlers or {}
         ).keys() - specs.keys():
@@ -99,6 +106,7 @@ class ToolRegistry:
             capabilities={**self._capabilities, **(capabilities or {})},
             mode_provider=self._mode_provider,
             parallel_handlers={**self._parallel_handlers, **(parallel_handlers or {})},
+            groups={**self._groups, **(groups or {})},
         )
 
     def guarded(self, guard: ExecutionGuard) -> "ToolRegistry":
@@ -116,6 +124,7 @@ class ToolRegistry:
             capabilities=self._capabilities,
             mode_provider=self._mode_provider,
             parallel_handlers=self._parallel_handlers,
+            groups=self._groups,
         )
 
     def with_mode(self, provider: Callable[[], ExecutionMode]) -> "ToolRegistry":
@@ -133,6 +142,7 @@ class ToolRegistry:
             capabilities=self._capabilities,
             mode_provider=provider,
             parallel_handlers=self._parallel_handlers,
+            groups=self._groups,
         )
 
     def definitions(self) -> list[dict[str, Any]]:
@@ -141,6 +151,10 @@ class ToolRegistry:
             {"type": "function", "function": {"name": name, **spec}}
             for name, spec in self._specs.items()
         ]
+
+    def directory(self) -> ToolDirectory:
+        """取得独立的只读说明快照；不携带处理函数、不执行模式提供者或路径检查。"""
+        return ToolDirectory(self._specs, self._capabilities, self._groups)
 
     def capability(self, name: str) -> ToolCapability:
         """返回注册代码声明的能力；未知工具保持 UNKNOWN。"""
