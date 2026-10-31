@@ -3,7 +3,7 @@
 import json
 import os
 import secrets
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -57,8 +57,15 @@ class SessionStore:
     """
 
     @_storage_io()
-    def __init__(self, path: Path) -> None:
-        """建立会话根目录及锁目录；path 是按日期存储 JSONL 的根路径。"""
+    def __init__(
+        self, path: Path, *, identity_provider: Callable[[str, int], str] | None = None
+    ) -> None:
+        """建立会话根目录及锁目录；path 是按日期存储 JSONL 的根路径。
+
+        identity_provider 供宿主录制/重放执行身份，默认安全随机生成；
+        只用于本进程的执行关联，不影响新会话短 ID，模型不能设置该回调。
+        """
+        self.identity_provider = identity_provider
         self.root = path.resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         (self.root / ".locks").mkdir(exist_ok=True)
@@ -303,9 +310,24 @@ class SessionStore:
         _, _, tokens, unknown = self._read(session_id)
         return tokens, unknown
 
+    def new_identity(self, kind: str, size: int) -> str:
+        """分配执行关联 ID；宿主可在轮次外注入来源，返回值仍须为指定字节数的十六进制。"""
+        value = (
+            self.identity_provider(kind, size)
+            if self.identity_provider
+            else secrets.token_hex(size)
+        )
+        if (
+            not isinstance(value, str)
+            or len(value) != size * 2
+            or any(char not in "0123456789abcdef" for char in value)
+        ):
+            raise ValueError("invalid execution identity")
+        return value
+
     def start_turn(self, session_id: str, user_text: str) -> str:
         """先保存用户输入并返回 turn_id；未完成轮次仅供诊断，不进入有效历史。"""
-        turn_id = secrets.token_hex(16)
+        turn_id = self.new_identity("turn", 16)
         self._append(
             session_id, record("turn_started", {"turn_id": turn_id, "user_text": user_text})
         )
@@ -315,7 +337,7 @@ class SessionStore:
         self, session_id: str, turn_id: str, model: str, *, context: dict[str, Any] | None = None
     ) -> str:
         """登记模型请求及可选选择依据，返回 request_id；context 不含完整请求副本。"""
-        request_id = secrets.token_hex(16)
+        request_id = self.new_identity("request", 16)
         self._append(
             session_id,
             record(

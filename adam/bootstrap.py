@@ -1,4 +1,4 @@
-"""唯一的应用组装入口；加载配置，创建依赖并在退出或启动失败时释放资源。"""
+"""真实执行应用的组装入口；加载配置，创建依赖并在退出或启动失败时释放资源。"""
 
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
@@ -69,6 +69,7 @@ def build_application(
     on_plan: Callable[[PlanReport], None] | None = None,
     child_client_factory: ChildClientFactory | None = None,
     decorate_tools: Callable[[ToolRunner], ToolRunner] | None = None,
+    observe_conversation: Callable[[Conversation], None] | None = None,
 ) -> AgentApplication:
     """将已打开的依赖组装为应用，不接管调用方的主存储或主模型资源。
 
@@ -76,6 +77,7 @@ def build_application(
     on_tool 接收工具名称；标签、颜色和输出位置由界面决定。
     child_client_factory 在工作线程中创建独立模型资源；未提供时不启用委派。
     decorate_tools 供宿主显式装饰主轮次工具边界，例如录制；不从配置或模型加载执行代码。
+    observe_conversation 在组装完成后安装宿主观察接口；不从配置或模型加载回调。
     启用子任务或 MCP 的调用方须在释放主会话锁前调用 application.close；
     组装失败会回收已创建资源，主模型与主存储仍由调用方持有。
     """
@@ -258,6 +260,8 @@ def build_application(
             skills=skills.summaries() if skills else (),
             rules=rules,
         )
+        if observe_conversation:
+            observe_conversation(conversation)
         return AgentApplication(
             conversation,
             store,

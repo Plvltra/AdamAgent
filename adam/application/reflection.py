@@ -1,7 +1,6 @@
 """有界反思请求；只产生可追溯建议，不执行工具或自行写入经验库。"""
 
 import json
-import secrets
 from collections.abc import Callable
 from dataclasses import replace
 from functools import partial
@@ -75,7 +74,7 @@ class ReflectionService:
         ):
             raise ToolError("本轮已登记用户纠正。")
         feedback = Feedback(
-            secrets.token_hex(4),
+            self.store.new_identity("feedback", 4),
             self._turn_id,
             previous["turn_id"],
             self._source["request_id"],
@@ -108,7 +107,7 @@ class ReflectionService:
             if tool is None:
                 return None
             pending = Feedback(
-                secrets.token_hex(4),
+                self.store.new_identity("feedback", 4),
                 self._turn_id,
                 self._turn_id,
                 tool["request_id"],
@@ -143,7 +142,7 @@ class ReflectionService:
     ) -> dict[str, Any]:
         """为正常回答保留一次请求；结构无效保留失败记录，存储或未知用量错误继续传播。"""
         record: dict[str, Any] = {
-            "reflection_id": secrets.token_hex(4),
+            "reflection_id": self.store.new_identity("reflection", 4),
             "turn_id": feedback.turn_id,
             "feedback_id": feedback.feedback_id,
             "request_id": None,

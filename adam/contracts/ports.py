@@ -47,6 +47,28 @@ class ToolRunner(Protocol):
         ...
 
 
+class ReviewParticipant(Protocol):
+    """主循环所需的审查状态接口；具体文件检查与子任务协调由实现负责。"""
+
+    session_id: str
+
+    def begin(self, session_id: str, turn_id: str) -> None:
+        """绑定当前轮次。"""
+        ...
+
+    def pending(self) -> bool:
+        """查询是否存在尚未收集的审查。"""
+        ...
+
+    def instructions(self) -> str:
+        """返回当前审查的受控提示。"""
+        ...
+
+    def finish(self) -> None:
+        """执行审查收尾，失败保持原异常。"""
+        ...
+
+
 class SkillProvider(Protocol):
     """应用仅查看目录或选择本轮指导；具体发现、权限和文件读取由加载器负责。"""
 

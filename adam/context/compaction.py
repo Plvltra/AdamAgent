@@ -1,7 +1,6 @@
 """独立的摘要规划与执行；历史始终保留，只有完整提交的摘要参与后续请求。"""
 
 import json
-import secrets
 from collections.abc import Callable
 from contextlib import nullcontext
 from dataclasses import dataclass
@@ -146,7 +145,7 @@ class CompactionService:
         self, session: Session, model: str, plan: CompactionPlan, *, turn_id: str | None
     ) -> Summary:
         """在预留范围内保存独立摘要事件；失败时退出前结算共享消费。"""
-        operation_id = secrets.token_hex(16)
+        operation_id = self.store.new_identity("compaction", 16)
         self.store.append_compaction_event(
             session.session_id,
             "compaction_started",

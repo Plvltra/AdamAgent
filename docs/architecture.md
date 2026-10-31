@@ -2,42 +2,67 @@
 
 最近核对：2026-10-31
 
-本次核对范围：T9.1 显式单轮录制。新增 recording 包、ToolRunner 共享接口及主工具装饰入口；模型与工具沿原流程执行，录制保存真实事件增量并复用 SessionLog 校验。46项新增测试及20项架构约束通过，尚无离线重放入口。
+本次核对范围：T9.2 离线重放与独立入口。CaptureRuntime 记录动态资料、身份及同锁账本快照；ReplayModel/ReplayTools 替代外部动作，ReplayStore 在新目录比较生产流程生成的事件。11项业务场景与116项相关回归通过，Ruff/Pyright 通过；完整检查随本项提交执行。
 
-核对结论：T9.1 的边界通过接口装饰接入，Conversation 不依赖具体 ToolExecutor；ToolBudget 与原注释移至共享契约。新增协议、保存失败及凭据边界说明，重要设计注释已保留或迁移。T8.3 的8项业务验收通过，产品架构无变化，以下图形和调用关系保持；不新增生产故障开关，原注释无需删除或改写。T8.2 在 ToolInvocation 增加可选 ToolArtifacts，注册会话内分页工具并保存实际来源；长结果正文与模型预览分开，34项新增验收通过。ArtifactStore 与共享契约保持独立，Conversation 和 CLI 无结构变化。T7.3 的15项真实进程场景验证既有调用与恢复边界，未新增产品模块或修改图中关系。T7.2 完成标准编辑与撤销接入；EditPlan 保留同次读取的原字节，ToolInvocation 负责保存快照，UndoService 协调当前权限、批准、恢复原字节及独立日志。UndoLog 区分尚未写入与结果未知，SessionStore 统一查询副作用状态；主/子路径访问增加检查点保护。T7.3 真实进程、恢复过程强杀与重复撤销组合验收已完成。T6.3 已按生产组装验证并发结构。并发上限属于每个 ToolExecutor；两个子 Agent 可各执行两个读取，仍使用独立会话和协调线程、共用主会话额度。T6.2 的 ToolExecutor 协调批次，ToolInvocation 负责单次预检、日志和 Hook；ToolScheduler 仅调度，八个内置只读入口获得并发资格。准备、编码、结果保存和 Hook 均在协调线程，工作线程不接收执行日志回调。ToolCleanupError 移入公共错误契约，CLI 和 Conversation 无新增工具分支。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；模型工具的模式判定仍由 ToolRegistry 执行，用户撤销由 UndoService 应用同一模式规则；Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
+核对结论：T9.2 的 recording/runtime.py 是离线组装入口，可依赖 application；应用层不反向依赖录制包。Conversation 通过 ReviewParticipant 访问审查状态，宿主可观察输入起点；实际控制、上下文、计划、反思、摘要和预算仍由生产模块执行。SessionStore 允许可信宿主注入执行身份，正常路径保持随机生成；共享账本观察发生在原锁内。bootstrap 是真实执行组装入口，新增独立 recordings.py 开发入口。原注释保留或更新，未删除有效设计说明。T9.1 的 ToolRunner 与 ToolBudget 边界保持。T8.3 的8项业务验收通过，产品架构无变化，以下图形和调用关系保持；不新增生产故障开关，原注释无需删除或改写。T8.2 在 ToolInvocation 增加可选 ToolArtifacts，注册会话内分页工具并保存实际来源；长结果正文与模型预览分开，34项新增验收通过。ArtifactStore 与共享契约保持独立，Conversation 和 CLI 无结构变化。T7.3 的15项真实进程场景验证既有调用与恢复边界，未新增产品模块或修改图中关系。T7.2 完成标准编辑与撤销接入；EditPlan 保留同次读取的原字节，ToolInvocation 负责保存快照，UndoService 协调当前权限、批准、恢复原字节及独立日志。UndoLog 区分尚未写入与结果未知，SessionStore 统一查询副作用状态；主/子路径访问增加检查点保护。T7.3 真实进程、恢复过程强杀与重复撤销组合验收已完成。T6.3 已按生产组装验证并发结构。并发上限属于每个 ToolExecutor；两个子 Agent 可各执行两个读取，仍使用独立会话和协调线程、共用主会话额度。T6.2 的 ToolExecutor 协调批次，ToolInvocation 负责单次预检、日志和 Hook；ToolScheduler 仅调度，八个内置只读入口获得并发资格。准备、编码、结果保存和 Hook 均在协调线程，工作线程不接收执行日志回调。ToolCleanupError 移入公共错误契约，CLI 和 Conversation 无新增工具分支。T5.3 工具执行与权限结构无变化；诊断只读 HookLog，示例通过既有进程协议运行。T5.2 在工具边界增加可选前置/后置检查；Conversation 和 CLI 不判断 Hook 事件，检查进程与 JSONL 协调分属独立模块。T4.2 的用户模式控制与子任务快照关系保持；模型工具的模式判定仍由 ToolRegistry 执行，用户撤销由 UndoService 应用同一模式规则；Conversation 不判断工具名称。以下已有能力关系保持：ExperienceService 连接会话候选与项目记忆；CLI 经 facade 调用，不接触两种存储。MemoryRecord 保存可选经验来源，更新/删除保留来源，MemoryStore 在锁内去重。两个文件间失败由来源对账，不自动重放模型。聊天物理请求移入 RequestRunner，ReflectionService 共用登记、预算、取消与结算；SessionLog 增加专门来源校验和 ReflectionLog。主循环整批工具保存后调用 ReflectionService；bootstrap 仅给主应用注册 report_feedback。ContextBuilder 接收本轮反思参考资料并计入预算，SessionLog 校验其真实来源，CLI 预览展示对应估算。验证主计划工具与委派共存，子应用没有计划工具；完成依据来自实际工具、编辑、命令及子结果。CLI 通过应用查询 PlanReport；工具结果落盘后的回调负责展示，展示异常不进入工具错误转换。Conversation 通过 TaskPlanner 判断待办和一次提醒，固定提醒仅作用于当前进行中的轮次。新增 contracts/planning.py 与 session/plan_log.py，计划使用现有日志和恢复，不新增文件存储或独立恢复器。主应用已接入 PlanningService 和 update_plan；追加及回放验证真实工具证据，子应用不注册计划工具。MemoryService 经回调为 Conversation 提供每轮快照，ContextBuilder 计入预算并构造资料消息；请求日志保存版本与内容。管理命令仍经应用接口；SubagentManager 按派发捕获主轮次快照，bootstrap 注入子 Conversation，子工具保护共享记忆目录。MemoryService 仅降级 MemoryStoreError，其他存储与执行错误保持原边界。委派模块结构保持；恢复索引时以完整子 JSONL 为准，已提交回答恢复成功，未完成者标中断且不重发。主任务退出先清理所有子任务；清理失败保留原异常。结果按实际 JSON 长度限制，预览其他会话不引用旧子任务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
 
-## T9 显式单轮录制
+## T9 显式单轮录制与离线重放
 
 ~~~mermaid
 flowchart LR
-    REC_HOST["显式宿主 / 选定一次 send"] --> REC_SEED["capture_seed / 流程配置白名单"]
-    REC_SEED --> REC_STORE["SessionStore / 持锁历史与事件"]
-    REC_HOST --> REC_WRITER["RecordingWriter / 排他创建、容量与同步"]
-    REC_HOST --> REC_RUN["TurnRecorder / 单轮与调用边界"]
-    REC_RUN --> REC_WRITER
-    REC_RUN -->|"事件增量"| REC_STORE
-    REC_WRITER --> REC_TRACE["TraceState / JSON、顺序与来源"]
-    REC_TRACE --> REC_LOG["SessionLog / 原会话语义"]
-    REC_WRITER --> REC_FILE["独立录制 JSONL"]
-    REC_CONV["Conversation / RequestRunner 等"] --> REC_MODEL_PORT["ModelClient"]
-    REC_CONV --> REC_TOOL_PORT["ToolRunner"]
-    REC_MODEL["RecordingModel"] -.->|"实现"| REC_MODEL_PORT
-    REC_MODEL --> REC_REAL_MODEL["原模型客户端"]
-    REC_MODEL --> REC_RUN
-    REC_TOOL["RecordingTools"] -.->|"实现"| REC_TOOL_PORT
-    REC_TOOL --> REC_REAL_TOOL["原 ToolExecutor"]
-    REC_TOOL --> REC_RUN
-    REC_BOOT["bootstrap.decorate_tools / 宿主可选装饰"] --> REC_TOOL
-    REC_READ["read_recording / 只读有界加载"] --> REC_FILE
-    REC_READ --> REC_TRACE
+    ENTRY["recordings.py / record"] --> BOOT["bootstrap / 真实应用组装"]
+    ENTRY --> SEED["capture_seed / 配置白名单与持锁历史"]
+    ENTRY --> RUN["TurnRecorder / 单轮边界"]
+    BOOT --> CAP["CaptureRuntime / 宿主观察接口"]
+    CAP --> INPUT["Conversation.observe_input"]
+    CAP --> ENV["规则、记忆、模式、委派、审查、Skill 资料"]
+    CAP --> IDS["SessionStore.identity_provider"]
+    CAP --> ACCOUNT["SessionAccount / SharedTokenBudget 锁内快照"]
+    BOOT --> REAL["原 Conversation / RequestRunner"]
+    REAL --> RM["RecordingModel / 原 ModelClient"]
+    REAL --> RT["RecordingTools / 原 ToolExecutor"]
+    RM --> RUN
+    RT --> RUN
+    CAP --> RUN
+    SEED --> WRITER["RecordingWriter / 排他写入与 fsync"]
+    RUN --> WRITER
+    RUN --> STORE["原 SessionStore / 实际会话增量"]
+    WRITER --> TRACE["TraceState / 格式、顺序、来源"]
+    TRACE --> LOG["SessionLog / 会话语义"]
+    WRITER --> FILE["录制 JSONL"]
+
+    REPLAY["recordings.py / replay"] --> LOAD["read_recording / 只读校验"]
+    LOAD --> FILE
+    LOAD --> TRACE
+    REPLAY --> RUNTIME["build_replay / 纯离线组装"]
+    RUNTIME --> FLOW["生产 Conversation、请求、上下文、计划、反思、摘要"]
+    FLOW --> MODEL["ReplayModel"]
+    FLOW --> TOOLS["ReplayTools"]
+    FLOW --> OBS["外部资料与协作观察适配器"]
+    FLOW --> BUDGET["ReplayAccount / 真实 SharedTokenBudget"]
+    MODEL --> TAPE["ReplayTape / 次序、完整输入及首次差异"]
+    TOOLS --> TAPE
+    OBS --> TAPE
+    BUDGET --> TAPE
+    FLOW --> RS["ReplayStore / 比较内部生成事件"]
+    TOOLS -->|"导入原工具事实并消费 ToolBudget"| RS
+    RS --> LOG
+    RS --> DIAG["全新诊断 JSONL"]
+    TAPE --> REPORT["report.json / 状态、首次差异、实际原因"]
 ~~~
 
-录制装饰器保留原权限、工具并发、状态、错误与额度。Conversation 依赖共享 ToolRunner，
-ToolBudget 与原说明一起移入 contracts/execution.py；正常组装仍使用原执行器。
-录制明确结束不等于业务成功，未完成文件只能读取已知前缀；目前仅有显式 API，重放入口待 T9.2，
-见 [录制需求与边界](turn-recording.md)。图中不包含尚未实现的重放器。
+录制装饰器保留原审批、并发、错误和额度；资料是只读数据，不是可执行配置。
+ReviewParticipant 声明主循环所需审查接口，实际 ReviewService 与离线观察适配器分别实现。
+主流程及预算重新执行，模型/工具实现、子任务调度和外部资料读取由录制结果替代。
+ReplayStore 复用生产验证、持锁及写入，仅导入工具拥有的事件，其余事件由实际主流程生成并比较。
+
+身份在生成位置取回，避免随机 ID 造成虚假差异；时钟和受控错误说明不参与精确比较。
+共享账本保留当时其他成员消费与预留，主成员消费取自诊断日志。输出目录必须全新，原会话及录制只读。
+matched 表示轨迹一致，可能对应一轮完整记录的业务失败；导入工具事件不会重新执行动作。
+完整边界与命令见 [录制与重放](turn-recording.md)。T9.3 的完整故障矩阵尚待验收，图不表示已经完成。
+
 
 ## T8 工具结果附件与按需读取
 
@@ -631,12 +656,18 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [session/delegation.py](../adam/session/delegation.py) | DelegationStore | 原子持久化成员与历次派发索引 |
 | [contracts/delegation.py](../adam/contracts/delegation.py) | RequestAccount、Delegation、DelegationTools | 共享额度和委派流程接口，避免工具反向依赖应用 |
 | [tool_calls/delegation_tools.py](../adam/tool_calls/delegation_tools.py) | SPECS、handlers | 委派工具说明与参数适配 |
-| [contracts/ports.py](../adam/contracts/ports.py) | `ModelClient`、`ToolRunner`、`SkillProvider` | 应用所需模型、工具批次与技能选择接口 |
+| [contracts/ports.py](../adam/contracts/ports.py) | `ModelClient`、`ToolRunner`、`ReviewParticipant`、`SkillProvider` | 应用所需模型、工具批次、审查状态与技能选择接口 |
 | [contracts/execution.py](../adam/contracts/execution.py) | `ExecutionMode`、`ToolCapability`、`ToolBudget` | 可信能力声明、模式限制与单轮编辑额度 |
 | [recording/snapshot.py](../adam/recording/snapshot.py) | `capture_seed`、`validate_seed` | 选定轮次的历史与非凭据配置白名单 |
 | [recording/capture.py](../adam/recording/capture.py) | `TurnRecorder`、`RecordingModel`、`RecordingTools` | 装饰原调用，采集输入/结果/流式/实际日志，不替换动作 |
 | [recording/format.py](../adam/recording/format.py) | `RecordingLimits`、`TraceState` | 有界 JSON、事件顺序、模型协议与工具来源校验 |
 | [recording/journal.py](../adam/recording/journal.py) | `RecordingWriter`、`read_recording` | 独立文件排他创建、同步写入和只读前缀加载 |
+| [recordings.py](../adam/recordings.py) | `record_turn`、`main` | 独立 record / inspect / replay 入口与资源管理 |
+| [recording/runtime.py](../adam/recording/runtime.py) | `CaptureRuntime`、`ReplayAccount`、`build_replay`、`replay_turn` | 资料观察、同锁额度快照、真实内部流程组装及报告 |
+| [recording/environment.py](../adam/recording/environment.py) | `ObservedRules`、`ObservedDelegation`、`ObservedReview` | 冻结外部来源及状态，保持主流程接口 |
+| [recording/replay.py](../adam/recording/replay.py) | `ReplayTape`、`ReplayDifference` | 精确比较全局调用、参数和完整终态，固定首次差异 |
+| [recording/replay_adapters.py](../adam/recording/replay_adapters.py) | `ReplayModel`、`ReplayTools` | 返回录制外部结果，零真实网络和工具动作 |
+| [recording/replay_store.py](../adam/recording/replay_store.py) | `ReplayStore` | 独立诊断写入、内部事件比较及原工具事实导入 |
 | [tool_calls/factory.py](../adam/tool_calls/factory.py) | `create_tool_registry` | 组装内置工具和编码器 |
 | [tool_calls/catalog.py](../adam/tool_calls/catalog.py) | `SPECS` | 模型可见的工具说明 |
 | [config/loader.py](../adam/config/loader.py) | `load_config`、`load_llm_config` | 加载并校验运行配置，区分模型连接、循环/消费限额及单次输入预算 |

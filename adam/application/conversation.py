@@ -9,7 +9,6 @@ from typing import Any
 from adam.application.reflection import ReflectionService
 from adam.application.request_policy import RequestPolicy
 from adam.application.request_runner import RequestRunner, save_failure
-from adam.application.review import ReviewService
 from adam.config.settings import AgentConfig, ContextConfig
 from adam.context.builder import ContextBuilder, RequestContext
 from adam.context.compaction import CompactionService
@@ -27,7 +26,7 @@ from adam.contracts.history import Summary
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import ExecutionReport, ModelOutput, Session
 from adam.contracts.planning import TaskPlanner
-from adam.contracts.ports import ModelClient, ToolRunner
+from adam.contracts.ports import ModelClient, ReviewParticipant, ToolRunner
 from adam.contracts.rules import ProjectRules
 from adam.contracts.skills import SkillSelection
 from adam.session.outcome import ExecutionOutcome
@@ -64,7 +63,7 @@ class Conversation:
         delegation: Delegation | None = None,
         planning: TaskPlanner | None = None,
         reflection: ReflectionService | None = None,
-        review: ReviewService | None = None,
+        review: ReviewParticipant | None = None,
         cancel: CancellationToken | None = None,
         on_turn_started: Callable[[str], None] | None = None,
         memory_provider: Callable[[str, int], MemorySelection] | None = None,
@@ -72,6 +71,7 @@ class Conversation:
         rules: ProjectRules | None = None,
         mode_provider: Callable[[], ExecutionMode] | None = None,
     ) -> None:
+        self.observe_input: Callable[[str, SkillSelection | None], None] | None = None
         self.store = store
         self.client = client
         self.system_prompt = system_prompt
@@ -124,6 +124,7 @@ class Conversation:
 
         输入、请求和工具轨迹独立留痕；失败轮次不加入有效历史。
         selected_skill 是用户为本轮指定的只读正文快照，计入输入预算，不粘贴到成功历史。
+        observe_input 是宿主可选的起点观察者；失败时尚未登记本轮或发起外部动作。
         已知失败遵循 AgentError 契约：预算问题为 BudgetError，模型问题为 LLMError；
         回答生成后保存失败为携带 partial_reply 的 TurnSaveError。
         请求与轮次分别收尾，保存稳定原因码和单调时钟耗时；原始异常继续传播。
@@ -133,6 +134,9 @@ class Conversation:
         意外的程序错误继续向上传播。
         """
         self._last_turn = None
+        # 宿主可在任何请求和动作之前记录完整调用起点；没有观察者时沿原路径执行。
+        if self.observe_input:
+            self.observe_input(text, selected_skill)
         session = self.session or self.new(text[:40])
         turn_id = self.store.start_turn(session.session_id, text)
         self._last_turn = (session.session_id, turn_id)

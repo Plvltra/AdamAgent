@@ -44,6 +44,42 @@ class TurnRecorder:
         finally:
             self._running = False
 
+    @property
+    def active(self) -> bool:
+        """仅选定轮次执行期间为真；组装、目录预览与关闭资源不属于该轮录制。"""
+        return self._running
+
+    def exchange(
+        self,
+        channel: str,
+        operation: str,
+        arguments: dict[str, Any],
+        action: Callable[[], _Result],
+    ) -> _Result:
+        """采集宿主资料接口的实际结果；原动作失败仍保留原异常，不把数据当执行代码。"""
+        self._require_active()
+        try:
+            value = action()
+        except BaseException as error:
+            failure = error_record(error)
+            self._preserve_failure(
+                lambda: self.observe(
+                    channel,
+                    {
+                        "operation": operation,
+                        "input": arguments,
+                        "value": None,
+                        "error": failure,
+                    },
+                ),
+                error,
+            )
+            raise
+        self.observe(
+            channel, {"operation": operation, "input": arguments, "value": value, "error": None}
+        )
+        return value
+
     def observe(self, channel: str, value: dict[str, Any]) -> None:
         """记录本轮运行资料的快照；通道由宿主指定，内容不成为可执行配置。"""
         self._require_active()
@@ -191,11 +227,16 @@ class TurnRecorder:
 class RecordingTools:
     """保留原执行器的参数校验、权限、并发和日志，仅在批次两侧采集记录。"""
 
-    def __init__(self, delegate: ToolRunner, recorder: TurnRecorder) -> None:
+    def __init__(
+        self, delegate: ToolRunner, recorder: TurnRecorder, *, observe_definitions: bool = False
+    ) -> None:
         self._delegate, self._recorder = delegate, recorder
+        self._observe_definitions = observe_definitions
 
     def definitions(self) -> list[dict[str, Any]]:
-        """返回原目录，不因录制增加、隐藏或过滤模型可用工具。"""
+        """返回原目录，不增加、隐藏或过滤工具；完整运行录制可同时采集目录查询。"""
+        if self._observe_definitions and self._recorder.active:
+            return self._recorder.exchange("context", "tools", {}, self._delegate.definitions)
         return self._delegate.definitions()
 
     def execute(

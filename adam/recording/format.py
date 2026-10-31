@@ -386,3 +386,16 @@ class TraceState:
     @staticmethod
     def output(call_id: int, output: ModelOutput) -> dict[str, Any]:
         return {"call_id": call_id, "kind": output.kind, "text": output.text}
+
+
+def validate_exchange(value: object) -> None:
+    """校验资料调用的输入、结果及受控错误；内容只作数据，不按名称动态导入或调用。"""
+    item = _fields(value, {"operation", "input", "value", "error"})
+    if not isinstance(item["operation"], str) or not item["operation"]:
+        raise ValueError("invalid observation operation")
+    if not isinstance(item["input"], dict):
+        raise ValueError("invalid observation input")
+    if item["error"] is not None:
+        _error(item["error"])
+        if item["value"] is not None:
+            raise ValueError("failed observation has a result")
