@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T9.3 重放整体验收 | 完整失败/未知用量、流式、首次差异/缺失优先级、真实编辑、保存故障及五个真实强杀边界；25项新增场景 | [test_turn_replay_acceptance.py](test_turn_replay_acceptance.py)、[test_recording_recovery.py](test_recording_recovery.py)、[强杀入口](support/recording_worker.py) |
 | T9.2 离线重放 | 计划/反思/摘要真实运行、共享预算、子任务与审查、记忆规则和 Skill 冻结、首个差异、CLI 关闭及独立进程零外部动作；11项场景 | [test_turn_replay.py](test_turn_replay.py) |
 | T9.1 单轮录制 | 原模型/工具/流式/计划与会话增量、凭据排除、失败不重跑、显示异常及保存失败保留原异常；46项新增场景 | [test_turn_recording.py](test_turn_recording.py)、[格式与上限](../test_recordings.py) |
 | T8.3 附件整体验收 | 相同日志输入对照、读取超预算、实际发布故障、备份迁移、四个真实强杀边界且不重跑；8项场景 | [test_artifact_acceptance.py](test_artifact_acceptance.py)、[test_artifact_recovery.py](test_artifact_recovery.py)、[进程入口](support/artifact_worker.py) |

@@ -8,7 +8,7 @@ from typing import Any
 
 from adam.contracts.execution import ToolBudget
 from adam.recording.format import RecordingError
-from adam.recording.replay import ReplayIncompleteError, ReplayTape
+from adam.recording.replay import ReplayTape
 from adam.session.log import decode_records
 from adam.session.storage import SessionStore
 
@@ -87,7 +87,7 @@ class ReplayStore(SessionStore):
             if index >= len(self.tape.session_events):
                 if self.tape.recording.complete:
                     self.tape.fail(f"$.session_events[{index}]", "<end>", comparable_event(event))
-                raise ReplayIncompleteError("录制没有这一步的会话事件，保留独立诊断前缀。")
+                self.tape.stop_incomplete("录制没有这一步的会话事件，保留独立诊断前缀。")
             self.tape.compare(
                 comparable_event(self.tape.session_events[index]),
                 comparable_event(event),

@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, TypeVar, cast
+from typing import Any, NoReturn, TypeVar, cast
 
 from adam.contracts.errors import (
     AgentError,
@@ -90,12 +90,13 @@ def restore_error(value: dict[str, Any]) -> BaseException:
 
 
 class ReplayTape:
-    """录制游标和首次差异；模型、工具及资料接口共用，不能各自跳到想要的结果。"""
+    """录制游标及首次停止原因；模型、工具与资料共用，不跳过缺失继续猜测。"""
 
     def __init__(self, recording: Recording) -> None:
         self.recording = recording
         self.position = 1
         self.difference: ReplayDifference | None = None
+        self._incomplete: ReplayIncompleteError | None = None
         self.session_events = deepcopy(recording.seed["session_events"])
         self.session_offsets: dict[int, int] = {}
         for event in recording.events[1:]:
@@ -107,6 +108,7 @@ class ReplayTape:
         self, expected: object, actual: object, path: str, *, sequence: int | None = None
     ) -> None:
         """发现差异时固定首个位置；后续清理中的错误不能覆盖原始诊断。"""
+        self._check_stopped()
         difference = first_difference(expected, actual, path)
         if difference is not None:
             self.fail(*difference, sequence=sequence)
@@ -115,16 +117,24 @@ class ReplayTape:
         self, path: str, expected: object, actual: object, *, sequence: int | None = None
     ) -> None:
         """记录并抛出首次差异，供不同适配器共享同一停止原因。"""
+        self._check_stopped()
         if self.difference is None:
             self.difference = ReplayDifference(
                 self.position if sequence is None else sequence, path, expected, actual
             )
         raise ReplayMismatchError(self.difference)
 
+    def stop_incomplete(self, message: str) -> NoReturn:
+        """固定缺失边界；后续清理不能将缺失升级成不同轨迹，也不能覆盖更早差异。"""
+        self._check_stopped()
+        self._incomplete = ReplayIncompleteError(message)
+        raise self._incomplete
+
     def peek(self) -> dict[str, Any]:
         """查看下一条；数据缺失直接停止，不用空结果或成功占位。"""
+        self._check_stopped()
         if self.position >= len(self.recording.events):
-            raise ReplayIncompleteError(f"录制在第 {self.position} 条之前结束，无法继续重放。")
+            self.stop_incomplete(f"录制在第 {self.position} 条之前结束，无法继续重放。")
         return self.recording.events[self.position]
 
     def take(self, kind: str) -> dict[str, Any]:
@@ -191,8 +201,7 @@ class ReplayTape:
 
     def finish(self, reply: str | None, error: BaseException | None) -> None:
         """核对实际终态并要求录制完整消费；有结尾不表示业务本身成功。"""
-        if self.difference is not None:
-            raise ReplayMismatchError(self.difference)
+        self._check_stopped()
         event = self.take("recording_finished")
         self.compare(event["data"]["reply"], reply, "$.reply", sequence=event["seq"])
         self.compare(
@@ -202,4 +211,11 @@ class ReplayTape:
             sequence=event["seq"],
         )
         if not self.recording.complete or self.position != len(self.recording.events):
-            raise ReplayIncompleteError("录制缺少完整结尾，不能声明整轮重放一致。")
+            self.stop_incomplete("录制缺少完整结尾，不能声明整轮重放一致。")
+
+    def _check_stopped(self) -> None:
+        """资料和日志共用首次停止原因；异常收尾不再推进录制游标。"""
+        if self.difference is not None:
+            raise ReplayMismatchError(self.difference)
+        if self._incomplete is not None:
+            raise self._incomplete

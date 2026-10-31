@@ -1,6 +1,6 @@
 # Adam
 
-T9.1～T9.2 提供显式单轮录制与离线重放：`python -m adam.recordings record/inspect/replay`。重放在全新诊断目录运行主流程和预算，不重复真实模型请求、命令或文件修改；报告首个轨迹差异。正常聊天不自动录制，使用示例和边界见 [录制与重放](docs/turn-recording.md)。
+T9 已完成单轮录制、离线重放与故障验收，开发入口：`python -m adam.recordings record/inspect/replay`。重放在全新诊断目录运行主流程和预算，不重复真实模型请求、命令或文件修改；报告首个轨迹差异。正常聊天不自动录制，使用示例和边界见 [录制与重放](docs/turn-recording.md)。
 
 T8.1～T8.2 已接入长工具结果附件：先返回预览与固定引用，模型可用 read_artifact 按段读取；主/子会话隔离，命令状态和输出完整性分别保留。[artifacts] 可配置或关闭，见 [附件需求与接口](docs/tool-artifacts.md)。
 
