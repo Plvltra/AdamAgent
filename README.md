@@ -1,5 +1,7 @@
 # Adam
 
+T10.1 提供 Python 结构索引 API：按作用域区分同名定义，保留导入别名、行号和文件版本；有界扫描与刷新已验收。模型工具及引用查询在 T10.2 接入，见 [代码索引需求](docs/python-code-index.md)。
+
 T9 已完成单轮录制、离线重放与故障验收，开发入口：`python -m adam.recordings record/inspect/replay`。重放在全新诊断目录运行主流程和预算，不重复真实模型请求、命令或文件修改；报告首个轨迹差异。正常聊天不自动录制，使用示例和边界见 [录制与重放](docs/turn-recording.md)。
 
 T8.1～T8.2 已接入长工具结果附件：先返回预览与固定引用，模型可用 read_artifact 按段读取；主/子会话隔离，命令状态和输出完整性分别保留。[artifacts] 可配置或关闭，见 [附件需求与接口](docs/tool-artifacts.md)。
@@ -172,6 +174,7 @@ Ctrl+C 停止当前主任务及其子任务；其他终端不受影响。
 | adam/session/ | JSONL、锁、状态投影、恢复、委派索引和只读诊断 |
 | adam/tool_calls/ | 工具组装、参数校验、执行、权限和留痕 |
 | adam/contracts/ | 共享数据、错误、模型/工具接口与消息协议 |
+| adam/code_index/ | Python AST 结构、作用域与导入、有界扫描及按内容版本刷新 |
 | adam/recording/ | 单轮录制、资料快照、离线适配器、真实流程重放与差异报告 |
 | adam/recordings.py | 独立 record / inspect / replay 命令入口 |
 

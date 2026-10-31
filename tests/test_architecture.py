@@ -89,6 +89,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
         ("session", {"session", "contracts"}),
         ("memory", {"memory", "contracts"}),
         ("documents", {"documents", "config", "contracts"}),
+        ("code_index", {"code_index", "contracts"}),
         ("skills", {"skills", "contracts"}),
         ("recording", {"recording", "application", "config", "contracts", "session"}),
         ("rules", {"rules", "contracts"}),
