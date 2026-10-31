@@ -5,6 +5,7 @@ from itertools import groupby
 from typing import Any
 
 from adam.contracts.artifacts import ArtifactRef, decode_artifact_reference
+from adam.contracts.execution import FILE_EDIT_TOOLS
 from adam.contracts.history import HistoryTurn
 from adam.contracts.memory import validate_selection
 from adam.contracts.planning import decode_plan
@@ -18,7 +19,7 @@ from adam.session.hook_log import HookLog
 from adam.session.outcome import outcome_details
 from adam.session.plan_evidence import validate_evidence
 from adam.session.plan_log import PlanLog
-from adam.session.proposal_log import ProposalLog
+from adam.session.proposal_log import ProposalLog, validate_application
 from adam.session.reflection_log import ReflectionLog
 from adam.session.review_log import ReviewLog
 from adam.session.undo_log import UndoLog
@@ -537,16 +538,22 @@ class SessionLog:
         self.plans.apply(payload)
 
     def _apply_edit(self, kind: str, payload: dict[str, Any]) -> None:
-        """编辑事件只能属于已开始的 replace_text；具体状态由 EditLog 校验。"""
+        """编辑事件属于已开始的专用编辑工具；提案来源和具体状态分别校验。"""
         self._require_turn(payload)
         self._require_request(payload)
         tool = self._require_tool(payload)
-        if tool["name"] != "replace_text" or tool["finished"]:
+        if tool["name"] not in FILE_EDIT_TOOLS or tool["finished"]:
             raise ValueError("invalid edit parent")
         edit_id = self._identifier(payload, "edit_id")
         if kind == "edit_planned":
             if tool.get("edit_id") is not None:
                 raise ValueError("duplicate edit for tool")
+            if tool["name"] == "apply_proposal":
+                validate_application(
+                    payload, tool, self.metadata["id"], self.turns, self.edits.operations
+                )
+            elif "proposal" in payload:
+                raise ValueError("ordinary edit cannot claim proposal provenance")
         elif tool.get("edit_id") != edit_id:
             raise ValueError("mismatched edit id")
         self.edits.apply(kind, payload)

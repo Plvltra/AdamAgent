@@ -1,4 +1,4 @@
-"""子会话中的不可变提案投影；保存候选不代表文件已被修改。"""
+"""修改提案的子会话投影与主任务应用来源校验；候选不代表文件已被修改。"""
 
 import json
 from typing import Any
@@ -42,3 +42,38 @@ class ProposalLog:
             raise ValueError("proposal differs from its actual submit arguments")
         validate_proposal_read(proposal, tools)
         self.records[proposal.proposal_id] = proposal
+
+
+def validate_application(
+    payload: dict[str, Any],
+    tool: dict[str, Any],
+    session_id: str,
+    turns: dict[str, dict[str, Any]],
+    edits: dict[str, dict[str, Any]],
+) -> None:
+    """应用计划固定原候选及父工具身份；回放不访问子文件，成功/未知提案不能重复应用。"""
+    proposal = decode_proposal(payload.get("proposal"))
+    arguments = json.loads(tool["arguments"])
+    expected = {
+        "agent_id": proposal.owner.child_session_id,
+        "run_id": proposal.owner.run_id,
+        "proposal_id": proposal.proposal_id,
+        "path": proposal.read.path,
+    }
+    if (
+        arguments != expected
+        or proposal.owner.parent_session_id != session_id
+        or proposal.owner.parent_turn_id not in turns
+        or payload.get("path") != proposal.read.path
+        or payload.get("before_version") != proposal.read.version
+        or payload.get("target_version") != proposal.target_version
+    ):
+        raise ValueError("proposal application source or planned version differs")
+    for edit in edits.values():
+        saved = edit.get("proposal", {})
+        if (
+            saved.get("proposal_id") == proposal.proposal_id
+            and saved.get("owner") == proposal.to_dict()["owner"]
+            and edit["status"] in {"applied", "unknown"}
+        ):
+            raise ValueError("proposal already applied or outcome unknown")

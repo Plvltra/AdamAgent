@@ -13,6 +13,8 @@ from adam.application.facade import AgentApplication
 from adam.application.memories import MemoryService
 from adam.application.modes import ModeController
 from adam.application.planning import PlanningService
+from adam.application.proposal_review import ProposalReview
+from adam.application.proposals import ProposalSubmission
 from adam.application.reflection import ReflectionService
 from adam.application.review import ReviewService
 from adam.application.subagents.account import SessionAccount
@@ -28,6 +30,7 @@ from adam.contracts.memory import MemorySelection
 from adam.contracts.models import CommandRequest, EditPlan
 from adam.contracts.planning import PlanReport
 from adam.contracts.ports import ModelClient, ToolRunner
+from adam.contracts.proposals import ProposalOwner
 from adam.hooks.runner import HookRunner
 from adam.llm.client import LLMClient
 from adam.llm.http_transport import InterruptibleTransport
@@ -49,6 +52,8 @@ from adam.tool_calls.mcp_tools import register_mcp
 from adam.tool_calls.planning_tools import SPECS as PLANNING_SPECS
 from adam.tool_calls.planning_tools import handlers as planning_handlers
 from adam.tool_calls.policy import PathPolicy
+from adam.tool_calls.proposal_tools import register_review as register_proposal_review
+from adam.tool_calls.proposal_tools import register_submission
 from adam.tool_calls.review_tools import SPECS as REVIEW_SPECS
 from adam.tool_calls.review_tools import handlers as review_handlers
 from adam.tool_calls.skill_tools import register_skills
@@ -149,6 +154,19 @@ def build_application(
                 mode_provider=modes.current,
             )
             resources.callback(manager.close)
+            registry = register_proposal_review(
+                registry,
+                ProposalReview(
+                    store,
+                    manager,
+                    EditTools(
+                        PathPolicy(workspace, config.permissions, protected_dirs=protected_dirs),
+                        config.tool_limits,
+                        confirm_edit,
+                    ),
+                    config.tool_limits.max_result_chars,
+                ),
+            )
             registry = registry.extended(
                 DELEGATION_SPECS,
                 handlers(manager),
@@ -309,6 +327,7 @@ def _open_child(
     不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存、检查点和附件，避免绕过范围。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     Hooks 继承用户配置，使用子任务取消令牌；后置故障提示带子任务 ID。
+    辅助子任务可保存有读取依据的提案；审查者不注册此工具，所有子任务均不能应用。
     """
     mode = ExecutionMode(run.execution_mode)
     with SessionStore(root) as store, client_factory(cancel) as client:
@@ -360,6 +379,22 @@ def _open_child(
             registry = registry.guarded(rules.check)
         if artifacts:
             registry = artifacts.register(registry)
+        submission = None
+        if agent.role == "helper":
+            submission = ProposalSubmission(
+                store,
+                ProposalOwner(root.parent.name, run.parent_turn_id, agent.agent_id, run.run_id),
+                PathPolicy(
+                    Path(agent.workspace),
+                    PermissionConfig(
+                        additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)
+                    ),
+                    protected_dirs=(memories_dir, documents_dir, checkpoints_dir, artifacts_dir),
+                ),
+                config.tool_limits,
+                cancel,
+            )
+            registry = register_submission(registry, submission)
         registry = registry.with_mode(lambda: mode)
         conversation = Conversation(
             store,
@@ -370,6 +405,7 @@ def _open_child(
                 registry,
                 lambda _: None,
                 cancel=cancel,
+                before_call=submission.bind_source if submission else None,
                 hooks=(
                     HookRunner(config.hooks, Path(agent.workspace), cancel)
                     if config.hooks.enabled

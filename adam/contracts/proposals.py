@@ -4,7 +4,9 @@ import json
 import re
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
+
+from adam.contracts.models import ExecutionRecorder
 
 MAX_PROPOSALS_PER_TURN = 8
 MAX_PATCH_BYTES = 32768
@@ -122,6 +124,39 @@ class ReadObservation:
     @property
     def text(self) -> str:
         return "\n".join(text for _, text in self.lines)
+
+
+class ProposalSource(Protocol):
+    """宿主核对所属主会话、实际派发和完整成功子轮后提供候选。"""
+
+    def candidates(self, agent_id: str, run_id: str) -> tuple[EditProposal, ...]: ...
+
+
+class ProposalSubmitter(Protocol):
+    """辅助子任务只能保存有读取依据的候选。"""
+
+    def submit(
+        self, read_call_id: str, old_text: str, new_text: str, reason: str
+    ) -> EditProposal: ...
+
+
+class ProposalReviewer(Protocol):
+    """主任务审核工具需要的窄接口；实现负责来源、分页和审批执行。"""
+
+    def collect(
+        self, agent_id: str, run_id: str, index: int = 0, offset: int = 0
+    ) -> dict[str, Any]: ...
+
+    def validate_apply(self, value: object) -> None: ...
+
+    def apply(
+        self,
+        agent_id: str,
+        run_id: str,
+        proposal_id: str,
+        path: str,
+        record: ExecutionRecorder | None,
+    ) -> dict[str, Any]: ...
 
 
 def decode_submission(value: object) -> ProposalEdit:

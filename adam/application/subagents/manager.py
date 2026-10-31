@@ -19,6 +19,7 @@ from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.errors import AgentError, StorageError, ToolError
 from adam.contracts.execution import ExecutionMode
 from adam.contracts.memory import MemorySelection
+from adam.contracts.proposals import EditProposal, ProposalOwner
 from adam.session.delegation import DelegationStore
 from adam.session.storage import SessionStore
 
@@ -203,6 +204,42 @@ class SubagentManager:
             "run": asdict(run),
             "tools": list(tools.values()),
         }
+
+    def candidates(self, agent_id: str, run_id: str) -> tuple[EditProposal, ...]:
+        """读取本主会话已成功结束的辅助子轮候选；索引、成功历史和提交结果都须一致。
+
+        不交付子回复，不从运行中或失败的子任务取候选；同主会话的旧派发可在重启后显式使用。
+        """
+        self._poll()
+        agent = self._get(agent_id)
+        run = next((item for item in agent.runs if item.run_id == run_id), None)
+        if (
+            agent.role != "helper"
+            or agent_id in self._active
+            or run is None
+            or run.status != "completed"
+            or run.child_turn_id is None
+        ):
+            raise ToolError("只能收集已完成辅助子任务的提案；请先 wait_agents 检查结果。")
+        assert self._session_id is not None
+        owner = ProposalOwner(self._session_id, run.parent_turn_id, agent_id, run_id)
+        with SessionStore(self._children_root()) as children:
+            if not any(turn.turn_id == run.child_turn_id for turn in children.load_turns(agent_id)):
+                raise ToolError("子任务没有完整成功历史，不能收集或应用提案。")
+            proposals = children.load_proposals(agent_id, run.child_turn_id)
+            for proposal in proposals:
+                if proposal.owner != owner:
+                    raise ToolError("提案所属派发与实际子任务不符。")
+                tool = children.tool_record(agent_id, proposal.turn_id, proposal.tool_call_id)
+                output = json.loads(tool.get("output", "{}"))
+                if (
+                    not tool["finished"]
+                    or not isinstance(output, dict)
+                    or output.get("ok") is not True
+                    or output.get("proposal_id") != proposal.proposal_id
+                ):
+                    raise ToolError("子任务未确认提案提交成功，不能应用。")
+        return tuple(proposals)
 
     def instructions(self, session_id: str | None) -> str:
         """系统层只补本会话的受控 ID，子回复仅经 tool 结果回传。
@@ -471,6 +508,7 @@ class SubagentManager:
                 "不照抄执行者自评。只能输出委派要求的 JSON 结论，引用本子轮真实 read_file 调用 ID。"
                 "不得修改文件、运行命令或再次委派；没有检查到的内容明确写 incomplete。"
                 if role == "reviewer"
-                else ""
+                else "\n需要修改文件时可先 read_file，再用 submit_proposal 提交一处替换候选；"
+                "向主任务说明提案 ID 和限制，候选不代表修改已完成。"
             )
         )

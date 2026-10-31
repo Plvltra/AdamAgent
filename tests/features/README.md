@@ -8,7 +8,8 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
-| T11.1 修改提案 API | 实际读取/当前权限与版本、分段/BOM/CRLF、伪造/跨轮/截断拒绝、唯一替换、数量、保存失败与重启零写入；27项业务场景，生产工具仍待 T11.2 | [test_edit_proposals.py](test_edit_proposals.py)、[22项协议边界](../test_proposals.py) |
+| T11.2 提案协作与应用 | 实际子线程、批准/检查点/撤销、拒绝/模式/额度、版本/权限、分页、规则/Hook、计划证据/审查限制、保存故障及来源篡改；30项业务场景 | [test_proposal_application.py](test_proposal_application.py) |
+| T11.1 修改提案 API | 实际读取/当前权限与版本、分段/BOM/CRLF、伪造/跨轮/截断拒绝、唯一替换、数量、保存失败与重启零写入；27项 API 业务场景，生产接入见 T11.2 | [test_edit_proposals.py](test_edit_proposals.py)、[22项协议边界](../test_proposals.py) |
 | T10.3 代码定位整体验收 | 真实项目连续定位、无源码执行、重启/轮中故障、权限/规则/Hook/模式/取消/额度及实际子任务；12项场景 | [test_python_code_acceptance.py](test_python_code_acceptance.py) |
 | T10.2 代码查询工具 | 本地导入/词法绑定、遮蔽和动态未知、歧义与版本刷新、完整分页、参数/引用数量限额、真实模型工具流程及日志；32项场景 | [test_python_code_tools.py](test_python_code_tools.py) |
 | T10.1 Python 结构索引 | 真实作用域/别名/位置、同时间戳更新与删除、解析和读取故障、权限撤销、真实链接、取消与资源限额、顶层代码不执行；23项场景 | [test_python_code_index.py](test_python_code_index.py) |

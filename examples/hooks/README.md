@@ -4,7 +4,7 @@
 
 | 示例 | 行为 | 检查范围 |
 | --- | --- | --- |
-| before_protect_directory.py | 拒绝 replace_text 修改指定目录，模板保护 vendor 和 generated | 专用编辑工具；run_command 和其他工具仍按原有权限及审批处理 |
+| before_protect_directory.py | 拒绝 replace_text / apply_proposal 修改指定目录，模板保护 vendor 和 generated | 专用编辑工具；run_command 和其他工具仍按原有权限及审批处理 |
 | after_python_syntax.py | 成功编辑工作目录内的 .py 后，核对实际文件版本并用 ast.parse 检查语法 | 最多1 MiB；不导入或执行目标代码，不证明运行结果正确 |
 
 前置通过仍要经过原有工具权限和人工批准。后置检查发现语法错误时，修改已经发生：退出码非零会产生提示与失败审计，原编辑结果保持 applied，不自动撤销或重做。
@@ -38,3 +38,7 @@
 成功的 note 保存在 Hook 审计中；失败会简短提示，详细原因在 stderr 字段。现有独立诊断入口 python -m adam.diagnostics 接受完整 JSONL 路径，输出每轮 hooks；读取不会启动检查器或修改日志。
 
 这两个脚本是扩展接口的示例。前置目录检查不解析任意 shell 命令；后置语法检查只读取工作目录内的 Python 文件。用户允许在额外目录编辑时，可按自己的检查范围调整示例。Hook 是用户信任的本地程序，其宿主不是操作系统沙箱。
+
+T11.2 的 apply_proposal 在 Hook 前核对 path 与真实候选完全一致，两个示例按相同目录和结果规则处理它。
+提案业务验收见 [test_proposal_application.py](../../tests/features/test_proposal_application.py)，包含前置拒绝、后置失败保留实际修改，以及伪造路径在 Hook 前拒绝。
+仅按工具名称编写的个人检查器需要自行将新入口纳入策略；项目升级不会改写用户脚本。

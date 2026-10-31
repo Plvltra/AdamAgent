@@ -2,11 +2,43 @@
 
 最近核对：2026-10-31
 
-本次核对范围：T11.1 修改提案契约、真实读取依据及保存/重启。新增 contracts/proposals.py、application/proposals.py 与 session/proposal_log.py；read_file 固定实际路径，SessionStore 提供候选接口。生产工具与主任务审批应用未接入；完整检查在本项提交钩子执行。
+本次核对范围：T11.2 生产子提案工具、主任务收集/批准应用及原编辑边界接入。新增 proposal_review.py、proposal_tools.py；原 EditTools 提取共同执行阶段，原编辑额度、计划证据、报告、审查、Hook 与日志一并覆盖。30项业务及75项回归通过，完整检查随本项提交执行。
 
-核对结论：候选校验、文件读取和日志投影分别承担独立职责，Conversation 与 CLI 无新分支。宿主输入派发身份，实际读取与当前权限/版本共同限制提案；只保存候选，不修改目标，不将候选当成子任务成功。原读取说明保留并补充实际路径来源，新增关键接口及失败说明已审查；下图仅展示已实现 API。之前 T10.3 完整检查已通过（9d1c8f5），既有图形和其他模块职责保持。
+核对结论：主/子工具依赖共享窄接口，ProposalReview 通过 SubagentManager 取真实完成候选，再复用 EditTools；Conversation 与 CLI 无新分支。只读子任务不持有批准回调，主日志固定候选与实际编辑事实。replace_text 原批准/检查点/失败注释已迁移到 execute_plan，其余有效说明保留并更新；新增来源、分页和权限契约已审查。T11.1 完整检查已通过（a7f7323）；本次图形反映已接通的生产流程。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。本次问题及修正见 [依赖边界重构](dependency-refactor.md)。
+
+## T11.2 子任务提案与主任务批准应用
+
+~~~mermaid
+flowchart LR
+    PROP_BOOT["bootstrap / 独立主子资源"] --> PROP_CHILD["辅助子 Agent / submit_proposal"]
+    PROP_CHILD --> PROP_SERVICE["ProposalSubmission / 读取证据和候选保存"]
+    PROP_SERVICE --> PROP_CHILDLOG["子会话 JSONL / proposal_submitted"]
+    PROP_BOOT --> PROP_TOOLS["主工具 / collect_proposals 与 apply_proposal"]
+    PROP_TOOLS --> PROP_REVIEW["ProposalReview / 来源、分页、重复及版本检查"]
+    PROP_REVIEW --> PROP_MANAGER["SubagentManager.candidates / 真实派发与成功子轮"]
+    PROP_MANAGER --> PROP_CHILDLOG
+    PROP_TOOLS --> PROP_GUARD["原模式、目录规则和 Hook / 已核对审计路径"]
+    PROP_REVIEW --> PROP_PREPARE["EditTools.prepare / 当前写入权限与唯一替换"]
+    PROP_PREPARE --> PROP_EXECUTE["EditTools.execute_plan / diff 与用户批准"]
+    PROP_EXECUTE --> PROP_INVOCATION["ToolInvocation / 原检查点与编辑事件"]
+    PROP_INVOCATION --> PROP_PARENTLOG["主 JSONL / edit_planned 附带不可变候选"]
+    PROP_PARENTLOG --> PROP_VALIDATE["SessionLog + validate_application + EditLog"]
+    PROP_PARENTLOG --> PROP_UNDO["已有 UndoService / 已成功编辑的撤销"]
+~~~
+
+contracts/proposals.py 增加 ProposalSource、ProposalSubmitter、ProposalReviewer 窄接口，
+tool_calls/proposal_tools.py 只适配参数、能力、规则路径和工具结果，不依赖应用实现。
+application/proposal_review.py 每次从 manager 获取已完成的实际候选，再协调原编辑组件；
+application/proposals.py 保持子任务只保存候选。审查子任务不注册提案工具。
+
+apply_proposal 的 path 必须与真实候选一致，验证通过后供原 Hook 和目录规则审计，
+不用于让模型选择其他目标。编辑字节来自已验证候选；审批、检查点和写入失败语义复用原流程。
+FILE_EDIT_TOOLS 统一编辑额度、状态日志、计划证据、执行报告和审查限制；CLI 与 Conversation 无新分支。
+成功或未知应用都拒绝重复，包括撤销后的旧候选；不另建一套可能与文件事实分离的应用状态。
+详细范围及30项业务验收见 [修改提案](edit-proposals.md)，T11.3 的双子任务和真实进程故障仍待完成。
+
 
 ## T11.1 有读取依据的修改候选
 
@@ -30,8 +62,7 @@ contracts/proposals.py 是纯数据和读取证据校验；session/proposal_log.
 不访问源文件、不授予权限、不把候选当成成功子任务或已应用修改。
 read_file 新增实际路径返回值，与原完整字节版本和可见行共同固定读取来源。
 
-本图只描述已实现的显式 API；生产工具注册、实际父派发核对及审批应用仍待 T11.2，
-不在 Conversation 或 CLI 增加工具名称分支。详细契约见 [修改提案](edit-proposals.md)。
+本图展开子候选保存部分，已由上图 T11.2 生产工具接入；不在 Conversation 或 CLI 增加工具名称分支。详细契约见 [修改提案](edit-proposals.md)。
 
 
 ## T10 Python 结构与静态引用查询
@@ -747,9 +778,11 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [llm/streaming.py](../adam/llm/streaming.py) | `sse_events`、`StreamReply` | 有界 SSE 解析、工具参数拼接、结束校验 |
 | [cli/reply_output.py](../adam/cli/reply_output.py) | `ReplyOutput` | 正文增量、换行、去重及未完成提示 |
 | [llm/client.py](../adam/llm/client.py) | `LLMClient` | 访问模型服务，将一次请求转换为模型消息和用量；模型消息也可能是工具请求 |
+| [application/proposal_review.py](../adam/application/proposal_review.py) | ProposalReview | 核对真实候选、分页、重复与当前版本，再协调原批准编辑 |
+| [tool_calls/proposal_tools.py](../adam/tool_calls/proposal_tools.py) | register_submission、register_review | 主子工具说明与适配、能力声明、已校验审计路径 |
 | [contracts/proposals.py](../adam/contracts/proposals.py) | ProposalOwner、ReadEvidence、ProposalEdit、EditProposal | 不可变候选与真实读取窗口校验，不访问文件或授予权限 |
 | [application/proposals.py](../adam/application/proposals.py) | ProposalSubmission | 当前读取权限/字节版本、唯一替换与候选保存，不写目标 |
-| [session/proposal_log.py](../adam/session/proposal_log.py) | ProposalLog | 回放候选来源、提交参数及数量约束，不重读源文件或执行修改 |
+| [session/proposal_log.py](../adam/session/proposal_log.py) | ProposalLog、validate_application | 回放子候选来源与主编辑候选关联，不重读源文件或执行修改 |
 | [contracts/protocol.py](../adam/contracts/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
 | [session/storage.py](../adam/session/storage.py) | `SessionStore` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
 | [session/edit_log.py](../adam/session/edit_log.py) | `EditLog` | 编辑状态纯投影；未开始计划恢复为 not_started，写入未知结果不猜测 |

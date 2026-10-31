@@ -2,6 +2,7 @@
 
 import json
 
+from adam.contracts.execution import FILE_EDIT_TOOLS
 from adam.contracts.models import ActionFact, ExecutionReport
 from adam.session.log import SessionLog
 
@@ -17,7 +18,7 @@ def build_execution_report(log: SessionLog, turn_id: str) -> ExecutionReport:
     actions = []
     for tool in tools:
         name = tool["name"]
-        if name not in {"run_command", "replace_text"}:
+        if name not in {"run_command", *FILE_EDIT_TOOLS}:
             continue
         if name == "run_command":
             record = log.executions.get(tool["execution_id"])

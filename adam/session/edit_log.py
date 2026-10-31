@@ -47,8 +47,8 @@ class EditLog:
             return
         if kind != "edit_finished":
             raise ValueError("unknown edit event")
-        for field in ("path", "before_version", "target_version", "diff"):
-            if field in payload and payload[field] != previous[field]:
+        for field in ("path", "before_version", "target_version", "diff", "proposal"):
+            if field in payload and payload[field] != previous.get(field):
                 raise ValueError("edit plan changed")
         status = payload.get("status")
         expected = "planned" if status == "denied" else "unknown"

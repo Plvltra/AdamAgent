@@ -3,6 +3,7 @@
 import json
 from typing import Any
 
+from adam.contracts.execution import FILE_EDIT_TOOLS
 from adam.contracts.planning import PlanSnapshot
 
 
@@ -34,7 +35,7 @@ def successful(
     if tool["name"] == "run_command":
         execution = executions.get(tool.get("execution_id") or "", {})
         return execution.get("status") == "completed" and execution.get("exit_code") == 0
-    if tool["name"] == "replace_text":
+    if tool["name"] in FILE_EDIT_TOOLS:
         return edits.get(tool.get("edit_id") or "", {}).get("status") == "applied"
     if tool["name"] == "wait_agents":
         agents = output.get("agents")

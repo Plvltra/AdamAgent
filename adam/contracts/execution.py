@@ -5,6 +5,8 @@ from enum import StrEnum
 
 from adam.contracts.errors import BudgetError, FailureCode, ToolModeError
 
+FILE_EDIT_TOOLS = frozenset({"replace_text", "apply_proposal"})
+
 
 @dataclass
 class ToolBudget:
@@ -15,7 +17,7 @@ class ToolBudget:
 
     def consume(self, name: str) -> None:
         """超限时在开始记录、确认与文件操作之前停止；普通工具不消耗编辑额度。"""
-        if name != "replace_text":
+        if name not in FILE_EDIT_TOOLS:
             return
         if self.edit_attempts >= self.max_edit_attempts:
             raise BudgetError("达到本轮编辑尝试次数上限。", code=FailureCode.EDIT_LIMIT)

@@ -51,12 +51,18 @@ class EditTools:
     def replace_text(
         self, args: dict[str, Any], record: Callable[[str, dict[str, Any]], None] | None = None
     ) -> dict[str, Any]:
-        """记录计划后确认；原字节检查点与开始记录成功才写入，结果记录成功才回传。
+        """先校验路径、旧版本与唯一替换，再交给共同的批准和写入流程。"""
+        return self.execute_plan(self.prepare(args), record)
 
+    def execute_plan(
+        self, plan: EditPlan, record: Callable[[str, dict[str, Any]], None] | None = None
+    ) -> dict[str, Any]:
+        """记录已校验计划后确认；检查点与开始记录成功才写入，结果记录成功才回传。
+
+        plan 由本实例的 prepare 或同等宿主校验生成，不能直接接收模型构造的计划。
         没有确认回调则拒绝。编辑日志失败向上传播，未知结果不标记失败或自动重试。
         本地组件可不传 record，此时不保存检查点；模型执行由 ToolExecutor 提供持久化回调。
         """
-        plan = self.prepare(args)
         target_version = sha256(plan.candidate).hexdigest()
         details = {
             "path": str(plan.path),

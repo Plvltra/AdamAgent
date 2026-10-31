@@ -1,4 +1,4 @@
-"""前置 Hook 示例：仅限制 replace_text 修改用户指定目录，不替代命令审批或文件权限。"""
+"""前置 Hook 示例：限制 replace_text / apply_proposal 修改用户指定目录，不替代命令审批或文件权限。"""
 
 import argparse
 import json
@@ -16,7 +16,7 @@ def decide(data: dict[str, Any], protected: list[str]) -> dict[str, Any]:
     ):
         raise ValueError("requires before_tool version 1")
     tool = data["tool"]
-    if tool["name"] != "replace_text":
+    if tool["name"] not in {"replace_text", "apply_proposal"}:
         return {"version": 1, "decision": "allow", "reason": "此示例只检查专用文件编辑"}
     workspace = Path(data["workspace"]).resolve()
     target = (workspace / tool["arguments"]["path"]).resolve()
@@ -32,7 +32,9 @@ def decide(data: dict[str, Any], protected: list[str]) -> dict[str, Any]:
 
 def main() -> int:
     """从 stdin 读取一个有界事件；异常退出使宿主阻止工具，不输出假允许。"""
-    parser = argparse.ArgumentParser(description="Restrict replace_text in selected directories")
+    parser = argparse.ArgumentParser(
+        description="Restrict dedicated file edits in selected directories"
+    )
     parser.add_argument("directories", nargs="+", help="Directories relative to the tool workspace")
     args = parser.parse_args()
     try:

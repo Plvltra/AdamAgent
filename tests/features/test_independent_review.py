@@ -12,6 +12,8 @@ from tests.features.test_tool_loop import answer, tool_response
 def reviewer(request):
     """独立读取请求中的目标，结论引用真实工具 ID，不采用主 Agent 的自评。"""
     body = json.loads(request.content)
+    names = {item["function"]["name"] for item in body["tools"]}
+    assert not {"submit_proposal", "apply_proposal", "collect_proposals"} & names
     task = next(m["content"] for m in body["messages"] if m["role"] == "user")
     target = json.loads(task.split("\n", 1)[0])["targets"][0]["path"]
     if not outputs(body):
