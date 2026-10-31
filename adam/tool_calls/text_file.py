@@ -6,6 +6,7 @@ from pathlib import Path
 
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ToolError
+from adam.tool_calls.file_evidence import FileStateError
 
 
 @dataclass(frozen=True)
@@ -24,7 +25,11 @@ class TextSnapshot:
 def read_snapshot(
     path: Path, max_bytes: int, cancel: CancellationToken | None = None
 ) -> TextSnapshot:
-    """有界读取普通 UTF-8 文件；版本与文本来自同一次读取，不再次打开文件计算摘要。"""
+    """有界读取普通 UTF-8 文件；版本与文本来自同一次读取，不再次打开文件计算摘要。
+
+    完整字节已取得但解码/文本类型失败时，FileStateError 携带版本供重复失败检测。
+    未读完整或 IO 失败不猜版本，也不放宽原读取上限。
+    """
     if cancel:
         cancel.check()
     if not path.is_file():
@@ -48,7 +53,7 @@ def read_snapshot(
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeError as error:
-        raise ToolError("只支持 UTF-8 文本文件。") from error
+        raise FileStateError("只支持 UTF-8 文本文件。", version=sha256(raw).hexdigest()) from error
     if "\0" in text:
-        raise ToolError("不支持二进制文件。")
+        raise FileStateError("不支持二进制文件。", version=sha256(raw).hexdigest())
     return TextSnapshot(path, raw, text)

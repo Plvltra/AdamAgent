@@ -14,6 +14,7 @@ from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import ToolError
 from adam.contracts.models import EditPlan
 from adam.tool_calls.edit_plan import EditConflictError, plan_edit, plan_restore
+from adam.tool_calls.file_evidence import FileResult, FileStateError
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.text_file import read_snapshot
 
@@ -32,13 +33,20 @@ class EditTools:
     def prepare(self, args: dict[str, Any]) -> EditPlan:
         """校验写入范围并规划；expected_version 来自先前 read_file，不修改文件。"""
         path = self.policy.resolve_write(args["path"])
-        return plan_edit(
-            read_snapshot(path, self.limits.max_text_file_bytes),
-            args["old_text"],
-            args["new_text"],
-            args["expected_version"],
-            self.limits.max_text_file_bytes,
-        )
+        snapshot = read_snapshot(path, self.limits.max_text_file_bytes)
+        try:
+            return plan_edit(
+                snapshot,
+                args["old_text"],
+                args["new_text"],
+                args["expected_version"],
+                self.limits.max_text_file_bytes,
+            )
+        except FileStateError:
+            raise
+        except ToolError as error:
+            # 规划已拿到完整原字节；同一错误遇到新版本不算重复原地失败。
+            raise FileStateError(str(error), version=snapshot.version) from error
 
     def prepare_restore(self, checkpoint: EditCheckpoint) -> EditPlan:
         """按当前写入权限读取修改后版本，生成恢复原字节的计划；不执行写入。"""
@@ -87,6 +95,8 @@ class EditTools:
             try:
                 self.apply(plan)
             except ToolError as error:
+                if isinstance(error, FileStateError):
+                    result = FileResult(result, version=error.version)
                 result.update(
                     status="conflict" if isinstance(error, EditConflictError) else "failed",
                     ok=False,
@@ -139,8 +149,10 @@ class EditTools:
     def _check_current(self, plan: EditPlan) -> None:
         """批准后的目标仍须是同一路径、同一版本，不能覆盖外部编辑。"""
         path = self.policy.resolve_write(str(plan.path))
-        if (
-            path != plan.path
-            or read_snapshot(path, self.limits.max_text_file_bytes).version != plan.before_version
-        ):
+        if path != plan.path:
             raise EditConflictError("批准后文件已变化，请重新读取并确认新的 diff。")
+        snapshot = read_snapshot(path, self.limits.max_text_file_bytes)
+        if snapshot.version != plan.before_version:
+            raise EditConflictError(
+                "批准后文件已变化，请重新读取并确认新的 diff。", version=snapshot.version
+            )

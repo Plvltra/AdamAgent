@@ -1,6 +1,6 @@
 # 业务功能测试任务
 
-更新日期：2026-10-31
+更新日期：2026-11-01
 
 这里按用户可见的能力组织自动化验收。功能模块改名后，仍能按“会话恢复”“命令执行”等业务名称找到对应测试。每个文件包含可独立运行的 pytest 场景；参数化场景展开为多个用例。
 
@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B01.3 循环停止整体验收 | 真实文件版本/批准后冲突、合法复查、并发清理与未交付恢复、双子任务隔离、伪造观察；9 项业务及 2 个真实强杀边界 | [业务验收](test_no_progress_acceptance.py)、[强杀恢复](test_no_progress_recovery.py)、[独立进程](support/no_progress_worker.py) |
 | B01.2 聊天重复失败控制 | 按需工具→提醒→停止、修复/换参、预算/取消/保存失败、反思、长命令附件、子任务阈值与离线重放；12 项业务、11 项适配边界 | [生产场景](test_no_progress_loop.py)、[配置与边界](../test_no_progress_integration.py) |
 | B01.1 连续失败策略 API | 真实缺失文件、外部修复、重复读取/翻页、非零进程与批准边界；生产聊天接入见 B01.2 | [业务 API](test_no_progress.py)、[策略边界](../test_no_progress.py) |
 | T12.3 发现整体验收 | 同任务体积/请求对照，真实 MCP 与 Skill、会话重开、扩展预算、路径/Hook、主子隔离和共享用量；7项业务场景 | [test_tool_discovery_acceptance.py](test_tool_discovery_acceptance.py) |

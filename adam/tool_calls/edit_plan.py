@@ -6,10 +6,11 @@ from pathlib import Path
 from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import ToolError
 from adam.contracts.models import EditPlan as EditPlan
+from adam.tool_calls.file_evidence import FileStateError
 from adam.tool_calls.text_file import TextSnapshot
 
 
-class EditConflictError(ToolError):
+class EditConflictError(FileStateError):
     """读取版本已经失效，必须重新读取后规划。"""
 
 
@@ -26,7 +27,7 @@ def plan_edit(
     无变化或候选内容过大均抛 ToolError，不产生文件副作用。
     """
     if snapshot.version != expected_version:
-        raise EditConflictError("文件已变化，请重新读取后提出修改。")
+        raise EditConflictError("文件已变化，请重新读取后提出修改。", version=snapshot.version)
     text = _normalize(snapshot.text)
     has_crlf = "\r\n" in snapshot.text
     if has_crlf and "\n" in snapshot.text.replace("\r\n", ""):
@@ -58,7 +59,9 @@ def plan_edit(
 def plan_restore(snapshot: TextSnapshot, checkpoint: EditCheckpoint) -> EditPlan:
     """从当前版本和原始副本生成逆向计划；版本或路径不符时拒绝覆盖外部修改。"""
     if snapshot.path != checkpoint.path or snapshot.version != checkpoint.target_version:
-        raise EditConflictError("文件与该次修改后的版本不一致，不能撤销；请先核对外部改动。")
+        raise EditConflictError(
+            "文件与该次修改后的版本不一致，不能撤销；请先核对外部改动。", version=snapshot.version
+        )
     try:
         original = checkpoint.original.decode("utf-8-sig")
     except UnicodeError as error:

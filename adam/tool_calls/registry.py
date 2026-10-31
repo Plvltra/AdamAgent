@@ -12,6 +12,7 @@ from adam.contracts.errors import ToolDeferredError, ToolError, ToolHookError, T
 from adam.contracts.execution import ExecutionMode, ToolCapability, check_tool_mode
 from adam.contracts.models import ExecutionRecorder
 from adam.tool_calls.discovery import ToolDirectory, validate_groups
+from adam.tool_calls.file_evidence import FileResult, FileStateError
 
 ToolHandler = Callable[[dict[str, Any], ExecutionRecorder | None], dict[str, Any]]
 ParallelHandler = Callable[[dict[str, Any], CancellationToken], dict[str, Any]]
@@ -249,7 +250,13 @@ class ToolRegistry:
     def _invoke(self, action: Callable[[], dict[str, Any]]) -> dict[str, Any]:
         """仅转换受控工具故障；取消、日志失败和意外程序错误均向上传播。"""
         try:
-            return {"ok": True, **action()}
+            result = action()
+            output = {"ok": True, **result}
+            return (
+                FileResult(output, version=result.version)
+                if isinstance(result, FileResult)
+                else output
+            )
         except (ToolError, OSError, ValueError, subprocess.SubprocessError) as error:
             return self._failure(error)
 
@@ -264,6 +271,8 @@ class ToolRegistry:
         for kind, status in statuses.items():
             if isinstance(error, kind):
                 return {"ok": False, "status": status, "error": str(error)}
+        if isinstance(error, FileStateError):
+            return FileResult({"ok": False, "error": str(error)}, version=error.version)
         # 操作系统异常可能包含敏感路径；只回传已控制的业务提示。
         return {
             "ok": False,

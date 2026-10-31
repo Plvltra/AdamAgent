@@ -1,10 +1,10 @@
 # Adam 系统架构
 
-最近核对：2026-10-31
+最近核对：2026-11-01
 
-本次核对范围：B01.2 配置加载、主/子工具执行、模型可见反馈、JSONL 停止原因与离线回放。
+本次核对范围：B01.3 文件版本证据、并发停止与结果未知语义、主子隔离和真实强杀恢复。
 
-核对结论：NoProgressGuard 已接入 ToolExecutor，ToolInvocation 保存有界反馈；CLI 和 Conversation 无新增分支。新增输出适配器，录制快照保存策略配置；原有权限、额度、审批和取消边界保持。既有关键注释保留，迁移的结果收尾说明已补充。
+核对结论：新增 file_evidence，把同次完整读取的版本随受控失败传到执行器；JSON 字段不能伪造宿主证据。并发取消和重启恢复复用已有调度/存储路径，CLI、Conversation、调度器及会话格式无新增分支。原有关键说明保留，新增类型写明来源及序列化边界。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -16,7 +16,9 @@ flowchart LR
     PROG_BOOT --> PROG_EXEC["ToolExecutor / 按会话与轮次保持状态"]
     PROG_EXEC --> PROG_INVOKE["ToolInvocation / 原预检、动作与结果保存"]
     PROG_INVOKE --> PROG_REG["ToolRegistry / 权限、Hook、批准、实际动作"]
-    PROG_REG -->|"实际结果；原序交付"| PROG_EXEC
+    PROG_FILE["text_file / edit_tools / 已授权完整快照"] --> PROG_EVIDENCE["file_evidence / FileStateError 与 FileResult"]
+    PROG_EVIDENCE -->|"本地版本元数据；不采信 JSON"| PROG_REG
+    PROG_REG -->|"实际结果与核实版本；原序交付"| PROG_EXEC
     PROG_EXEC --> PROG_GUARD["NoProgressGuard.observe / 连续失败指纹"]
     PROG_GUARD --> PROG_DECISION["ProgressDecision / 继续、提醒、停止"]
     PROG_DECISION --> PROG_INVOKE
@@ -39,7 +41,7 @@ NoProgressError 由 [errors.py](../adam/contracts/errors.py) 提供公共原因�
 [outcome.py](../adam/session/outcome.py) 和 [log.py](../adam/session/log.py) 沿用既有收尾及验证。
 CLI 和 send 不识别工具种类或检测器。主子各有独立实例，同轮跨请求累计，新轮重建。
 录制保存配置及实际反馈；重放恢复已记录结果/错误，不创建实时检测器或重做动作。
-契约和验证见 [无进展检测](no-progress.md)，并发/重启整体验收在 B01.3 继续。
+[file_evidence.py](../adam/tool_calls/file_evidence.py) 携带同次文件快照的版本；注册表保留元数据，执行器传给检测策略。版本只影响连续失败判定，不授予权限、不标记修复成功，也不增加文件读取。未交付的并发结果仍沿用日志未知及持锁恢复规则。契约与 B01.3 整体验收见 [无进展检测](no-progress.md)。
 
 ## T12 工具目录与实际请求可见性
 

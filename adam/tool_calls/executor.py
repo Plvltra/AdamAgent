@@ -12,6 +12,7 @@ from adam.contracts.hooks import HookService
 from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.discovery_tools import ToolDiscovery
+from adam.tool_calls.file_evidence import FileResult
 from adam.tool_calls.invocation import ToolInvocation
 from adam.tool_calls.progress import NoProgressGuard, ProgressAction
 from adam.tool_calls.registry import PreparedAction, ToolRegistry
@@ -141,7 +142,12 @@ class ToolExecutor:
 
     def _finish(self, invocation: ToolInvocation, result: dict[str, Any]) -> str:
         """观察实际结果，再持久化模型可见反馈；日志/回调故障保留原错误，不伪装成熔断。"""
-        decision = self._progress.observe(invocation.name, invocation.arguments, result)
+        decision = self._progress.observe(
+            invocation.name,
+            invocation.arguments,
+            result,
+            evidence_version=result.version if isinstance(result, FileResult) else None,
+        )
         output = invocation.finish(result, progress=decision)
         if self.after_call:
             self.after_call()
