@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| T10.3 代码定位整体验收 | 真实项目连续定位、无源码执行、重启/轮中故障、权限/规则/Hook/模式/取消/额度及实际子任务；12项场景 | [test_python_code_acceptance.py](test_python_code_acceptance.py) |
 | T10.2 代码查询工具 | 本地导入/词法绑定、遮蔽和动态未知、歧义与版本刷新、完整分页、参数/引用数量限额、真实模型工具流程及日志；32项场景 | [test_python_code_tools.py](test_python_code_tools.py) |
 | T10.1 Python 结构索引 | 真实作用域/别名/位置、同时间戳更新与删除、解析和读取故障、权限撤销、真实链接、取消与资源限额、顶层代码不执行；23项场景 | [test_python_code_index.py](test_python_code_index.py) |
 | T9.3 重放整体验收 | 完整失败/未知用量、流式、首次差异/缺失优先级、真实编辑、保存故障及五个真实强杀边界；25项新增场景 | [test_turn_replay_acceptance.py](test_turn_replay_acceptance.py)、[test_recording_recovery.py](test_recording_recovery.py)、[强杀入口](support/recording_worker.py) |

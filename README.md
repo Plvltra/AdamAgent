@@ -1,6 +1,6 @@
 # Adam
 
-T10.2 接入 `code_structure`、`find_definitions`、`find_references` 三个只读工具：查询带版本和行号的 Python 结构及静态引用，同名候选与动态未知分别返回；复用原权限、并发、日志和预算。见 [代码索引需求](docs/python-code-index.md)。
+T10 代码定位工程验收完成：`code_structure`、`find_definitions`、`find_references` 提供带版本和行号的 Python 结构及静态引用，复用原权限、并发、日志和预算。三阶段共67项业务场景，覆盖真实项目连续查询、重启更新、故障及子任务边界；真实模型选工具效果另行体验。见 [代码索引需求](docs/python-code-index.md)。
 
 T9 已完成单轮录制、离线重放与故障验收，开发入口：`python -m adam.recordings record/inspect/replay`。重放在全新诊断目录运行主流程和预算，不重复真实模型请求、命令或文件修改；报告首个轨迹差异。正常聊天不自动录制，使用示例和边界见 [录制与重放](docs/turn-recording.md)。
 
