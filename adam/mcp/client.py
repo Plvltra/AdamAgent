@@ -10,11 +10,12 @@ from typing import Any
 
 from anyio.from_thread import BlockingPortal, start_blocking_portal
 from mcp import Client, StdioServerParameters
-from mcp.types import PaginatedRequestParams, ReadResourceResult
+from mcp.types import GetPromptResult, PaginatedRequestParams, ReadResourceResult
 
 from adam.config.mcp import MCPServerConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ToolError
+from adam.mcp import prompts
 from adam.mcp.resources import MAX_RESOURCE_BYTES, catalog, text_result, validate_read
 
 
@@ -28,6 +29,7 @@ class MCPConnection:
         self._client: Client | None = None
         self._tools: list[dict[str, Any]] = []
         self._resources: list[dict[str, Any]] = []
+        self._prompts: list[dict[str, Any]] = []
 
     def open(self) -> "MCPConnection":
         """启动可信程序并完成握手与目录发现；任何失败都会回收已创建资源。"""
@@ -52,6 +54,8 @@ class MCPConnection:
                 self._tools = [tool.model_dump(mode="json") for tool in result.tools]
             if self.config.resources:
                 self.list_resources()
+            if self.config.prompts:
+                self.list_prompts()
         except BaseException as error:
             try:
                 stack.close()
@@ -103,6 +107,26 @@ class MCPConnection:
         ):
             raise ToolError("MCP 资源未确认在目录中或声明大小超过限制。")
         return self._run(lambda: self._read_resource(uri, expected_version), cancel)
+
+    def list_prompts(self, cancel: CancellationToken | None = None) -> dict[str, Any]:
+        """刷新允许模板的有限目录与参数声明；不预取模板内容或改变会话提示。"""
+        if not self.config.prompts:
+            raise ToolError("此 MCP 服务未配置提示模板范围。")
+        result = self._run(self._list_prompts, cancel)
+        self._prompts = result["prompts"]
+        from copy import deepcopy
+
+        return deepcopy(result)
+
+    def get_prompt(
+        self,
+        name: str,
+        arguments: dict[str, str],
+        cancel: CancellationToken | None = None,
+    ) -> dict[str, Any]:
+        """校验参数后读取完整模板；结果只含带来源的资料，消息角色不会提升权限。"""
+        checked = prompts.validate_arguments(name, arguments, self.config.prompts, self._prompts)
+        return self._run(lambda: self._get_prompt(name, checked), cancel)
 
     def close(self) -> None:
         """回收连接、服务进程与事件线程；可重复调用，不创建新连接。"""
@@ -200,6 +224,50 @@ class MCPConnection:
             raise ToolError(
                 f"MCP {self.config.alias} 调用失败（超时、断开或协议错误）；未自动重发。"
             ) from error
+
+    async def _list_prompts(self) -> dict[str, Any]:
+        """读取最多四页声明；循环游标、超限和缺失均失败，不使用 SDK 自动重试。"""
+        assert self._client is not None
+        cursor, seen, items = None, set(), []
+        try:
+            for _ in range(4):
+                result = await self._client.session.list_prompts(
+                    params=PaginatedRequestParams(cursor=cursor)
+                )
+                items.extend(item.model_dump(mode="json") for item in result.prompts)
+                if len(items) > 64:
+                    raise ToolError("MCP 提示目录超过64项。")
+                cursor = result.next_cursor
+                if cursor is None:
+                    return {
+                        "ok": True,
+                        "server": self.config.alias,
+                        "prompts": prompts.catalog(items, self.config.prompts),
+                    }
+                if not cursor or len(cursor) > 1024 or cursor in seen:
+                    raise ToolError("MCP 提示分页游标重复或无效。")
+                seen.add(cursor)
+            raise ToolError("MCP 提示目录超过四页，未返回残缺目录。")
+        except ToolError:
+            raise
+        except Exception as error:
+            raise ToolError("MCP 提示目录读取失败；未重试。") from error
+
+    async def _get_prompt(self, name: str, arguments: dict[str, str]) -> dict[str, Any]:
+        """一次获取对应一次低层请求；拒绝交互续传、非文本或协议错误，不拼接角色消息。"""
+        assert self._client is not None
+        try:
+            result = await self._client.session.get_prompt(name, arguments)
+            if not isinstance(result, GetPromptResult):
+                raise ToolError("MCP 提示未返回完整内容。")
+            return {
+                **prompts.text_result(result.model_dump(mode="json"), name),
+                "server": self.config.alias,
+            }
+        except ToolError:
+            raise
+        except Exception as error:
+            raise ToolError("MCP 提示获取失败（超时、断开或协议错误）；未自动重发。") from error
 
     @staticmethod
     def _wait(

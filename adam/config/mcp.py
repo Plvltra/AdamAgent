@@ -9,7 +9,7 @@ from adam.contracts.errors import ConfigError
 
 @dataclass(frozen=True)
 class MCPServerConfig:
-    """只启动配置允许的本地程序；分别明确允许的只读工具名与固定资源 URI。"""
+    """只启动配置允许的本地程序；只读工具、固定资源 URI 和模板分别明确允许范围。"""
 
     alias: str
     command: str
@@ -17,6 +17,7 @@ class MCPServerConfig:
     tools: tuple[str, ...] = ()
     timeout_seconds: float = 10
     resources: tuple[str, ...] = ()
+    prompts: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """直接构造也校验名字、程序参数和超时，不能用布尔值充当秒数。"""
@@ -53,8 +54,18 @@ class MCPServerConfig:
             or len(set(self.resources)) != len(self.resources)
         ):
             raise ConfigError("MCP resources 必须是不超过16个不重复的有界绝对 URI。")
-        if not self.tools and not self.resources:
-            raise ConfigError("MCP 服务须明确配置至少一个 tool 或 resource。")
+        if (
+            not isinstance(self.prompts, tuple)
+            or len(self.prompts) > 16
+            or any(
+                not isinstance(name, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,39}", name)
+                for name in self.prompts
+            )
+            or len(set(self.prompts)) != len(self.prompts)
+        ):
+            raise ConfigError("MCP prompts 必须是不超过16个不重复模板名。")
+        if not self.tools and not self.resources and not self.prompts:
+            raise ConfigError("MCP 服务须明确配置至少一个 tool、resource 或 prompt。")
         if (
             type(self.timeout_seconds) not in {int, float}
             or not math.isfinite(self.timeout_seconds)
@@ -91,12 +102,16 @@ def parse_mcp(value: object) -> MCPConfig:
     for item in entries:
         if (
             not isinstance(item, dict)
-            or item.keys() - {"alias", "command", "args", "tools", "timeout_seconds", "resources"}
+            or item.keys()
+            - {"alias", "command", "args", "tools", "timeout_seconds", "resources", "prompts"}
             or not {"alias", "command"} <= item.keys()
         ):
             raise ConfigError("MCP 服务字段缺失或存在未知字段。")
-        if any(not isinstance(item.get(name, []), list) for name in ("args", "tools", "resources")):
-            raise ConfigError("MCP args、tools 和 resources 必须是数组。")
+        if any(
+            not isinstance(item.get(name, []), list)
+            for name in ("args", "tools", "resources", "prompts")
+        ):
+            raise ConfigError("MCP args、tools、resources 和 prompts 必须是数组。")
         servers.append(
             MCPServerConfig(
                 item["alias"],
@@ -105,6 +120,7 @@ def parse_mcp(value: object) -> MCPConfig:
                 tuple(item.get("tools", [])),
                 item.get("timeout_seconds", 10),
                 tuple(item.get("resources", [])),
+                tuple(item.get("prompts", [])),
             )
         )
     return MCPConfig(value.get("enabled", False), tuple(servers))

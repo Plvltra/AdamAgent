@@ -2,11 +2,25 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B15.1 MCP 资源配置、目录与文本读取、内容版本及工具映射。
+本次核对范围：B15.2 MCP 模板配置、目录与参数校验、文本来源及工具映射。
 
-核对结论：MCPConnection 共用原等待和进程清理，新增 mcp.resources 处理元信息、限额与内容摘要；tool_calls.mcp_resources 将显式资料入口接到原执行器。配置仅保留 URI 范围，不解释为宿主路径。原工具无重试和清理契约已保留并迁入共用方法，新资料仍作为工具结果。
+核对结论：新增 mcp.prompts 校验模板声明、字符串参数和文本结果；tool_calls.mcp_prompts 经原注册/执行流程调用 MCPConnection。模板与工具、资源配置独立，仍共用连接、无重试和清理契约；外部角色仅保存在工具结果，未新增真实对话权限。原关键注释保留，配置与注册说明按新增能力更新。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B15.2 MCP 提示模板
+
+~~~mermaid
+flowchart LR
+    MP_CFG["MCPServerConfig.prompts / 显式名称"] --> MP_REG["register_mcp / 可信服务与资源栈"]
+    MP_REG --> MP_TOOL["mcp_prompts / list 与 get"]
+    MP_TOOL --> MP_CONN["MCPConnection / 有界请求与原清理"]
+    MP_CONN --> MP_DATA["mcp.prompts / 参数、来源与文本验证"]
+    MP_CONN --> MP_SDK["ClientSession / prompts/list 与 prompts/get"]
+    MP_TOOL --> MP_LOOP["原 ToolRegistry 与执行器 / 日志、额度、重放"]
+~~~
+
+模板消息只进入工具结果，不拼接为系统、用户或助手历史。说明与真实 SDK 验收见 [MCP](mcp.md)。
 
 ## B15.1 MCP 文本资源
 

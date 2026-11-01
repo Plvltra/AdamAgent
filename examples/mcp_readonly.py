@@ -58,6 +58,11 @@ def main() -> None:
         """提供短 README；复用工具的根目录、凭据和大小检查，不把 URI 当作文件路径。"""
         return read_text(root, "README.md")["content"]
 
+    @server.prompt()
+    def review_text(text: str, focus: str = "correctness") -> str:
+        """生成文本审查模板；不读取文件、不执行命令，宿主决定如何使用返回内容。"""
+        return f"Review the supplied text for {focus}. Cite evidence and uncertainty.\n\n{text}"
+
     server.run()
 
 

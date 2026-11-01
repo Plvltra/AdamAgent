@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B15.2 MCP 提示模板 | 31项真实SDK目录/参数、角色与来源、限额、取消/断开、冲突、教学服务及零服务重放；相关共103项 | [test_mcp_prompts.py](test_mcp_prompts.py) |
 | B15.1 MCP 资源 | 26 项真实 SDK 分页、URI、版本、限额、取消/故障与教学示例；模型工具循环及零服务重放，相关共 72 项 | [test_mcp_resources.py](test_mcp_resources.py) |
 | B14.3 编排故障与清理 | 8 项真实管道成功/失败/取消与回调异常，相关共 112 项；六类真实 WSL 故障与强杀报告另存 | [宿主清理](test_orchestration_cleanup.py)、[真实故障入口](../../scripts/orchestration_fault_acceptance.py) |
 | B14.2.2 生产隔离工具 | 17 项发现/关闭/参数、失败重放、配置、启动竞争、子任务和计划底层证据；相关共 176 项，真实 WSL 聊天报告独立保存 | [业务场景](test_code_orchestration_loop.py)、[真实入口](../../scripts/chat_orchestration_acceptance.py) |

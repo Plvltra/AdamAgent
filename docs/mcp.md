@@ -1,7 +1,7 @@
-# 本地 MCP：工具与资源
+# 本地 MCP：工具、资源与提示模板
 
 Adam 是客户端：发现工具、发送参数、读取结果。服务端负责实现查询并约束路径。
-tools 是可调用操作；resources 是 URI 标识的资料；prompts 是可复用提示模板。E7 映射 tools，B15.1 已接入固定 URI 的文本 resources；prompts 留在 B15.2。
+tools 是可调用操作；resources 是 URI 标识的资料；prompts 是可复用提示模板。E7 映射 tools，B15.1 已接入固定 URI 的文本 resources，B15.2 已接入有来源的文本 prompts。
 MCP 负责互通协议，不替代 Agent 的循环、额度、记录或批准，也不是操作系统沙箱。
 
 依赖使用官方 Python SDK 2.3.0（uv.lock 固定），不是自行实现 JSON-RPC。
@@ -99,3 +99,29 @@ timeout_seconds = 10
 低层 ClientSession 读取避免高层缓存及自动再次请求。目录页请求共享总等待窗口，读取超时、断开、格式错误、版本不符或取消后关闭并回收连接，不自动重试。模型不能选择服务程序、修改 URI 允许列表或借 URI 直接访问宿主。本阶段仍只向主 Agent 注册 MCP，原子任务范围保持。远程传输、非文本引用留在 B15.3。
 
 [26 项业务场景](../tests/features/test_mcp_resources.py) 使用真实 SDK stdio 服务、文件、分页与取消；模型 HTTP 使用 MockTransport。覆盖目录过滤、版本变化、字节/条数限额、未授权 URI、无效配置、损坏分页、二进制拒绝、超时/断开无重试、真实进程回收、教学示例及完整聊天/离线重放。与原 MCP 工具、架构及重放共 72 项通过；教学文件的 Windows 换行预期已修正并单独复验。Ruff、Pyright 和链接检查完成，主线提交门禁运行全量 pytest；没有调用付费模型。
+
+
+## B15.2 提示模板目录与取得
+
+MCP prompts 是可复用的消息模板，参数为字符串映射，协议可返回多条 user/assistant 消息。官方客户端示例通常由用户选择模板；Adam 本阶段选择将已配置模板封装成只读资料获取工具，方便原工具循环按需查询。这个封装是 Adam 的设计，不是 MCP 要求模型自行执行模板。依据：[官方提示模板](https://py.sdk.modelcontextprotocol.io/servers/prompts/)、[官方客户端](https://py.sdk.modelcontextprotocol.io/client/)。
+
+在既有 [[mcp.servers]] 中添加下面一行；教学服务提供 review_text，必填 text、可选 focus（默认 correctness）。也可只保留 prompts 并省略 tools/resources；默认仍不启动服务。
+
+```toml
+prompts = ["review_text"]
+```
+
+配置最多16个不同模板名，名称为1～40字符的字母开头、字母/数字/下划线/连字符。每个服务至少显式允许一种能力。仅模板服务不会发送 tools/list 或 resources/list。URI、工具与模板三份允许列表相互独立，模型无法扩展它们。
+
+| 模型入口（alias=files） | 行为 |
+| --- | --- |
+| mcp_files_list_prompts | 刷新允许模板的名称、标题、说明、参数名及 required 声明；不预取正文 |
+| mcp_files_get_prompt | 传 name 与 arguments 字符串对象，返回服务来源、模板名、文本消息、内容摘要和 reference_only 标记 |
+
+例如 name="review_text"、arguments={"text":"def add(a, b): return a + b", "focus":"correctness"}。目录最多四页、64项；每个模板最多16个参数，参数名与模板名同限。名称重复、已允许项缺失、坏游标、超长说明和无效参数声明均失败。获取前校验当前目录：必填参数不可缺，未知参数拒绝，每值最多2000字符；空文本允许，不擅自补齐服务器默认值。
+
+只接收1～16条文本消息，总正文 UTF-8 不超过64 KiB。图片、音频、嵌入资料和不完整结果在本阶段拒绝；不会为模板内的链接发起读取。返回的角色标签只是工具结果 JSON 中的数据，不插入真实系统/用户/助手消息，也不替用户批准操作。普通输出限额和附件机制继续生效。version 是当次规范化角色/文本列表的 SHA-256，不是服务版本，也不证明模板安全或正确。
+
+目录刷新和获取共用原连接、总等待、取消与进程回收；低层 ClientSession 每次只发送对应请求，不自动重发或跟进 input_required。参数错误在请求服务前返回，可修正后继续；协议、内容、超时、断开或在途取消导致连接关闭。边界检查在 SDK 接收响应后进行，不能声称限制了恶意服务的总内存。只配置可信本地程序；MCP 不是 OS 沙箱。
+
+[31 项业务场景](../tests/features/test_mcp_prompts.py) 使用真实 SDK stdio 服务及进程检查，覆盖目录/参数、来源与内容摘要、外部角色拒绝和隔离、超限、取消/断开无重试、名称冲突、默认关闭、教学服务及模型工具循环/零服务重放。与资源、原 MCP 工具、重放和架构检查共103项通过（92.94秒）。首轮录制夹具输入不一致已修正，整组重新通过；模型仅为 MockTransport，没有付费请求。Ruff、Pyright、链接和注释审查分别核对；主线提交门禁执行全量 pytest。
