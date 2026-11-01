@@ -5,6 +5,8 @@ sessions_dir = "sessions"
 memories_dir = "memories"
 # 文档索引缓存，可删除后从源文件重建。
 documents_dir = "documents"
+# 知识候选、审查与用户决定；这是持久记录，不能当文档缓存删除。
+knowledge_dir = "knowledge"
 
 [documents]
 # 空数组不注册文档工具；如 ["docs"]，相对 --workspace（默认启动目录）。

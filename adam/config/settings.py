@@ -445,3 +445,4 @@ class AppConfig:
     tool_discovery: ToolDiscoveryConfig = field(default_factory=ToolDiscoveryConfig)
     no_progress: NoProgressConfig = field(default_factory=NoProgressConfig)
     session_search: SessionSearchConfig = field(default_factory=SessionSearchConfig)
+    knowledge_dir: Path | None = None

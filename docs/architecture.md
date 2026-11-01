@@ -2,11 +2,30 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B12.2.2 单次独立模型审查、请求记录及用量和故障边界。
+本次核对范围：B12.2.3 候选与已发布知识入口、持久目录配置、主子权限及用户确认。
 
-核对结论：新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用。当前仍为宿主 API，配置及使用入口留在 B12.2.3。原状态、批准与语义边界保持。
+核对结论：新增 KnowledgeAccess、knowledge_fact_tools 与独立 adam.knowledge CLI；bootstrap 将持久知识目录注入原文索引和主子工具，并保护原始记录。主模型可提出候选或查询已发布知识，子任务仅可查询；独立审查与确认发布由宿主 CLI 显式发起。原状态、失败、计费与语义边界保持。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B12.2.3 知识使用与目录保护
+
+~~~mermaid
+flowchart LR
+    KE_CONFIG["config.loader / storage.knowledge_dir"] --> KE_BOOT["bootstrap / 主子装配与保留目录"]
+    KE_BOOT --> KE_TOOLS["knowledge_fact_tools / 主 propose + query；子仅 query"]
+    KE_TOOLS --> KE_ACCESS["KnowledgeAccess / 唯一原文补全与有界分页"]
+    KE_ACCESS --> KE_INDEX["DocumentIndex / 当前授权来源"]
+    KE_ACCESS --> KE_LIFE["KnowledgeProposals + KnowledgeLifecycle"]
+    KE_CLI["adam.knowledge / 显式本地命令"] --> KE_ACCESS
+    KE_CLI --> KE_LIFE
+    KE_CLI --> KE_REVIEW["KnowledgeModelReviewer / 单次独立计费"]
+    KE_CLI --> KE_CONFIRM["展示支持、反证和意见 / 用户 yes"]
+    KE_CONFIRM --> KE_LIFE
+    KE_BOOT --> KE_POLICY["PathPolicy / 文件、资料、规则、Skill、审查快照保护"]
+~~~
+
+候选工具走原 SESSION_STATE 调用、预算和日志；发布查询为 READ_ONLY，已录制结果可离线重放。模型没有批准/发布工具。目录保护不等于通用命令的 OS 沙箱。见 [知识入口](knowledge-proposals.md)。
 
 ## B12.2.2 独立模型审查
 

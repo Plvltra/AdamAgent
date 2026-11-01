@@ -10,8 +10,12 @@ from adam.config.settings import DocumentConfig, PermissionConfig
 from adam.contracts.execution import ToolCapability
 from adam.contracts.models import ExecutionRecorder
 from adam.documents.index import DocumentIndex
+from adam.documents.knowledge_access import KnowledgeAccess
+from adam.documents.knowledge_lifecycle import KnowledgeLifecycle
+from adam.documents.knowledge_proposals import KnowledgeProposals
 from adam.documents.models import DocumentError
 from adam.documents.search import DocumentSearch, SearchResult
+from adam.tool_calls.knowledge_fact_tools import register_knowledge_facts
 from adam.tool_calls.knowledge_tools import register_knowledge
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.registry import ToolRegistry
@@ -63,11 +67,17 @@ def register_documents(
     protected_dirs: tuple[Path, ...] = (),
     *,
     check_cancel: Callable[[], None] | None = None,
+    knowledge_dir: Path | None = None,
+    allow_knowledge_proposals: bool = True,
 ) -> ToolRegistry:
-    """配置了文档源才注册工具；组装不扫描文件，也不产生模型请求。"""
+    """配置文档源才注册工具；可传独立知识持久目录，子任务可限制为只读。
+
+    组装不扫描文件或产生模型请求；知识原始记录受同一路径策略保护，只经专用接口读取。
+    """
     if not config.roots:
         return registry
-    policy = PathPolicy(workspace, permissions, protected_dirs=(*protected_dirs, cache_dir))
+    protected = (*protected_dirs, cache_dir, *((knowledge_dir,) if knowledge_dir else ()))
+    policy = PathPolicy(workspace, permissions, protected_dirs=protected)
     search = DocumentSearch(
         DocumentIndex(cache_dir, workspace, config, policy.resolve, check_cancel)
     )
@@ -79,7 +89,17 @@ def register_documents(
         capabilities={"search_documents": ToolCapability.READ_ONLY},
         groups={"search_documents": "documents"},
     )
-    return register_knowledge(registry, search.index)
+    registry = register_knowledge(registry, search.index)
+    if knowledge_dir is not None:
+        registry = register_knowledge_facts(
+            registry,
+            KnowledgeAccess(
+                KnowledgeLifecycle(KnowledgeProposals(knowledge_dir, search.index)),
+                max_chars=registry.limits.max_result_chars,
+            ),
+            allow_proposals=allow_knowledge_proposals,
+        )
+    return registry
 
 
 def pack_results(found: SearchResult, max_chars: int) -> dict[str, Any]:

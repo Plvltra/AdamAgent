@@ -2,9 +2,9 @@
 
 ## B12.1 已实现的候选接口
 
-[KnowledgeProposals](../adam/documents/knowledge_proposals.py) 从当前授权文档核对结构化候选，冻结原文证据并保存为 pending。调用者提出结论，程序验证来源；当前不会自动提炼语义、独立审查或发布，也不会把候选注入聊天和记忆。
+[KnowledgeProposals](../adam/documents/knowledge_proposals.py) 从当前授权文档核对结构化候选，冻结原文证据并保存为 pending。调用者提出结论，程序验证来源；该存储接口不自行提炼语义、独立审查或发布，也不会把候选注入聊天和记忆；模型和用户入口见下方 B12.2.3。
 
-构造时传宿主选择的根目录与 DocumentIndex。文件按工作目录、资料根目录及分块配置隔离，位于根目录下的范围摘要/candidates/短ID.json；模型不能指定候选 ID、状态或批准结果。当前独立 API 提供 create(proposal) 和 read(candidate_id)，模型工具及用户发布入口由 B12.2 接入。
+构造时传宿主选择的根目录与 DocumentIndex。文件按工作目录、资料根目录及分块配置隔离，位于根目录下的范围摘要/candidates/短ID.json；模型不能指定候选 ID、状态或批准结果。独立 API 提供 create(proposal) 和 read(candidate_id)；B12.2 已另行接入模型候选工具、已发布知识查询和用户发布入口。
 
 | 输入字段 | 含义与边界 |
 | --- | --- |
@@ -28,7 +28,7 @@
 
 read 展示冻结证据，源文件后来修改或删除不会悄悄替换旧候选的内容，也不据此宣称证据仍当前。后续审查与发布须重新核对来源。候选损坏保留原文件并报错，恢复提示不会要求把它当作可丢弃的索引缓存。伪造 published 字段即使重算文件校验和也拒绝；候选本身没有批准状态入口。
 
-本阶段复用原修改提案的边界原则：候选与批准分开、内容冻结、执行前重新核对来源。没有将知识事实塞入文件补丁或自动修改原资料；B12.2.1 已实现下方状态与确认接口；B12.2.2 已接入有界模型审查，B12.2.3 继续实现使用入口，B12.3 补组合故障验收。
+本阶段复用原修改提案的边界原则：候选与批准分开、内容冻结、执行前重新核对来源。没有将知识事实塞入文件补丁或自动修改原资料；B12.2.1 已实现下方状态与确认接口；B12.2.2 已接入有界模型审查，B12.2.3 已接入使用入口，B12.3 补组合故障验收。
 
 ## 验证
 
@@ -53,14 +53,14 @@ read 展示冻结证据，源文件后来修改或删除不会悄悄替换旧候
 
 状态为 pending → reviewed / changes_requested → published；拒绝进入 rejected，撤回进入 withdrawn。审查不接受时仍可重新审查，已拒绝或撤回候选不能复活。来源变化时，current 先保存 needs_review 并排除该知识；旧候选证据不改写，需要新候选重新审查和确认。版本覆盖整个配置语料，无关资料变化也会保守失效。检查反映一次读取的快照，不承诺文件此后不再变化。
 
-权限撤销、源读取失败或状态保存失败直接停止，不能回退返回旧知识。即使原来源不可读，用户仍可撤回知识。有效期外知识不返回，但保留发布历史。本阶段没有自动向模型注入知识，也没有终端发布命令；这些入口按 B12.2.3 继续实现。
+权限撤销、源读取失败或状态保存失败直接停止，不能回退返回旧知识。即使原来源不可读，用户仍可撤回知识。有效期外知识不返回，但保留发布历史。知识不自动注入聊天；B12.2.3 提供显式查询工具和独立终端发布命令。
 
 [27 项发布场景](../tests/features/test_knowledge_publication.py) 只模拟审查意见和确认回调，实际使用来源文件、文件锁、候选和状态落盘，覆盖锁外执行、过时结果、拒绝、重启、来源失效、时间边界、撤权、原子替换失败和损坏历史。相关候选与架构检查合计 66 项通过；Ruff、Pyright 通过，提交门禁运行全量 pytest。真实模型审查质量尚未验收。
 
 
 ## B12.2.2 独立模型审查
 
-[KnowledgeModelReviewer](../adam/documents/knowledge_review.py) 实现宿主审查接口，只接收冻结候选，不继承提出者或主会话的消息。宿主明确传入 ModelClient、模型名、专用持久记录目录和单次 token 限额。当前没有自动聊天触发或命令入口，B12.2.3 接续实现；本次验证没有调用付费 API。
+[KnowledgeModelReviewer](../adam/documents/knowledge_review.py) 实现宿主审查接口，只接收冻结候选，不继承提出者或主会话的消息。宿主明确传入 ModelClient、模型名、专用持久记录目录和单次 token 限额。审查不自动随聊天触发；B12.2.3 的独立 review 命令显式发起，本次验证没有调用付费 API。
 
 每个实例最多发送一次请求；无 tools，不执行模型返回的工具调用，不重试网络或格式错误。输入包含候选 ID/摘要、结论、理由、适用范围/时间、全部支持和反证；正文最多 64 KiB，超过时拒绝发送而不截断证据。输出默认上限 1024 token，可设 64～4096；本地接收意见上限 10000 字符。
 
@@ -75,3 +75,34 @@ read 展示冻结证据，源文件后来修改或删除不会悄悄替换旧候
 独立上下文有助于隔离提出者的聊天影响，但不保证模型独立判断正确；同一模型也可能重复错误。支持/反证 ID 覆盖只验证响应声明，不能证明它理解了证据，真实审查质量仍需人工对照。
 
 [24 项业务场景](../tests/features/test_knowledge_review.py) 使用 MockTransport 和真实 LLMClient，覆盖 JSON/SSE、请求前留证、可靠/未知/超额消费、自报批准与工具调用拒绝、格式失败、取消、三类写入失败、来源变化、输入与预算上限以及重复请求。加发布场景与架构检查共 72 项通过；Ruff、Pyright 和文档链接通过，提交门禁运行全量 pytest。
+
+
+## B12.2.3 模型工具、配置与用户入口
+
+`[storage] knowledge_dir = "knowledge"` 指定持久目录，相对主配置所在目录解析，默认位于配置旁。它保存候选、状态历史及审查请求，与 `documents_dir` 的可重建缓存分开；备份说明见 [安装与恢复](install-and-recovery.md)。`[documents] roots` 仍须显式指定授权资料；为空时不注册知识工具，不扫描资料或请求模型。
+
+[KnowledgeAccess](../adam/documents/knowledge_access.py) 复用同一个 DocumentIndex。主模型可使用 propose_knowledge，提供上述候选字段，但每条支持/反证只需 chunk_id 和逐字 quote；source_generation 取自实际文档查询。程序重新读取授权片段、定位唯一引文并补全路径/版本/行号/字符范围。过时版本、缺失或重复出现的引文拒绝猜测；保存结果始终待审。无路径、存储位置、审查意见或批准字段入口。
+
+query_published_knowledge 仅返回已发布、来源当前且在有效期的事实；主/子任务均可按原权限查询，子任务没有提案工具。query 按结论和适用范围作关键词匹配，空串查询全部；limit 为 1～20，默认 5。后续 offset 分页必须带前页 version；来源、发布状态、有效期或查询变化使旧页失效。每项完整保留支持、反证、理由、适用时间和来源，不因输出限额静默丢反证；单项放不下时明确 output_limit，不冒充没有结果。
+
+工具沿用原发现、模式、调用额度、Hook、会话记录及重放；提案是 SESSION_STATE，查询是 READ_ONLY。没有自动独立模型审查或模型发布工具。存在互相冲突的已发布知识时不会自动判定谁正确，也不将用户采用当作事实已验证。
+
+[独立 CLI](../adam/knowledge.py) 使用相同主配置、工作目录和资料范围。以下示例在项目目录运行，a1b2c3d4 替换为真实候选 ID；需要时在子命令前添加 --config、--llm-config 或 --workspace。
+
+```powershell
+python -m adam.knowledge list
+python -m adam.knowledge show a1b2c3d4
+python -m adam.knowledge history a1b2c3d4
+python -m adam.knowledge propose candidate.json
+python -m adam.knowledge review a1b2c3d4 --max-known-tokens 50000
+python -m adam.knowledge publish a1b2c3d4
+python -m adam.knowledge current
+python -m adam.knowledge reject a1b2c3d4 "证据不足"
+python -m adam.knowledge withdraw a1b2c3d4 "该结论已不适用"
+```
+
+list/show/history 仅展示已保存内容，不声称来源仍当前；current 重新核对。propose 读取授权的最多 128 KiB JSON，使用模型工具相同的短引用格式。review 是唯一发起 HTTP 的命令，会把候选及引文发送给配置模型并单独计费，成功时展示可靠用量与记录路径；它不占用某个已有聊天轮次的额度。CLI 仍加载 llm.toml，但其他命令不调用模型。publish 先展示具体候选、支持/反证和审查意见，只有用户输入 yes 才发布，其他输入或 EOF 记为拒绝；没有 --yes 或模型批准旁路。reject 用于待审阶段，withdraw 用于已发布/待复核状态，以上不是要求对同一候选依次执行的脚本。
+
+bootstrap 将知识目录列为保留目录，主/子文件读写、文档检索、项目规则、Skill 和独立代码审查快照不能绕过专用接口读取或改写这些记录。其含义是路径工具的访问约束，**不是操作系统隔离**；用户批准的通用命令仍按原能力执行。候选范围绑定规范化项目、资料根和分块配置，读取已发布知识不会扩展原授权范围。
+
+[23 项入口场景](../tests/features/test_knowledge_entries.py) 验证真实原文补全、待审排除、完整反证、分页失效、限长、真实主/子流程与重放、规则/Skill/资料/审查保护，以及 CLI 显式审查和确认/拒绝。加原文档/目录入口和架构检查共 66 项通过；远端仅用 MockTransport，真实模型提炼和审查质量尚待验证。Ruff、Pyright、文档链接及提交全量门禁分别核对。

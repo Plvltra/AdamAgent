@@ -94,9 +94,10 @@ def build_application(
     with ExitStack() as resources:
         modes = ModeController()
         documents_dir = config.documents_dir or store.root / "_documents"
+        knowledge_dir = config.knowledge_dir or store.root / "_knowledge"
         checkpoints_dir = store.root / "_checkpoints"
         artifacts_dir = store.root / "_artifacts"
-        protected_dirs = (documents_dir, checkpoints_dir, artifacts_dir)
+        protected_dirs = (documents_dir, checkpoints_dir, artifacts_dir, knowledge_dir)
         artifacts = _artifact_tools(
             config.artifacts, store, artifacts_dir, config.tool_limits.max_result_chars
         )
@@ -123,6 +124,7 @@ def build_application(
             documents_dir,
             config.permissions,
             (checkpoints_dir, artifacts_dir),
+            knowledge_dir=knowledge_dir,
         )
         registry, skills = register_skills(
             registry,
@@ -159,6 +161,7 @@ def build_application(
                     documents_dir,
                     checkpoints_dir,
                     artifacts_dir,
+                    knowledge_dir,
                     on_notice or (lambda _: None),
                 ),
                 on_notice or (lambda _: None),
@@ -215,7 +218,7 @@ def build_application(
             ReviewService(
                 store,
                 manager,
-                PathPolicy(workspace, config.permissions),
+                PathPolicy(workspace, config.permissions, protected_dirs=protected_dirs),
                 config.tool_limits,
                 config.review,
                 on_notice or (lambda _: None),
@@ -349,6 +352,7 @@ def _open_child(
     documents_dir: Path,
     checkpoints_dir: Path,
     artifacts_dir: Path,
+    knowledge_dir: Path,
     notify: Callable[[str], None],
     root: Path,
     agent: ChildAgent,
@@ -360,7 +364,8 @@ def _open_child(
 ) -> Iterator[Conversation]:
     """在子线程中管理独立资源，继承派发时的模式与主轮次记忆快照。
 
-    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存、检查点和附件，避免绕过范围。
+    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存、知识记录、检查点和附件。
+    知识仅经当前授权来源的查询接口读取；子任务不能保存候选、审查或发布。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     Hooks 继承用户配置，使用子任务取消令牌；后置故障提示带子任务 ID。
     辅助子任务可保存有读取依据的提案；审查者不注册此工具，所有子任务均不能应用。
@@ -381,7 +386,13 @@ def _open_child(
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             config.tool_limits,
             delegated=True,
-            protected_dirs=(memories_dir, documents_dir, checkpoints_dir, artifacts_dir),
+            protected_dirs=(
+                memories_dir,
+                documents_dir,
+                checkpoints_dir,
+                artifacts_dir,
+                knowledge_dir,
+            ),
         )
         registry = register_documents(
             registry,
@@ -391,6 +402,8 @@ def _open_child(
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             (memories_dir, checkpoints_dir, artifacts_dir),
             check_cancel=cancel.check,
+            knowledge_dir=knowledge_dir,
+            allow_knowledge_proposals=False,
         )
         registry, skills = register_skills(
             registry,
@@ -398,7 +411,13 @@ def _open_child(
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             enabled=config.skills.enabled,
             user_dir=config.skills.user_dir,
-            protected_dirs=(memories_dir, documents_dir, checkpoints_dir, artifacts_dir),
+            protected_dirs=(
+                memories_dir,
+                documents_dir,
+                checkpoints_dir,
+                artifacts_dir,
+                knowledge_dir,
+            ),
         )
         rules = (
             _project_rules(
@@ -406,7 +425,7 @@ def _open_child(
                 PermissionConfig(
                     additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)
                 ),
-                (memories_dir, documents_dir, checkpoints_dir, artifacts_dir),
+                (memories_dir, documents_dir, checkpoints_dir, artifacts_dir, knowledge_dir),
             )
             if config.rules.enabled
             else None

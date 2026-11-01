@@ -5,12 +5,13 @@ import secrets
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from itertools import islice
 from typing import Any
 
 from filelock import Timeout
 
 from adam.documents.evidence_audit import audit_summary
-from adam.documents.knowledge_proposals import KnowledgeProposals, validate_proposal
+from adam.documents.knowledge_proposals import MAX_CANDIDATES, KnowledgeProposals, validate_proposal
 from adam.documents.knowledge_states import (
     KnowledgeReviewer,
     fold_events,
@@ -35,6 +36,29 @@ class KnowledgeLifecycle:
             candidate = self.proposals.read(candidate_id)
             ledger = self._load()
             return self._view(candidate, self._state(ledger, candidate))
+
+    def candidates(self) -> list[dict[str, Any]]:
+        """列出当前范围的候选摘要与已保存状态；不自动审查或声称来源仍当前。"""
+        with self._locked():
+            paths = list(islice(self.proposals.directory.glob("*.json"), MAX_CANDIDATES + 1))
+            if len(paths) > MAX_CANDIDATES:
+                raise DocumentError("知识候选超过读取上限，请先归档已处理记录。")
+            ledger = self._load()
+            result = []
+            for path in sorted(paths):
+                candidate = self.proposals.read(path.stem)
+                state = self._state(ledger, candidate)
+                result.append(
+                    {
+                        "candidate_id": path.stem,
+                        "statement": candidate["proposal"]["statement"],
+                        "created_at": candidate["created_at"],
+                        "status": state["status"],
+                        "revision": state["revision"],
+                        "source_status": "not_checked",
+                    }
+                )
+            return result
 
     def review(self, candidate_id: str, reviewer: KnowledgeReviewer) -> dict[str, Any]:
         """对独立审查前后分别核对来源和状态；审查运行期间不占文件锁，也不自动重试。

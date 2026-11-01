@@ -151,7 +151,9 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     storage = data.get("storage", {})
     if isinstance(storage, dict) and "db_path" in storage:
         raise ConfigError("storage.db_path 已移除，请改用 storage.sessions_dir。")
-    storage = checked_section(storage, {"sessions_dir", "memories_dir", "documents_dir"}, "storage")
+    storage = checked_section(
+        storage, {"sessions_dir", "memories_dir", "documents_dir", "knowledge_dir"}, "storage"
+    )
     chat = checked_section(data.get("chat", {}), {"system_prompt"}, "chat")
 
     directory_value = storage.get("sessions_dir", "sessions")
@@ -188,6 +190,16 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     documents_dir = Path(documents_value).expanduser()
     if not documents_dir.is_absolute():
         documents_dir = directory / documents_dir
+    knowledge_value = storage.get("knowledge_dir", "knowledge")
+    if (
+        not isinstance(knowledge_value, str)
+        or not knowledge_value.strip()
+        or "\0" in knowledge_value
+    ):
+        raise ConfigError("storage.knowledge_dir 必须是非空且不含空字符的路径字符串。")
+    knowledge_dir = Path(knowledge_value).expanduser()
+    if not knowledge_dir.is_absolute():
+        knowledge_dir = directory / knowledge_dir
     document_data = checked_section(
         data.get("documents", {}), {item.name for item in fields(DocumentConfig)}, "documents"
     ).copy()
@@ -334,6 +346,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         ),
         documents=documents,
         documents_dir=documents_dir,
+        knowledge_dir=knowledge_dir,
     )
 
 
