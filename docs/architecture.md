@@ -301,6 +301,8 @@ flowchart LR
 
 此图是已实现的扩展 API；生产没有视觉模型后端或图片聊天工具。实际后端集成还需接原请求日志、共享预算与未知用量处理，见 [PDF/图片能力范围](pdf-perception.md)。
 
+C 系列最近核对（2026-11-01）：C00.1 可选网页配置、主子工具注册、按调用资源所有权、失败/取消/重放；已同步主线 B06.2。bootstrap 按 WebConfig 为主/子注册普通只读网页工具，沿用发现、权限/模式、预算、Hook、日志及取消；web.runtime 在实际调用线程创建/关闭资源，不增加另一套循环。来源随原工具结果落盘，重放只读冻结结果。主线文首、正文及图保留；HTTP 夹具说明迁入最近 conftest，入口补充资源契约，原有关键说明保留。
+
 ## B17 PDF 读取与提取
 
 ~~~mermaid
@@ -326,7 +328,6 @@ flowchart LR
 ~~~
 
 读取工具与资料索引均已接入；PDF 页码是物理页，行号是页内提取位置，扫描提示不代表执行了 OCR；原文件授权、元数据校验和资源限制见 [PDF 感知](pdf-perception.md)。
-C 系列最近核对（2026-11-01）：C01.1 独立网页抓取、网络策略与真实 HTTP 验收；已同步主线 B06.2。新增 web 服务和独立入口，应用主循环和模型/会话关系不变。原主线实现正文及图保留；新增说明已核对，没有删除既有 Python 设计注释。
 
 ## B16 语义工具目录与运行时接入
 
@@ -829,10 +830,15 @@ flowchart LR
 
 主体、时间消歧已由 B06.2 接入。模型准备、范围和降级契约见 [语义记忆](semantic-memory.md)。
 
-## C01.1 有来源网页读取
+## C00.1 / C01.1 可选网页读取
 
 ~~~mermaid
 flowchart LR
+    WEB_CONFIG["config.WebConfig / 默认禁用"] --> WEB_BOOT["bootstrap / 主子分别组装"]
+    WEB_BOOT --> WEB_TOOLS["tool_calls.web_tools / 只读声明与有界来源"]
+    WEB_EXEC["原 ToolExecutor / 发现、预算、Hook、日志、取消"] --> WEB_TOOLS
+    WEB_TOOLS --> WEB_RUNTIME["web.runtime.open_reader / 实际调用拥有资源"]
+    WEB_RUNTIME --> WEB_SERVICE
     WEB_CLI["python -m adam.web / 独立读取入口"] --> WEB_SERVICE["web.service.WebReader / 逐跳、期限与来源快照"]
     WEB_SERVICE --> WEB_PORT["web.models.PageTransport / 可取消窄端口"]
     WEB_SERVICE --> WEB_POLICY["web.policy.NetworkPolicy / URL 与地址策略"]
@@ -842,7 +848,7 @@ flowchart LR
     WEB_SERVICE --> WEB_PAGE["WebPage / 正文、标题、最终 URL、时间与摘要"]
 ~~~
 
-[WebReader](../adam/web/service.py) 不导入 SDK 或应用内核；[网络策略](../adam/web/policy.py) 默认拒绝非公共地址。[HTTP 适配器](../adam/web/adapters/http.py) 拥有事件循环/连接，创建方负责 close；独立入口不创建模型和会话。此阶段未接入工具注册，C00.1 负责后续组装，不提前在图中画出规划关系。接口/限制及系统 DNS 清理边界见 [网页读取](web-reading.md)。
+[WebReader](../adam/web/service.py) 不导入 SDK 或应用内核；[网络策略](../adam/web/policy.py) 默认拒绝非公共地址。[HTTP 适配器](../adam/web/adapters/http.py) 拥有事件循环/连接，创建方负责 close；独立入口不创建模型和会话。主/子通过 [register_web](../adam/tool_calls/web_tools.py) 接入原工具循环；禁用时不导入后端，实际调用通过 [open_reader](../adam/web/runtime.py) 独占并关闭资源。成功来源随工具 JSON 入日志，不额外建立来源数据库；C01.3 的来源 ID 仍待实现。接口/限制及系统 DNS 清理边界见 [网页读取](web-reading.md)。
 
 ## B05.3 压缩对照入口
 

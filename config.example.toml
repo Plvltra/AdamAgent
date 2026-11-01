@@ -200,3 +200,12 @@ command_timeout_seconds = 30
 # 子 Agent 不继承这份跨会话授权。最多 31 个不同短 ID；不要填文件路径。
 enabled = true
 allowed_session_ids = []
+
+[web]
+# Optional public web reading; no cookies, login, proxy or private-network access.
+# See docs/web-reading.md. Disabled means no backend import or network resource.
+enabled = false
+max_bytes = 1048576
+max_chars = 4000
+max_redirects = 4
+timeout_seconds = 15

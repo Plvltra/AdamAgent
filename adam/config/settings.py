@@ -516,6 +516,30 @@ def _validate_wsl_selection(enabled: bool, distribution: str, section: str) -> N
 
 
 @dataclass(frozen=True)
+class WebConfig:
+    """可选网页读取配置；启用表示允许原工具管线访问策略内的公共网页。"""
+
+    enabled: bool = False
+    max_bytes: int = 1048576
+    max_chars: int = 4000
+    max_redirects: int = 4
+    timeout_seconds: float = 15
+
+    def __post_init__(self) -> None:
+        """直接构造和 TOML 使用相同资源边界；不提供内网绕过配置。"""
+        if type(self.enabled) is not bool:
+            raise ConfigError("web.enabled 必须是布尔值。")
+        for name, maximum in (("max_bytes", 10000000), ("max_chars", 1000000)):
+            value = getattr(self, name)
+            if type(value) is not int or not 1 <= value <= maximum:
+                raise ConfigError(f"web.{name} 超出允许范围。")
+        if type(self.max_redirects) is not int or not 0 <= self.max_redirects <= 10:
+            raise ConfigError("web.max_redirects 必须是 0 到 10 的整数。")
+        if type(self.timeout_seconds) not in (int, float) or not 0 < self.timeout_seconds <= 120:
+            raise ConfigError("web.timeout_seconds 必须大于 0 且不超过 120。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
@@ -545,3 +569,4 @@ class AppConfig:
     knowledge_dir: Path | None = None
     orchestration: OrchestrationConfig = field(default_factory=OrchestrationConfig)
     command_isolation: CommandIsolationConfig = field(default_factory=CommandIsolationConfig)
+    web: WebConfig = field(default_factory=WebConfig)

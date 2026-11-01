@@ -1,6 +1,6 @@
 # C 系列能力模块设计（按实际消费者逐项落地）
 
-最近核对：2026-11-01；已同步主线 B05.2。C01.1 的 `web` 独立读取服务已实现，其余未勾选能力仍为规划。需求与小任务见 [C 系列练习规划](agent-capability-practice-plan.md)。本图是拟议边界，不代替 [已实现架构](architecture.md)。
+最近核对：2026-11-01；已同步主线 B06.2。C00.1 可选注册与 C01.1 的 `web` 读取服务已实现，其余未勾选能力仍为规划。需求与小任务见 [C 系列练习规划](agent-capability-practice-plan.md)。本图是拟议边界，不代替 [已实现架构](architecture.md)。
 
 目标：增加观察和动作种类时，主要改动落在所属能力包及组装入口；Conversation 不随着工具数量增加而不断出现新的工具分支。低耦合不等于零公共依赖，也不要求一个文件对应一个类。
 
@@ -158,4 +158,4 @@ C11 是已有模型流与执行管线的优化，不为凑目录另建一个包�
 
 ## 当前已落地增量
 
-C01.1 在 `adam/web/` 实现值对象、网络策略、WebReader 与 HTTP 适配器；业务层只依赖本包及 contracts，HTTP SDK 仅在 adapters 导入。独立入口不创建模型/会话。ToolRegistry/bootstrap 的可选接入留给 C00.1，不把本规划图误当已实现架构。见 [网页读取](web-reading.md) 与 [当前架构](architecture.md)。
+C01.1 在 `adam/web/` 实现值对象、网络策略、WebReader 与 HTTP 适配器；业务层只依赖本包及 contracts，HTTP SDK 仅在 adapters 导入。独立入口不创建模型/会话。C00.1 已由 bootstrap 按 WebConfig 为主/子注册原只读管线，默认关闭且不导入后端；web.runtime.open_reader 在每次调用独占/关闭连接，不为当前无持久资源的网页预建全局框架。后续浏览器/设备按真实生命周期扩展，不把本规划图误当已实现架构。见 [网页读取](web-reading.md) 与 [当前架构](architecture.md)。

@@ -32,6 +32,7 @@ from adam.config.settings import (
     SubagentConfig,
     ToolDiscoveryConfig,
     ToolLimits,
+    WebConfig,
 )
 from adam.contracts.errors import ConfigError
 
@@ -162,6 +163,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "session_search",
             "orchestration",
             "command_isolation",
+            "web",
         },
         "主配置",
     )
@@ -374,6 +376,9 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
                 {item.name for item in fields(ArtifactConfig)},
                 "artifacts",
             )
+        ),
+        web=WebConfig(
+            **checked_section(data.get("web", {}), {item.name for item in fields(WebConfig)}, "web")
         ),
         documents=documents,
         documents_dir=documents_dir,

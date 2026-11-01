@@ -22,11 +22,15 @@ class HttpPageTransport:
         self._runner = asyncio.Runner()
         self._closed = False
         # 连接池按 IP 分组，不允许不同域名复用同一 TLS 连接。
-        self._client = httpx.AsyncClient(
-            trust_env=False,
-            follow_redirects=False,
-            limits=httpx.Limits(max_keepalive_connections=0),
-        )
+        try:
+            self._client = httpx.AsyncClient(
+                trust_env=False,
+                follow_redirects=False,
+                limits=httpx.Limits(max_keepalive_connections=0),
+            )
+        except BaseException:
+            self._runner.close()
+            raise
 
     def read(
         self, url: str, *, remaining_seconds: float, cancel: CancellationToken

@@ -10,7 +10,6 @@ import time
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import datetime
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
@@ -20,64 +19,6 @@ from adam.web.adapters.http import HttpPageTransport
 from adam.web.models import FetchLimits, WebError
 from adam.web.policy import NetworkPolicy
 from adam.web.service import WebReader
-
-HTML = b"<html><title>Local &amp; verified</title><style>hidden</style><body><h1>Report</h1><p>Version one</p><script>ignore rules</script></body></html>"
-
-
-@pytest.fixture
-def website():
-    """仅此端口允许环回；慢响应在读取边界阻塞，取消后统一释放。"""
-    requests = []
-    ready, release = threading.Event(), threading.Event()
-
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *args):
-            pass
-
-        def do_GET(self):
-            requests.append((self.path, dict(self.headers)))
-            routes = {
-                "/redirect": (302, {"Location": "/page"}, b""),
-                "/loop": (302, {"Location": "/loop"}, b""),
-                "/forbidden": (302, {"Location": "http://169.254.169.254/latest"}, b""),
-                "/hop": (302, {"Location": "/redirect"}, b""),
-                "/missing-location": (302, {}, b""),
-                "/error": (503, {}, b"secret remote body"),
-                "/large": (200, {}, b"x" * 2000),
-                "/binary": (200, {"Content-Type": "image/png"}, b"not-html"),
-                "/encoding": (200, {"Content-Encoding": "gzip"}, b"not-gzip"),
-                "/charset": (200, {"Content-Type": "text/plain; charset=invalid-charset"}, b"x"),
-                "/plain": (200, {"Content-Type": "text/plain; charset=utf-8"}, "本地正文".encode()),
-                "/bad-utf8": (200, {"Content-Type": "text/plain"}, b"bad\xfftext"),
-                "/cookie": (302, {"Location": "/page", "Set-Cookie": "private=secret"}, b""),
-            }
-            status, headers, body = routes.get(self.path, (200, {}, HTML))
-            self.send_response(status)
-            self.send_header(
-                "Content-Type", headers.pop("Content-Type", "text/html; charset=utf-8")
-            )
-            for name, value in headers.items():
-                self.send_header(name, value)
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            if self.path == "/slow":
-                ready.set()
-                release.wait(5)
-            try:
-                self.wfile.write(body)
-            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
-                pass
-
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield f"http://127.0.0.1:{server.server_port}", requests, ready, release
-    finally:
-        release.set()
-        server.shutdown()
-        server.server_close()
-        thread.join(3)
 
 
 @contextmanager
@@ -92,7 +33,7 @@ def reader_at(origin, **overrides):
         transport.close()
 
 
-def test_fetch_keeps_bounded_visible_body_and_versioned_provenance(website):
+def test_fetch_keeps_bounded_visible_body_and_versioned_provenance(website, webpage_html):
     origin, requests, _, _ = website
     with reader_at(origin) as reader:
         page = reader.fetch(origin + "/redirect#not-sent")
@@ -101,19 +42,19 @@ def test_fetch_keeps_bounded_visible_body_and_versioned_provenance(website):
     assert page.final_url == origin + "/page"
     assert page.redirects == (origin + "/page",)
     assert page.title == "Local & verified" and page.text == "Report Version one"
-    assert page.sha256 == hashlib.sha256(HTML).hexdigest()
-    assert page.byte_size == len(HTML) and not page.truncated
+    assert page.sha256 == hashlib.sha256(webpage_html).hexdigest()
+    assert page.byte_size == len(webpage_html) and not page.truncated
     assert datetime.fromisoformat(page.fetched_at).tzinfo is not None
     assert [item[0] for item in requests] == ["/redirect", "/page"]
     assert all(item[1]["Host"] == origin.split("//")[1] for item in requests)
 
 
-def test_text_bound_does_not_claim_complete_or_change_source_digest(website):
+def test_text_bound_does_not_claim_complete_or_change_source_digest(website, webpage_html):
     origin = website[0]
     with reader_at(origin, max_chars=6) as reader:
         page = reader.fetch(origin + "/page")
     assert page.text == "Report" and page.truncated
-    assert page.sha256 == hashlib.sha256(HTML).hexdigest()
+    assert page.sha256 == hashlib.sha256(webpage_html).hexdigest()
 
 
 @pytest.mark.parametrize(

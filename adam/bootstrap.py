@@ -87,6 +87,7 @@ from adam.tool_calls.skill_tools import register_skills
 from adam.tool_calls.terminal_sessions import TerminalSessions
 from adam.tool_calls.terminal_tools import TerminalTools
 from adam.tool_calls.trigger_tools import TriggerTools
+from adam.tool_calls.web_tools import register_web
 
 ChildClientFactory = Callable[[CancellationToken], AbstractContextManager[ModelClient]]
 
@@ -125,6 +126,7 @@ def build_application(
     delegation_dispatch仅由宿主接入预算新建策略；在真实工具阶段调用，不能由模型提供代码。
     role仅由可信配置加载；固定同一连接配置的模型并收窄请求数和工具，不替换路径权限。
     live_input显式启用运行中输入；cancel须与主HTTP适配器共享，默认聊天保持原路径。
+    网页工具按次创建/关闭独立连接；禁用时不加载其后端。
     启用子任务或 MCP 的调用方须在释放主会话锁前调用 application.close；
     组装失败会回收已创建资源，主模型与主存储仍由调用方持有。
     """
@@ -264,6 +266,7 @@ def build_application(
         registry = register_mcp(
             registry, config.mcp, workspace, resources, media_store=MCPMediaStore(mcp_media_dir)
         )
+        registry = register_web(registry, config.web)
         if artifacts:
             registry = artifacts.register(registry)
         if config.session_search.enabled:
@@ -576,6 +579,7 @@ def _open_child(
     不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存、知识记录、检查点和附件（含 MCP 媒体）。
     知识仅经当前授权来源的查询接口读取；子任务不能保存候选、审查或发布。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
+    网页读取继承可信开关与网络策略，每次工具调用独占并关闭连接。
     Hooks 继承用户配置，使用子任务取消令牌；后置故障提示带子任务 ID。
     普通辅助任务可保存读取提案但不能应用；宿主私有副本任务仅可直接编辑副本，命令仍禁止。
     """
@@ -634,6 +638,7 @@ def _open_child(
             knowledge_dir=knowledge_dir,
             allow_knowledge_proposals=False,
         )
+        registry = register_web(registry, config.web)
         registry, skills = register_skills(
             registry,
             Path(agent.workspace),
