@@ -517,9 +517,11 @@ def _validate_wsl_selection(enabled: bool, distribution: str, section: str) -> N
 
 @dataclass(frozen=True)
 class WebConfig:
-    """可选网页读取配置；启用表示允许原工具管线访问策略内的公共网页。"""
+    """可选网页读取与独立百科搜索；启用不放宽网络、文件或命令权限。"""
 
     enabled: bool = False
+    search_backend: str | None = None
+    search_max_results: int = 5
     max_bytes: int = 1048576
     max_chars: int = 4000
     max_redirects: int = 4
@@ -529,6 +531,10 @@ class WebConfig:
         """直接构造和 TOML 使用相同资源边界；不提供内网绕过配置。"""
         if type(self.enabled) is not bool:
             raise ConfigError("web.enabled 必须是布尔值。")
+        if self.search_backend not in (None, "wikipedia"):
+            raise ConfigError("web.search_backend 只支持 wikipedia，省略时不启用搜索。")
+        if type(self.search_max_results) is not int or not 1 <= self.search_max_results <= 20:
+            raise ConfigError("web.search_max_results 必须为 1 到 20。")
         for name, maximum in (("max_bytes", 10000000), ("max_chars", 1000000)):
             value = getattr(self, name)
             if type(value) is not int or not 1 <= value <= maximum:

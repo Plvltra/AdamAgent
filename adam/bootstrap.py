@@ -275,7 +275,7 @@ def build_application(
         registry = register_mcp(
             registry, config.mcp, workspace, resources, media_store=MCPMediaStore(mcp_media_dir)
         )
-        registry = register_web(registry, config.web)
+        registry = register_web(registry, config.web, store=store)
         registry, browser = register_browser(
             registry,
             config.browser,
@@ -670,7 +670,7 @@ def _open_child(
             knowledge_dir=knowledge_dir,
             allow_knowledge_proposals=False,
         )
-        registry = register_web(registry, config.web)
+        registry = register_web(registry, config.web, store=store)
         registry, skills = register_skills(
             registry,
             Path(agent.workspace),

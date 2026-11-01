@@ -205,6 +205,9 @@ allowed_session_ids = []
 # Optional public web reading; no cookies, login, proxy or private-network access.
 # See docs/web-reading.md. Disabled means no backend import or network resource.
 enabled = false
+# English Wikipedia candidates only, not general web search.
+# search_backend = "wikipedia"
+search_max_results = 5
 max_bytes = 1048576
 max_chars = 4000
 max_redirects = 4

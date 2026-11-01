@@ -64,3 +64,29 @@ def test_web_toml_cannot_introduce_network_bypasses_or_invalid_limits(tmp_path, 
     path.write_text(section, encoding="utf-8")
     with pytest.raises(ConfigError):
         load_config(path)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"search_backend": "anywhere"},
+        {"search_backend": True},
+        {"search_max_results": True},
+        {"search_max_results": 0},
+        {"search_max_results": 21},
+    ],
+)
+def test_search_config_is_explicit_and_cannot_supply_an_arbitrary_backend(changes):
+    with pytest.raises(ConfigError):
+        WebConfig(**changes)
+
+
+def test_search_config_parses_but_does_not_implicitly_enable_web(tmp_path):
+    (tmp_path / "llm.toml").write_text(
+        '[llm]\nbase_url="https://unused.test"\nmodel="test"\napi_key="not-real"', encoding="utf-8"
+    )
+    path = tmp_path / "config.toml"
+    path.write_text('[web]\nsearch_backend="wikipedia"\nsearch_max_results=2', encoding="utf-8")
+    config = load_config(path)
+    assert not config.web.enabled and config.web.search_backend == "wikipedia"
+    assert config.web.search_max_results == 2

@@ -3,12 +3,39 @@
 最近核对：2026-11-03
 
 本次核对范围：B01～B42 最终交付与回归结果归档；架构无变化。固定 41c0dfb 全量 3127 项通过，此后仅文档改动；B42.3 的正式宿主策略回调、共享账本和原审批关系保持。
+本次核对范围：B41.2 角色绑定、有限上下文显式移交与失败恢复。
+本次核对范围：B40.1 新增独立 Git 副本生命周期管理，尚未接入子任务提案合并。
+本次核对范围：B31.2 独立评估矩阵runner、应用组装与逐次报告；生产聊天架构无变化。
+本次核对范围：B27.2.2 终端运行输入、独立留痕与共享取消。
+本次核对范围：C01.3 主子搜索、已保存网页快照与逐字引用；同步主线 B12.2.2 单次独立模型审查、请求记录及用量和故障边界。
+
+核对结论：C01.3 新增 web.evidence 与 tool_calls.web_sources，复用原工具/JSONL 边界。B12.2.2 新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用；当前仍为宿主 API，配置及使用入口留在 B12.2.3。B12.2.1 的独立状态、锁外回调与落盘前来源/修订复核，以及 B11.3 的原文审计和冻结证据说明保留；生产聊天流程不新增最终回答拦截，来源与逐字引用有效不能证明语义正确。
+
+主线同步：recording.journal 提取 parse_recording，读取与导出复用原协议和残缺尾部规则；新增 redaction 与 sharing，仅处理本地数据。先识别敏感值再替换重复文本，报告不保存原文；同目录临时文件完成后排他发布，分享格式不当作录制格式。原注释及协议说明保持并补充同份字节来源约束。
+
+B13.3 同步核对：有界嵌套 JSON 脱敏、完整凭据、规则版本及组合验收已保留；redaction 的完整字符串解析与 share_format 的 v1/v2 校验不新增模型或重放依赖。
+
+B14.1～3/B19.1 同步核对（固定主线 103add4）：保留 WSL/Bubblewrap、资源看守与有界 RPC，B14.2 已通过原 ToolExecutor.execute_nested 接入主子聊天、共同工具/编辑额度、完整 Hook、来源日志及冻结录制；独立 code_bridge 仍只供显式 API。B14.3 新增真实清理、故障及强杀恢复验收，生产架构不另改。原线程、限额、未知结果、非阻塞回复、两阶段 exec 和不重跑说明保留，B15.1/2 的已提交资源与模板另见下图。
+
+B15.1/2 同步核对（固定主线 7e35959）：保留显式 MCP 文本资源与提示模板目录、参数/内容版本校验和原连接清理；外部角色只在工具结果中保存，不提升为真实历史权限，不执行 URI 或服务指令。不纳入主线未提交的远端 MCP 传输改动。
+
+B15.3 同步核对（固定主线 fd2f19a）：生产模块与下图保持。测试 HTTP 服务仅在媒体场景增加工具、资源和模板，真实认证 JSON/SSE 验证共享转换/存储路径，错误及满缓存保留旧字节，取消不声称远端停止。会话重开和离线重放经过原应用，后者禁止两套 HTTP 客户端及子进程。新增测试说明已核对，原协议/进程说明保留。
+
+B16.2 同步核对（固定主线 51be036）：bootstrap 为主/子 ToolDiscovery 分别注入本地 FastEmbedBackend，list_tools 使用 SemanticToolRanker 并返回实际排序来源。查询仍不改变选择，discover/固定请求名单与原权限检查保持。分页预算含元信息，记录和重放复用原工具边界。原完整分页、不截断和无副作用说明已保留并扩展。
+
+B16.3 同步核对（固定主线 446d767）：生产架构无变化；新增离线评估入口复用真实注册目录、list_tools/discover_tools 和本地向量适配器，记录候选、Schema 字节、权限及耗时。教学工具不能执行，不增加聊天入口。原发现/执行和注释契约保留，新增脚本说明固定题目、降级和计量边界。
+
+主线 B22 同步核对：
+本次核对范围：B22.3.2 独立宿主发布竞争和创建/撤销强杀恢复。
+
+主线 B26 同步核对：
+本次核对范围：B26.2.1 后台输出游标。架构无变化；BackgroundJobs.read_output委托现有OutputCapture.read_since，复用有界头尾，不增加存储模块。后台显式启用及时读取，同步命令默认行为保持。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-C 系列最近核对（2026-11-01）：C01.2 新增独立 SearchBackend/SearchResult、WikipediaSearch 及搜索 CLI；open_search 按次创建 JSON 专用 HTTP 资源，复用原 DNS 固定/TLS/取消边界，候选与网页正文版本分开，未接入模型搜索工具或改变日志协议。C02.3 扩展每会话标签/弹窗/对话框及显式附件下载；浏览器保持窄端口，SDK 仅由适配器持有。bootstrap 把原执行来源和 SessionMedia 注入主浏览器工具，并向 facade 注入主轮次中断清理；字节经 C00.2 发布并提交来源后才交付引用，录制重放仅导入媒体事实、不重做动作。弹窗事件窗口从点击完成后计时，原标签丢失不自动创建重定向替代页；原逐次批准、_media 保护、文本附件与主线 B 关系保持，C00.3/C02.4 仍待验收。主线文首与正文保留。
+C 系列最近核对（2026-11-01）：C01.3 把 search_web 与 read_web_source 接入主子原工具管线；web.evidence 先限长再绑定快照 ID/逐字范围，WebSources 只从当前所属 SessionStore 已保存 read_webpage 结果回查，搜索候选不成为正文证据。原 JSONL/录制格式保持，无新来源数据库或回答语义拦截。C01.2 新增独立 SearchBackend/SearchResult、WikipediaSearch 及搜索 CLI；open_search 按次创建 JSON 专用 HTTP 资源，复用原 DNS 固定/TLS/取消边界，候选与网页正文版本分开，独立后端本身不改变日志协议。C02.3 扩展每会话标签/弹窗/对话框及显式附件下载；浏览器保持窄端口，SDK 仅由适配器持有。bootstrap 把原执行来源和 SessionMedia 注入主浏览器工具，并向 facade 注入主轮次中断清理；字节经 C00.2 发布并提交来源后才交付引用，录制重放仅导入媒体事实、不重做动作。弹窗事件窗口从点击完成后计时，原标签丢失不自动创建重定向替代页；原逐次批准、_media 保护、文本附件与主线 B 关系保持，C00.3/C02.4 仍待验收。主线文首与正文保留。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
@@ -677,7 +704,25 @@ flowchart LR
     WS_ADAPTER --> WS_RESULT["SearchResult / API 响应版本、候选、摘要与范围"]
 ~~~
 
-[搜索契约](../adam/web/search_models.py) 不包含 SDK 或会话；[百科适配器](../adam/web/adapters/wikipedia.py) 借用窄网络端口，只从默认官方端点或可信本地验收端点构造候选。未配置后端先失败、不创建资源；API 重定向拒绝、无自动重试。标题/摘要/条数/响应字节有界，非法整批不作为空结果。`search_snippets` 的响应摘要不代表候选网页版本，不经过模型请求或 JSONL；C01.3 再接入原工具/来源片段闭环。原 WebReader 类型、主子可选读取、权限/批准及 B 系列关系保持。接口、限制、真实 HTTP 与真实百科后端验证见 [网页与搜索](web-reading.md)。
+[搜索契约](../adam/web/search_models.py) 不包含 SDK 或会话；[百科适配器](../adam/web/adapters/wikipedia.py) 借用窄网络端口，只从默认官方端点或可信本地验收端点构造候选。未配置后端先失败、不创建资源；API 重定向拒绝、无自动重试。标题/摘要/条数/响应字节有界，非法整批不作为空结果。`search_snippets` 的响应摘要不代表候选网页版本，独立 CLI 不经过模型请求或 JSONL；主子工具与来源片段闭环见下节。原 WebReader 类型、主子可选读取、权限/批准及 B 系列关系保持。接口、限制、真实 HTTP 与真实百科后端验证见 [网页与搜索](web-reading.md)。
+
+## C01.3 搜索、正文与当前会话引用
+
+~~~mermaid
+flowchart LR
+    WR_CONFIG["WebConfig / enabled 与独立 search_backend"] --> WR_BOOT["bootstrap / 主子各自 store"]
+    WR_BOOT --> WR_TOOLS["web_tools / 原发现、权限、Hook、预算、取消"]
+    WR_TOOLS --> WR_SEARCH["search_web / 独立 SearchBackend 候选"]
+    WR_TOOLS --> WR_READ["read_webpage / WebReader 正文快照"]
+    WR_READ --> WR_REF["web.evidence / 限长后 source_id、范围与片段摘要"]
+    WR_REF --> WR_LOG["ToolInvocation / 原 tool_finished 与 JSONL"]
+    WR_TOOLS --> WR_LOOKUP["read_web_source / WebSources 串行所属会话"]
+    WR_LOOKUP --> WR_LOG
+    WR_LOOKUP --> WR_QUOTE["quote_page / 已保存正文逐字范围、citation"]
+    WR_LOG --> WR_REPLAY["原录制工具结果 / 重放不搜索、抓取或回查"]
+~~~
+
+[证据值模块](../adam/web/evidence.py) 只处理固定快照和范围，不访问网络/会话。ID 绑定实际交付文本及抓取元数据，实体 SHA-256 与片段文本摘要分别保留；同 URL 的新抓取与旧快照不混装。[WebSources](../adam/tool_calls/web_sources.py) 核对当前 store 的真实工具关联、正文完整性与 IO 返回后的所有者，不接受会话/路径参数；来源缺失或日志/版本故障不补抓。主子各用自身日志；搜索/读取独占连接可并发，回查不并发访问会话。未保存尾部不可续读，空 next_offset 只表示保存部分读完。原模式/批准/日志失败停止、_media/_artifacts 保护及 B 模块边界保持；引用存在不证明模型结论受支持。使用、失败边界和真实本地 HTTP 验收见 [网页研究](web-reading.md)。
 
 ## C00.1 / C01.1 可选网页读取
 
@@ -697,7 +742,7 @@ flowchart LR
     WEB_SERVICE --> WEB_PAGE["WebPage / 正文、标题、最终 URL、时间与摘要"]
 ~~~
 
-[WebReader](../adam/web/service.py) 不导入 SDK 或应用内核；[网络策略](../adam/web/policy.py) 默认拒绝非公共地址。[HTTP 适配器](../adam/web/adapters/http.py) 拥有事件循环/连接，创建方负责 close；独立入口不创建模型和会话。主/子通过 [register_web](../adam/tool_calls/web_tools.py) 接入原工具循环；禁用时不导入后端，实际调用通过 [open_reader](../adam/web/runtime.py) 独占并关闭资源。成功来源随工具 JSON 入日志，不额外建立来源数据库；C01.3 的来源 ID 仍待实现。接口/限制及系统 DNS 清理边界见 [网页读取](web-reading.md)。
+[WebReader](../adam/web/service.py) 不导入 SDK 或应用内核；[网络策略](../adam/web/policy.py) 默认拒绝非公共地址。[HTTP 适配器](../adam/web/adapters/http.py) 拥有事件循环/连接，创建方负责 close；独立入口不创建模型和会话。主/子通过 [register_web](../adam/tool_calls/web_tools.py) 接入原工具循环；禁用时不导入后端，实际调用通过 [open_reader](../adam/web/runtime.py) 独占并关闭资源。成功来源随工具 JSON 入日志，不额外建立来源数据库；C01.3 的来源 ID/片段从同一已保存结果回查。接口/限制及系统 DNS 清理边界见 [网页读取](web-reading.md)。
 
 ## B05.3 压缩对照入口
 
@@ -2143,3 +2188,7 @@ flowchart LR
 ```
 
 delegation_dispatch由宿主显式提供，模型不能上传策略代码；未提供保持原spawn行为。回调在真实工具阶段执行，避免在远端请求尚未结算时查询主账本。对照入口只批准读取，不批准文件修改或命令；简单任务拒绝新增子任务，可拆分任务在额度内派发。收尾关闭应用并检查子任务终态，报告合计主子请求和共享已知token；未知总量记null，失败样本保留。具体结果与范围见[预算委派对照](delegation-comparison.md)。
+主线 B19 同步核对：
+本次核对范围：B19.3.2 真实用户进程的取消、宿主强杀、全部 Linux 身份回收与持锁恢复。
+
+核对结论：生产架构无变化，保留图形与原注释。新增显式验收脚本，真实路径仍为原工具 → IsolatedCommands → Linux 看守/Bubblewrap/用户命令。宿主断线由看守清理，存储恢复不会推断命令结果或重新执行；修正旧隔离前置段落的阶段状态。

@@ -1,6 +1,6 @@
-# 网页读取与百科搜索（C00.1 / C01.1 / C01.2）
+# 网页读取与百科搜索（C00.1 / C01.1～3）
 
-当前范围：独立网页读取、可选主/子读取工具，以及独立 English Wikipedia 搜索服务/CLI。搜索只覆盖该百科，不是通用互联网搜索；搜索工具闭环、模型自动选择来源与引用质量仍为 C01.3/4。浏览器另见 [浏览器观察](browser-observation.md)。
+当前范围：独立网页读取、可选主/子读取工具，以及独立 English Wikipedia 搜索服务/CLI 与主子搜索→阅读→片段引用工具闭环。搜索只覆盖该百科，不是通用互联网搜索；固定真实模型任务与引用质量仍为 C01.4。浏览器另见 [浏览器观察](browser-observation.md)。
 
 ## 使用
 
@@ -22,7 +22,7 @@ python -m adam.web https://example.com/
 - 每次连接与重定向重新检查，固定已验证 IP 连接，保留原始 Host/TLS SNI 与证书验证；禁用 keepalive，避免多个域名共用 IP 连接而绕过 TLS 主机验证。无自动重试、代理、认证或跨请求 cookies。
 - 测试仅由可信宿主注入精确的环回 origin，普通 CLI 没有内网放行选项。这不是防火墙替代品，部署仍应限制出口。
 - 仅接受 HTML/XHTML/纯文本。请求 identity 并拒绝压缩响应，避免解压炸弹；不执行 JavaScript，不读取子资源。HTMLParser 去掉脚本/样式等，不能替代完整浏览器可见性计算，动态网站交给 C02。
-- 网页内容始终是不可信资料，不授予执行权限。此阶段只返回不可变来源快照；来源持久化、片段引用与聊天闭环由 C01.3 完成。
+- 网页内容始终是不可信资料，不授予执行权限。返回不可变来源快照，C01.3 通过原 JSONL 保存来源并提供逐字片段回查；不根据网页中的指令扩大授权。
 - 超时涵盖抓取等待；取消会终止异步连接和读取。系统 DNS 使用平台 resolver，原生 DNS 调用若阻塞，事件循环关闭可能等待其返回，不能承诺操作系统 DNS 的硬取消时限。无自动重发。
 
 ## 可选工具接入（C00.1）
@@ -40,7 +40,7 @@ timeout_seconds = 15
 
 启用表示允许原工具管线读取策略内的公共网页，不放宽文件/命令权限。默认关闭时不注册 `read_webpage`、不导入网页后端；开启但普通聊天不读取时也不创建连接。当前后端复用项目已有 HTTPX，无新增必装 SDK。配置没有私网放行或代理绕过键。
 
-默认按需发现：先 `discover_tools(names=["read_webpage"])`，在后续模型请求调用 `read_webpage(url=...)`。工具返回 `status=fetched` 及完整 `source` 结构；正文可进一步限长，但来源 URL/摘要不会被通用预览悄悄替换。连元数据都放不下时返回 `output_limit`，不能视为有效引用；抓取失败以 `error_type` 分类。独立百科搜索见下文；搜索工具接入及稳定来源 ID/片段映射仍属于 C01.3。
+默认按需发现：先 `discover_tools(names=["read_webpage"])`，在后续模型请求调用 `read_webpage(url=...)`。工具返回 `status=fetched` 及完整 `source` 结构；正文可进一步限长，但来源 URL/摘要不会被通用预览悄悄替换。连元数据都放不下时返回 `output_limit`，不能视为有效引用；抓取失败以 `error_type` 分类。独立百科搜索及 C01.3 的搜索工具/快照片段引用见下文。
 
 主任务与子任务使用同一注册函数。只读声明、发现名单、模式、工具总次数、Hook、日志、取消及录制重放均复用现有管线。每个实际调用在所属工作线程通过 `open_reader` 创建/关闭独立资源，支持两个安全读取并发，不共享 HTTP 客户端、cookies 或事件循环；启动/闲聊没有需长期持有的网页资源。构造失败也释放已创建部分，清理失败给原异常加安全说明而不覆盖它。若系统 DNS 阻塞导致读取线程不能及时退出，沿用既有 ToolCleanupError 停止后续派发，不宣称后端已硬取消。
 
@@ -54,7 +54,7 @@ timeout_seconds = 15
 
 `python -m pytest -q tests/features/test_web_reading.py tests/test_web_policy.py tests/test_architecture.py`：73 项通过。故障注入只在 DNS 边界模拟解析失败/重绑定，其余连接、重定向、正文、超时和取消均为真实本地 ThreadingHTTPServer，不使用 MockTransport。没有迁移或删除已有场景。
 
-Ruff format/lint、Pyright 与全量 pytest 是每项提交门禁。下文的真实百科后端验证不证明通用互联网覆盖或模型效果；C01.3/4 保持待办。
+Ruff format/lint、Pyright 与全量 pytest 是每项提交门禁。下文的真实百科后端验证不证明通用互联网覆盖或模型效果；C01.3 工程闭环见下文，C01.4 真实模型效果保持待办。
 
 
 ## 独立百科搜索（C01.2）
@@ -63,7 +63,7 @@ Ruff format/lint、Pyright 与全量 pytest 是每项提交门禁。下文的真
 python -m adam.web.search "Nelson Mandela" --backend wikipedia --limit 5
 ```
 
-这是首个无需密钥的真实后端，范围仅为 English Wikipedia。选型原因：本机可直接访问官方 [MediaWiki Search API](https://www.mediawiki.org/wiki/API:Search)，而此前 DuckDuckGo HTML 可用性探测返回 202 挑战；不绕过挑战、不把不可用后端或百科范围声称为通用互联网检索。首版不注册搜索模型工具、不增加 AppConfig 开关，C01.3 再接入原发现/权限/日志入口；C01.4 的时效、冲突、无答案、重定向及无需搜索固定任务与真实模型判读仍须完成，不能由本项代替。
+这是首个无需密钥的真实后端，范围仅为 English Wikipedia。选型原因：本机可直接访问官方 [MediaWiki Search API](https://www.mediawiki.org/wiki/API:Search)，而此前 DuckDuckGo HTML 可用性探测返回 202 挑战；不绕过挑战、不把不可用后端或百科范围声称为通用互联网检索。C01.2 先提供独立服务/CLI，C01.3 已接入原发现/权限/日志入口（见下文）；C01.4 的时效、冲突、无答案、重定向及无需搜索固定任务与真实模型判读仍须完成，不能由本项代替。
 
 - 后端须显式选择；省略 `--backend` 输出 `not_configured` 并返回 1，尚未创建 HTTP 资源。合法无结果则返回 0、`ok=true`、空 `candidates`。未知程序化后端为 `unsupported_backend`。本后端不需要凭据，也不读取模型密钥；未来有凭据后端只能由适配器消费。
 - 默认至多 5 条，允许 1～20 条；查询 512 字符（上限 1024），标题 512、摘要 768 字符。响应 1 MiB、总期限 15 秒；限额可由可信宿主通过 `SearchLimits` 注入，CLI 仅暴露结果数量。空白/控制字符/孤立代理字符、原文或 URL 编码后超长查询在发送前拒绝；标题/摘要截断分别显式标记。字节超限、超量/重复/非法条目使整批失败，不返回部分候选或旧缓存。
@@ -80,3 +80,35 @@ python -m adam.web.search "Nelson Mandela" --backend wikipedia --limit 5
 联合命令：`python -m pytest -q tests/features/test_web_search.py tests/features/test_web_reading.py tests/features/test_optional_web.py tests/test_web_search.py tests/test_web_policy.py tests/test_web_config.py tests/test_architecture.py`。该联合命令 195 项通过；全仓格式/lint、Pyright 和 pytest 作为独立提交门禁。
 
 2026-11-01 17:20（Asia/Shanghai）最终代码通过新 CLI 实际发出两次免费只读搜索：`Nelson Mandela` 返回 2 条，随机无匹配词返回 0 条；实际 CLI 耗时约 1.062 / 0.860 秒。输出、URL、响应摘要、源码摘要和限制保存于 [真实后端记录](evaluations/c01-search-backend.json)。这不是日常联网自动测试，没有付费模型调用，不证明模型选择工具、答案引用质量、通用搜索范围或持续可用性。
+
+
+## 搜索—阅读—片段引用（C01.3）
+
+可信配置按需添加：
+
+```toml
+[web]
+enabled = true
+search_backend = "wikipedia"
+search_max_results = 5
+```
+
+原字节、正文、重定向及期限配置仍适用。默认整个 web 关闭；只有 `enabled=true` 注册 `read_webpage` 和 `read_web_source`，`search_backend="wikipedia"` 另注册 `search_web`；省略搜索后端不隐式联网或注册搜索，只有后端配置但 enabled=false 也不启用。后端不能由模型参数或网页选择，不接受私网/代理/凭据配置；搜索查询会发送给百科，勿输入密钥/私密资料。普通聊天不创建网络资源。
+
+1. 用原 `discover_tools` 按需发现三个工具，后续请求才取得可执行名单；同批发现不立即授予权限。
+2. `search_web(query=...)` 返回 `status=candidates/no_results`、独立 `search` 及 `output_limited`。返回的 `search_snippets` 只帮助选择下一次 URL，不能据摘要声称已读正文；完整候选按结果预算减条，URL/摘要不局部裁断。原本有候选却一条也装不下时明确 `output_limit`，不伪装无答案。HTTP/API 失败保留分类，不重试。
+3. `read_webpage(url=...)` 通过原网络策略抓取，先将正文缩短到可交付范围，再生成 `source_id=web-<SHA-256>` 和 `excerpt`。ID 规范化摘要绑定完整 source 元数据（请求/最终 URL、UTC 时间、实体版本、大小、正文、截断及重定向等）及实际保存前缀；不是当前网页版本、全球数据库主键或授权凭据。`source.sha256` 标识原实体，`excerpt.text_sha256` 标识交付文本，二者用途不同。
+4. 回答可使用实际 `excerpt.citation`，格式为 `web-<id>:start-end`；偏移按提取后正文 Unicode 字符，从 0 开始，end 不含尾字符，不是 HTML 字节/屏幕位置。例如保存正文里的数字位于 12～14 时引用相应两字符范围。
+5. `read_web_source(source_id=..., start=12, count=2)` 只回查所属当前会话已保存的 read_webpage 结果，返回逐字 `excerpt.text`、范围/摘要/citation、完整来源元数据、`saved_chars` 和 `next_offset`。count 为 1～4000，按实际 JSON 转义后大小二分保留最长可交付非空前缀，输出缩短后下一偏移紧接实际返回字符；`next_offset=null` 只表示已保存部分读完。来源 truncated=true 时未保存尾部始终未知，不能据此宣称读完网页。
+
+来源不另写数据库或附件，不依赖 artifacts 开关。现有 ToolInvocation 在正文结果交付前保存完整 `tool_finished`，WebSources 通过已验证日志中的原 turn/request/tool_call 关联读取，只接受原 `read_webpage` 的结果。来源日志失败停止本轮；即使网络已完成，没有已保存结果也不交付回查凭据、不重抓或伪造成功。原成功工具结果可以作为失败轮次留下的真实观察被回查，不因此宣称整轮成功。旧的无 source_id 工具记录仍能读取/重放，但不能事后补造新引用，需用户明确重新读取网页。
+
+每次回查重新核对 source_id、正文/元数据/范围与片段摘要，并在日志 IO 返回后复查活动会话；缺失、损坏、错绑、范围越界和跨会话分别失败，日志 IO 错误传播而不伪装为缺少来源。内容/版本哈希用于一致性检查，不是数字签名；不声称能防御攻击者改写全部可信宿主日志。网站后来变化不会改写已保存快照，新抓取获得新 ID。
+
+主子均通过原 ToolRegistry/ToolExecutor。无状态搜索/抓取可只读并发，各自在线程创建并关闭连接；来源回查访问 SessionStore，声明串行只读。主子只注入各自持锁 store，不把父日志授予子、也不允许父按子 ID 读取其私有记录；委派结果须保留归属。所有工具仍受发现、模式、预算、Hook、取消与原日志规则约束：网页中的“已授权”不授予越界读或改写，act 编辑仍需用户确认，拒绝立即停止本轮。录制重放消费冻结工具事实，零搜索/抓取/来源文件回查。
+
+### 本项工程验收
+
+[17 项业务](../tests/features/test_web_research.py)、[28 项引用/范围边界](../tests/test_web_evidence.py) 与 [6 项新增配置边界](../tests/test_web_config.py) 覆盖真实本地百科搜索/重定向站点、摘要与正文冲突、同 URL 新旧快照、准确数字引用、重启回查、截断尾部、主子隔离、plan/act 注入与原批准、空结果/限流/预算/Hook、真实在途取消、结果日志保存失败、普通聊天零网络及离线重放。协议故障仅在已验证日志读取端口模拟错绑/损坏/所有者变化/IO 故障；不能代替真实会话持久化测试。原网页测试不迁移、不删除场景。
+
+本项网页/搜索/来源/配置/架构联合回归 246 项通过，全仓 Ruff format/lint 与 Pyright 通过。测试中的模型响应由 MockTransport 固定，搜索与网页为真实本地 HTTP，文件/主子工作线程/JSONL/取消及重启实际运行。这证明工程闭环，不证明真实模型能正确搜索或引用；最终回答未新增语义拦截器，固定真实 5 题、引用是否支持结论、成本和耗时仍为 C01.4。无付费模型请求、无截图或看图。全仓 Ruff format/lint、Pyright、全量 pytest 作为本项提交门禁。
