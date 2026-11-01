@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B10.1 独立语境说明 | 11 项原文分离/来源与生成器变化/有限输入/缓存重启/失败原子保存/错绑与损坏拒绝 | [test_context_prefixes.py](test_context_prefixes.py) |
 | B09.3 多证据评估 | 16 项金标准/不同分母/来源变化/重复与超限/四路对照/旧报告保留/实际证据留存；真实十二题结果独立归档 | [test_retrieval_metrics.py](test_retrieval_metrics.py)、[真实评估](../../docs/retrieval-evaluation.md) |
 | B09.2 可选本地精排 | 18 项候选池/原依据、部分失败整体降级、有限前缀、取消/预算、关闭/空池、本地加载、缺少依赖、日志/重放和真实状态评估；相关共 146 项 | [test_document_reranking.py](test_document_reranking.py) |
 | B09.1 文档混合召回 | 16 项候选池/排名/去重、独立单路、来源更新/删除、模型/缓存/取消故障、工具输出/重放、配置/CLI；相关共 128 项 | [test_hybrid_retrieval.py](test_hybrid_retrieval.py) |

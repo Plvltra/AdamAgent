@@ -2,11 +2,24 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B09.3 多片段金标准、MRR/Recall/无答案指标，以及同版本四路评估和真实证据。
+本次核对范围：B10.1 独立语境说明、生成输入边界及与原文分离的缓存。
 
-核对结论：生产检索架构无结构变化；原评估模块增加多证据匹配与分母规则，独立入口保留未精排基线并检查路线间版本一致。原证据评估与旧题契约保留；新增说明解释版本、重复命中及无答案边界。
+核对结论：documents.contextualization 新增独立的说明生成与缓存接口，复用已授权 Corpus 和原子快照；DocumentSearch 尚未消费说明。原检索与引用契约保持，新增说明明确截断、来源、损坏及整批保存失败行为。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B10.1 独立分块语境
+
+~~~mermaid
+flowchart LR
+    CP_CORPUS["DocumentIndex / 已授权原文快照"] --> CP_STORE["ContextPrefixStore / 持锁与版本校验"]
+    CP_STORE --> CP_REQUEST["ContextRequest / 同文件有界原文与邻块"]
+    CP_REQUEST --> CP_BUILDER["ContextBuilder / 默认本地摘录"]
+    CP_BUILDER --> CP_NOTE["ContextPrefix / 说明与原文身份分离"]
+    CP_NOTE --> CP_CACHE["独立原子缓存 / 全批成功才返回"]
+~~~
+
+[contextualization.py](../adam/documents/contextualization.py) 不修改源文件或原索引，当前尚未加入搜索调用链；契约见 [语境前缀](contextual-retrieval.md)。
 
 ## B09.3 检索评估
 
