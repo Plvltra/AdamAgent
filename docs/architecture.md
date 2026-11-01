@@ -2,11 +2,25 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B11.1 独立二层知识目录、原文引用和概览缓存。
+本次核对范围：B11.2 知识目录查询服务、工具注册、独立 CLI 和版本分页。
 
-核对结论：新增 documents.catalog，从已授权 Corpus 构造主题与原片段两层结构，复用文件锁和原子快照；尚未接入聊天工具。既有检索、语境和实验说明保留，新说明明确代表摘录、全部引用、重建与失败契约。
+核对结论：新增 documents.catalog_query 和 tool_calls.knowledge_tools；注册复用已有 DocumentIndex，独立 CLI 调用同一服务。每次读取确认当前来源，分页版本失效报错，录制仍保存普通工具结果。原目录、缓存与权限契约保留，补充概览覆盖范围及输出限额说明。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B11.2 知识目录入口
+
+~~~mermaid
+flowchart LR
+    KQ_REG["register_documents / 同一授权索引"] --> KQ_TOOLS["knowledge_tools / 两个只读工具"]
+    KQ_CLI["document_search / catalog 与 read-topic"] --> KQ_SERVICE["KnowledgeDirectory / 版本分页与完整输出"]
+    KQ_TOOLS --> KQ_SERVICE
+    KQ_SERVICE --> KQ_INDEX["DocumentIndex / 每次重新授权读取"]
+    KQ_INDEX --> KQ_STORE["KnowledgeCatalogStore / 当前概览与引用"]
+    KQ_SERVICE --> KQ_LOG["普通工具结果 / 录制与会话日志"]
+~~~
+
+概览不是全库总结，详情不接受任意路径；已录结果重放不再读取源资料。
 
 ## B11.1 二层知识目录
 
@@ -19,7 +33,7 @@ flowchart LR
     KC_STORE --> KC_SNAPSHOT["原子快照 / 来源与规则版本"]
 ~~~
 
-目录不增加文件权限，当前入口为独立 API；详见 [知识目录](knowledge-catalog.md)。
+目录不增加文件权限，查询入口见上图；详见 [知识目录](knowledge-catalog.md)。
 
 ## B10.3 独立语境实验
 

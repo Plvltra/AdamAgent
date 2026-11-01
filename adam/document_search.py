@@ -9,6 +9,7 @@ from adam.config.loader import adam_home
 from adam.config.settings import DocumentConfig, PermissionConfig
 from adam.contracts.errors import AgentError
 from adam.contracts.reranking import RerankError
+from adam.documents.catalog_query import KnowledgeDirectory
 from adam.documents.embedding import FastEmbedBackend
 from adam.documents.evaluation import evaluate
 from adam.documents.index import DocumentIndex
@@ -45,6 +46,14 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("prepare-reranker", help="显式下载并验证本地 CPU 精排模型")
     search = commands.add_parser("search", help="查询指定文档并返回可核查片段")
     search.add_argument("query")
+    overview = commands.add_parser("catalog", help="浏览主题概览；查询仅匹配标题及代表摘录")
+    overview.add_argument("query", nargs="?", default="")
+    overview.add_argument("--offset", type=int, default=0)
+    overview.add_argument("--catalog-version", default="")
+    detail = commands.add_parser("read-topic", help="按目录版本读取主题的原片段")
+    detail.add_argument("topic_id")
+    detail.add_argument("catalog_version")
+    detail.add_argument("--offset", type=int, default=0)
     evaluation = commands.add_parser(
         "evaluate", help="固定题集；比较关键词/语义/融合，--rerank 另保留精排对照"
     )
@@ -82,6 +91,17 @@ def main(argv: list[str] | None = None) -> int:
             index = DocumentIndex(args.cache_dir, args.workspace, config, policy.resolve)
             if args.command == "search":
                 result = pack_results(DocumentSearch(index).search(args.query, args.limit), 8000)
+            elif args.command == "catalog":
+                result = KnowledgeDirectory(index).overview(
+                    args.query,
+                    offset=args.offset,
+                    limit=args.limit,
+                    catalog_version=args.catalog_version,
+                )
+            elif args.command == "read-topic":
+                result = KnowledgeDirectory(index).read_topic(
+                    args.topic_id, args.catalog_version, offset=args.offset, limit=args.limit
+                )
             else:
                 cases = json.loads(args.questions.read_text(encoding="utf-8-sig"))
                 result = {

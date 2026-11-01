@@ -12,6 +12,7 @@ from adam.contracts.models import ExecutionRecorder
 from adam.documents.index import DocumentIndex
 from adam.documents.models import DocumentError
 from adam.documents.search import DocumentSearch, SearchResult
+from adam.tool_calls.knowledge_tools import register_knowledge
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.registry import ToolRegistry
 
@@ -71,13 +72,14 @@ def register_documents(
         DocumentIndex(cache_dir, workspace, config, policy.resolve, check_cancel)
     )
     adapter = DocumentTools(search, config, registry.limits.max_result_chars)
-    return registry.extended(
+    registry = registry.extended(
         SPECS,
         {"search_documents": adapter.search_documents},
         {"search_documents": encode_result},
         capabilities={"search_documents": ToolCapability.READ_ONLY},
         groups={"search_documents": "documents"},
     )
+    return register_knowledge(registry, search.index)
 
 
 def pack_results(found: SearchResult, max_chars: int) -> dict[str, Any]:
