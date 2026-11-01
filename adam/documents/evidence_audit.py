@@ -15,7 +15,7 @@ def audit_summary(index: DocumentIndex, summary: dict[str, Any]) -> dict[str, An
     字符区间相对于分块。缺失、改写、错绑或过时引用不会标为有效；格式非法直接拒绝。
     返回中的 provenance_valid 只说明来源核对成功，semantic_support 始终未检查。
     """
-    _validate_summary(summary)
+    validate_summary(summary)
     corpus = index.refresh()
     if summary["source_generation"] != corpus.generation:
         return {
@@ -98,7 +98,7 @@ def _citation_error(chunk: Chunk | None, citation: dict[str, Any]) -> str | None
     return None
 
 
-def _validate_summary(summary: object) -> None:
+def validate_summary(summary: object) -> None:
     """先限制输入结构和总文本量，再进行文件读取；无引用是可诊断状态，不是成功。"""
     try:
         if not isinstance(summary, dict) or summary.keys() != {"source_generation", "claims"}:

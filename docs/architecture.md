@@ -2,11 +2,24 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B11.3 独立知识对照、结构化来源审计和真实本地证据归档。
+本次核对范围：B12.1 知识候选、共享引用格式校验、冻结来源与原子保存。
 
-核对结论：新增 documents.evidence_audit，只验证当前来源和逐字引用；scripts.knowledge_eval 对照全库摘录与单点查询。生产聊天流程不新增最终回答拦截，原目录与查询契约保留，补充来源核对不能证明语义正确的说明。
+核对结论：新增 documents.knowledge_proposals，复用来源审计、文件锁和原子快照；evidence_audit 的格式校验公开供候选复用。当前为独立候选 API，不接发布或聊天记忆。原来源语义说明保留，新增冻结候选、当前核对和损坏记录保留契约。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B12.1 待审知识候选
+
+~~~mermaid
+flowchart LR
+    KP_INPUT["结构化候选 / 支持、反证、适用时间"] --> KP_VALIDATE["knowledge_proposals / validate_proposal"]
+    KP_VALIDATE --> KP_AUDIT["evidence_audit / 当前授权原文核对"]
+    KP_AUDIT --> KP_SAVE["KnowledgeProposals / 范围锁与原子保存"]
+    KP_SAVE --> KP_PENDING["冻结 pending / unreviewed 候选"]
+    KP_PENDING --> KP_READ["read / 保留当时原文，不替换证据"]
+~~~
+
+本阶段没有发布路径或模型输入注入；接口、示例和下一步边界见 [知识候选](knowledge-proposals.md)。
 
 ## B11.3 总结来源与对照
 
