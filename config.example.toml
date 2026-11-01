@@ -145,3 +145,9 @@ git_timeout_seconds = 5
 
 # Default and maximum timeout for a user-approved command.
 command_timeout_seconds = 30
+
+[session_search]
+# 默认只允许主 Agent 回查当前会话；额外 ID 明确授权读取同一 sessions_dir 下的旧对话。
+# 子 Agent 不继承这份跨会话授权。最多 31 个不同短 ID；不要填文件路径。
+enabled = true
+allowed_session_ids = []

@@ -60,6 +60,7 @@ from adam.tool_calls.proposal_tools import register_review as register_proposal_
 from adam.tool_calls.proposal_tools import register_submission
 from adam.tool_calls.review_tools import SPECS as REVIEW_SPECS
 from adam.tool_calls.review_tools import handlers as review_handlers
+from adam.tool_calls.session_tools import SessionTools
 from adam.tool_calls.skill_tools import register_skills
 
 ChildClientFactory = Callable[[CancellationToken], AbstractContextManager[ModelClient]]
@@ -134,6 +135,12 @@ def build_application(
         registry = register_mcp(registry, config.mcp, workspace, resources)
         if artifacts:
             registry = artifacts.register(registry)
+        if config.session_search.enabled:
+            registry = SessionTools(
+                store,
+                config.session_search.allowed_session_ids,
+                config.tool_limits.max_result_chars,
+            ).register(registry)
         manager = None
         if child_client_factory:
             manager = SubagentManager(

@@ -2,11 +2,26 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B08.1 授权旧对话的只读索引、原文引用及独立查询入口。
+本次核对范围：B08.2 主 Agent 历史工具、显式授权配置、输出分页与执行边界。
 
-核对结论：SessionSearchIndex 只读取显式授权会话，复用 parse_log 校验并区分成功原文与诊断输入；来源版本和整文件快照分别记录。不创建 SessionStore、取得写锁或执行恢复。新增模块已说明权限、引用和失败契约，原有说明保持。
+核对结论：bootstrap 只向主应用注册 SessionTools；它由当前存储身份与已校验配置形成授权范围，复用 SessionSearchIndex，仍经过原工具执行器。Conversation 与录制协议无需增加分支，子 Agent 不继承额外历史授权。新增契约已说明范围、版本及输出预算；原有说明保持。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B08.2 历史工具接入
+
+~~~mermaid
+flowchart LR
+    ST_CONFIG["SessionSearchConfig / 用户明确授权"] --> ST_BOOT["bootstrap / 仅主应用"]
+    ST_BOOT --> ST_TOOLS["SessionTools / 当前身份与范围"]
+    ST_STORE["SessionStore.active_session_id"] --> ST_TOOLS
+    ST_TOOLS --> ST_INDEX["SessionSearchIndex / 原文与诊断标记"]
+    ST_TOOLS --> ST_REG["ToolRegistry / history 分组与只读能力"]
+    ST_REG --> ST_EXEC["原执行器 / 额度、模式、Hook、日志"]
+    ST_EXEC --> ST_REPLY["有界原文与准确续读位置"]
+~~~
+
+配置、主子隔离和重放边界见 [旧对话检索](session-search.md)。工具注册不改变原文件读取授权或命令执行规则。
 
 ## B08.1 旧对话只读索引
 
@@ -19,7 +34,7 @@ flowchart LR
     SS_INDEX --> SS_DATA["contracts.session_search / 位置、引用、覆盖问题"]
 ~~~
 
-索引缓存每次验证当前文件字节，失败来源淘汰旧结果。独立入口不加载聊天 API 配置；范围、来源字段及限额见 [旧对话检索](session-search.md)。模型工具接入由 B08.2 完成。
+索引缓存每次验证当前文件字节，失败来源淘汰旧结果。独立入口不加载聊天 API 配置；范围、来源字段及限额见 [旧对话检索](session-search.md)。模型工具接入见上图。
 
 ## B07.3 拒绝与恢复边界
 
@@ -1125,6 +1140,7 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [contracts/protocol.py](../adam/contracts/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
 | [session/storage.py](../adam/session/storage.py) | `SessionStore` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
 | [session/search.py](../adam/session/search.py) | `SessionSearchIndex` | 读取明确授权日志、原文倒排检索和版本引用；损坏来源淘汰缓存，不执行恢复 |
+| [tool_calls/session_tools.py](../adam/tool_calls/session_tools.py) | `SessionTools` | 主 Agent 授权范围、原文检索与续读适配、整体输出预算；复用工具执行边界 |
 | [contracts/session_search.py](../adam/contracts/session_search.py) | `SessionExcerpt`、`SessionSearchResult` | 精确来源位置、成功或诊断状态及不完整覆盖；不提供授权或写入能力 |
 | [session_search.py](../adam/session_search.py) | `main` | 独立显式会话查询、JSON 输出与覆盖失败退出码，无模型连接，不改变聊天 CLI 依赖 |
 | [session/edit_log.py](../adam/session/edit_log.py) | `EditLog` | 编辑状态纯投影；未开始计划恢复为 not_started，写入未知结果不猜测 |

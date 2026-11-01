@@ -7,6 +7,7 @@ from pathlib import Path
 from adam.config.hooks import HooksConfig
 from adam.config.mcp import MCPConfig
 from adam.contracts.errors import ConfigError
+from adam.contracts.models import valid_session_id
 
 
 @dataclass(frozen=True)
@@ -368,6 +369,29 @@ class ToolDiscoveryConfig:
 
 
 @dataclass(frozen=True)
+class SessionSearchConfig:
+    """主 Agent 旧对话检索；默认仅当前会话，额外 ID 是用户的显式读取授权。"""
+
+    enabled: bool = True
+    allowed_session_ids: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        """最多额外授权 31 个会话，为当前会话保留一个名额；不接受路径或重复 ID。"""
+        if type(self.enabled) is not bool:
+            raise ConfigError("session_search.enabled 必须是布尔值。")
+        values = self.allowed_session_ids
+        if (
+            not isinstance(values, tuple)
+            or len(values) > 31
+            or any(not isinstance(item, str) or not valid_session_id(item) for item in values)
+            or len(set(values)) != len(values)
+        ):
+            raise ConfigError(
+                "session_search.allowed_session_ids 必须是不超过 31 项的不同短会话 ID。"
+            )
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
@@ -393,3 +417,4 @@ class AppConfig:
     artifacts: ArtifactConfig = field(default_factory=ArtifactConfig)
     tool_discovery: ToolDiscoveryConfig = field(default_factory=ToolDiscoveryConfig)
     no_progress: NoProgressConfig = field(default_factory=NoProgressConfig)
+    session_search: SessionSearchConfig = field(default_factory=SessionSearchConfig)

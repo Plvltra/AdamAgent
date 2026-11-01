@@ -1,6 +1,6 @@
 # B08 旧对话与原始依据检索
 
-B08.1 提供授权会话的只读索引和独立查询入口。它检索 JSONL 中完整提交的原始消息；不切换会话、不调用模型，也不恢复或修改日志。模型工具接入和完整压缩流程验收分别由 B08.2、B08.3 完成。
+B08.1 提供授权会话的只读索引和独立查询入口，B08.2 已接入主 Agent 工具。检索 JSONL 中完整提交的原始消息，不切换会话、不额外调用模型，也不恢复或修改日志。B08.3 继续完成多来源变化、损坏和重启的组合验收。
 
 ## 显式查询
 
@@ -43,4 +43,28 @@ python -m adam.session_search "之前的约束" --sessions-dir "$env:USERPROFILE
 
 [15 项业务场景](../tests/features/test_session_search.py) 使用真实临时 SessionStore/JSONL，覆盖授权、精确位置与原文、原文变化/追加、缓存删除/损坏/拒读/重复 ID、诊断隔离、资源上限、长原文分页、目录不创建、越界路径及只读 CLI。越界测试在解析边界注入目录外结果，拒读测试注入 PermissionError；它们不宣称覆盖操作系统全部文件竞争。
 
-Ruff 与 Pyright 已通过。提交前执行全量项目门禁。B08.2 的模型工具和 B08.3 的压缩、多会话组合验收尚未计入完成。
+Ruff 与 Pyright 已通过。提交前执行全量项目门禁。
+
+## B08.2 模型工具
+
+主 Agent 可按需发现 history 分组中的 `search_sessions`、`read_session`。搜索默认当前会话，查旧任务时才使用；普通闲聊不需要强制检索。搜索返回来源后，模型使用 `session_id`、`turn_id`、`message_index`、`source_sha256` 继续读取。诊断引用需显式指定 kind=diagnostic_input，省略 message_index。
+
+```toml
+[session_search]
+enabled = true
+allowed_session_ids = []
+```
+
+`allowed_session_ids` 最多放 31 个不同短 ID，明确授权读取同一 sessions_dir 中的额外会话。可先用原 `/sessions` 查看 ID，再修改配置并重启；目录名或当前项目位置不会自动授权其他对话。`enabled=false` 不注册这两个工具，猜测工具名也不能执行。切换当前会话后，旧会话的隐式授权随之移除；显式列出的 ID 则继续可查。
+
+子 Agent 不注册这两个工具，也不继承主 Agent 的额外会话授权；所需材料仍由主 Agent 选择并随任务提供。这一限制针对历史检索接口，不宣称把原文件工具或用户已批准命令变成操作系统沙箱。
+
+工具使用原执行器，计入每轮工具次数，并经过模式、项目规则、前后 Hook 与开始/结束日志。它们声明为只读，plan 模式可用；串行执行避免跨线程共享索引。没有给 Conversation 增加按工具名分支，也没有增加专用 LLM 请求。
+
+返回结果整体受 `tool_limits.max_result_chars` 限制，JSON 转义也计入。搜索可以减少条目或缩短片段，保持 matched_count、has_more 和实际字符区间；覆盖问题过多时保留 issue_count、issues_truncated 和 complete=false。续读的 next_offset 紧接实际返回末尾。限额连一个有效原文引用都容纳不下时返回明确工具错误，不给出不可追溯的截断预览。
+
+历史资料只作为工具响应加入当前轮，不注入虚构的成功用户/助手历史。录制保存实际工具结果；离线重放使用冻结结果，不重新打开今天的会话。权限配置不作为离线重放的新授权。
+
+[工具业务场景](../tests/features/test_session_search_tools.py) 使用模拟 HTTP、实际压缩/JSONL/Hook 子进程/辅助 Agent，覆盖压缩→发现→检索→续读、显式跨会话和诊断来源、切换、关闭、输出限额、原工具额度及 plan 模式、重放禁止重新查询、TOML 校验与主子隔离。它们验证宿主流程，不代表真实模型会主动选对工具或作出正确解释。
+
+本阶段 16 项新增业务场景、连同索引/压缩/重放/发现/配置/架构共 133 项通过；Ruff format、lint 和 Pyright 通过。提交时仍运行全量 pytest。

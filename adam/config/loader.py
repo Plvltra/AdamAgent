@@ -25,6 +25,7 @@ from adam.config.settings import (
     ReflectionConfig,
     ReviewConfig,
     RulesConfig,
+    SessionSearchConfig,
     SkillsConfig,
     SubagentConfig,
     ToolDiscoveryConfig,
@@ -143,6 +144,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "artifacts",
             "tool_discovery",
             "no_progress",
+            "session_search",
         },
         "主配置",
     )
@@ -281,11 +283,21 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
         permission_roots[name] = tuple(resolved)
     if limit_data.get("max_result_chars", 8000) < 512:
         raise ConfigError("tool_limits.max_result_chars 至少为512。")
+    search_data = checked_section(
+        data.get("session_search", {}),
+        {item.name for item in fields(SessionSearchConfig)},
+        "session_search",
+    ).copy()
+    search_ids = search_data.get("allowed_session_ids", [])
+    if not isinstance(search_ids, list):
+        raise ConfigError("session_search.allowed_session_ids 必须是短会话 ID 数组。")
+    search_data["allowed_session_ids"] = tuple(search_ids)
     return AppConfig(
         llm=llm,
         sessions_dir=sessions_dir,
         memories_dir=memories_dir,
         system_prompt=prompt,
+        session_search=SessionSearchConfig(**search_data),
         agent=AgentConfig(**agent_data),
         permissions=PermissionConfig(**permission_roots),
         tool_limits=ToolLimits(**limit_data),
