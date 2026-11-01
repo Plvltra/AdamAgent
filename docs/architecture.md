@@ -2,11 +2,25 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B06.2 主体与时间契约、排序前确定性消歧、旧新事实的原子保存及来源重放。
+本次核对范围：B06.3 记忆召回对照入口、实际来源留证、主子快照组合验收与真实本地结果。
 
-核对结论：MemoryRecord 增加可选主体、生效起点和精确替代引用；MemoryService 在相关性排序前调用 memory.subjects，MemoryStore 复用锁与原子替换一次保存旧事实结束和新事实。CLI 只解析及展示，原版本/请求证据和录制路径保持。原子写入说明扩展为整批契约，原有锁、来源幂等及失败解释保留。
+核对结论：生产架构无变化；scripts/memory_eval 复用 MemoryStore、MemoryService 和本地 FastEmbedBackend，在新评估目录保存合成来源和实际选择。新增测试覆盖既有主子继承边界；原接口与说明保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B06.3 记忆召回验收
+
+~~~mermaid
+flowchart LR
+    ME_CASES["memory_eval / 十题与合成来源"] --> ME_STORE["MemoryStore / 独立评估目录"]
+    ME_STORE --> ME_SERVICE["MemoryService / 相同范围及预算"]
+    ME_SERVICE --> ME_KEYWORD["关键词排序"]
+    ME_SERVICE --> ME_VECTOR["SemanticMemoryRanker / 本地模型"]
+    ME_KEYWORD --> ME_PROOF["manifest、逐题选择、report"]
+    ME_VECTOR --> ME_PROOF
+~~~
+
+[运行器](../scripts/memory_eval.py) 不加载聊天连接配置；真实结果与工程验收的区别见 [召回评估](memory-retrieval-evaluation.md)。
 
 ## B06.2 主体和事实时间
 

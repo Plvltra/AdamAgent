@@ -1,0 +1,1174 @@
+{
+  "model": {
+    "name": "BAAI/bge-small-zh-v1.5",
+    "snapshot": "46fbe35fd4374a00fee7de77dfddaeb6dd6a2c59",
+    "sha256": "1294ea4b6331115a353d81f96b85e8c8d7fdcc284453d5b2fab5b016230aad38",
+    "inference": "CPU; HF_HUB_OFFLINE=1",
+    "fastembed": "0.9.1",
+    "onnxruntime": "1.31.1"
+  },
+  "manifest": {
+    "format": "memory_evaluation_v1",
+    "backend": "local_model",
+    "requested_model": "BAAI/bge-small-zh-v1.5",
+    "created_at": "2026-11-01T12:12:50.304593+08:00",
+    "max_entries": 3,
+    "max_input_tokens": 6000,
+    "semantic_min_score": 0.5,
+    "cases": [
+      {
+        "case_id": "exact",
+        "project": "alpha",
+        "query": "代码修改后运行什么检查？",
+        "expected": [
+          "test-rule"
+        ],
+        "ambiguity": false
+      },
+      {
+        "case_id": "paraphrase",
+        "project": "alpha",
+        "query": "我动了几行实现，怎样确认没把已有行为弄坏？",
+        "expected": [
+          "test-rule"
+        ],
+        "ambiguity": false
+      },
+      {
+        "case_id": "explicit-subject",
+        "project": "alpha",
+        "query": "@wang-dev 喜欢喝什么？",
+        "expected": [
+          "dev-tea"
+        ],
+        "ambiguity": false
+      },
+      {
+        "case_id": "ambiguous-name",
+        "project": "alpha",
+        "query": "王伟喜欢喝什么？",
+        "expected": [],
+        "ambiguity": true
+      },
+      {
+        "case_id": "changed-preference",
+        "project": "alpha",
+        "query": "@owner 我该用哪种语言来回复？",
+        "expected": [
+          "language-new"
+        ],
+        "ambiguity": false
+      },
+      {
+        "case_id": "expired",
+        "project": "alpha",
+        "query": "临时连接口令是什么？",
+        "expected": [],
+        "ambiguity": false
+      },
+      {
+        "case_id": "future",
+        "project": "alpha",
+        "query": "未来发布代号是什么？",
+        "expected": [],
+        "ambiguity": false
+      },
+      {
+        "case_id": "project-isolation",
+        "project": "beta",
+        "query": "ALPHA 私有制品仓库地址是什么？",
+        "expected": [],
+        "ambiguity": false
+      },
+      {
+        "case_id": "shared",
+        "project": "beta",
+        "query": "跨项目沟通使用什么语言？",
+        "expected": [
+          "shared-language"
+        ],
+        "ambiguity": false
+      },
+      {
+        "case_id": "conflicting-current",
+        "project": "alpha",
+        "query": "@deployment 发布策略是什么？",
+        "expected": [
+          "rolling",
+          "blue-green"
+        ],
+        "ambiguity": false
+      }
+    ],
+    "sources": {
+      "test-rule": {
+        "memory_id": "0fdd4a27",
+        "revision": 1,
+        "content": "代码修改后必须运行单元测试。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+        "created_at": "2026-11-01T12:12:50.184908+08:00",
+        "updated_at": "2026-11-01T12:12:50.184908+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": null,
+        "deleted": false
+      },
+      "dev-tea": {
+        "memory_id": "67df6eeb",
+        "revision": 1,
+        "content": "开发同事王伟喜欢饮茶。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+        "created_at": "2026-11-01T12:12:50.199906+08:00",
+        "updated_at": "2026-11-01T12:12:50.199906+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": null,
+        "deleted": false,
+        "subject": {
+          "key": "wang-dev",
+          "name": "王伟"
+        }
+      },
+      "art-coffee": {
+        "memory_id": "6e78cb22",
+        "revision": 1,
+        "content": "设计同事王伟喜欢咖啡。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+        "created_at": "2026-11-01T12:12:50.208905+08:00",
+        "updated_at": "2026-11-01T12:12:50.208905+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": null,
+        "deleted": false,
+        "subject": {
+          "key": "wang-art",
+          "name": "王伟"
+        }
+      },
+      "language-old": {
+        "memory_id": "952df376",
+        "revision": 2,
+        "content": "回答优先使用英语。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+        "created_at": "2026-11-01T12:12:50.217909+08:00",
+        "updated_at": "2026-11-01T12:12:50.22691+08:00",
+        "source": {
+          "operation": "update",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": "2026-11-01T12:12:50.22691+08:00",
+        "deleted": false,
+        "subject": {
+          "key": "owner",
+          "name": "项目维护者"
+        }
+      },
+      "language-new": {
+        "memory_id": "995f6b0f",
+        "revision": 1,
+        "content": "回答必须使用简体中文。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+        "created_at": "2026-11-01T12:12:50.22691+08:00",
+        "updated_at": "2026-11-01T12:12:50.22691+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": null,
+        "deleted": false,
+        "subject": {
+          "key": "owner",
+          "name": "项目维护者"
+        },
+        "valid_from": "2026-11-01T12:12:50.22691+08:00",
+        "supersedes": {
+          "memory_id": "952df376",
+          "revision": 1
+        }
+      },
+      "expired-code": {
+        "memory_id": "bff7d408",
+        "revision": 1,
+        "content": "临时连接口令是 OLD-CODE。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+        "created_at": "2026-11-01T12:12:50.236422+08:00",
+        "updated_at": "2026-11-01T12:12:50.236422+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": "2020-01-01T00:00:00Z",
+        "deleted": false
+      },
+      "future-code": {
+        "memory_id": "42a304a9",
+        "revision": 1,
+        "content": "未来发布代号 FUTURE-RELEASE。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+        "created_at": "2026-11-01T12:12:50.246425+08:00",
+        "updated_at": "2026-11-01T12:12:50.246425+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": null,
+        "deleted": false,
+        "valid_from": "2100-01-01T00:00:00Z"
+      },
+      "alpha-private": {
+        "memory_id": "98ba64a2",
+        "revision": 1,
+        "content": "ALPHA 私有制品仓库地址为 alpha.example.test。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+        "created_at": "2026-11-01T12:12:50.256429+08:00",
+        "updated_at": "2026-11-01T12:12:50.256429+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": null,
+        "deleted": false
+      },
+      "beta-private": {
+        "memory_id": "2ce32f43",
+        "revision": 1,
+        "content": "BETA 私有约定只在 BETA 项目使用。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\beta",
+        "created_at": "2026-11-01T12:12:50.265427+08:00",
+        "updated_at": "2026-11-01T12:12:50.265427+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": null,
+        "deleted": false
+      },
+      "shared-language": {
+        "memory_id": "3cdb26b4",
+        "revision": 1,
+        "content": "跨项目沟通一律使用简体中文。",
+        "project": null,
+        "created_at": "2026-11-01T12:12:50.275594+08:00",
+        "updated_at": "2026-11-01T12:12:50.275594+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": null,
+        "deleted": false
+      },
+      "rolling": {
+        "memory_id": "153de21d",
+        "revision": 1,
+        "content": "发布策略使用滚动发布。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+        "created_at": "2026-11-01T12:12:50.284596+08:00",
+        "updated_at": "2026-11-01T12:12:50.284596+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": null,
+        "deleted": false,
+        "subject": {
+          "key": "deployment",
+          "name": "发布系统"
+        }
+      },
+      "blue-green": {
+        "memory_id": "305bdfc9",
+        "revision": 1,
+        "content": "发布策略使用蓝绿发布。",
+        "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+        "created_at": "2026-11-01T12:12:50.293597+08:00",
+        "updated_at": "2026-11-01T12:12:50.293597+08:00",
+        "source": {
+          "operation": "add",
+          "session_id": null,
+          "actor": "user"
+        },
+        "expires_at": null,
+        "deleted": false,
+        "subject": {
+          "key": "deployment",
+          "name": "发布系统"
+        }
+      }
+    }
+  },
+  "report": {
+    "format": "memory_evaluation_v1",
+    "backend": "local_model",
+    "requested_model": "BAAI/bge-small-zh-v1.5",
+    "groups": {
+      "keyword": {
+        "positive_cases": 6,
+        "all_expected_cases": 4,
+        "recall_at_3": 0.7142857142857143,
+        "empty_cases": 4,
+        "correct_empty_cases": 2,
+        "forbidden_selected": 0,
+        "fallback_cases": 0,
+        "unavailable_cases": 0,
+        "elapsed_ms": 77
+      },
+      "semantic": {
+        "positive_cases": 6,
+        "all_expected_cases": 5,
+        "recall_at_3": 0.8571428571428571,
+        "empty_cases": 4,
+        "correct_empty_cases": 3,
+        "forbidden_selected": 0,
+        "fallback_cases": 0,
+        "unavailable_cases": 0,
+        "elapsed_ms": 999
+      }
+    },
+    "rows": [
+      {
+        "case_id": "exact",
+        "method": "keyword",
+        "selected_aliases": [
+          "test-rule"
+        ],
+        "expected": [
+          "test-rule"
+        ],
+        "matched": [
+          "test-rule"
+        ],
+        "all_expected": true,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "selected",
+          "query": "代码修改后运行什么检查？",
+          "records": [
+            {
+              "memory_id": "0fdd4a27",
+              "revision": 1,
+              "content": "代码修改后必须运行单元测试。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.184908+08:00",
+              "updated_at": "2026-11-01T12:12:50.184908+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false
+            }
+          ],
+          "warning": ""
+        },
+        "elapsed_ms": 15
+      },
+      {
+        "case_id": "exact",
+        "method": "semantic",
+        "selected_aliases": [
+          "test-rule"
+        ],
+        "expected": [
+          "test-rule"
+        ],
+        "matched": [
+          "test-rule"
+        ],
+        "all_expected": true,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "semantic_v1",
+          "status": "selected",
+          "query": "代码修改后运行什么检查？",
+          "records": [
+            {
+              "memory_id": "0fdd4a27",
+              "revision": 1,
+              "content": "代码修改后必须运行单元测试。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.184908+08:00",
+              "updated_at": "2026-11-01T12:12:50.184908+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false
+            }
+          ],
+          "warning": "",
+          "retrieval": {
+            "embedding": "fastembed:0.9.1:BAAI/bge-small-zh-v1.5:window256-mean-v1",
+            "fallback_reason": null,
+            "scores": [
+              [
+                "0fdd4a27",
+                0.7695994030382683
+              ]
+            ]
+          }
+        },
+        "elapsed_ms": 766
+      },
+      {
+        "case_id": "paraphrase",
+        "method": "semantic",
+        "selected_aliases": [],
+        "expected": [
+          "test-rule"
+        ],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "semantic_v1",
+          "status": "no_match",
+          "query": "我动了几行实现，怎样确认没把已有行为弄坏？",
+          "records": [],
+          "warning": "",
+          "retrieval": {
+            "embedding": "fastembed:0.9.1:BAAI/bge-small-zh-v1.5:window256-mean-v1",
+            "fallback_reason": null,
+            "scores": []
+          }
+        },
+        "elapsed_ms": 15
+      },
+      {
+        "case_id": "paraphrase",
+        "method": "keyword",
+        "selected_aliases": [],
+        "expected": [
+          "test-rule"
+        ],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "no_match",
+          "query": "我动了几行实现，怎样确认没把已有行为弄坏？",
+          "records": [],
+          "warning": ""
+        },
+        "elapsed_ms": 16
+      },
+      {
+        "case_id": "explicit-subject",
+        "method": "keyword",
+        "selected_aliases": [
+          "dev-tea"
+        ],
+        "expected": [
+          "dev-tea"
+        ],
+        "matched": [
+          "dev-tea"
+        ],
+        "all_expected": true,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "selected",
+          "query": "@wang-dev 喜欢喝什么？",
+          "records": [
+            {
+              "memory_id": "67df6eeb",
+              "revision": 1,
+              "content": "开发同事王伟喜欢饮茶。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.199906+08:00",
+              "updated_at": "2026-11-01T12:12:50.199906+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false,
+              "subject": {
+                "key": "wang-dev",
+                "name": "王伟"
+              }
+            }
+          ],
+          "warning": ""
+        },
+        "elapsed_ms": 15
+      },
+      {
+        "case_id": "explicit-subject",
+        "method": "semantic",
+        "selected_aliases": [
+          "dev-tea"
+        ],
+        "expected": [
+          "dev-tea"
+        ],
+        "matched": [
+          "dev-tea"
+        ],
+        "all_expected": true,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "semantic_v1",
+          "status": "selected",
+          "query": "@wang-dev 喜欢喝什么？",
+          "records": [
+            {
+              "memory_id": "67df6eeb",
+              "revision": 1,
+              "content": "开发同事王伟喜欢饮茶。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.199906+08:00",
+              "updated_at": "2026-11-01T12:12:50.199906+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false,
+              "subject": {
+                "key": "wang-dev",
+                "name": "王伟"
+              }
+            }
+          ],
+          "warning": "",
+          "retrieval": {
+            "embedding": "fastembed:0.9.1:BAAI/bge-small-zh-v1.5:window256-mean-v1",
+            "fallback_reason": null,
+            "scores": [
+              [
+                "67df6eeb",
+                0.5162165486680381
+              ]
+            ]
+          }
+        },
+        "elapsed_ms": 16
+      },
+      {
+        "case_id": "ambiguous-name",
+        "method": "semantic",
+        "selected_aliases": [],
+        "expected": [],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": true,
+        "ambiguity_notice": true,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "no_match",
+          "query": "王伟喜欢喝什么？",
+          "records": [],
+          "warning": "记忆中存在同名主体，本轮未使用这些条目；请明确主体 ID：王伟: @wang-art, @wang-dev"
+        },
+        "elapsed_ms": 16
+      },
+      {
+        "case_id": "ambiguous-name",
+        "method": "keyword",
+        "selected_aliases": [],
+        "expected": [],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": true,
+        "ambiguity_notice": true,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "no_match",
+          "query": "王伟喜欢喝什么？",
+          "records": [],
+          "warning": "记忆中存在同名主体，本轮未使用这些条目；请明确主体 ID：王伟: @wang-art, @wang-dev"
+        },
+        "elapsed_ms": 15
+      },
+      {
+        "case_id": "changed-preference",
+        "method": "keyword",
+        "selected_aliases": [],
+        "expected": [
+          "language-new"
+        ],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "no_match",
+          "query": "@owner 我该用哪种语言来回复？",
+          "records": [],
+          "warning": ""
+        },
+        "elapsed_ms": 16
+      },
+      {
+        "case_id": "changed-preference",
+        "method": "semantic",
+        "selected_aliases": [
+          "language-new"
+        ],
+        "expected": [
+          "language-new"
+        ],
+        "matched": [
+          "language-new"
+        ],
+        "all_expected": true,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "semantic_v1",
+          "status": "selected",
+          "query": "@owner 我该用哪种语言来回复？",
+          "records": [
+            {
+              "memory_id": "995f6b0f",
+              "revision": 1,
+              "content": "回答必须使用简体中文。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.22691+08:00",
+              "updated_at": "2026-11-01T12:12:50.22691+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false,
+              "subject": {
+                "key": "owner",
+                "name": "项目维护者"
+              },
+              "valid_from": "2026-11-01T12:12:50.22691+08:00",
+              "supersedes": {
+                "memory_id": "952df376",
+                "revision": 1
+              }
+            }
+          ],
+          "warning": "",
+          "retrieval": {
+            "embedding": "fastembed:0.9.1:BAAI/bge-small-zh-v1.5:window256-mean-v1",
+            "fallback_reason": null,
+            "scores": [
+              [
+                "995f6b0f",
+                0.5918244340469425
+              ]
+            ]
+          }
+        },
+        "elapsed_ms": 31
+      },
+      {
+        "case_id": "expired",
+        "method": "semantic",
+        "selected_aliases": [],
+        "expected": [],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": true,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "semantic_v1",
+          "status": "no_match",
+          "query": "临时连接口令是什么？",
+          "records": [],
+          "warning": "",
+          "retrieval": {
+            "embedding": "fastembed:0.9.1:BAAI/bge-small-zh-v1.5:window256-mean-v1",
+            "fallback_reason": null,
+            "scores": []
+          }
+        },
+        "elapsed_ms": 78
+      },
+      {
+        "case_id": "expired",
+        "method": "keyword",
+        "selected_aliases": [],
+        "expected": [],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": true,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "no_match",
+          "query": "临时连接口令是什么？",
+          "records": [],
+          "warning": ""
+        },
+        "elapsed_ms": 0
+      },
+      {
+        "case_id": "future",
+        "method": "keyword",
+        "selected_aliases": [
+          "blue-green",
+          "rolling"
+        ],
+        "expected": [],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "selected",
+          "query": "未来发布代号是什么？",
+          "records": [
+            {
+              "memory_id": "305bdfc9",
+              "revision": 1,
+              "content": "发布策略使用蓝绿发布。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.293597+08:00",
+              "updated_at": "2026-11-01T12:12:50.293597+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false,
+              "subject": {
+                "key": "deployment",
+                "name": "发布系统"
+              }
+            },
+            {
+              "memory_id": "153de21d",
+              "revision": 1,
+              "content": "发布策略使用滚动发布。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.284596+08:00",
+              "updated_at": "2026-11-01T12:12:50.284596+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false,
+              "subject": {
+                "key": "deployment",
+                "name": "发布系统"
+              }
+            }
+          ],
+          "warning": ""
+        },
+        "elapsed_ms": 0
+      },
+      {
+        "case_id": "future",
+        "method": "semantic",
+        "selected_aliases": [],
+        "expected": [],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": true,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "semantic_v1",
+          "status": "no_match",
+          "query": "未来发布代号是什么？",
+          "records": [],
+          "warning": "",
+          "retrieval": {
+            "embedding": "fastembed:0.9.1:BAAI/bge-small-zh-v1.5:window256-mean-v1",
+            "fallback_reason": null,
+            "scores": []
+          }
+        },
+        "elapsed_ms": 15
+      },
+      {
+        "case_id": "project-isolation",
+        "method": "semantic",
+        "selected_aliases": [
+          "beta-private"
+        ],
+        "expected": [],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "semantic_v1",
+          "status": "selected",
+          "query": "ALPHA 私有制品仓库地址是什么？",
+          "records": [
+            {
+              "memory_id": "2ce32f43",
+              "revision": 1,
+              "content": "BETA 私有约定只在 BETA 项目使用。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\beta",
+              "created_at": "2026-11-01T12:12:50.265427+08:00",
+              "updated_at": "2026-11-01T12:12:50.265427+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false
+            }
+          ],
+          "warning": "",
+          "retrieval": {
+            "embedding": "fastembed:0.9.1:BAAI/bge-small-zh-v1.5:window256-mean-v1",
+            "fallback_reason": null,
+            "scores": [
+              [
+                "2ce32f43",
+                0.5163607620017182
+              ]
+            ]
+          }
+        },
+        "elapsed_ms": 31
+      },
+      {
+        "case_id": "project-isolation",
+        "method": "keyword",
+        "selected_aliases": [
+          "beta-private"
+        ],
+        "expected": [],
+        "matched": [],
+        "all_expected": false,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "selected",
+          "query": "ALPHA 私有制品仓库地址是什么？",
+          "records": [
+            {
+              "memory_id": "2ce32f43",
+              "revision": 1,
+              "content": "BETA 私有约定只在 BETA 项目使用。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\beta",
+              "created_at": "2026-11-01T12:12:50.265427+08:00",
+              "updated_at": "2026-11-01T12:12:50.265427+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false
+            }
+          ],
+          "warning": ""
+        },
+        "elapsed_ms": 0
+      },
+      {
+        "case_id": "shared",
+        "method": "keyword",
+        "selected_aliases": [
+          "shared-language",
+          "beta-private"
+        ],
+        "expected": [
+          "shared-language"
+        ],
+        "matched": [
+          "shared-language"
+        ],
+        "all_expected": true,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "selected",
+          "query": "跨项目沟通使用什么语言？",
+          "records": [
+            {
+              "memory_id": "3cdb26b4",
+              "revision": 1,
+              "content": "跨项目沟通一律使用简体中文。",
+              "project": null,
+              "created_at": "2026-11-01T12:12:50.275594+08:00",
+              "updated_at": "2026-11-01T12:12:50.275594+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false
+            },
+            {
+              "memory_id": "2ce32f43",
+              "revision": 1,
+              "content": "BETA 私有约定只在 BETA 项目使用。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\beta",
+              "created_at": "2026-11-01T12:12:50.265427+08:00",
+              "updated_at": "2026-11-01T12:12:50.265427+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false
+            }
+          ],
+          "warning": ""
+        },
+        "elapsed_ms": 0
+      },
+      {
+        "case_id": "shared",
+        "method": "semantic",
+        "selected_aliases": [
+          "shared-language"
+        ],
+        "expected": [
+          "shared-language"
+        ],
+        "matched": [
+          "shared-language"
+        ],
+        "all_expected": true,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "semantic_v1",
+          "status": "selected",
+          "query": "跨项目沟通使用什么语言？",
+          "records": [
+            {
+              "memory_id": "3cdb26b4",
+              "revision": 1,
+              "content": "跨项目沟通一律使用简体中文。",
+              "project": null,
+              "created_at": "2026-11-01T12:12:50.275594+08:00",
+              "updated_at": "2026-11-01T12:12:50.275594+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false
+            }
+          ],
+          "warning": "",
+          "retrieval": {
+            "embedding": "fastembed:0.9.1:BAAI/bge-small-zh-v1.5:window256-mean-v1",
+            "fallback_reason": null,
+            "scores": [
+              [
+                "3cdb26b4",
+                0.7210882804033889
+              ]
+            ]
+          }
+        },
+        "elapsed_ms": 15
+      },
+      {
+        "case_id": "conflicting-current",
+        "method": "semantic",
+        "selected_aliases": [
+          "blue-green",
+          "rolling"
+        ],
+        "expected": [
+          "rolling",
+          "blue-green"
+        ],
+        "matched": [
+          "blue-green",
+          "rolling"
+        ],
+        "all_expected": true,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "semantic_v1",
+          "status": "selected",
+          "query": "@deployment 发布策略是什么？",
+          "records": [
+            {
+              "memory_id": "305bdfc9",
+              "revision": 1,
+              "content": "发布策略使用蓝绿发布。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.293597+08:00",
+              "updated_at": "2026-11-01T12:12:50.293597+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false,
+              "subject": {
+                "key": "deployment",
+                "name": "发布系统"
+              }
+            },
+            {
+              "memory_id": "153de21d",
+              "revision": 1,
+              "content": "发布策略使用滚动发布。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.284596+08:00",
+              "updated_at": "2026-11-01T12:12:50.284596+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false,
+              "subject": {
+                "key": "deployment",
+                "name": "发布系统"
+              }
+            }
+          ],
+          "warning": "",
+          "retrieval": {
+            "embedding": "fastembed:0.9.1:BAAI/bge-small-zh-v1.5:window256-mean-v1",
+            "fallback_reason": null,
+            "scores": [
+              [
+                "305bdfc9",
+                0.6990322991649037
+              ],
+              [
+                "153de21d",
+                0.6653663517681658
+              ]
+            ]
+          }
+        },
+        "elapsed_ms": 16
+      },
+      {
+        "case_id": "conflicting-current",
+        "method": "keyword",
+        "selected_aliases": [
+          "blue-green",
+          "rolling"
+        ],
+        "expected": [
+          "rolling",
+          "blue-green"
+        ],
+        "matched": [
+          "blue-green",
+          "rolling"
+        ],
+        "all_expected": true,
+        "correct_empty": false,
+        "ambiguity_notice": false,
+        "forbidden_selected": [],
+        "selection": {
+          "strategy": "keyword_v1",
+          "status": "selected",
+          "query": "@deployment 发布策略是什么？",
+          "records": [
+            {
+              "memory_id": "305bdfc9",
+              "revision": 1,
+              "content": "发布策略使用蓝绿发布。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.293597+08:00",
+              "updated_at": "2026-11-01T12:12:50.293597+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false,
+              "subject": {
+                "key": "deployment",
+                "name": "发布系统"
+              }
+            },
+            {
+              "memory_id": "153de21d",
+              "revision": 1,
+              "content": "发布策略使用滚动发布。",
+              "project": "g:\\agent\\tmp\\b063\\live-run-01\\alpha",
+              "created_at": "2026-11-01T12:12:50.284596+08:00",
+              "updated_at": "2026-11-01T12:12:50.284596+08:00",
+              "source": {
+                "operation": "add",
+                "session_id": null,
+                "actor": "user"
+              },
+              "expires_at": null,
+              "deleted": false,
+              "subject": {
+                "key": "deployment",
+                "name": "发布系统"
+              }
+            }
+          ],
+          "warning": ""
+        },
+        "elapsed_ms": 0
+      }
+    ],
+    "limits": "固定合成记忆的检索对照；命中不代表回答正确。冲突题要求保留两份依据，不自动判定谁正确。模拟后端不是真实语义效果；降级次数单列。未请求聊天模型。"
+  }
+}

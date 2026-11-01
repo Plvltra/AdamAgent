@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B06.3 召回组合验收 | 7 项固定题集/来源留证、不可用与降级、写入停止、主子版本继承；真实本地十题结果另存并保留失败 | [test_memory_retrieval_acceptance.py](test_memory_retrieval_acceptance.py)、[真实对照](../../docs/memory-retrieval-evaluation.md) |
 | B06.2 主体与事实时间 | 20 项同名/显式主体、有效期、原子替代、失败回滚、重启、错误来源及真实请求/重放；相关回归共 131 项 | [test_memory_identity.py](test_memory_identity.py) |
 | B06.1 本地语义记忆 | 12 项范围/版本/预算/降级/取消/请求/重放业务，17 项配置与来源边界；相关回归共 117 项，真实召回质量待验收 | [业务场景](test_semantic_memory.py)、[契约边界](../test_semantic_memory.py) |
 | B05.3 摘要对照与人工判读 | 28 项同历史双查询、JSON/SSE、预算与未知消费、故障停止、记录/评审来源校验及只读报告；真实效果待显式评估 | [test_compaction_evaluation.py](test_compaction_evaluation.py) |

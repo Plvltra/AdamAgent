@@ -45,4 +45,4 @@ update 未给主体或 valid_from 时保留原值；`--expires` 沿用 E1 契约
 
 [20 项业务场景](../tests/features/test_memory_identity.py) 验证 CLI 元数据、同名澄清及显式选择、范围与主体错误、时间边界、原子保存失败、过时引用、重启、取消后不复活旧事实，以及实际模型输入/日志/离线重放。连同原记忆、语义召回、架构和录制回归共 131 项通过；提交门禁执行全量 pytest。
 
-B06.3 再补组合验收与同义问题对照；本阶段没有使用真实 embedding 或付费聊天模型来证明效果。实现与模块关系见 [架构](architecture.md)，语义选择见 [B06.1](semantic-memory.md)，状态见 [完整路线](agent-book-practice-plan.md)。
+[B06.3](memory-retrieval-evaluation.md) 已补主子继承组合验收与同义问题对照，保存本地真实 embedding 的成功和失败；B06.2 本身的自动化仍不代表模型效果，未调用付费聊天 API。实现与模块关系见 [架构](architecture.md)，语义选择见 [B06.1](semantic-memory.md)，状态见 [完整路线](agent-book-practice-plan.md)。
