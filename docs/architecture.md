@@ -2,11 +2,26 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B06.1 共享向量契约、本地语义记忆、范围过滤、降级和选择证据重放。
+本次核对范围：B06.2 主体与时间契约、排序前确定性消歧、旧新事实的原子保存及来源重放。
 
-核对结论：bootstrap 将现有 FastEmbedBackend 注入 SemanticMemoryRanker，MemoryService 先按范围读取，再排序和选择；memory 只依赖 contracts。共享向量接口与数值校验迁入 contracts/embedding.py，原文档入口保留，说明随实现迁移。选择证据进入原日志和录制边界，不新增向量数据库。
+核对结论：MemoryRecord 增加可选主体、生效起点和精确替代引用；MemoryService 在相关性排序前调用 memory.subjects，MemoryStore 复用锁与原子替换一次保存旧事实结束和新事实。CLI 只解析及展示，原版本/请求证据和录制路径保持。原子写入说明扩展为整批契约，原有锁、来源幂等及失败解释保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B06.2 主体和事实时间
+
+~~~mermaid
+flowchart LR
+    MI_CLI["memory_commands / 显式元数据"] --> MI_APP["MemoryService / 范围与管理"]
+    MI_APP --> MI_STORE["MemoryStore / 锁内旧版本校验"]
+    MI_STORE --> MI_ATOMIC["一个原子快照 / 旧事实到期与新事实"]
+    MI_DATA["MemoryRecord / 主体、生效期、替代引用"] --> MI_STORE
+    MI_APP --> MI_SUBJECT["memory.subjects / 时间过滤后消歧"]
+    MI_SUBJECT --> MI_RANK["关键词或本地语义排序"]
+    MI_RANK --> MI_TRACE["MemorySelection / 实际原文、身份与版本来源"]
+~~~
+
+来源、同名提示、时间边界和保存失败契约见 [主体与时间](memory-identity.md)。
 
 ## B06.1 本地语义记忆
 
@@ -24,7 +39,7 @@ flowchart LR
     SM_SELECTION --> SM_LOG["SessionLog 与录制 / 冻结来源，不重新推理"]
 ~~~
 
-主体、时间消歧尚未接入。模型准备、范围和降级契约见 [语义记忆](semantic-memory.md)。
+主体、时间消歧已由 B06.2 接入。模型准备、范围和降级契约见 [语义记忆](semantic-memory.md)。
 
 ## B05.3 压缩对照入口
 
@@ -806,7 +821,7 @@ flowchart LR
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
 | session | storage.py、log.py、compaction_log.py、edit_log.py、plan_log.py、plan_evidence.py、feedback_log.py、reflection_log.py、review_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
 | documents | 分块、来源、文本/向量检索、快照、embedding 与 evaluation | config、contracts |
-| memory | store.py、project.py、retrieval.py、semantic.py | contracts |
+| memory | store.py、project.py、retrieval.py、semantic.py、subjects.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限、document_tools.py、planning_tools.py 和具体工具 | documents、session、config、contracts |
 | contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py、embedding.py、planning.py、reflection.py、review.py | 无 |
 

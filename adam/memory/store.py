@@ -14,7 +14,9 @@ from filelock import FileLock, Timeout
 from adam.contracts.errors import MemoryInputError, MemoryStoreError
 from adam.contracts.memory import (
     MemoryRecord,
+    MemoryReference,
     MemorySource,
+    MemorySubject,
     decode_record,
     timestamp,
     validate_record,
@@ -75,10 +77,15 @@ class MemoryStore:
         *,
         expires_at: str | None = None,
         experience: dict[str, str] | None = None,
+        subject: MemorySubject | None = None,
+        valid_from: str | None = None,
+        supersedes: MemoryReference | None = None,
     ) -> MemoryRecord:
         """添加用户明确保存的内容；经验按来源幂等，已更新或删除时返回原条目最新版本。
 
         来源查重和写入持同一把锁，供会话日志保存失败后安全重试；不恢复已删除的经验。
+        supersedes 必须是同范围、同主体的当前版本；结束旧事实有效期与保存新事实原子完成。
+        未指定新主体时继承旧主体；未指定新起点时从保存时生效。
         """
         with self._locked():
             records = self._load()
@@ -103,8 +110,14 @@ class MemoryStore:
                 replace(source, operation="add"),
                 expires_at,
                 experience=experience,
+                subject=subject,
+                valid_from=valid_from,
+                supersedes=supersedes,
             )
-            self._append(records, record)
+            preceding: tuple[MemoryRecord, ...] = ()
+            if supersedes is not None:
+                record, preceding = self._replacement(records, record)
+            self._append(records, record, preceding=preceding)
             return record
 
     def find_experience(self, origin: dict[str, str], project: str) -> MemoryRecord | None:
@@ -124,8 +137,13 @@ class MemoryStore:
         *,
         expected_revision: int,
         expires_at: str | None = None,
+        subject: MemorySubject | None = None,
+        valid_from: str | None = None,
     ) -> MemoryRecord:
-        """用明确的新内容及有效期替换目标；expires_at=None 表示取消过期时间。"""
+        """用明确的新内容替换目标；expires_at=None 取消到期时间。
+
+        主体和起始时间缺省保留原值；被替代事实的来源关系保持不变。
+        """
         with self._locked():
             records = self._load()
             previous = self._current(records, memory_id, project, expected_revision)
@@ -136,6 +154,8 @@ class MemoryStore:
                 updated_at=self._clock().isoformat(),
                 expires_at=expires_at,
                 source=replace(source, operation="update"),
+                subject=previous.subject if subject is None else subject,
+                valid_from=previous.valid_from if valid_from is None else valid_from,
             )
             self._append(records, record)
             return record
@@ -211,29 +231,42 @@ class MemoryStore:
                     or timestamp(record.updated_at) < timestamp(previous.updated_at)
                     or record.source.operation == "add"
                     or record.experience != previous.experience
+                    or record.supersedes != previous.supersedes
                 ):
                     raise ValueError("invalid version chain")
+                self._validate_reference(record, records)
                 latest[record.memory_id] = record
                 records.append(record)
             return records
         except (ValueError, TypeError, KeyError, AttributeError):
             raise MemoryStoreError("记忆库损坏或格式不支持，原文件保留。") from None
 
-    def _append(self, records: list[MemoryRecord], record: MemoryRecord) -> None:
-        """先验证候选，再写独立临时文件；正式文件替换前没有可见的新版本。"""
+    def _append(
+        self,
+        records: list[MemoryRecord],
+        record: MemoryRecord,
+        *,
+        preceding: tuple[MemoryRecord, ...] = (),
+    ) -> None:
+        """先验证整批候选，再原子替换文件；preceding 与新记录同时可见或同时失败。"""
+        combined = list(records)
         try:
-            validate_record(record)
-            previous = next(
-                (item for item in reversed(records) if item.memory_id == record.memory_id), None
-            )
-            if previous and timestamp(record.updated_at) < timestamp(previous.updated_at):
-                raise ValueError("clock moved backwards")
+            for candidate in (*preceding, record):
+                validate_record(candidate)
+                self._validate_reference(candidate, combined)
+                previous = next(
+                    (item for item in reversed(combined) if item.memory_id == candidate.memory_id),
+                    None,
+                )
+                if previous and timestamp(candidate.updated_at) < timestamp(previous.updated_at):
+                    raise ValueError("clock moved backwards")
+                combined.append(candidate)
         except (ValueError, TypeError, AttributeError):
             raise MemoryInputError(
-                "记忆内容、范围、来源或时间无效；内容须为 1～4000 字符。"
+                "记忆内容、范围、主体、来源或时间无效；内容须为 1～4000 字符。"
             ) from None
         payload = json.dumps(
-            {"version": 1, "records": [item.to_dict() for item in [*records, record]]},
+            {"version": 1, "records": [item.to_dict() for item in combined]},
             ensure_ascii=False,
         ).encode("utf-8")
         if len(payload) > MAX_FILE_BYTES:
@@ -250,6 +283,65 @@ class MemoryStore:
                 temporary.unlink(missing_ok=True)
             except OSError:
                 pass  # 清理失败不能遮蔽保存失败，也不能把已替换的文件报告为未保存。
+
+    def _replacement(
+        self,
+        records: list[MemoryRecord],
+        record: MemoryRecord,
+    ) -> tuple[MemoryRecord, tuple[MemoryRecord, ...]]:
+        """绑定所见旧版本，将其有效期截到新事实开始；后续删除新事实不会恢复旧偏好。"""
+        reference = record.supersedes
+        if not isinstance(reference, MemoryReference):
+            raise MemoryInputError("替代事实须提供旧 ID 与版本。")
+        previous = self._current(records, reference.memory_id, record.project, reference.revision)
+        if record.subject is None:
+            record = replace(record, subject=previous.subject)
+        start = record.valid_from or record.created_at
+        record = replace(record, valid_from=start)
+        try:
+            validate_record(record)
+            self._validate_reference(record, records)
+            if previous.valid_from is not None and timestamp(start) < timestamp(
+                previous.valid_from
+            ):
+                raise ValueError("replacement before original validity")
+            if previous.expires_at is not None and timestamp(previous.expires_at) <= timestamp(
+                start
+            ):
+                return record, ()
+            ended = replace(
+                previous,
+                revision=previous.revision + 1,
+                updated_at=record.created_at,
+                expires_at=start,
+                source=replace(record.source, operation="update"),
+            )
+            return record, (ended,)
+        except (ValueError, TypeError, AttributeError):
+            raise MemoryInputError("替代关系的主体、范围或生效时间不匹配，未修改旧事实。") from None
+
+    @staticmethod
+    def _validate_reference(record: MemoryRecord, history: list[MemoryRecord]) -> None:
+        """关系只指向先前存在的确切版本，防止悬空引用、跨范围和同名异人的串联。"""
+        if record.supersedes is None:
+            return
+        reference = record.supersedes
+        source = next(
+            (
+                item
+                for item in history
+                if item.memory_id == reference.memory_id and item.revision == reference.revision
+            ),
+            None,
+        )
+        if (
+            source is None
+            or source.deleted
+            or source.project != record.project
+            or (source.subject.key if source.subject else None)
+            != (record.subject.key if record.subject else None)
+        ):
+            raise ValueError("invalid supersession source")
 
     @staticmethod
     def _current(

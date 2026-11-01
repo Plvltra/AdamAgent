@@ -12,6 +12,7 @@ from adam.memory.project import project_identity
 from adam.memory.retrieval import rank_records
 from adam.memory.semantic import MemoryRanking, SemanticMemoryRanker
 from adam.memory.store import MemoryStore
+from adam.memory.subjects import select_subjects
 
 
 class MemoryService:
@@ -45,7 +46,17 @@ class MemoryService:
                 return list(self.store.history(command.memory_id, project))
             return self.store.list_records(project, include_global=not command.global_scope)
         if command.action == "add":
-            return [self.store.add(command.content, project, source, expires_at=command.expires_at)]
+            return [
+                self.store.add(
+                    command.content,
+                    project,
+                    source,
+                    expires_at=command.expires_at,
+                    subject=command.subject,
+                    valid_from=command.valid_from,
+                    supersedes=command.supersedes,
+                )
+            ]
         if command.revision is None:
             raise MemoryInputError("更新或删除须提供 --revision，先用 /memory list 查看版本。")
         if command.action == "update":
@@ -57,6 +68,8 @@ class MemoryService:
                     source,
                     expected_revision=command.revision,
                     expires_at=command.expires_at,
+                    subject=command.subject,
+                    valid_from=command.valid_from,
                 )
             ]
         return [
@@ -69,6 +82,7 @@ class MemoryService:
         """按相关性选择完整记录；可选记忆读取失败时返回带警告的空快照。
 
         每轮重读有效条目，不挤占系统、本轮及保护历史。
+        先按当前范围、事实有效期和显式主体筛选，再做相关性排序；同名不猜身份。
         读取故障返回空资料；语义后端故障或超限明确降级关键词。
         参数错误、会话日志和请求记账错误仍向上传播。
         """
@@ -85,6 +99,9 @@ class MemoryService:
                 status="unavailable",
                 warning=f"记忆读取失败，本轮未加载记忆；聊天继续。{error.user_message}",
             )
+        records, subject_warning = select_subjects(
+            [record for record in records if record.active(datetime.now(UTC))], query
+        )
         ranking = self._rank(records, query)
         selection = MemorySelection(
             query=query,
@@ -92,9 +109,12 @@ class MemoryService:
             strategy=ranking.strategy,
             embedding=ranking.embedding,
             fallback_reason=ranking.fallback_reason,
-            warning="语义记忆检索不可用或超限，本轮已降级为关键词检索。"
-            if ranking.fallback_reason
-            else "",
+            warning=subject_warning
+            + (
+                "语义记忆检索不可用或超限，本轮已降级为关键词检索。"
+                if ranking.fallback_reason
+                else ""
+            ),
         )
         budget = min(available_tokens, self.limits.max_input_tokens)
         scores = dict(ranking.scores)
@@ -145,3 +165,9 @@ class MemoryService:
             raise MemoryInputError("--history 只用于 list。")
         if command.action in {"add", "list"} and command.revision is not None:
             raise MemoryInputError("此操作不接受 --revision。")
+        if command.action not in {"add", "update"} and (
+            command.subject is not None or command.valid_from is not None
+        ):
+            raise MemoryInputError("主体和生效时间仅用于 add 或 update。")
+        if command.action != "add" and command.supersedes is not None:
+            raise MemoryInputError("替代关系仅用于 add，新事实需关联旧 ID 与版本。")

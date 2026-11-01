@@ -2,6 +2,7 @@
 
 import json
 import math
+import re
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,6 +23,22 @@ class MemorySource:
 
 
 @dataclass(frozen=True)
+class MemorySubject:
+    """用户明确给定的主体身份与显示名；同名不代表同一个主体。"""
+
+    key: str
+    name: str
+
+
+@dataclass(frozen=True)
+class MemoryReference:
+    """被替代事实的确切旧版本；不随原条目的后续修改而变化。"""
+
+    memory_id: str
+    revision: int
+
+
+@dataclass(frozen=True)
 class MemoryRecord:
     """一条记忆的一个版本；project 为 None 表示用户显式选择的全局范围。"""
 
@@ -35,16 +52,26 @@ class MemoryRecord:
     expires_at: str | None = None
     deleted: bool = False
     experience: dict[str, str] | None = None
+    subject: MemorySubject | None = None
+    valid_from: str | None = None
+    supersedes: MemoryReference | None = None
 
     def active(self, now: datetime) -> bool:
-        """判断指定时刻是否可检索；保留过期和删除版本供人工追溯。"""
-        return not self.deleted and (self.expires_at is None or timestamp(self.expires_at) > now)
+        """判断指定时刻是否处于事实有效期；未生效、过期和删除版本仍保留供追溯。"""
+        return (
+            not self.deleted
+            and (self.valid_from is None or timestamp(self.valid_from) <= now)
+            and (self.expires_at is None or timestamp(self.expires_at) > now)
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """返回独立的序列化快照，供存储和请求使用记录引用。"""
         value = asdict(self)
         if self.experience is None:
             value.pop("experience")
+        for key in ("subject", "valid_from", "supersedes"):
+            if value[key] is None:
+                value.pop(key)
         return value
 
 
@@ -59,6 +86,9 @@ class MemoryCommand:
     global_scope: bool = False
     expires_at: str | None = None
     history: bool = False
+    subject: MemorySubject | None = None
+    valid_from: str | None = None
+    supersedes: MemoryReference | None = None
 
 
 def timestamp(value: str) -> datetime:
@@ -118,6 +148,10 @@ def decode_record(value: object) -> MemoryRecord:
         raise ValueError("invalid memory record")
     item = dict(value)
     item["source"] = MemorySource(**item["source"])
+    if item.get("subject") is not None:
+        item["subject"] = MemorySubject(**item["subject"])
+    if item.get("supersedes") is not None:
+        item["supersedes"] = MemoryReference(**item["supersedes"])
     record = MemoryRecord(**item)
     validate_record(record)
     return record
@@ -254,3 +288,31 @@ def validate_record(record: MemoryRecord) -> None:
         raise ValueError("invalid time order")
     if record.expires_at is not None:
         timestamp(record.expires_at)
+    if record.valid_from is not None:
+        start = timestamp(record.valid_from)
+        if record.expires_at is not None and start > timestamp(record.expires_at):
+            raise ValueError("invalid fact interval")
+    if record.subject is not None:
+        subject = record.subject
+        if (
+            not isinstance(subject, MemorySubject)
+            or not isinstance(subject.key, str)
+            or re.fullmatch(r"[a-z][a-z0-9._:-]{0,63}", subject.key) is None
+            or not isinstance(subject.name, str)
+            or not subject.name.strip()
+            or len(subject.name) > 100
+            or any(char in subject.name for char in "\0\n\r")
+        ):
+            raise ValueError("invalid memory subject")
+    if record.supersedes is not None:
+        reference = record.supersedes
+        if (
+            not isinstance(reference, MemoryReference)
+            or not isinstance(reference.memory_id, str)
+            or not valid_session_id(reference.memory_id)
+            or reference.memory_id == record.memory_id
+            or type(reference.revision) is not int
+            or reference.revision < 1
+            or record.valid_from is None
+        ):
+            raise ValueError("invalid replaced memory reference")

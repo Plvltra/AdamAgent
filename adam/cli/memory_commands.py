@@ -10,7 +10,7 @@ from typing import Never
 
 from adam.application.facade import AgentApplication
 from adam.contracts.errors import MemoryInputError
-from adam.contracts.memory import MemoryCommand
+from adam.contracts.memory import MemoryCommand, MemoryReference, MemorySubject, timestamp
 
 USAGE = (
     "/memory candidates | candidate ID | accept ID [-- 改写正文] | discard ID\n"
@@ -18,6 +18,8 @@ USAGE = (
     "/memory list [--global] [--history ID]\n"
     "/memory update ID --revision N [--global] [--expires 时间] -- 新正文\n"
     "/memory delete ID --revision N [--global]\n"
+    "add/update 可加 --subject 主体ID --subject-name 显示名、--valid-from 带时区时间；\n"
+    "add 可加 --supersedes 旧ID --supersedes-revision N，原子结束旧事实有效期。\n"
     "默认项目范围；update 未给 --expires 会取消原过期时间。"
 )
 
@@ -79,12 +81,21 @@ def parse_memory_command(text: str) -> MemoryCommand:
     parser.add_argument("--expires", dest="expires_at")
     parser.add_argument("--revision", type=int)
     parser.add_argument("--history", default="")
+    parser.add_argument("--subject")
+    parser.add_argument("--subject-name")
+    parser.add_argument("--valid-from")
+    parser.add_argument("--supersedes")
+    parser.add_argument("--supersedes-revision", type=int)
     try:
         arguments = parser.parse_args(shlex.split(options))
     except ValueError:
         raise MemoryInputError("记忆命令选项引号未闭合。") from None
     if arguments.history and arguments.memory_id:
         raise MemoryInputError("--history 不接受额外 ID。")
+    if (arguments.subject is None) != (arguments.subject_name is None):
+        raise MemoryInputError("主体 ID 与显示名须一起提供。")
+    if (arguments.supersedes is None) != (arguments.supersedes_revision is None):
+        raise MemoryInputError("被替代的旧 ID 与版本须一起提供。")
     return MemoryCommand(
         arguments.action,
         content,
@@ -93,6 +104,13 @@ def parse_memory_command(text: str) -> MemoryCommand:
         arguments.global_scope,
         arguments.expires_at,
         bool(arguments.history),
+        subject=MemorySubject(arguments.subject, arguments.subject_name)
+        if arguments.subject is not None
+        else None,
+        valid_from=arguments.valid_from,
+        supersedes=MemoryReference(arguments.supersedes, arguments.supersedes_revision)
+        if arguments.supersedes is not None
+        else None,
     )
 
 
@@ -116,10 +134,24 @@ def handle_memory_command(
     now = datetime.now(UTC)
     for record in records:
         state = "已删除" if record.deleted else ("有效" if record.active(now) else "已过期")
+        if (
+            not record.deleted
+            and record.valid_from is not None
+            and timestamp(record.valid_from) > now
+        ):
+            state = "尚未生效"
         scope = record.project or "全局"
         write(f"记忆> {record.memory_id} v{record.revision} [{scope}] {state}：{record.content}")
         if record.experience:
             write("  经验：尚未验证；来源 " + json.dumps(record.experience, ensure_ascii=False))
+        if record.subject:
+            write(f"  主体：@{record.subject.key}（{record.subject.name}）；同名不合并身份。")
+        if record.valid_from:
+            write(f"  生效：{record.valid_from}")
+        if record.supersedes:
+            write(
+                f"  替代：{record.supersedes.memory_id} v{record.supersedes.revision}；旧版本仍可追溯。"
+            )
         write(
             f"  来源：用户 {record.source.operation}；会话 {record.source.session_id or '无'}；"
             f"创建 {record.created_at}；更新 {record.updated_at}；过期 {record.expires_at or '无'}"
