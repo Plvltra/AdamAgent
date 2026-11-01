@@ -2,11 +2,25 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B15.3.1 MCP 本地/HTTP 传输、认证读取、固定目的地及可选资源说明。
+本次核对范围：B15.3.2.1 独立二进制引用存储、来源与内容摘要、整批配额和原子发布。
 
-核对结论：新增 mcp.transport 管理 SDK stdio/HTTP 生命周期；MCPConnection 保留业务协议，传输负责精确端点、TLS 和临时认证头。配置与记录仅含认证变量名，未把凭据传入应用层。stdio 进程回收契约迁入传输，远程关闭不等于服务停止；可选空资源说明已兼容。架构与关键注释已同步。
+核对结论：新增 mcp.media_store 的宿主 API，PreparedMedia 在 IO 前完成解码与摘要，MCPMediaStore 预检配额并发布可校验字节文件。当前尚未从 MCPConnection 或 bootstrap 调用，不把存储基础标为聊天已支持媒体。原 stdio/HTTP 和文本附件契约未改变，新接口已说明失败、来源与残留行为。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B15.3.2.1 二进制引用存储基础
+
+~~~mermaid
+flowchart LR
+    MS_CALLER["显式宿主 API 调用者"] --> MS_PREP["prepare_media / 有界解码与来源摘要"]
+    MS_PREP --> MS_VALUE["PreparedMedia / 字节与固定引用"]
+    MS_CALLER --> MS_STORE["MCPMediaStore / 锁、整批配额与摘要校验"]
+    MS_VALUE --> MS_STORE
+    MS_STORE --> MS_FILE["宿主指定目录 / ID.bin 原子发布"]
+    MS_STORE --> MS_REF["MediaReference / 无路径、无 base64"]
+~~~
+
+此图仅表示独立 API，尚无聊天或 MCP 响应转换连线；下一小任务接入。详见 [MCP 引用](mcp.md)。
 
 ## B15.3.1 MCP 传输与认证
 
