@@ -2,11 +2,28 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B14.1 隔离 RPC、宿主协调回调、协议与注册工具桥。
+本次核对范围：B14.2.1 嵌套执行器、共享调用额度、父子来源和离线重放。
 
-核对结论：isolation 内新增有界协议、宿主 RPC 和 Linux 转发器；tool_calls.code_bridge 复用原注册表，尚未连接主聊天。原隔离策略与挂载说明保留，可信启动步骤拆为可复用常量；新增说明明确线程、限额、未知结果及 B14.2 的预算/日志接入责任；回复采用非阻塞管道，worker 拒绝读取时看守仍能停止。
+核对结论：ToolExecutor 增加限于父编排动作的串行嵌套入口，复用 ToolInvocation 原边界；ToolBudget 统一工具与编辑计数，SessionLog 校验父子关系并保持根消息配对。录制重放复用原事件导入，不调用 worker。尚未组装生产 execute_code 工具。原有协议、存储和注释说明保留并更新扩展后的契约。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B14.2.1 嵌套执行基础
+
+~~~mermaid
+flowchart LR
+    NE_TURN["Conversation / 单轮处理"] --> NE_ROOT["ToolExecutor / 根编排串行动作"]
+    NE_TURN --> NE_BUDGET["ToolBudget / 共用调用与编辑额度"]
+    NE_ROOT --> NE_CHILD["execute_nested / 固定名单与父来源"]
+    NE_CHILD --> NE_INV["原 ToolInvocation / 权限、Hook、批准、附件"]
+    NE_INV --> NE_LOG["SessionLog / 独立工具 ID 与 parent_tool_call_id"]
+    NE_CHILD --> NE_BUDGET
+    NE_ROOT --> NE_BUDGET
+    NE_LOG --> NE_CAPTURE["RecordingTools / 批次事件增量"]
+    NE_CAPTURE --> NE_REPLAY["ReplayStore / 逐项扣额，零真实动作"]
+~~~
+
+当前由显式组装接口使用；生产隔离 worker 与聊天工具的连接待 B14.2.2，不把独立桥当成完整执行器。见 [代码编排](code-orchestration.md)。
 
 ## B14.1 窄 RPC 与注册工具桥
 
@@ -23,7 +40,7 @@ flowchart LR
     RPC_RESPONSE --> RPC_WSL
 ~~~
 
-尚无聊天调用和嵌套会话事件；B14.2 接入原预算、完整 Hook、日志与录制，不能直接把独立工具桥当作生产调用链。见 [边界与验收](code-orchestration.md)。
+独立工具桥没有完整聊天调用链；上面的 B14.2.1 已提供宿主执行基础，B14.2.2 再接真实 RPC。见 [边界与验收](code-orchestration.md)。
 
 ## B19.1 隔离前置
 

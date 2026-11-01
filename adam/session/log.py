@@ -5,7 +5,7 @@ from itertools import groupby
 from typing import Any
 
 from adam.contracts.artifacts import ArtifactRef, decode_artifact_reference
-from adam.contracts.execution import FILE_EDIT_TOOLS
+from adam.contracts.execution import CODE_TOOL_NAME, FILE_EDIT_TOOLS
 from adam.contracts.history import (
     HistoryTurn,
     validate_compaction_version,
@@ -464,7 +464,10 @@ class SessionLog:
         self.reviews.interrupt(turn_id)
 
     def _apply_tool(self, kind: str, payload: dict[str, Any]) -> None:
-        """工具 ID 在轮次内唯一；结束记录必须与开始时的请求和轮次一致。"""
+        """工具 ID 在轮次内唯一；结束记录仍须匹配开始时的请求和轮次。
+
+        嵌套只关联同请求内尚未结束的根编排调用，父项不能提前完成。
+        """
         turn_id = self._require_turn(payload)
         request = self._require_request(payload)
         if request["status"] != "succeeded":
@@ -479,6 +482,17 @@ class SessionLog:
                 or not isinstance(payload.get("arguments"), str)
             ):
                 raise ValueError("invalid or duplicate tool")
+            if "parent_tool_call_id" in payload:
+                parent_id = self._identifier(payload, "parent_tool_call_id")
+                parent = self.tools.get((turn_id, parent_id))
+                if (
+                    parent is None
+                    or parent["request_id"] != payload["request_id"]
+                    or parent["name"] != CODE_TOOL_NAME
+                    or parent["finished"]
+                    or "parent_tool_call_id" in parent
+                ):
+                    raise ValueError("invalid nested tool parent")
             self.tools[key] = {
                 **payload,
                 "finished": False,
@@ -488,8 +502,17 @@ class SessionLog:
             }
             return
         tool = self._require_tool(payload)
+        if payload.get("parent_tool_call_id") != tool.get("parent_tool_call_id") or (
+            "parent_tool_call_id" in payload and payload["parent_tool_call_id"] is None
+        ):
+            raise ValueError("mismatched nested tool parent")
         if tool["finished"] or not isinstance(payload.get("output"), str):
             raise ValueError("invalid or duplicate tool finish")
+        if any(
+            owner == turn_id and item.get("parent_tool_call_id") == call_id and not item["finished"]
+            for (owner, _), item in self.tools.items()
+        ):
+            raise ValueError("unfinished nested tool")
         execution_id = tool["execution_id"]
         if execution_id is not None and self.executions[execution_id]["status"] == "unknown":
             raise ValueError("command has no final result")
@@ -718,22 +741,37 @@ class SessionLog:
     def _validate_tool_trace(
         self, turn_id: str, messages: list[dict[str, Any]], *, complete: bool
     ) -> None:
-        """校验消息引用的真实工具参数和输出；完整前缀必须包含本轮所有已记录工具。"""
+        """校验消息引用的真实工具参数和输出；模型消息只含根工具。
+
+        完整前缀须涵盖全部根调用，嵌套证据通过已结束的父调用关联。
+        """
         turn_tools = {key[1]: tool for key, tool in self.tools.items() if key[0] == turn_id}
         seen: set[str] = set()
         for message in messages[1:]:
             for call in message.get("tool_calls") or []:
                 tool = turn_tools.get(call["id"])
-                if tool is None or any(
-                    call["function"][field] != tool[field] for field in ("name", "arguments")
+                if (
+                    tool is None
+                    or "parent_tool_call_id" in tool
+                    or any(
+                        call["function"][field] != tool[field] for field in ("name", "arguments")
+                    )
                 ):
                     raise ValueError("mismatched tool request")
                 seen.add(call["id"])
             if message["role"] == "tool":
                 tool = turn_tools.get(message["tool_call_id"])
-                if tool is None or not tool["finished"] or message["content"] != tool["output"]:
+                if (
+                    tool is None
+                    or "parent_tool_call_id" in tool
+                    or not tool["finished"]
+                    or message["content"] != tool["output"]
+                ):
                     raise ValueError("mismatched tool output")
-        if complete and seen != set(turn_tools):
+        roots = {
+            call_id for call_id, tool in turn_tools.items() if "parent_tool_call_id" not in tool
+        }
+        if complete and seen != roots:
             raise ValueError("uncommitted tool trace")
 
     def _require_turn(self, payload: dict[str, Any]) -> str:

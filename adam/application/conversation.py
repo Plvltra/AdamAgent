@@ -277,7 +277,9 @@ class Conversation:
             self.notify(progress.memory.warning)
         if self.delegation:
             self.delegation.set_memory(progress.memory)
-        tool_budget = ToolBudget(self.limits.max_edit_attempts)
+        tool_budget = ToolBudget(
+            self.limits.max_edit_attempts, max_tool_calls=self.limits.max_tool_calls
+        )
         while progress.requests.used < self.limits.max_model_requests:
             if self.cancel:
                 self.cancel.check()
@@ -314,7 +316,7 @@ class Conversation:
                 return self._save_completed_turn(session.session_id, turn_id, turn, started_ns)
 
             self._check_tool_budget(
-                session.session_id, progress.requests.used - 1, calls, seen_call_ids
+                session.session_id, progress.requests.used - 1, calls, seen_call_ids, tool_budget
             )
             turn.extend(
                 self.tool_executor.execute(
@@ -327,7 +329,7 @@ class Conversation:
                 )
             )
             seen_call_ids.update(call["id"] for call in calls)
-            progress.tool_calls = len(seen_call_ids)
+            progress.tool_calls = tool_budget.tool_calls
             if self.reflection:
                 advice = self.reflection.after_tools(self.model, self.requests, progress.requests)
                 if advice and advice["status"] == "completed":
@@ -534,15 +536,23 @@ class Conversation:
             )
 
     def _check_tool_budget(
-        self, session_id: str, step: int, calls: list[dict[str, Any]], seen_ids: set[str]
+        self,
+        session_id: str,
+        step: int,
+        calls: list[dict[str, Any]],
+        seen_ids: set[str],
+        budget: ToolBudget,
     ) -> None:
-        """执行整批工具前检查额度及重复 ID；step 为从零开始的请求序号，包含自动摘要。"""
+        """整批预检包含此前的嵌套调用；执行中仍逐项扣额。
+
+        step 为从零开始的请求序号，包含自动摘要；seen_ids 用于检查模型重复调用 ID。
+        """
         # 没有下一次模型请求额度时，不执行无法用于生成最终回答的工具。
         if step + 1 >= self.limits.max_model_requests:
             raise BudgetError(
                 "达到本轮模型请求次数上限，工具链未加入有效历史。", code=FailureCode.REQUEST_LIMIT
             )
-        if len(seen_ids) + len(calls) > self.limits.max_tool_calls:
+        if budget.tool_calls + len(calls) > self.limits.max_tool_calls:
             raise BudgetError(
                 "达到本轮工具调用次数上限，工具链未加入有效历史。", code=FailureCode.TOOL_LIMIT
             )

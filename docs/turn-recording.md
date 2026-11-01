@@ -1,6 +1,6 @@
 # T9 单轮录制与离线重放
 
-更新日期：2026-10-31
+更新日期：2026-11-01
 
 ## 需求与交付阶段
 
@@ -20,7 +20,7 @@
 
 用 RecordingWriter 创建一个新文件，TurnRecorder 接收实际会话事件读取回调。RecordingModel 装饰原 ModelClient；build_application 的 decorate_tools 可将主执行器装饰为 RecordingTools。最后通过 TurnRecorder.run 包围一次原应用 send。可运行的组装示例见 [业务测试](../tests/features/test_turn_recording.py) 中的 recording_app。
 
-这两个适配器仍调用真实模型客户端和工具执行器，保留原权限、批准、并发、预算、状态与异常。它们只在边界采集，不往 Conversation 添加工具名称或录制分支。主循环现在依赖 ToolRunner 接口；单轮编辑额度 ToolBudget 移至共享契约，原额度语义不变。
+这两个适配器仍调用真实模型客户端和工具执行器，保留原权限、批准、并发、预算、状态与异常。它们只在边界采集，不往 Conversation 添加工具名称或录制分支。主循环依赖 ToolRunner 接口；共享 ToolBudget 计算编辑额度，B14.2.1 同时累计根与嵌套工具调用次数。
 
 列表查询不属于所选执行轨迹。一个录制器只接受一轮，轮次结束后不能继续写观察记录。CaptureRuntime 通过 bootstrap.observe_conversation 接入实际入口、工具目录、记忆、规则、模式、委派、审查和共享额度观察；显式 Skill 正文及目录一并冻结。执行 ID 在原生成位置录制，重放从同一位置取回；正常聊天仍使用安全随机 ID。
 
@@ -40,6 +40,8 @@ SessionAccount 在 SharedTokenBudget 原有锁内观察决策状态，避免读�
 | recording_finished | 调用终态、回答或错误、最后一段会话增量 |
 
 call_id 使用调用开始的序号；模型/工具边界串行采集，工具批次内部仍可按原规则并发。工具批次必须来自前一个完整模型响应，成功结果的名称、参数、请求身份和输出要与实际工具日志一致。
+
+B14.2.1 的嵌套工具事件包含 parent_tool_call_id，仍属于父批次的会话增量；宿主生成的身份通过已有 observation 留证。重放用全部 tool_started 消费共享工具/编辑额度，最大值来自冻结的 agent 配置，不执行原编排或底层动作。模型配对消息只有父项，不能为减少上下文而省略底层审计记录。成功与超额停止的重放见 [嵌套执行验收](../tests/features/test_nested_tool_execution.py)。
 
 原有 SessionLog 验证历史及增量；只允许这次用户输入对应的一个新轮次。声明成功时必须已有同内容的完整回答提交。complete 仅代表录制有明确结尾：一个 API 失败的轮次也可以录制完整，业务结果仍是失败。
 

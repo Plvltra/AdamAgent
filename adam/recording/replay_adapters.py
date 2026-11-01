@@ -88,7 +88,7 @@ class ReplayTools:
         *,
         provided_names: tuple[str, ...] | None = None,
     ) -> list[dict[str, Any]]:
-        """验证本批来源及编辑额度，导入工具内部事实后返回配对结果；不调用执行器。"""
+        """验证本批来源及编辑起点，导入全部工具事实并消费共享额度；不调用执行器。"""
         call_id = self.tape.begin_call(
             "tools",
             {

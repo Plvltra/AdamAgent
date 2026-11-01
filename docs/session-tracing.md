@@ -1,6 +1,6 @@
 # V1.3：会话执行轨迹与状态
 
-更新日期：2026-10-31
+更新日期：2026-11-01
 
 这一版把“用户输入 → 模型请求 → 工具处理”关联起来。即使最后一次模型请求失败，已经落盘的输入、请求与工具结果仍能查询 JSONL；它们不自动成为下一次模型请求的有效聊天历史。
 
@@ -17,7 +17,7 @@ session_id：一个会话，对应一个 JSONL 文件
        └─ request_id：收到工具结果后的下一次模型请求
 ```
 
-一个轮次可以有多次请求，一次请求可以产生多个工具调用。会话 ID 为 8 位十六进制；轮次、请求和命令执行 ID 由程序生成，工具调用 ID 来自模型。不同轮次允许模型复用工具调用 ID，因此查看工具时要同时看 turn_id。
+一个轮次可以有多次请求，一次请求可以产生多个工具调用。会话 ID 为 8 位十六进制；轮次、请求和命令执行 ID 由程序生成，根工具调用 ID 来自模型。B14.2.1 的嵌套工具 ID 由宿主生成，并以 parent_tool_call_id 关联同请求的根 execute_code；不伪造额外模型请求。不同轮次允许模型复用工具调用 ID，因此查看工具时要同时看 turn_id。
 
 所有记录采用 `type`、UTC `timestamp`、`payload`。`session_meta.payload.version` 为 4。
 
@@ -28,8 +28,8 @@ session_id：一个会话，对应一个 JSONL 文件
 | request_usage | turn_id、request_id、input_tokens、output_tokens；可选 cache_usage、input_prefix | 总用量独立结算；未知保持 null，缓存与本地输入前缀仅作诊断，见 [缓存观测](cache-observation.md) |
 | request_finished | turn_id、request_id、status、reason、duration_ms、error | 请求终态；与 request_usage 同一追加块保存 |
 | turn_finished | turn_id、status、reason、duration_ms、error | 失败或中断的轮次终态，不提交消息 |
-| tool_started | turn_id、request_id、tool_call_id、name、arguments | 即将进入工具处理；arguments 为模型给出的原始 JSON 字符串 |
-| tool_finished | turn_id、request_id、tool_call_id、output | 已取得返回值；output 为实际回传模型的有界 JSON 字符串 |
+| tool_started | turn_id、request_id、tool_call_id、name、arguments；嵌套时加 parent_tool_call_id | 即将进入工具处理；arguments 为模型或 worker 提交的 JSON 参数 |
+| tool_finished | turn_id、request_id、tool_call_id、output；嵌套时保留同一 parent_tool_call_id | 已取得返回值；output 为实际回传模型或 worker 的有界 JSON 字符串 |
 | hook_started / hook_finished | 父轮次/请求/工具、hook_id、event、execution_mode、result | T5 工具前后检查；独立诊断按轮次输出 hooks，结果与工具输出独立，详见 [Hooks 契约](lifecycle-hooks.md) |
 | command_started / command_finished / command_denied | 上述三个关联 ID、execution_id 及命令细节 | run_command 的审批和进程执行记录 |
 | edit_planned / edit_started / edit_finished | 父轮次/请求/工具、edit_id、路径、版本与状态 | 计划、批准后写入边界及实际结果，详情见下文 |
@@ -47,6 +47,8 @@ session_id：一个会话，对应一个 JSONL 文件
 - turn_completed 只有在完整消息块通过校验并提交后才产生，表示轮次 succeeded；不能单独调用 finish_turn 声称成功。
 - tool_finished 说明工具返回了结果；文件不存在、参数错误和用户拒绝也能返回结果，业务是否成功应读取 output。
 - tool_started 说明进入工具处理，可能随后在参数校验或用户确认处结束；它不证明命令进程已经启动。命令的实际执行边界由 command_* 描述。
+
+B14.2.1 的底层调用同样记录原模式、Hook 与批准；完整消息只提交根工具配对，嵌套结果通过父项关联，不能独立加入模型历史。父项必须等待全部子项完成；失败/中断恢复仍按既有规则保存未知状态，不自动重跑。详见 [代码编排](code-orchestration.md)。
 
 ## T4 执行模式记录
 

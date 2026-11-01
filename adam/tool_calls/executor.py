@@ -1,13 +1,16 @@
 """执行模型请求的工具并独立记录轨迹，后续模型失败也保留执行证据。"""
 
+import json
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import partial
+from threading import get_ident
 from typing import Any
 
 from adam.config.settings import NoProgressConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ApprovalDeniedError, NoProgressError, ToolError
-from adam.contracts.execution import ToolBudget
+from adam.contracts.execution import CODE_TOOL_NAME, ToolBudget
 from adam.contracts.hooks import HookService
 from adam.contracts.runtime import FailureState
 from adam.session.storage import SessionStore
@@ -18,6 +21,17 @@ from adam.tool_calls.invocation import ToolInvocation
 from adam.tool_calls.progress import NoProgressGuard, ProgressAction
 from adam.tool_calls.registry import PreparedAction, ToolRegistry
 from adam.tool_calls.scheduler import ToolResult, ToolScheduler, ToolTask
+
+
+@dataclass(frozen=True)
+class _NestedScope:
+    """只在串行编排动作存活期间可用；名单和额度来自触发父调用的同一次请求。"""
+
+    parent: ToolInvocation
+    budget: ToolBudget
+    provided: frozenset[str] | None
+    cancel: CancellationToken
+    thread_id: int
 
 
 class ToolExecutor:
@@ -58,6 +72,8 @@ class ToolExecutor:
         self._progress = NoProgressGuard(self._progress_config)
         # Git 取消沿用进程树清理（最多等待 taskkill 5 秒），为直接进程回收留出余量。
         self._scheduler = ToolScheduler(cancel=cancel, cleanup_timeout_seconds=7.0)
+        self._nested_scope: _NestedScope | None = None
+        self._inside_nested = False
 
     def definitions(self, *, turn_id: str | None = None) -> list[dict[str, Any]]:
         """取得本轮选择或无副作用初始预览；未接发现策略的显式执行器保持全量目录。"""
@@ -87,7 +103,7 @@ class ToolExecutor:
         """执行 calls，安全读取最多两项并发，其他动作串行；返回原 ID 顺序的 tool 消息。
 
         turn_id 和 request_id 指向产生这些工具调用的轮次与模型请求。
-        budget 在同轮各批工具间共用，编辑超限时保留先前已执行结果并停止。
+        budget 在同轮各批及嵌套调用间共用，超限时保留先前已执行结果并停止。
         provided_names 固定触发此批调用的实际请求名单，同批发现不会扩展它；
         只有未接发现服务的显式执行器可以省略，聊天入口始终传入。
         预检、Hook、来源绑定和所有日志由本线程完成；工作线程只执行已注册的读取动作。
@@ -98,14 +114,6 @@ class ToolExecutor:
             raise ValueError("发现执行器缺少本次请求的工具名单。")
         self._enter_turn(session_id, turn_id)
         provided = frozenset(provided_names) if provided_names is not None else None
-
-        def check(name: str) -> None:
-            if self.discovery is not None and provided is not None:
-                self.discovery.require_provided(name, provided)
-            if provided is not None and name not in provided:
-                raise ToolError("本次请求尚未提供该工具的完整说明；请先发现，再在后续请求调用。")
-            if self.check_call:
-                self.check_call(name)
 
         invocations = [
             ToolInvocation(
@@ -118,7 +126,7 @@ class ToolExecutor:
                 hooks=self.hooks,
                 artifacts=self.artifacts,
                 on_notice=self.on_notice,
-                check_call=check,
+                check_call=partial(self._check_provided, provided=provided),
             )
             for call in calls
         ]
@@ -132,7 +140,7 @@ class ToolExecutor:
         tasks = [
             ToolTask(
                 item.call_id,
-                partial(self._prepare, item, budget),
+                partial(self._prepare, item, budget, provided),
                 self.registry.capability(item.name),
                 self.registry.can_parallelize(item.name),
             )
@@ -140,6 +148,57 @@ class ToolExecutor:
         ]
         self._scheduler.run(tasks, on_result=finish)
         return results
+
+    def execute_nested(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """为当前 execute_code 派发一个底层工具，返回原有界结果，不加入模型消息。
+
+        只能由父动作所在协调线程调用；ID 由宿主分配，不能自选请求或扩大工具名单。
+        复用原预检、Hook、批准、附件与日志。取消、拒绝和额度/保存故障向上传播，
+        父 worker 必须停止；这里不重入批次调度器，也不重试失败的动作。
+        """
+        scope = self._nested_scope
+        if scope is None or scope.thread_id != get_ident() or self._inside_nested:
+            raise RuntimeError("嵌套工具只能在本线程的编排动作中调用，不能再次嵌套。")
+        scope.cancel.check()
+        parent = scope.parent
+        self._enter_turn(parent.session_id, parent.source["turn_id"])
+        invocation = ToolInvocation(
+            self.store,
+            self.registry,
+            parent.session_id,
+            {**parent.source, "tool_call_id": self.store.new_identity("nested_tool", 16)},
+            {"name": name, "arguments": json.dumps(arguments, ensure_ascii=False, allow_nan=False)},
+            self.notify,
+            hooks=self.hooks,
+            artifacts=self.artifacts,
+            on_notice=self.on_notice,
+            check_call=partial(self._check_provided, provided=scope.provided, nested=True),
+            parent_call_id=parent.call_id,
+        )
+        self._inside_nested = True
+        try:
+            action = self._prepare(invocation, scope.budget, scope.provided)
+            scope.cancel.check()
+            output = self._finish(invocation, action(scope.cancel))
+            return json.loads(output)
+        finally:
+            self._inside_nested = False
+            # 主计划、反思与协作服务共享当前来源；后续父动作不能沿用最后一个子调用 ID。
+            if self.before_call:
+                self.before_call(parent.source)
+
+    def _check_provided(
+        self, name: str, *, provided: frozenset[str] | None, nested: bool = False
+    ) -> None:
+        """嵌套也固定使用父请求名单；发现只能影响后续模型请求，不开放递归编排。"""
+        if nested and name == CODE_TOOL_NAME:
+            raise ToolError("编排不能递归调用 execute_code。")
+        if self.discovery is not None and provided is not None:
+            self.discovery.require_provided(name, provided)
+        if provided is not None and name not in provided:
+            raise ToolError("本次请求尚未提供该工具的完整说明；请先发现，再在后续请求调用。")
+        if self.check_call:
+            self.check_call(name)
 
     def _enter_turn(self, session_id: str, turn_id: str) -> None:
         """同轮跨请求累计；显式调用已停止轮次也不能绕过限制执行下一批。"""
@@ -167,9 +226,33 @@ class ToolExecutor:
             raise NoProgressError(decision.consecutive_failures)
         return output
 
-    def _prepare(self, invocation: ToolInvocation, budget: ToolBudget) -> PreparedAction:
+    def _prepare(
+        self, invocation: ToolInvocation, budget: ToolBudget, provided: frozenset[str] | None
+    ) -> PreparedAction:
         """在协调线程占用额度并绑定本次来源；串行动作因此不会使用别的调用来源。"""
         budget.consume(invocation.name)
         if self.before_call:
             self.before_call(invocation.source)
-        return invocation.prepare()
+        action = invocation.prepare()
+        if invocation.name == CODE_TOOL_NAME and invocation.parent_call_id is None:
+            if self.registry.can_parallelize(invocation.name):
+                raise RuntimeError("编排入口必须在协调线程串行执行。")
+            return partial(self._run_parent, invocation, budget, provided, action)
+        return action
+
+    def _run_parent(
+        self,
+        invocation: ToolInvocation,
+        budget: ToolBudget,
+        provided: frozenset[str] | None,
+        action: PreparedAction,
+        cancel: CancellationToken,
+    ) -> dict[str, Any]:
+        """限定嵌套能力的存活时间；父动作结束或失败后，旧回调无法继续派发。"""
+        if self._nested_scope is not None:
+            raise RuntimeError("编排动作不可重入。")
+        self._nested_scope = _NestedScope(invocation, budget, provided, cancel, get_ident())
+        try:
+            return action(cancel)
+        finally:
+            self._nested_scope = None

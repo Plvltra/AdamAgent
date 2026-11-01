@@ -36,14 +36,19 @@ class ToolInvocation:
         artifacts: ToolArtifacts | None = None,
         on_notice: Callable[[str], None],
         check_call: Callable[[str], None] | None = None,
+        parent_call_id: str | None = None,
     ) -> None:
-        """绑定已校验调用；source 含 turn_id、request_id、tool_call_id，function 含名称与原始参数。"""
+        """绑定已校验调用；source 含 turn_id、request_id、tool_call_id，function 含名称与原始参数。
+
+        嵌套父 ID 仅写工具记录，Hook 和动作仍使用本调用 ID。
+        """
         self.store, self.registry, self.session_id = store, registry, session_id
         self.source = dict(source)
         self.name, self.arguments = function["name"], function["arguments"]
         self.call_id = source["tool_call_id"]
         self.notify, self.check_call = notify, check_call
         self.artifacts = artifacts
+        self.parent_call_id = parent_call_id
         self._execution_id = secrets.token_hex(16)
         self._hooks = (
             ToolHooks(hooks, store, session_id, source, on_notice) if hooks is not None else None
@@ -58,7 +63,7 @@ class ToolInvocation:
         self.store.append_tool_event(
             self.session_id,
             "tool_started",
-            {**self.source, "name": self.name, "arguments": self.arguments},
+            {**self._link(), "name": self.name, "arguments": self.arguments},
         )
         self.notify(self.name)
         try:
@@ -93,11 +98,18 @@ class ToolInvocation:
         if progress is not None:
             output = encode_progress(output, progress, self.registry.limits.max_result_chars)
         self.store.append_tool_event(
-            self.session_id, "tool_finished", {**self.source, "output": output}
+            self.session_id, "tool_finished", {**self._link(), "output": output}
         )
         if self._hooks:
             self._hooks.after(output)
         return output
+
+    def _link(self) -> dict[str, str]:
+        """保留原工具来源字段；嵌套调用额外关联宿主分配的父调用。"""
+        return {
+            **self.source,
+            **({"parent_tool_call_id": self.parent_call_id} if self.parent_call_id else {}),
+        }
 
     def _record_action(self, kind: str, payload: dict[str, Any]) -> None:
         """串行动作保存边界；只读并发入口不会接收此回调。

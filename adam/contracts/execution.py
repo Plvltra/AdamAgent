@@ -1,4 +1,4 @@
-"""运行模式、工具能力与单轮编辑额度；权限来自可信注册代码，不从模型参数或描述推断。"""
+"""运行模式、工具能力与单轮额度；权限来自可信注册代码，不从模型参数或描述推断。"""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -6,22 +6,31 @@ from enum import StrEnum
 from adam.contracts.errors import BudgetError, FailureCode, ToolModeError
 
 FILE_EDIT_TOOLS = frozenset({"replace_text", "apply_proposal"})
+CODE_TOOL_NAME = "execute_code"
 
 
 @dataclass
 class ToolBudget:
-    """单轮专用编辑额度；每次派发前占用，参数错误或写入失败也不退还。"""
+    """同轮外层与嵌套调用共用额度；每次派发前占用，参数错误或动作失败也不退还。
+
+    max_tool_calls 为空仅供独立 API；聊天始终注入配置上限。
+    """
 
     max_edit_attempts: int
     edit_attempts: int = 0
+    max_tool_calls: int | None = None
+    tool_calls: int = 0
 
     def consume(self, name: str) -> None:
-        """超限时在开始记录、确认与文件操作之前停止；普通工具不消耗编辑额度。"""
-        if name not in FILE_EDIT_TOOLS:
-            return
-        if self.edit_attempts >= self.max_edit_attempts:
+        """先检查两种额度再占用；超限发生在开始记录和副作用之前，普通工具不占编辑额度。"""
+        if self.max_tool_calls is not None and self.tool_calls >= self.max_tool_calls:
+            raise BudgetError("达到本轮工具调用次数上限。", code=FailureCode.TOOL_LIMIT)
+        editing = name in FILE_EDIT_TOOLS
+        if editing and self.edit_attempts >= self.max_edit_attempts:
             raise BudgetError("达到本轮编辑尝试次数上限。", code=FailureCode.EDIT_LIMIT)
-        self.edit_attempts += 1
+        self.tool_calls += 1
+        if editing:
+            self.edit_attempts += 1
 
 
 class ExecutionMode(StrEnum):

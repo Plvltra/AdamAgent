@@ -117,6 +117,7 @@ class ReplayStore(SessionStore):
                     "$.tool_event.type", "tool-owned event", event["type"], sequence=sequence
                 )
             if event["type"] == "tool_started":
+                # 嵌套工具也有独立开始记录，父调用与每个底层动作分别计数，不启动 worker。
                 budget.consume(event["payload"]["name"])
         if events:
             self._append(self.session_id, encode_events(events))
