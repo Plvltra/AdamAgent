@@ -15,6 +15,7 @@ class FailureCode(StrEnum):
     API_NOT_SENT = "api_not_sent"
     API_HTTP = "api_http"
     INVALID_RESPONSE = "invalid_response"
+    MODEL_INPUT_INVALID = "model_input_invalid"
     BUDGET_EXHAUSTED = "budget_exhausted"
     REQUEST_LIMIT = "request_limit"
     TOOL_LIMIT = "tool_limit"

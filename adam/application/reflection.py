@@ -140,7 +140,10 @@ class ReflectionService:
         runner: RequestRunner,
         policy: RequestPolicy,
     ) -> dict[str, Any]:
-        """为正常回答保留一次请求；结构无效保留失败记录，存储或未知用量错误继续传播。"""
+        """为正常回答保留一次请求；源媒体也计入预算，不支持时不改发无图反思。
+
+        结构无效保留失败记录，存储或未知用量错误继续传播。
+        """
         record: dict[str, Any] = {
             "reflection_id": self.store.new_identity("reflection", 4),
             "turn_id": feedback.turn_id,
@@ -157,7 +160,13 @@ class ReflectionService:
             model=model,
             system_prompt=REFLECTION_PROMPT,
             history=[],
-            current_turn=[{"role": "user", "content": json.dumps(source, ensure_ascii=False)}],
+            current_turn=[
+                {
+                    "role": "user",
+                    "content": json.dumps(source, ensure_ascii=False),
+                    **({"media": source["source_media"]} if "source_media" in source else {}),
+                }
+            ],
             tools=[],
         )
         try:

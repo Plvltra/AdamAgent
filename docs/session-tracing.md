@@ -23,7 +23,7 @@ session_id：一个会话，对应一个 JSONL 文件
 
 | 事件 | payload 的关键字段 | 说明 |
 | --- | --- | --- |
-| turn_started | turn_id、user_text | 用户提交时保存输入，尚未成为成功聊天历史 |
+| turn_started | turn_id、user_text；C00.3 可选 media 完整引用列表 | 用户提交时保存输入，尚未成为成功聊天历史；媒体须有当前会话先前已提交来源，成功 user 消息/当前摘要问题不得替换或遗漏，见 [多模态输入](multimodal-input.md) |
 | request_started | turn_id、request_id、model、context | 调用模型前记录本次请求及上下文选择依据 |
 | request_usage | turn_id、request_id、input_tokens、output_tokens；可选 cache_usage、input_prefix | 总用量独立结算；未知保持 null，缓存与本地输入前缀仅作诊断，见 [缓存观测](cache-observation.md) |
 | request_finished | turn_id、request_id、status、reason、duration_ms、error | 请求终态；与 request_usage 同一追加块保存 |
@@ -121,6 +121,7 @@ Conversation.send 负责轮次异常收尾，_run_turn 保留模型与工具循�
 | completed | 操作正常完成；轮次还须完整消息提交成功 |
 | api_timeout / api_connection / api_http | 请求超时、网络连接失败、非 2xx HTTP 响应 |
 | invalid_response | 模型消息、协议或结束标记无效 |
+| model_input_invalid | 适配器发送前的输入格式、能力或媒体来源/版本校验失败；未发送 HTTP，可靠本地用量为零 |
 | request_limit / tool_limit / session_token_limit | 达到本轮模型次数、工具次数或会话累计 token 限额 |
 | no_progress | 连续同名、同参数、同类工具失败达到配置上限；工具结果附带宿主观察，已结算请求保持原状态，失败输入不加入历史 |
 | context_input_limit | 省略完整旧轮次后，受保护输入加安全余量仍超限；本地拦截，尚未发起该次请求 |

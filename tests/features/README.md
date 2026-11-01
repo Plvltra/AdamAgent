@@ -110,6 +110,7 @@
 | B06.3 召回组合验收 | 7 项固定题集/来源留证、不可用与降级、写入停止、主子版本继承；真实本地十题结果另存并保留失败 | [test_memory_retrieval_acceptance.py](test_memory_retrieval_acceptance.py)、[真实对照](../../docs/memory-retrieval-evaluation.md) |
 | B06.2 主体与事实时间 | 20 项同名/显式主体、有效期、原子替代、失败回滚、重启、错误来源及真实请求/重放；相关回归共 131 项 | [test_memory_identity.py](test_memory_identity.py) |
 | B06.1 本地语义记忆 | 12 项范围/版本/预算/降级/取消/请求/重放业务，17 项配置与来源边界；相关回归共 117 项，真实召回质量待验收 | [业务场景](test_semantic_memory.py)、[契约边界](../test_semantic_memory.py) |
+| C00.3 多模态消息与冻结回放 | 33 项业务和 53 项契约/归档：实际 PNG 编码/工具推理/SSE/持久化、无能力/来源/限额/预算/保存/取消、摘要反思/真实子任务隔离、完整字节副本与原会话删除后零外部动作重放；真实视觉质量待 C04 | [test_multimodal_input.py](test_multimodal_input.py)、[公共边界](../test_model_input.py)、[归档边界](../test_media_archive.py) |
 | C01.3 网页研究与片段引用 | 17 项真实 HTTP/主子/重启业务、28 项引用边界与 6 项新增配置：搜索→正文→逐字引用、原模式/批准、保存/取消/来源故障、隔离与零网络重放；模型语义质量待 C01.4 | [test_web_research.py](test_web_research.py)、[引用边界](../test_web_evidence.py)、[配置](../test_web_config.py) |
 | C01.2 独立百科搜索 | 27 项真实本地 HTTP 业务、69 项协议/工厂边界：有界候选/空结果、来源版本、限流/配置/取消、整批校验、无重试/重定向/代理/cookies；真实百科后端两次留证，不证明通用搜索或模型质量 | [test_web_search.py](test_web_search.py)、[边界](../test_web_search.py)、[真实记录](../../docs/evaluations/c01-search-backend.json) |
 | C02.3 浏览器生命周期 | 33 项真实本地业务与 17 项边界：标签/弹窗/对话框、批准关闭/下载、完整身份分页、来源/配额/提交故障、cookies 不入日志、取消、真实 POST 后终止/崩溃及重启不重提、零动作引用重放；真实模型质量待 C02.4 | [test_browser_lifecycle.py](test_browser_lifecycle.py)、[边界](../test_browser_lifecycle.py) |

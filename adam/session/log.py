@@ -13,6 +13,7 @@ from adam.contracts.history import (
     validate_context_layout,
 )
 from adam.contracts.memory import validate_selection
+from adam.contracts.model_input import message_media
 from adam.contracts.planning import decode_plan
 from adam.contracts.protocol import validate_turn
 from adam.contracts.rules import validate_rules
@@ -294,6 +295,7 @@ class SessionLog:
         validate_turn([*messages, {"role": "assistant", "content": "validation sentinel"}])
         if messages[0]["content"] != self.turns[owner]["user_text"]:
             raise ValueError("mismatched compaction question")
+        self._validate_user_media(messages[0], owner)
         self._validate_tool_trace(owner, messages, complete=True)
 
     def _apply_verification(self, kind: str, payload: dict[str, Any]) -> None:
@@ -343,7 +345,19 @@ class SessionLog:
         turn_id = self._identifier(payload, "turn_id")
         if turn_id in self.turns or not isinstance(payload.get("user_text"), str):
             raise ValueError("invalid or duplicate turn")
-        self.turns[turn_id] = {"user_text": payload["user_text"], "status": "in_progress"}
+        if "media" in payload:
+            references = message_media({"role": "user", "media": payload["media"]})
+            if any(
+                ref.source.session_id != self.metadata["id"]
+                or self.media.references.get(ref.media_id) != ref
+                for ref in references
+            ):
+                raise ValueError("input media lacks committed owner or source")
+        self.turns[turn_id] = {
+            "user_text": payload["user_text"],
+            "status": "in_progress",
+            **({"media": payload["media"]} if "media" in payload else {}),
+        }
 
     def _apply_request(self, kind: str, payload: dict[str, Any]) -> None:
         """同轮请求只可开始、结算一次；用量未知与轮次是否完成分别维护。"""
@@ -780,6 +794,7 @@ class SessionLog:
             raise ValueError("cannot commit with pending review")
         if self._pending_messages[0]["content"] != self.turns[turn_id]["user_text"]:
             raise ValueError("mismatched user input")
+        self._validate_user_media(self._pending_messages[0], turn_id)
         requests = [
             {**item, "request_id": key}
             for key, item in self.requests.items()
@@ -801,6 +816,17 @@ class SessionLog:
         ):
             raise ValueError("request did not succeed")
         self._validate_tool_trace(turn_id, self._pending_messages, complete=complete)
+
+    def _validate_user_media(self, message: dict[str, Any], turn_id: str) -> None:
+        """提交与摘要使用诊断中同一组媒体，不凭正文或复制引用替换原始输入。"""
+        if message.get("media", []) != self.turns[turn_id].get("media", []):
+            raise ValueError("mismatched input media")
+        for reference in message_media(message):
+            if (
+                reference.source.session_id != self.metadata["id"]
+                or self.media.references.get(reference.media_id) != reference
+            ):
+                raise ValueError("message media lacks committed owner or source")
 
     def _validate_tool_trace(
         self, turn_id: str, messages: list[dict[str, Any]], *, complete: bool

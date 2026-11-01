@@ -18,6 +18,7 @@ from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import FailureCode, SessionNotFoundError, StorageError
 from adam.contracts.history import HistoryTurn, Summary
 from adam.contracts.media import MediaRef, MediaSource
+from adam.contracts.model_input import media_records
 from adam.contracts.models import ExecutionReport, Message, Session, valid_session_id
 from adam.contracts.planning import PlanReport, PlanSnapshot
 from adam.contracts.proposals import EditProposal
@@ -353,11 +354,24 @@ class SessionStore:
             raise ValueError("invalid execution identity")
         return value
 
-    def start_turn(self, session_id: str, user_text: str) -> str:
-        """先保存用户输入并返回 turn_id；未完成轮次仅供诊断，不进入有效历史。"""
+    def start_turn(
+        self, session_id: str, user_text: str, *, media: tuple[MediaRef, ...] = ()
+    ) -> str:
+        """保存文字及可选固定媒体引用，返回 turn_id；未完成轮次仅供诊断，不进入有效历史。
+
+        media 只能引用当前会话已有来源，不保存二进制；提交消息须与本次输入完全一致。
+        """
         turn_id = self.new_identity("turn", 16)
         self._append(
-            session_id, record("turn_started", {"turn_id": turn_id, "user_text": user_text})
+            session_id,
+            record(
+                "turn_started",
+                {
+                    "turn_id": turn_id,
+                    "user_text": user_text,
+                    **({"media": media_records(media)} if media else {}),
+                },
+            ),
         )
         return turn_id
 

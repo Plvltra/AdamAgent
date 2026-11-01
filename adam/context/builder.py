@@ -17,6 +17,7 @@ from adam.contracts.history import (
     validate_context_layout,
 )
 from adam.contracts.memory import MemorySelection
+from adam.contracts.model_input import MEDIA_INPUT_RESERVE, message_media
 from adam.contracts.reflection import reflection_messages
 from adam.contracts.rules import RuleSelection
 from adam.contracts.runtime import RuntimeState
@@ -363,8 +364,15 @@ class ContextBuilder:
 def estimate_json_tokens(value: object) -> int:
     """用紧凑 JSON 的 UTF-8 字节数 / 3 向上取整，再加 8 个结构开销估算 token。
 
+    固定媒体引用另加每份 8192 token 的保守预留，不按引用 JSON 长度假装媒体免费；
+    这仍不是图片 tokenizer 或价格保证，C00.4 单独计量。
     字节数让中文和工具 JSON 都计入长度；该规则不是模型 tokenizer，
     安全余量也不能保证真实请求不超模型窗口。实际消费始终采用服务端 usage。
     """
     serialized = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-    return (len(serialized.encode("utf-8")) + 2) // 3 + 8
+    media_reserve = (
+        len(message_media(value)) * MEDIA_INPUT_RESERVE
+        if isinstance(value, dict) and "media" in value
+        else 0
+    )
+    return (len(serialized.encode("utf-8")) + 2) // 3 + 8 + media_reserve

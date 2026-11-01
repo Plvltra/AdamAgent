@@ -8,9 +8,11 @@ import httpx
 
 from adam.config.settings import LLMConfig
 from adam.contracts.errors import FailureCode, LLMError, RequestInterrupted, RequestNotSentError
+from adam.contracts.model_input import ModelCapabilities
 from adam.contracts.models import Completion, ModelOutput
 from adam.contracts.protocol import validate_assistant
 from adam.llm.input_observation import PrefixTracker
+from adam.llm.message_encoding import ChatInputEncoder
 from adam.llm.messages_client import complete_messages
 from adam.llm.stream_watch import StreamDeadlineError, StreamWatch
 from adam.llm.streaming import StreamReply, sse_events
@@ -18,10 +20,22 @@ from adam.llm.usage import parse_cache_usage, parse_usage
 
 
 class LLMClient:
-    def __init__(self, config: LLMConfig, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        config: LLMConfig,
+        client: httpx.Client,
+        *,
+        input_encoder: ChatInputEncoder | None = None,
+    ) -> None:
         self.config = config
         self.client = client
         self.prefixes = PrefixTracker()
+        self.input_encoder = input_encoder or ChatInputEncoder(ModelCapabilities(config.model))
+
+    @property
+    def capabilities(self) -> ModelCapabilities:
+        """返回宿主对确切模型的声明；默认不支持媒体，不从模型名称推断。"""
+        return self.input_encoder.capabilities
 
     def list_models(self) -> dict[str, str | None]:
         if self.config.protocol == "messages":
@@ -69,7 +83,8 @@ class LLMClient:
         """发送一次请求，返回完整助手消息及服务端报告的 token 用量。
 
         Args:
-            messages: 按协议排列的上下文，包含已有工具结果和必要的推理字段。
+            messages: 公共消息，包含工具结果、推理字段及可选 user.media 固定引用；
+                媒体须有显式能力声明和宿主读取端口，不支持时本地失败，不静默丢图。
             model: 本次模型覆盖值；None 使用 LLMConfig 中的默认模型。
             tools: 本次允许模型请求的工具说明；本方法不执行工具。
             max_tokens: 本次输出 token 上限。
@@ -80,16 +95,23 @@ class LLMClient:
             服务端未报告可靠用量时为 None；缓存计数和本地输入前缀单独携带，不能相互推算。
 
         Raises:
-            LLMError: 网络、HTTP 或协议错误；携带受控原因码、HTTP 状态及已解析用量。
+            LLMError: 输入、媒体、网络、HTTP 或协议错误；携带受控原因码、HTTP 状态及已解析用量。
+                发送前本地校验失败结算为零，不将已发送请求的未知用量当作零。
             RequestInterrupted: 流式请求被取消，携带中断前已收到的可靠用量。
             KeyboardInterrupt: 非流式原生中断保持原对象传播，没有已解析统计时不补造观测。
 
         协议参考：https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/
         Messages由llm.protocol显式选择，仅支持非流式文本/工具，不迁移私有推理字段。
         """
+        encoded = self.input_encoder.encode(
+            messages,
+            model=model or self.config.model,
+            has_tools=bool(tools),
+            stream=self.config.stream,
+        )
         body: dict[str, Any] = {
             "model": model or self.config.model,
-            "messages": messages,
+            "messages": encoded,
             "stream": self.config.stream,
             "max_tokens": max_tokens,
         }

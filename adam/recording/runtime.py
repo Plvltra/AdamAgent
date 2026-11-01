@@ -17,7 +17,10 @@ from adam.application.subagents.budget import SharedTokenBudget
 from adam.config.settings import AgentConfig, ContextConfig, PlanningConfig, ReflectionConfig
 from adam.contracts.delegation import RequestAccount
 from adam.contracts.diagnostic_context import DIAGNOSTIC_CONTEXT_VERSION
+from adam.contracts.errors import AgentError
 from adam.contracts.history import validate_compaction_version, validate_context_layout
+from adam.contracts.media import MediaRef
+from adam.contracts.model_input import media_records, message_media
 from adam.contracts.models import ModelOutput
 from adam.contracts.ports import ToolRunner
 from adam.contracts.runtime import RUNTIME_STATE_VERSION
@@ -122,6 +125,18 @@ class CaptureRuntime:
             conversation.diagnostic_reader = diagnostic_reader(
                 self.exchange, conversation.diagnostic_reader
             )
+        previous_media_observer = conversation.observe_media_input
+
+        def observe_media(references: tuple[MediaRef, ...]) -> None:
+            if self.recorder.active:
+                self.recorder.capture_media(references)
+            self.exchange(
+                "context", "input_media", {"media": media_records(references)}, lambda: None
+            )
+            if previous_media_observer:
+                previous_media_observer(references)
+
+        conversation.observe_media_input = observe_media
         if conversation.state_reader:
             conversation.state_reader = state_reader(self.exchange, conversation.state_reader)
         if conversation.memory_provider:
@@ -289,6 +304,32 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
     return boot, arguments
 
 
+class ReplayMediaInput:
+    """离线入口只使用加载时校验过的证据；不猜测当前供应商能力或读取原文件。"""
+
+    def __init__(self, recording: Recording, store: ReplayStore) -> None:
+        self.recording, self.store = recording, store
+
+    def validate(self, references: tuple[MediaRef, ...], model: str) -> None:
+        """核对完整冻结身份与当前诊断会话；未验证副本不可作为媒体输入。"""
+        media_records(references)
+        if model != self.recording.seed["model"] or any(
+            ref not in self.recording.media or ref.source.session_id != self.store.active_session_id
+            for ref in references
+        ):
+            raise AgentError("离线输入媒体不在已验证的录制中。")
+
+
+def recorded_input_media(recording: Recording) -> tuple[MediaRef, ...]:
+    """取得原宿主显式提交的附件；工具输出和历史媒体不冒充本轮输入。"""
+    for event in recording.events[1:]:
+        if event["type"] == "observation" and event["data"]["channel"] == "context":
+            value = event["data"]["value"]
+            if value.get("operation") == "input_media":
+                return message_media({"role": "user", **value["input"]})
+    return ()
+
+
 def build_replay(
     tape: ReplayTape,
     store: ReplayStore,
@@ -315,6 +356,7 @@ def build_replay(
         ReplayTools(tape, store),
         limits,
         model=seed["model"],
+        media_input=ReplayMediaInput(tape.recording, store),
         context_config=context_limits,
         # 缺少布局标记的旧录制继续使用旧消息顺序和估算，不伪造相同请求。
         context_layout=boot.get("context_layout"),
@@ -349,6 +391,9 @@ def build_replay(
         )
 
     conversation.observe_input = observe
+    conversation.observe_media_input = lambda references: tape.exchange(
+        "context", "input_media", {"media": media_records(references)}, lambda: None
+    )
     conversation.resume(seed["session_id"])
     return conversation, decode_skill(arguments["selected_skill"], boot["skills"])
 
@@ -381,6 +426,7 @@ def replay_turn(
                 recording.seed["user_text"],
                 on_output=output.append if has_output else None,
                 selected_skill=selection,
+                media=recorded_input_media(recording),
             )
         except BaseException as error:
             failure = error

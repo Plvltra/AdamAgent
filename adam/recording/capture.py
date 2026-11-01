@@ -4,11 +4,14 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 from adam.contracts.execution import ToolBudget
+from adam.contracts.media import MediaRef
+from adam.contracts.model_input import ModelCapabilities
 from adam.contracts.models import Completion, ModelOutput
 from adam.contracts.ports import ModelClient, ToolRunner
 from adam.contracts.usage import encode_observations
 from adam.recording.format import RecordingError, TraceState, error_record
 from adam.recording.journal import RecordingWriter
+from adam.recording.media import MediaArchive, MediaReader, request_media
 
 _Result = TypeVar("_Result")
 
@@ -20,8 +23,12 @@ class TurnRecorder:
         self,
         writer: RecordingWriter,
         events: Callable[[], list[dict[str, Any]]],
+        *,
+        media_reader: MediaReader | None = None,
     ) -> None:
         self.writer, self._events = writer, events
+        self._archive = MediaArchive(writer.path)
+        self._media_reader = media_reader
         # JSON 值由 writer 编码冻结；游标仅记录已采集条数，不修改业务日志。
         self._offset = writer.seed_event_count
         self._started = False
@@ -117,6 +124,11 @@ class TurnRecorder:
             lambda value: value,
         )
 
+    def capture_media(self, references: tuple[MediaRef, ...]) -> None:
+        """冻结显式输入及历史请求的真实字节；缺失读取端口时禁止发送。"""
+        self._require_active()
+        self._archive.capture(references, self._media_reader)
+
     def call_model(
         self,
         client: ModelClient,
@@ -127,7 +139,8 @@ class TurnRecorder:
         max_tokens: int = 4096,
         on_output: Callable[[ModelOutput], None] | None = None,
     ) -> Completion:
-        """采集传输接口的业务输入、输出及流式片段；不访问 client 的配置或 HTTP 对象。"""
+        """先冻结媒体，再采集业务输入、输出及流式片段；不访问 client 的配置或 HTTP 对象。"""
+        self.capture_media(request_media(messages))
 
         def invoke(call_id: int) -> Completion:
             def output(event: ModelOutput) -> None:
@@ -283,6 +296,12 @@ class RecordingModel:
 
     def __init__(self, client: ModelClient, recorder: TurnRecorder) -> None:
         self._client, self._recorder = client, recorder
+
+    @property
+    def capabilities(self) -> ModelCapabilities | None:
+        """透明保留宿主能力声明；未声明的旧文字客户端不被录制器升级。"""
+        value = getattr(self._client, "capabilities", None)
+        return value if isinstance(value, ModelCapabilities) else None
 
     def list_models(self) -> dict[str, str | None]:
         """透传目录查询；它不属于单轮执行轨迹。"""

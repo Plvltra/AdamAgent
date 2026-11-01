@@ -99,7 +99,7 @@ def feedback_context(
     executions: dict[str, dict[str, Any]],
     messages: list[tuple[str, dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
-    """提供有界的原始事实；失败轨迹只作资料，不能变成成功历史或权限指令。"""
+    """提供有界原文与源输入的固定媒体引用；失败轨迹不是成功历史或权限指令。"""
     source = turns[feedback.source_turn_id]
     selected = [
         tool
@@ -124,6 +124,7 @@ def feedback_context(
             else {}
         ),
         "source_input": source["user_text"][:4000],
+        **({"source_media": source["media"]} if "media" in source else {}),
         "source_status": source["status"],
         "tools": [
             {

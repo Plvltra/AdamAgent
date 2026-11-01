@@ -25,6 +25,8 @@ from adam.recording.runtime import CaptureRuntime, replay_turn
 from adam.recording.share_format import load_redaction_rules
 from adam.recording.sharing import export_share, inspect_share
 from adam.recording.snapshot import capture_seed
+from adam.session.media import MediaStore
+from adam.session.media_evidence import SessionMedia
 from adam.session.storage import SessionStore
 
 
@@ -54,7 +56,12 @@ def record_turn(
         store.select_session(sid)
         seed = capture_seed(config, store, sid, text, workspace, model=model, mode=mode)
         with RecordingWriter(output, seed) as writer:
-            recorder = TurnRecorder(writer, lambda: store.load_events(sid))
+            media = SessionMedia(store, MediaStore(store.root / "_media"))
+            recorder = TurnRecorder(
+                writer,
+                lambda: store.load_events(sid),
+                media_reader=lambda ref: media.read(ref.media_id, expected_version=ref.version),
+            )
             runtime = CaptureRuntime(recorder)
             app = build_application(
                 config,

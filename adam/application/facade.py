@@ -18,6 +18,7 @@ from adam.contracts.errors import AgentError, LLMError
 from adam.contracts.events import EventReceipt
 from adam.contracts.execution import ExecutionMode
 from adam.contracts.history import Summary
+from adam.contracts.media import MediaRef
 from adam.contracts.memory import MemoryCommand, MemoryRecord
 from adam.contracts.memory_organization import MemoryOrganization
 from adam.contracts.models import (
@@ -253,10 +254,12 @@ class AgentApplication:
         *,
         on_output: Callable[[ModelOutput], None] | None = None,
         skill_id: str | None = None,
+        media: tuple[MediaRef, ...] = (),
     ) -> str:
         """执行完整一轮并返回已保存回答；已知失败以 AgentError 交给界面。
 
         skill_id 由用户显式选择，正文只作用于本轮；读取失败不提交轮次或请求模型。
+        media 只接受本会话已有完整引用；能力、字节或录制预检失败不丢图改发文字。
         已绑定模式时固定到本轮及子任务收尾结束，异常也会释放占用。
         中断后在所属线程回收宿主注册的交互资源，不重放先前动作；清理失败保留原中断。
         """
@@ -270,7 +273,14 @@ class AgentApplication:
                 if self._skills is None:
                     raise AgentError("当前应用未启用 Skill。")
                 selection = self._skills.select(skill_id)
-                return self._conversation.send(text, on_output=on_output, selected_skill=selection)
+                return self._conversation.send(
+                    text,
+                    on_output=on_output,
+                    selected_skill=selection,
+                    **({"media": media} if media != () else {}),
+                )
+            if media != ():
+                return self._conversation.send(text, on_output=on_output, media=media)
             return (
                 self._conversation.send(text, on_output=on_output)
                 if on_output

@@ -18,6 +18,7 @@ from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import Delegation, RequestAccount
 from adam.contracts.diagnostic_context import DiagnosticReader, DiagnosticSelection
 from adam.contracts.errors import (
+    AgentError,
     BudgetError,
     FailureCode,
     LLMError,
@@ -32,7 +33,9 @@ from adam.contracts.history import (
     Summary,
     validate_compaction_version,
 )
+from adam.contracts.media import MediaRef
 from adam.contracts.memory import MemorySelection
+from adam.contracts.model_input import MediaInputValidator, media_records
 from adam.contracts.models import ExecutionReport, ModelOutput, Session
 from adam.contracts.planning import TaskPlanner
 from adam.contracts.ports import ModelClient, ReviewParticipant, ToolRunner
@@ -89,6 +92,7 @@ class Conversation:
         input_provider: Callable[[str], EventQueue | None] | None = None,
         input_owner: str | None = None,
         verifier: TaskVerifier | None = None,
+        media_input: MediaInputValidator | None = None,
     ) -> None:
         """注入会话依赖；context_layout 仅供旧录制重放，默认使用当前排列。
 
@@ -98,10 +102,13 @@ class Conversation:
         diagnostic_reader 仅在真实请求构造时观察本轮检查；预览与历史不会自动读文件。
         input_provider由宿主按turn_id提供运行队列；启用后暂存最终正文，避免先展示后补充。
         input_owner仅供宿主绑定子运行run_id，与用户输入队列的turn_id归属分开。
+        media_input 只校验当前会话已有媒体；不提供时拒绝媒体输入，不改发文字。
         """
         validate_compaction_version(compaction_version)
         self.compaction_version = compaction_version
         self.observe_input: Callable[[str, SkillSelection | None], None] | None = None
+        self.observe_media_input: Callable[[tuple[MediaRef, ...]], None] | None = None
+        self.media_input = media_input
         self.store = store
         self.client = client
         self.system_prompt = system_prompt
@@ -156,12 +163,15 @@ class Conversation:
         *,
         on_output: Callable[[ModelOutput], None] | None = None,
         selected_skill: SkillSelection | None = None,
+        media: tuple[MediaRef, ...] = (),
     ) -> str:
         """处理用户输入，完成模型与工具循环，返回已保存的最终回答。
 
         输入、请求和工具轨迹独立留痕；失败轮次不加入有效历史。
         selected_skill 是用户为本轮指定的只读正文快照，计入输入预算，不粘贴到成功历史。
         observe_input 是宿主可选的起点观察者；失败时尚未登记本轮或发起外部动作。
+        media 按顺序引用当前会话已有证据；预检与录制冻结失败时不登记本轮，
+        不从路径读取新图片、不隐式授权其他会话，也不因不支持而丢弃附件。
         已知失败遵循 AgentError 契约：预算问题为 BudgetError，模型问题为 LLMError；
         回答生成后保存失败为携带 partial_reply 的 TurnSaveError。
         请求与轮次分别收尾，保存稳定原因码和单调时钟耗时；原始异常继续传播。
@@ -171,11 +181,29 @@ class Conversation:
         意外的程序错误继续向上传播。
         """
         self._last_turn = None
+        try:
+            media_records(media)
+        except ValueError:
+            raise AgentError("媒体输入必须是有界的固定引用元组，未发送请求。") from None
+        if media:
+            if self.session is None or any(
+                ref.source.session_id != self.session.session_id for ref in media
+            ):
+                raise AgentError("媒体输入必须属于当前会话，未创建或切换会话。")
+            if self.media_input is None:
+                raise AgentError("当前入口没有媒体预检端口，未发送请求。")
+            self.media_input.validate(media, self.model)
         # 宿主可在任何请求和动作之前记录完整调用起点；没有观察者时沿原路径执行。
         if self.observe_input:
             self.observe_input(text, selected_skill)
+        if media and self.observe_media_input:
+            self.observe_media_input(media)
         session = self.session or self.new(text[:40])
-        turn_id = self.store.start_turn(session.session_id, text)
+        turn_id = (
+            self.store.start_turn(session.session_id, text, media=media)
+            if media
+            else self.store.start_turn(session.session_id, text)
+        )
         self._last_turn = (session.session_id, turn_id)
         started_ns = monotonic_ns()
         try:
@@ -191,7 +219,9 @@ class Conversation:
                 self.review.begin(session.session_id, turn_id)
             if self.on_turn_started:
                 self.on_turn_started(turn_id)
-            reply = self._run_turn(session, turn_id, text, started_ns, on_output, selected_skill)
+            reply = self._run_turn(
+                session, turn_id, text, started_ns, on_output, selected_skill, media=media
+            )
         except BaseException as error:
             if self.delegation:
                 save_failure(self.delegation.end, error)
@@ -273,10 +303,14 @@ class Conversation:
         started_ns: int,
         on_output: Callable[[ModelOutput], None] | None,
         selected_skill: SkillSelection | None,
+        *,
+        media: tuple[MediaRef, ...] = (),
     ) -> str:
         """运行已登记轮次；started_ns 为本进程计时起点，完整消息提交成功后才返回。"""
         self._check_execution_state(session.session_id)
-        turn: list[dict[str, Any]] = [{"role": "user", "content": text}]
+        turn: list[dict[str, Any]] = [
+            {"role": "user", "content": text, **({"media": media_records(media)} if media else {})}
+        ]
         seen_call_ids: set[str] = set()
         verification = (
             CompletionVerifier(self.verifier, self.store, session.session_id, turn_id, self.cancel)

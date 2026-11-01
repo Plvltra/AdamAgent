@@ -1,6 +1,6 @@
 # C 系列能力模块设计（按实际消费者逐项落地）
 
-最近核对：2026-11-01；已同步主线 B11.3。C00.1 可选注册、C00.2 二进制证据、C01.1 网页读取、C01.2/3 百科搜索与网页引用闭环及 C02.1～3 DOM 动作/生命周期已实现，其余未勾选能力仍为规划。需求与小任务见 [C 系列练习规划](agent-capability-practice-plan.md)。本图是拟议边界，不代替 [已实现架构](architecture.md)。
+最近核对：2026-11-01；已同步主线 B12.2.2。C00.1 可选注册、C00.2 二进制证据、C00.3 消息/能力/媒体冻结重放、C01.1 网页读取、C01.2/3 百科搜索与网页引用闭环及 C02.1～3 DOM 动作/生命周期已实现，其余未勾选能力仍为规划。需求与小任务见 [C 系列练习规划](agent-capability-practice-plan.md)。本图是拟议边界，不代替 [已实现架构](architecture.md)。
 
 目标：增加观察和动作种类时，主要改动落在所属能力包及组装入口；Conversation 不随着工具数量增加而不断出现新的工具分支。低耦合不等于零公共依赖，也不要求一个文件对应一个类。
 
@@ -13,10 +13,10 @@
 | [ToolRegistry](../adam/tool_calls/registry.py) | Schema、校验器、处理器及能力注册 | 适配工具的薄层登记在这里；不在注册表中实现 OCR、抓取或播放器 |
 | [ToolExecutor](../adam/tool_calls/executor.py) | 执行控制和工具入口 | 原权限、批准、Hook、预算、取消和调用日志继续经过该入口；新能力不能直接绕开 |
 | [RequestRunner](../adam/application/request_runner.py) | 模型物理请求登记与结算 | 新视觉/审查模型请求复用其控制原则；确需不同请求形式时提取窄请求端口，不复制预算状态机 |
-| [消息协议](../adam/contracts/protocol.py) | 当前文字消息与工具配对校验 | 联合 B24 增加有类型的媒体部分及版本化编码；不是把文件路径随意塞进文本 |
-| [文本附件](../adam/session/artifacts.py) | UTF-8 长文本、来源与不可变版本 | 不能直接存音视频；C00.2 已保留文本契约并新增 [二进制媒体引用和存储](media-evidence.md)，模型消息仍待 C00.3 |
+| [消息协议](../adam/contracts/protocol.py) | 文字/媒体引用与工具配对校验 | C00.3 共用 B24 必要消息视图/声明，发送边界负责编码；不把文件路径随意塞进文本 |
+| [文本附件](../adam/session/artifacts.py) | UTF-8 长文本、来源与不可变版本 | 不能直接存音视频；C00.2 已保留文本契约并新增 [二进制媒体引用和存储](media-evidence.md)，C00.3 已接 [固定引用模型输入与冻结回放](multimodal-input.md) |
 | [SessionStore](../adam/session/storage.py) / [日志](../adam/session/log.py) | 会话锁、JSONL、执行关联与恢复 | 写入来源、状态及媒体引用，媒体字节存旁路目录；恢复不自动重发外部动作 |
-| [录制运行](../adam/recording/runtime.py) | 模型/工具边界录制重放 | 扩展媒体摘要与资源状态证据；离线重放不再次点击、发送或生成计费产物 |
+| [录制运行](../adam/recording/runtime.py) | 模型/工具边界录制重放 | C00.3 冻结完整媒体并只读核验来源/摘要；离线重放不再次点击、发送或生成计费产物 |
 
 此表描述已有可复用点，并不声称所有 C 契约已经存在。实现前先读对应模块当前版本，尤其主线 B24、B27 可能新增的公共接口。
 
@@ -73,6 +73,8 @@ flowchart TB
 | `experiments/<topic>/` | 独立实验入口、参数与小样本 | 被正常启动路径导入、运行时修改模型代码 |
 
 协议只有跨包注入或替换后端的实际需求时才提取。首版一个本地服务可以直接用函数，不需要强制 Repository/Factory/Manager 各一层。
+
+C00.3 实际边界：`contracts.model_input → application.media_input / llm.message_encoding / recording.media`；公共契约不访问 IO，应用借用所属 SessionMedia 预检，llm 只在 HTTP 边界编码，录制旁路副本使用 MediaStore 幂等原子发布。Conversation 不加载图片 SDK，摘要/反思保持实际媒体输入和预算，默认模型不获视觉能力。B24.1 只同步必要增量，C04 解码与真实质量仍待实现。
 
 C01.2 实际边界：`open_search → SearchBackend → adapters.wikipedia → PageTransport`。搜索只返回独立候选与响应版本；JSON 类型由可信工厂注入，原 HTML 网页读取契约不变；SDK 仍在适配器，应用内核无需认识百科协议。C01.3 经 web_tools 注册搜索/正文及串行 WebSources 回查，证据值规则放 web.evidence；bootstrap 只注入各自主子 store，原 JSONL 保存固定引用，不把来源访问放入 Conversation。使用及真实范围见 [网页与搜索](web-reading.md)。
 

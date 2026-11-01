@@ -55,6 +55,14 @@ B04.2 在运行起点增加可选 runtime_state_version，context/state 观察�
 
 B06.1 将实际语义选择或关键词降级来源冻结在原 memory 观察中；重放不加载 embedding。起点接受新的语义配置及旧版三个关键词配置字段，仍拒绝未知字段。详见 [语义记忆](semantic-memory.md)。
 
+## C00.3 媒体冻结
+
+带媒体的宿主输入和模型请求在物理调用前冻结完整字节；TurnRecorder 需要当前会话的窄 media_reader，未提供/读取或发布失败时停止，不丢图改发文字。RecordingModel 透明保留原客户端能力声明，不把纯文本客户端升级成视觉模型。原 runtime 观察不变，显式媒体输入另保存 context/input_media；模型输入及 JSONL 始终使用原完整引用，不写 base64。
+
+正文目录固定为 `<recording文件名>.media`，按原会话/媒体 ID 保存完整单文件。MediaStore.restore 保留原时间/来源，幂等但不覆盖不同内容；默认单份 10 MiB、每会话 64 MiB、128 份，独立于 JSONL 限额。TraceState 验证已提交来源，read_recording 只读核对副本的完整元数据、大小和实际 SHA-256，不访问原媒体/会话或创建目录/锁。缺失、损坏与错绑在重放前拒绝，不能 matched。旧纯文本录制无需副本。
+
+离线验证后仅使用冻结引用和响应，不重发网络或原动作；删除原会话整目录仍可回放。分享、备份与改名须连同同名 .media 目录，副本包含真实媒体，不是自动脱敏结果。宿主入口、图片能力限制与 86 项新增工程测试见 [多模态输入](multimodal-input.md)。
+
 ## 资源与隐私边界
 
 B05.1 的起点增加可选 compaction_version；重放按该版本构造任务导向摘要，旧录制缺省时保持原摘要提示、输入和估算。当前问题、工具证据及原文位置来自被冻结的会话记录，不读取当前工作区来重造历史。见 [任务导向压缩](task-aware-compaction.md)。

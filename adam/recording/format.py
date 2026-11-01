@@ -12,6 +12,8 @@ from adam.contracts.errors import (
     RequestInterrupted,
     RequestNotSentError,
 )
+from adam.contracts.media import MediaRef
+from adam.contracts.model_input import message_media
 from adam.contracts.models import ModelOutput
 from adam.contracts.protocol import validate_assistant
 from adam.contracts.tool_catalog import tool_schema_record
@@ -189,6 +191,8 @@ class TraceState:
         self.last_calls: list[dict[str, Any]] = []
         self.last_tool_names: list[str] = []
         self.output_ended = False
+        self.media: dict[str, MediaRef] = {}
+        self.input_media_seen = False
 
     def accept(self, event: dict[str, Any]) -> None:
         """消费下一条记录；失败后调用方丢弃此状态，不继续写入。"""
@@ -238,6 +242,21 @@ class TraceState:
                 raise ValueError("invalid observation channel")
             if not isinstance(data["value"], dict):
                 raise ValueError("invalid observation value")
+            value = data["value"]
+            if data["channel"] == "context" and value.get("operation") == "input_media":
+                validate_exchange(value)
+                if (
+                    self.input_media_seen
+                    or self.pending is not None
+                    or value["error"] is not None
+                    or value["value"] is not None
+                    or value["input"].keys() != {"media"}
+                    or self.log is None
+                    or set(self.log.turns) != self.seed_turns
+                ):
+                    raise ValueError("invalid input media observation")
+                self._media({"role": "user", **value["input"]})
+                self.input_media_seen = True
         elif kind == "recording_finished":
             _fields(data, {"reply", "error", "session_events"})
             if self.pending is not None:
@@ -280,6 +299,8 @@ class TraceState:
                 isinstance(msg, dict) for msg in value["messages"]
             ):
                 raise ValueError("invalid model messages")
+            for message in value["messages"]:
+                self._media(message)
             if not isinstance(value["model"], str) or not value["model"].strip():
                 raise ValueError("invalid model ID")
             if value["tools"] is not None and not isinstance(value["tools"], list):
@@ -393,6 +414,17 @@ class TraceState:
             or (name is not None and self.pending[1] != name)
         ):
             raise ValueError("recording result without matching call")
+
+    def _media(self, message: dict[str, Any]) -> None:
+        """只认当前已采集会话的来源，不把工具结果或其他会话复制来的引用当图像。"""
+        assert self.log is not None
+        for reference in message_media(message):
+            if (
+                reference.source.session_id != self.session_id
+                or self.log.media.references.get(reference.media_id) != reference
+            ):
+                raise ValueError("recorded media lacks committed source")
+            self.media[reference.media_id] = reference
 
     def _events(self, events: object) -> None:
         """用生产 SessionLog 校验增量，拒绝混入另一输入或第二个用户轮次。"""

@@ -15,6 +15,7 @@ from adam.application.conversation import Conversation
 from adam.application.diagnostics import DiagnosticContextReader
 from adam.application.event_queue import EventQueue
 from adam.application.facade import AgentApplication
+from adam.application.media_input import MediaInputService
 from adam.application.memories import MemoryService
 from adam.application.modes import ModeController
 from adam.application.planning import PlanningService
@@ -131,6 +132,7 @@ def build_application(
     delegation_dispatch仅由宿主接入预算新建策略；在真实工具阶段调用，不能由模型提供代码。
     role仅由可信配置加载；固定同一连接配置的模型并收窄请求数和工具，不替换路径权限。
     live_input显式启用运行中输入；cancel须与主HTTP适配器共享，默认聊天保持原路径。
+    主子媒体预检各自只借用所属 SessionMedia，默认模型无视觉声明时明确拒绝。
     网页工具按次创建/关闭独立连接；禁用时不加载其后端。
     浏览器按会话延迟创建，逐次确认确切动作；子任务不注册浏览器、不继承主审批。
     启用子任务、MCP 或浏览器的调用方须在释放主会话锁前调用 application.close；
@@ -485,6 +487,7 @@ def build_application(
             else None,
             input_provider=input_queue if inputs else None,
             context_config=config.context,
+            media_input=MediaInputService(SessionMedia(store, MediaStore(media_dir)), client),
             notify=on_notice,
             accounting=manager.account if manager else None,
             delegation=manager,
@@ -794,6 +797,9 @@ def _open_child(
             config.agent,
             model=run.model,
             context_config=config.context,
+            media_input=MediaInputService(
+                SessionMedia(store, MediaStore(media_dir / "children" / root.parent.name)), client
+            ),
             accounting=lambda _: account,
             cancel=cancel,
             on_turn_started=started,

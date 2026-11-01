@@ -21,6 +21,7 @@ from adam.contracts.errors import (
     StorageError,
 )
 from adam.contracts.history import COMPACTION_VERSION, Summary, validate_compaction_version
+from adam.contracts.model_input import media_records, message_media
 from adam.contracts.models import Completion, Session
 from adam.contracts.ports import ModelClient
 from adam.contracts.protocol import validate_turn
@@ -94,6 +95,7 @@ class CompactionService:
         min_source_tokens 是为接近压缩目标需要覆盖的估算量，不保证最终摘要大小。
         无素材返回 None；首轮连同前一摘要放不下则报错，不分割工具链。
         当前问题与完整执行前缀同样计入预算，但不算已覆盖历史；不截断它来换取空间。
+        引用的媒体同时附在请求中，不能只把引用 JSON 当成模型已读取图像。
         """
         current_task = self._current_task(turn_id, current_turn)
         history = self.store.load_turns(session.session_id)
@@ -131,16 +133,7 @@ class CompactionService:
                         for item in chosen
                     ],
                 )
-            messages = [
-                {
-                    "role": "system",
-                    "content": TASK_SUMMARY_PROMPT if self.version else SUMMARY_PROMPT,
-                },
-                {
-                    "role": "user",
-                    "content": json.dumps(material, ensure_ascii=False, separators=(",", ":")),
-                },
-            ]
+            messages = self._input_messages(material)
             tokens = sum(estimate_json_tokens(message) for message in messages)
             if tokens + self.limits.safety_margin_tokens > self.limits.max_input_tokens:
                 break
@@ -199,6 +192,25 @@ class CompactionService:
         )
         with scope:
             return self._execute(session, model, plan, turn_id=turn_id)
+
+    def _input_messages(self, material: dict[str, Any]) -> list[dict[str, Any]]:
+        """保留可追溯 JSON 素材，同时交付真实媒体；同一引用只附一次并计入预算。"""
+        source_messages = [message for turn in material["turns"] for message in turn["messages"]]
+        if material.get("current_task"):
+            source_messages.extend(material["current_task"]["messages"])
+        references = tuple(
+            dict.fromkeys(
+                reference for message in source_messages for reference in message_media(message)
+            )
+        )
+        return [
+            {"role": "system", "content": TASK_SUMMARY_PROMPT if self.version else SUMMARY_PROMPT},
+            {
+                "role": "user",
+                "content": json.dumps(material, ensure_ascii=False, separators=(",", ":")),
+                **({"media": media_records(references)} if references else {}),
+            },
+        ]
 
     def _current_task(
         self, turn_id: str | None, messages: list[dict[str, Any]] | None

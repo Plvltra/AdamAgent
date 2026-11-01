@@ -85,6 +85,53 @@ class MediaStore:
             self._publish(path, metadata, data)
             return reference
 
+    def restore(self, content: MediaContent) -> None:
+        """复制已验证证据并保留完整身份与时间；不授予会话读取权限，不覆盖不同证据。
+
+        供录制归档使用，源读取端口先验证所属会话；已有相同文件时幂等返回。
+        正文或元数据不符、超限与发布失败时停止，不留下可交付的替代引用。
+        """
+        if not isinstance(content, MediaContent) or not isinstance(content.reference, MediaRef):
+            raise ValueError("verified media content required")
+        reference, data = content.reference, content.data
+        if (
+            not isinstance(data, bytes)
+            or len(data) != reference.size_bytes
+            or hashlib.sha256(data).hexdigest() != reference.version
+        ):
+            raise StorageError("归档媒体正文与固定引用不符，未复制。")
+        if len(data) > self.max_bytes:
+            raise StorageError("归档媒体正文超过单份上限，未复制。")
+        with self._locked(reference.source.session_id, reference.media_id) as path:
+            if path.exists():
+                if self._read(path, reference.source.session_id, reference.media_id) != content:
+                    raise StorageError("归档媒体 ID 已有不同证据，拒绝覆盖。")
+                return
+            used = self._usage(path.parent, reference.source.session_id)
+            if used + len(data) > self.max_session_bytes:
+                raise StorageError("归档媒体字节配额不足，未复制。")
+            metadata = json.dumps(asdict(reference), ensure_ascii=False).encode("utf-8")
+            if len(metadata) > _METADATA_LIMIT:
+                raise StorageError("归档媒体元数据超过上限，未复制。")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self._publish(path, metadata, data)
+
+    def read_frozen(self, reference: MediaRef) -> MediaContent:
+        """只读核对冻结副本，不建目录或锁文件；文件存在不代表会话来源已获授权。
+
+        证据单文件原子发布，读取完整快照即可核对；用于离线归档验证而非活动来源授权。
+        """
+        try:
+            path = self._contained(
+                self.root / reference.source.session_id / f"{reference.media_id}.media"
+            )
+            content = self._read(path, reference.source.session_id, reference.media_id)
+            if content.reference != reference:
+                raise StorageError("冻结媒体元数据与引用不一致，拒绝读取。")
+            return content
+        except OSError as error:
+            raise StorageError("冻结媒体缺失或不可读。") from error
+
     def describe(self, session_id: str, media_id: str) -> MediaRef:
         """校验完整旁路文件，返回元数据；缺失、损坏和来源不符抛出 StorageError。"""
         with self._locked(session_id, media_id) as path:

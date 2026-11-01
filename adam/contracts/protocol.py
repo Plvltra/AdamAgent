@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from adam.contracts.model_input import message_media
+
 
 def validate_assistant(message: dict[str, Any]) -> None:
     """校验助手消息结构，无效时抛出 ValueError；不修改输入。
@@ -10,6 +12,7 @@ def validate_assistant(message: dict[str, Any]) -> None:
     """
     if message.get("role") != "assistant":
         raise ValueError("expected assistant")
+    message_media(message)
     content = message.get("content")
     calls = message.get("tool_calls")
     if "reasoning_content" in message and not isinstance(message["reasoning_content"], str):
@@ -41,7 +44,9 @@ def validate_turn(messages: list[dict[str, Any]], *, allow_partial: bool = False
     """校验完整轮次，无效时抛出 ValueError；不修改输入。
 
     要求以用户消息开始、以最终回答结束，工具结果按调用顺序完整配对，
-    同一轮次内的工具调用 ID 不重复；工具结果完整配对后可追加用户补充。allow_partial 仅供中断恢复校验尚未提交的前缀，
+    同一轮次内的工具调用 ID 不重复；工具结果完整配对后可追加用户补充。
+    媒体只允许用户消息中的有界固定引用。
+    allow_partial 仅供中断恢复校验尚未提交的前缀，
     允许缺少末尾回答或工具结果，但不放松已有消息的顺序和结构要求。
     """
     if (
@@ -50,10 +55,12 @@ def validate_turn(messages: list[dict[str, Any]], *, allow_partial: bool = False
         or not isinstance(messages[0].get("content"), str)
     ):
         raise ValueError("missing user")
+    message_media(messages[0])
     pending: list[str] = []
     seen: set[str] = set()
     final = False
     for message in messages[1:]:
+        message_media(message)
         if final:
             raise ValueError("messages after final")
         if pending:

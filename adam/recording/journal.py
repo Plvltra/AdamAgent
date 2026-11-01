@@ -7,6 +7,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
+from adam.contracts.media import MediaRef
 from adam.recording.format import (
     RecordingError,
     RecordingLimits,
@@ -14,6 +15,7 @@ from adam.recording.format import (
     decode_event,
     encode_event,
 )
+from adam.recording.media import MediaArchive
 
 DEFAULT_LIMITS = RecordingLimits()
 
@@ -25,6 +27,7 @@ class Recording:
     events: tuple[dict[str, Any], ...]
     complete: bool
     torn_tail: bool
+    media: tuple[MediaRef, ...] = ()
 
     @property
     def seed(self) -> dict[str, Any]:
@@ -38,6 +41,7 @@ class RecordingWriter:
     def __init__(
         self, path: Path, seed: dict[str, Any], limits: RecordingLimits = DEFAULT_LIMITS
     ) -> None:
+        self.path = path.absolute()
         self.limits = limits
         self._state = TraceState()
         self._owner = threading.get_ident()
@@ -124,6 +128,7 @@ class RecordingWriter:
 def read_recording(path: Path, limits: RecordingLimits = DEFAULT_LIMITS) -> Recording:
     """读取并验证有限完整前缀；只忽略最后一个未完成的物理行，文件本身保持不变。
 
+    媒体输入须有完整旁路副本且通过摘要与来源验证；不访问原会话或创建锁文件。
     中间损坏、错误关联、未知版本和上限超出均拒绝。没有结尾或存在残缺尾行时，
     complete=False；调用方只能诊断已知前缀，不能宣称整轮已重放成功。
     """
@@ -160,6 +165,8 @@ def parse_recording(raw: bytes, limits: RecordingLimits = DEFAULT_LIMITS) -> Rec
         if not events or (torn and state.closed):
             raise ValueError("missing header or data after recording finish")
         # 完整 JSON 仅少换行与真正残缺尾行都保持不完整；不推断落盘是否成功。
-        return Recording(tuple(events), state.closed and not torn, torn)
+        references = tuple(state.media.values())
+        MediaArchive(path).verify(references)
+        return Recording(tuple(events), state.closed and not torn, torn, references)
     except (OSError, ValueError, TypeError, KeyError, AttributeError, RecursionError) as error:
         raise RecordingError("录制无法读取：文件损坏、版本或关联无效，或超过读取上限。") from error

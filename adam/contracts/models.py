@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
 from adam.contracts.command_execution import CommandInputPreview
+from adam.contracts.model_input import MediaPart, MessageView, TextPart
 from adam.contracts.usage import CacheUsage, InputPrefix
 
 
@@ -21,7 +22,7 @@ class Session:
 
 @dataclass(frozen=True)
 class Message:
-    """已提交的会话消息；raw 保留工具调用和服务商推理字段。"""
+    """已提交消息；content 是文字视图，raw 保留媒体、工具与推理字段。"""
 
     message_id: str
     session_id: str
@@ -29,6 +30,11 @@ class Message:
     role: str
     content: str
     raw: dict[str, Any]
+
+    @property
+    def parts(self) -> tuple[TextPart | MediaPart, ...]:
+        """按公共视图返回文字及固定媒体引用；不认识的字段明确失败，不声称只剩文字。"""
+        return MessageView.from_message(self.raw).parts
 
 
 @dataclass(frozen=True)
