@@ -8,16 +8,18 @@ from pathlib import Path
 from adam.config.loader import adam_home
 from adam.config.settings import DocumentConfig, PermissionConfig
 from adam.contracts.errors import AgentError
+from adam.contracts.reranking import RerankError
 from adam.documents.embedding import FastEmbedBackend
 from adam.documents.evaluation import evaluate
 from adam.documents.index import DocumentIndex
+from adam.documents.reranking import FastEmbedReranker
 from adam.documents.search import DocumentSearch
 from adam.tool_calls.document_tools import pack_results
 from adam.tool_calls.policy import PathPolicy
 
 
 def main(argv: list[str] | None = None) -> int:
-    """运行独立文档操作；仅 prepare-model 子命令允许下载公开模型文件。"""
+    """运行独立文档操作；仅 prepare-model / prepare-reranker 允许下载公开模型文件。"""
     parser = argparse.ArgumentParser(description="Adam 文档检索，不调用聊天 LLM")
     parser.add_argument("--workspace", type=Path, default=Path.cwd())
     parser.add_argument("--root", type=Path, action="append")
@@ -29,11 +31,14 @@ def main(argv: list[str] | None = None) -> int:
     method.add_argument("--hybrid", action="store_true")
     parser.add_argument("--hybrid-candidates", type=int, default=20)
     parser.add_argument("--rrf-constant", type=int, default=60)
+    parser.add_argument("--rerank", action="store_true")
+    parser.add_argument("--reranker-model", default=DocumentConfig().reranker_model)
     parser.add_argument("--minimum", type=float, default=0.5)
     parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--output", type=Path)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare-model", help="显式下载并验证本地 CPU embedding 模型")
+    commands.add_parser("prepare-reranker", help="显式下载并验证本地 CPU 精排模型")
     search = commands.add_parser("search", help="查询指定文档并返回可核查片段")
     search.add_argument("query")
     evaluation = commands.add_parser(
@@ -49,8 +54,15 @@ def main(argv: list[str] | None = None) -> int:
             semantic_min_score=args.minimum,
             hybrid_candidates=args.hybrid_candidates,
             rrf_constant=args.rrf_constant,
+            rerank=args.rerank,
+            reranker_model=args.reranker_model,
         )
-        if args.command == "prepare-model":
+        if args.command == "prepare-reranker":
+            FastEmbedReranker(
+                args.cache_dir / "rerankers", config.reranker_model, allow_download=True
+            ).prepare()
+            result = {"status": "ready", "reranker_model": config.reranker_model}
+        elif args.command == "prepare-model":
             FastEmbedBackend(
                 args.cache_dir / "models", config.embedding_model, allow_download=True
             ).prepare()
@@ -72,6 +84,11 @@ def main(argv: list[str] | None = None) -> int:
                         else None,
                         "semantic_min_score": config.semantic_min_score,
                         "chunk_chars": config.chunk_chars,
+                        **(
+                            {"rerank": True, "reranker_model": config.reranker_model}
+                            if args.rerank
+                            else {}
+                        ),
                         "encoding": "window256-mean-v1" if args.semantic or args.hybrid else None,
                         **(
                             {
@@ -91,11 +108,14 @@ def main(argv: list[str] | None = None) -> int:
                     else ["keyword"]
                 )
                 for name in methods:
-                    selected = replace(config, method=name)
+                    selected = replace(
+                        config, method=name, rerank=config.rerank and name == "hybrid"
+                    )
                     engine = DocumentSearch(
                         DocumentIndex(args.cache_dir, args.workspace, selected, policy.resolve)
                     )
-                    result[name] = evaluate(engine.search, cases, args.limit)
+                    label = "hybrid_reranked" if name == "hybrid" and config.rerank else name
+                    result[label] = evaluate(engine.search, cases, args.limit)
         encoded = json.dumps(result, ensure_ascii=False, indent=2)
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -103,6 +123,9 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(encoded)
         return 0
+    except RerankError:
+        print("本地精排模型准备失败；请检查可选依赖、模型名称和下载连接。")
+        return 1
     except (AgentError, OSError, ValueError) as error:
         message = (
             str(error)

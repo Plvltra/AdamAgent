@@ -52,3 +52,4 @@ class SearchHit:
     chunk: Chunk
     score: float
     retrieval_ranks: tuple[RetrievalRank, ...] = ()
+    rerank_score: float | None = None

@@ -275,6 +275,11 @@ class DocumentConfig:
     semantic_min_score: float = 0.5
     hybrid_candidates: int = 20
     rrf_constant: int = 60
+    rerank: bool = False
+    reranker_model: str = "BAAI/bge-reranker-v2-m3-int8"
+    rerank_candidates: int = 20
+    rerank_query_chars: int = 256
+    rerank_passage_chars: int = 512
 
     def __post_init__(self) -> None:
         """限制整个语料的资源消耗；目录配置本身不授予额外读取权限。"""
@@ -286,6 +291,14 @@ class DocumentConfig:
             raise ConfigError("documents.roots 必须是不超过 32 项、不含空字符的路径元组。")
         if not isinstance(self.method, str) or self.method not in {"keyword", "semantic", "hybrid"}:
             raise ConfigError("documents.method 必须是 keyword、semantic 或 hybrid。")
+        if type(self.rerank) is not bool or (self.rerank and self.method != "hybrid"):
+            raise ConfigError("documents.rerank 必须是布尔值，且只能在 hybrid 方法启用。")
+        if (
+            not isinstance(self.reranker_model, str)
+            or not self.reranker_model.strip()
+            or len(self.reranker_model) > 200
+        ):
+            raise ConfigError("documents.reranker_model 必须是有效模型名称。")
         if (
             not isinstance(self.embedding_model, str)
             or not self.embedding_model.strip()
@@ -309,6 +322,9 @@ class DocumentConfig:
             "top_k": (1, 20),
             "hybrid_candidates": (1, 20),
             "rrf_constant": (1, 1000),
+            "rerank_candidates": (1, 20),
+            "rerank_query_chars": (1, 1000),
+            "rerank_passage_chars": (1, 4000),
         }
         for name, (low, high) in ranges.items():
             value = getattr(self, name)

@@ -2,11 +2,27 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B09.1 文档混合召回、RRF 融合、来源证据及独立 CLI。
+本次核对范围：B09.2 可选本地精排、后端契约、降级来源及查询/评估入口。
 
-核对结论：DocumentSearch 对同一语料执行 BM25 与 VectorSearch，documents.fusion 按身份去重并融合排名；DocumentTools 保留各路依据及整体输出预算。单路、取消与失败不返回旧资料的契约保留，原说明按混合路径更新，无主循环分支。
+核对结论：DocumentSearch 在 RRF 后可调用 documents.reranking，后端仅返回分数，原片段不变。可选后端故障整体回退到融合次序，取消及源读取故障仍传播；工具与评估均保留真实状态。原候选池、引用与输出上限解释保留，独立准备入口说明补充精排模型。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B09.2 可选精排
+
+~~~mermaid
+flowchart LR
+    RR_FUSE["融合候选池 / 原文与各路排名"] --> RR_RUN["rerank_hits / 有界前缀与逐段取消"]
+    RR_RUN --> RR_PORT["contracts.reranking / 仅分数接口"]
+    RR_LOCAL["FastEmbedReranker / 本地 CPU cross-encoder"] --> RR_PORT
+    RR_RUN --> RR_PASS["全部评分有效 / 精排后截取"]
+    RR_RUN --> RR_FAIL["后端失败 / 完整融合排序"]
+    RR_PASS --> RR_EVIDENCE["原引用 + 分数 + 实际状态"]
+    RR_FAIL --> RR_EVIDENCE
+    RR_EVIDENCE --> RR_REPORT["工具日志、输出限额与评估"]
+~~~
+
+精排默认关闭，取消不会进入降级分支；模型准备与输入窗口限制见 [混合检索](hybrid-retrieval.md)。
 
 ## B09.1 混合检索
 
@@ -759,6 +775,8 @@ flowchart LR
     SEARCH --> VECTOR["documents/vectors.py<br/>VectorSearch"]
     SEARCH --> FUSION["documents/fusion.py<br/>RRF 与各路排名"]
     FUSION --> VALUES
+    SEARCH --> RERANK["documents/reranking.py<br/>可选精排与整体降级"]
+    RERANK --> RANK_PORT["contracts/reranking.py<br/>分数接口"]
     VECTOR --> EMBED["documents/embedding.py<br/>FastEmbedBackend / EmbeddingBackend"]
     VECTOR --> SNAP["documents/snapshots.py<br/>有界校验与原子保存"]
     CANCEL["子任务 CancellationToken.check"] -.-> SOURCE

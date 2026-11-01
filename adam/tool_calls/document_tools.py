@@ -10,6 +10,7 @@ from adam.config.settings import DocumentConfig, PermissionConfig
 from adam.contracts.execution import ToolCapability
 from adam.contracts.models import ExecutionRecorder
 from adam.documents.index import DocumentIndex
+from adam.documents.models import DocumentError
 from adam.documents.search import DocumentSearch, SearchResult
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.registry import ToolRegistry
@@ -93,10 +94,15 @@ def pack_results(found: SearchResult, max_chars: int) -> dict[str, Any]:
     if found.fusion is not None:
         output["fusion"] = asdict(found.fusion)
         output["score_kind"] = "reciprocal_rank_fusion"
+    if found.reranking is not None:
+        output["reranking"] = asdict(found.reranking)
+        output["order"] = "reranker" if found.reranking.status == "applied" else "fusion"
     for hit in found.hits:
         item = {**hit.chunk.to_dict(), "score": round(hit.score, 6)}
         if hit.retrieval_ranks:
             item["retrieval_ranks"] = [asdict(rank) for rank in hit.retrieval_ranks]
+        if hit.rerank_score is not None:
+            item["rerank_score"] = hit.rerank_score
         trial = {**output, "results": [*output["results"], item]}
         if len(encode_result(trial)) <= max_chars:
             output["results"].append(item)
@@ -104,6 +110,8 @@ def pack_results(found: SearchResult, max_chars: int) -> dict[str, Any]:
             output["truncated"] = True
     if found.hits and not output["results"]:
         output["status"] = "output_limit"
+    if len(encode_result(output)) > max_chars:
+        raise DocumentError("工具输出限额不足以容纳检索状态与精排依据；请提高 max_result_chars。")
     return output
 
 

@@ -16,6 +16,12 @@ method = "keyword"
 # hybrid 合并 BM25 与本地向量，仍需预先准备 embedding；keyword / semantic 可单独对照。
 hybrid_candidates = 20
 rrf_constant = 60
+# 只在 hybrid 启用；正常查询只加载本地精排模型，失败明确回退到融合排序。
+rerank = false
+reranker_model = "BAAI/bge-reranker-v2-m3-int8"
+rerank_candidates = 20
+rerank_query_chars = 256
+rerank_passage_chars = 512
 embedding_model = "BAAI/bge-small-zh-v1.5"
 semantic_min_score = 0.5
 chunk_chars = 400

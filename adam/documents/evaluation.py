@@ -2,6 +2,7 @@
 
 import time
 from collections.abc import Callable
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,10 @@ def evaluate(
                 "id": case["id"],
                 "kind": case["kind"],
                 "query": case["query"],
+                "method": result.method,
+                "generation": result.generation,
+                **({"fusion": asdict(result.fusion)} if result.fusion else {}),
+                **({"reranking": asdict(result.reranking)} if result.reranking else {}),
                 "answerable": case["path"] is not None,
                 "hit": rank is not None,
                 "rank": rank,
@@ -50,6 +55,13 @@ def evaluate(
                         "end_line": hit.chunk.end_line,
                         "text": hit.chunk.text,
                         "score": round(hit.score, 6),
+                        "chunk_id": hit.chunk.chunk_id,
+                        "version": hit.chunk.version,
+                        **(
+                            {"rerank_score": hit.rerank_score}
+                            if hit.rerank_score is not None
+                            else {}
+                        ),
                     }
                     for hit in result.hits
                 ],
