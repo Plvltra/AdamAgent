@@ -130,6 +130,18 @@ def read_recording(path: Path, limits: RecordingLimits = DEFAULT_LIMITS) -> Reco
     try:
         with path.open("rb") as file:
             raw = file.read(limits.max_bytes + 1)
+        return parse_recording(raw, limits)
+    except OSError as error:
+        raise RecordingError("录制无法读取：路径不存在或无读取权限。") from error
+
+
+def parse_recording(raw: bytes, limits: RecordingLimits = DEFAULT_LIMITS) -> Recording:
+    """校验同一份有界字节快照，供读取与分享导出共用；残缺尾部规则不变。
+
+    导出来源摘要与内容必须来自同一份 raw，不能两次读取活动文件后错绑版本。
+    本函数不修复原文件，也不将缺失结尾的录制升级为完整。
+    """
+    try:
         if len(raw) > limits.max_bytes:
             raise ValueError("oversized recording")
         lines = raw.split(b"\n")

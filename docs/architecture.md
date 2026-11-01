@@ -2,11 +2,26 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B12.3 独立进程竞争、真实强杀及重启查询；生产架构无变化。
+本次核对范围：B13.1 单份字节录制解析、两遍本地规则脱敏和排他导出。
 
-核对结论：生产模块与调用关系保持。验收进程只替代 HTTP 响应，在实际原子替换和等待确认处暂停，由父进程真实强杀；新进程重建相同服务读取，不伪造中间状态、不重新请求。四项竞争和十个强杀边界验证锁释放、修订复核与完整旧/新状态；测试暂停点不进入生产实现。
+核对结论：recording.journal 提取 parse_recording，读取与导出复用原协议和残缺尾部规则；新增 redaction 与 sharing，仅处理本地数据。先识别敏感值再替换重复文本，报告不保存原文；同目录临时文件完成后排他发布，分享格式不当作录制格式。原注释及协议说明保持并补充同份字节来源约束。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B13.1 脱敏分享副本
+
+~~~mermaid
+flowchart LR
+    RS_SOURCE["原录制 / 一次有界读取"] --> RS_PARSE["journal.parse_recording / 原协议校验"]
+    RS_PARSE --> RS_COLLECT["redaction / 规则与显式字面值"]
+    RS_COLLECT --> RS_COPY["脱敏副本 + 无原文位置报告"]
+    RS_COPY --> RS_SAVE["sharing.export_share / 排他发布"]
+    RS_SOURCE --> RS_HASH["同份字节 SHA256 与完整性标记"]
+    RS_HASH --> RS_SAVE
+    RS_SAVE --> RS_ART["human_review_only / replayable=false"]
+~~~
+
+此阶段是宿主显式 API；不注册模型工具、不加载模型配置、不改变原录制。用户命令及来源核对由 B13.2 接入，规则边界见 [分享脱敏](recording-sharing.md)。
 
 ## B12.2.3 知识使用与目录保护
 

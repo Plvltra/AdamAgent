@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B13.1 分享脱敏 API | 16 项真实读取/回复录制、重复秘密、位置报告、指定地址、同名/硬链接拒绝、写入失败、残缺前缀和资源限制；相关共 70 项 | [test_recording_sharing.py](test_recording_sharing.py) |
 | B12.3 知识故障验收 | 15 项：独立进程竞争 4 项、请求/审查/发布/撤回/来源失效强杀 10 个边界、冲突知识独立决定；重启零自动请求 | [test_knowledge_recovery.py](test_knowledge_recovery.py)、[进程入口](support/knowledge_worker.py) |
 | B12.2.3 知识使用入口 | 23 项候选原文补全、发布查询与分页、完整反证、真实聊天/子任务/重放、原始目录保护、配置和 CLI 确认；相关共 66 项 | [test_knowledge_entries.py](test_knowledge_entries.py) |
 | B12.2.2 独立模型审查 | 24 项 JSON/SSE、请求先落盘、无工具/无批准、用量未知/超额/取消、保存失败、旧来源拒用和重复 ID；相关共 72 项 | [test_knowledge_review.py](test_knowledge_review.py) |
