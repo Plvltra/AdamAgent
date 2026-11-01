@@ -16,7 +16,7 @@ from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.config.settings import AgentConfig, ContextConfig, PlanningConfig, ReflectionConfig
 from adam.contracts.delegation import RequestAccount
-from adam.contracts.history import validate_context_layout
+from adam.contracts.history import validate_compaction_version, validate_context_layout
 from adam.contracts.models import ModelOutput
 from adam.contracts.ports import ToolRunner
 from adam.contracts.runtime import RUNTIME_STATE_VERSION
@@ -82,6 +82,11 @@ class CaptureRuntime:
             "accounting": conversation.accounting is not None,
             "mode": conversation.mode_provider is not None,
             "skills": list(conversation.skills),
+            **(
+                {"compaction_version": conversation.compaction_version}
+                if conversation.compaction_version is not None
+                else {}
+            ),
             **(
                 {"runtime_state_version": RUNTIME_STATE_VERSION}
                 if conversation.state_reader and conversation.context_builder.layout_version
@@ -238,7 +243,8 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
     }
     if (
         not isinstance(boot, dict)
-        or boot.keys() - {"context_layout", "runtime_state_version"} != flags | {"skills"}
+        or boot.keys() - {"context_layout", "runtime_state_version", "compaction_version"}
+        != flags | {"skills"}
         or any(type(boot[key]) is not bool for key in flags)
         or not isinstance(arguments, dict)
         or arguments.keys() != {"text", "selected_skill"}
@@ -247,6 +253,9 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
         raise RecordingError("录制运行资料的字段或输入无效。")
     try:
         validate_context_layout(boot.get("context_layout"))
+        validate_compaction_version(boot.get("compaction_version"))
+        if "compaction_version" in boot and boot["compaction_version"] is None:
+            raise ValueError("missing compaction version")
         if "runtime_state_version" in boot and (
             boot["runtime_state_version"] != RUNTIME_STATE_VERSION or not boot.get("context_layout")
         ):
@@ -254,7 +263,7 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
         validate_catalog(boot["skills"])
         decode_skill(arguments["selected_skill"], boot["skills"])
     except (ValueError, TypeError, KeyError) as error:
-        raise RecordingError("录制的上下文布局、技能目录或选择无效。") from error
+        raise RecordingError("录制的上下文布局、摘要版本、状态或技能资料无效。") from error
     return boot, arguments
 
 
@@ -287,6 +296,7 @@ def build_replay(
         context_config=context_limits,
         # 缺少布局标记的旧录制继续使用旧消息顺序和估算，不伪造相同请求。
         context_layout=boot.get("context_layout"),
+        compaction_version=boot.get("compaction_version"),
         planning=PlanningService(store, PlanningConfig(**controls["planning"]))
         if boot["planning"]
         else None,

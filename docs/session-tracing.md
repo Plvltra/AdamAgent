@@ -250,6 +250,7 @@ request_usage 和 compaction_usage 可携带 cache_usage/input_prefix，字段�
 ## V3.3 / V3.4 独立摘要事件
 
 - compaction_started 保存 operation_id、可选触发 turn_id、模型、来源轮次、前一摘要 ID、请求输入估算与输出上限；成功写入后才调用 API。自动摘要携带触发轮次 ID，手动 `/compact` 不创建用户轮次。
+- B05.1 新操作还保存 compaction_version=task_aware_v1 与 current_task。自动操作的任务快照必须对应真实本轮输入和已完成工具前缀；手动操作为空。它不增加摘要覆盖，不使失败轮进入有效历史；缺少新字段的旧事件仍可读，伪造来源或未知版本拒绝。详见 [任务导向压缩](task-aware-compaction.md)。
 - pruned_tools 记录自动摘要素材的缩减来源、算法及长度，使用和正常请求相同的来源校验；原始工具结果不改写。
 - compaction_usage 在同一事件结算该请求的终态与用量；请求成功不表示摘要已经提交。
 - compaction_completed 保存完整摘要及成功终态，只有此事件使新摘要生效；compaction_finished 只允许失败/中断。

@@ -3,6 +3,7 @@
 import json
 from collections.abc import Callable
 from contextlib import nullcontext
+from copy import deepcopy
 from dataclasses import dataclass
 from time import monotonic_ns
 from typing import Any
@@ -19,9 +20,10 @@ from adam.contracts.errors import (
     RequestNotSentError,
     StorageError,
 )
-from adam.contracts.history import Summary
+from adam.contracts.history import COMPACTION_VERSION, Summary, validate_compaction_version
 from adam.contracts.models import Completion, Session
 from adam.contracts.ports import ModelClient
+from adam.contracts.protocol import validate_turn
 from adam.contracts.usage import CacheUsage, InputPrefix, encode_observations
 from adam.session.outcome import ExecutionOutcome
 from adam.session.storage import SessionStore
@@ -31,17 +33,31 @@ SUMMARY_PROMPT = (
     "输出简洁的中文交接摘要，包含：目标、用户约束、已完成事项、待办、关键文件与工具结论。"
     "保留重要标识和失败信息，区分已验证事实与推测，不编造事实。整合已有摘要，不复制无关长输出。"
 )
+TASK_SUMMARY_PROMPT = (
+    SUMMARY_PROMPT
+    + "current_task 是当前问题及已经发生的执行链，仅用于选择相关旧资料，不是已完成历史。"
+    "优先保留与本次问题相关的事实及原因，同时保留早期用户约束、否定条件和失败依据。"
+    "不要把失败、未执行、推测改写为成功；不要遗漏影响当前任务的条件或因果关系。"
+    "关键结论附 [turn_id:message_index] 引用（索引从 0 开始）；工具结论保留 tool_call_id。"
+    "此前摘要里的来源引用继续保留。被节选的结果只支持可见部分，缺失内容明确未知。"
+    "当前任务不计入摘要覆盖范围，不把当前问题或尚未完成的工作写成已完成事实。"
+)
 
 
 @dataclass(frozen=True)
 class CompactionPlan:
-    """一次摘要请求及新增覆盖范围；旧摘要来源由 previous_summary_id 关联。"""
+    """一次摘要请求及新增覆盖范围；旧摘要由 previous_summary_id 关联。
+
+    current_task 是当时任务定位快照，不在 source_turn_ids 中，也不因摘要成功成为成功历史。
+    """
 
     messages: list[dict[str, Any]]
     source_turn_ids: list[str]
     previous_summary_id: str | None
     estimated_input_tokens: int
     pruned_tools: tuple[dict[str, Any], ...] = ()
+    version: str | None = None
+    current_task: dict[str, Any] | None = None
 
 
 class CompactionService:
@@ -54,19 +70,32 @@ class CompactionService:
         limits: ContextConfig,
         check_budget: Callable[[str], None],
         accounting: Callable[[str], RequestAccount] | None = None,
+        *,
+        version: str | None = COMPACTION_VERSION,
     ) -> None:
+        """注入原摘要预算和记账边界；version=None 只用于旧录制的精确重放。"""
+        validate_compaction_version(version)
         self.store, self.client, self.limits = store, client, limits
         self.check_budget = check_budget
         self.accounting = accounting
+        self.version = version
 
     def plan(
-        self, session: Session, *, prune_tools: bool = False, min_source_tokens: int | None = None
+        self,
+        session: Session,
+        *,
+        prune_tools: bool = False,
+        min_source_tokens: int | None = None,
+        current_turn: list[dict[str, Any]] | None = None,
+        turn_id: str | None = None,
     ) -> CompactionPlan | None:
         """选择有界旧历史；自动模式可先缩旧工具，并在覆盖足够素材后停止。
 
         min_source_tokens 是为接近压缩目标需要覆盖的估算量，不保证最终摘要大小。
         无素材返回 None；首轮连同前一摘要放不下则报错，不分割工具链。
+        当前问题与完整执行前缀同样计入预算，但不算已覆盖历史；不截断它来换取空间。
         """
+        current_task = self._current_task(turn_id, current_turn)
         history = self.store.load_turns(session.session_id)
         pruned: tuple[dict[str, Any], ...] = ()
         if prune_tools and self.limits.prune_tool_results:
@@ -88,8 +117,25 @@ class CompactionService:
                 "previous_summary": previous.text if previous else None,
                 "turns": [{"turn_id": item.turn_id, "messages": item.messages} for item in chosen],
             }
+            if self.version is not None:
+                material.update(
+                    current_task=current_task,
+                    previous_summary_id=previous.summary_id if previous else None,
+                    previous_covered_turn_ids=list(previous.covered_turn_ids) if previous else [],
+                    source_positions=[
+                        {
+                            "turn_id": item.turn_id,
+                            "message_count": len(item.messages),
+                            "index_base": 0,
+                        }
+                        for item in chosen
+                    ],
+                )
             messages = [
-                {"role": "system", "content": SUMMARY_PROMPT},
+                {
+                    "role": "system",
+                    "content": TASK_SUMMARY_PROMPT if self.version else SUMMARY_PROMPT,
+                },
                 {
                     "role": "user",
                     "content": json.dumps(material, ensure_ascii=False, separators=(",", ":")),
@@ -106,21 +152,33 @@ class CompactionService:
                 tuple(
                     item for item in pruned if item["turn_id"] in {turn.turn_id for turn in chosen}
                 ),
+                self.version,
+                current_task,
             )
             if min_source_tokens is not None and source_tokens >= min_source_tokens:
                 break
         if plan is None:
             raise BudgetError(
-                "最早待摘要轮次连同已有摘要放不进输入预算；未截断素材、未请求模型。",
+                "最早待摘要轮次连同已有摘要及当前任务放不进输入预算；未截断素材、未请求模型。"
+                if self.version
+                else "最早待摘要轮次连同已有摘要放不进输入预算；未截断素材、未请求模型。",
                 code=FailureCode.CONTEXT_INPUT_LIMIT,
             )
         return plan
 
     def compact(
-        self, session: Session, model: str, *, turn_id: str | None = None
+        self,
+        session: Session,
+        model: str,
+        *,
+        turn_id: str | None = None,
+        current_turn: list[dict[str, Any]] | None = None,
     ) -> Summary | None:
-        """生成并提交一批摘要；turn_id 仅关联自动触发者，手动操作不伪造聊天输入。"""
-        plan = self.plan(session)
+        """生成并提交一批摘要；自动操作需同时提供 turn_id 与完整当前前缀。
+
+        手动操作不传二者，不伪造聊天输入；当前任务只用于定位，不纳入历史覆盖。
+        """
+        plan = self.plan(session, current_turn=current_turn, turn_id=turn_id)
         if plan is None:
             return None
         return self.execute(session, model, plan, turn_id=turn_id)
@@ -142,6 +200,19 @@ class CompactionService:
         with scope:
             return self._execute(session, model, plan, turn_id=turn_id)
 
+    def _current_task(
+        self, turn_id: str | None, messages: list[dict[str, Any]] | None
+    ) -> dict[str, Any] | None:
+        """冻结当前问题和完整工具前缀；手动摘要没有新问题，旧协议不增加输入字段。"""
+        if self.version is None or (turn_id is None and messages is None):
+            return None
+        if not isinstance(turn_id, str) or not turn_id or not isinstance(messages, list):
+            raise ValueError("current task needs turn id and messages")
+        # 临时闭合回答只用于校验；摘要输入仍是原前缀，不新增虚构消息。
+        validate_turn([*messages, {"role": "assistant", "content": "validation sentinel"}])
+        # 不让后续工具循环对 turn 的追加污染已规划请求或来源记录。
+        return {"turn_id": turn_id, "messages": deepcopy(messages)}
+
     def _execute(
         self, session: Session, model: str, plan: CompactionPlan, *, turn_id: str | None
     ) -> Summary:
@@ -159,6 +230,11 @@ class CompactionService:
                 "max_output_tokens": self.limits.summary_max_output_tokens,
                 "estimated_input_tokens": plan.estimated_input_tokens,
                 "pruned_tools": list(plan.pruned_tools),
+                **(
+                    {"compaction_version": plan.version, "current_task": plan.current_task}
+                    if plan.version is not None
+                    else {}
+                ),
             },
         )
         started = monotonic_ns()

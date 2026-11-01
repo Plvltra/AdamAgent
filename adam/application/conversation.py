@@ -22,7 +22,12 @@ from adam.contracts.errors import (
     TurnSaveError,
 )
 from adam.contracts.execution import ExecutionMode, ToolBudget
-from adam.contracts.history import CONTEXT_LAYOUT_VERSION, Summary
+from adam.contracts.history import (
+    COMPACTION_VERSION,
+    CONTEXT_LAYOUT_VERSION,
+    Summary,
+    validate_compaction_version,
+)
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import ExecutionReport, ModelOutput, Session
 from adam.contracts.planning import TaskPlanner
@@ -74,11 +79,15 @@ class Conversation:
         rules: ProjectRules | None = None,
         mode_provider: Callable[[], ExecutionMode] | None = None,
         state_reader: StateReader | None = None,
+        compaction_version: str | None = COMPACTION_VERSION,
     ) -> None:
         """注入会话依赖；context_layout 仅供旧录制重放，默认使用当前排列。
 
         state_reader 由宿主提供窄状态查询；缺省保持不注入，旧排列也不新增状态。
+        compaction_version=None 让旧录制保持当时的摘要输入与估算。
         """
+        validate_compaction_version(compaction_version)
+        self.compaction_version = compaction_version
         self.observe_input: Callable[[str, SkillSelection | None], None] | None = None
         self.store = store
         self.client = client
@@ -359,7 +368,12 @@ class Conversation:
         ):
             progress.summary_attempted = True
             service = CompactionService(
-                self.store, self.client, limits, self._check_session_budget, self.accounting
+                self.store,
+                self.client,
+                limits,
+                self._check_session_budget,
+                self.accounting,
+                version=self.compaction_version,
             )
             desired = max(
                 1,
@@ -370,7 +384,13 @@ class Conversation:
                     - context.estimate.summary_tokens
                 ),
             )
-            plan = service.plan(session, prune_tools=True, min_source_tokens=desired)
+            plan = service.plan(
+                session,
+                prune_tools=True,
+                min_source_tokens=desired,
+                current_turn=turn,
+                turn_id=turn_id,
+            )
             if plan is not None:
                 # 为摘要后的正式请求至少留一次额度；不花掉最后一次后才发现无法回答。
                 if progress.requests.used + 2 > self.limits.max_model_requests:
@@ -405,6 +425,7 @@ class Conversation:
             self.context_builder.limits,
             self._check_session_budget,
             self.accounting,
+            version=self.compaction_version,
         )
         plan = service.plan(session)
         if plan is None:

@@ -6,7 +6,11 @@ from typing import Any
 
 from adam.contracts.artifacts import ArtifactRef, decode_artifact_reference
 from adam.contracts.execution import FILE_EDIT_TOOLS
-from adam.contracts.history import HistoryTurn, validate_context_layout
+from adam.contracts.history import (
+    HistoryTurn,
+    validate_compaction_version,
+    validate_context_layout,
+)
 from adam.contracts.memory import validate_selection
 from adam.contracts.planning import decode_plan
 from adam.contracts.protocol import validate_turn
@@ -249,12 +253,42 @@ class SessionLog:
         if kind == "compaction_started" and owner is not None:
             self._require_turn(payload)
         if kind == "compaction_started":
+            self._validate_compaction_task(payload)
             self._validate_pruning(
                 payload.get("pruned_tools", []), payload.get("source_turn_ids", [])
             )
         before = self.compactions.tokens
         self.compactions.apply(kind, payload, [turn.turn_id for turn in self.history_turns()])
         self.tokens += self.compactions.tokens - before
+
+    def _validate_compaction_task(self, payload: dict[str, Any]) -> None:
+        """新摘要的当前问题和工具前缀必须来自所属轮；不将它们计为覆盖历史。"""
+        version = payload.get("compaction_version")
+        validate_compaction_version(version)
+        if version is None:
+            if "compaction_version" in payload or "current_task" in payload:
+                raise ValueError("unversioned compaction task")
+            return
+        if "current_task" not in payload:
+            raise ValueError("missing compaction task")
+        task = payload["current_task"]
+        owner = payload.get("turn_id")
+        if owner is None and task is None:
+            return
+        if (
+            not isinstance(task, dict)
+            or task.keys() != {"turn_id", "messages"}
+            or task["turn_id"] != owner
+            or owner not in self.turns
+            or not isinstance(task["messages"], list)
+            or any(not isinstance(message, dict) for message in task["messages"])
+        ):
+            raise ValueError("invalid compaction task")
+        messages = task["messages"]
+        validate_turn([*messages, {"role": "assistant", "content": "validation sentinel"}])
+        if messages[0]["content"] != self.turns[owner]["user_text"]:
+            raise ValueError("mismatched compaction question")
+        self._validate_tool_trace(owner, messages, complete=True)
 
     def _start_turn(self, kind: str, payload: dict[str, Any]) -> None:
         turn_id = self._identifier(payload, "turn_id")
@@ -679,9 +713,15 @@ class SessionLog:
             )
         ):
             raise ValueError("request did not succeed")
+        self._validate_tool_trace(turn_id, self._pending_messages, complete=complete)
+
+    def _validate_tool_trace(
+        self, turn_id: str, messages: list[dict[str, Any]], *, complete: bool
+    ) -> None:
+        """校验消息引用的真实工具参数和输出；完整前缀必须包含本轮所有已记录工具。"""
         turn_tools = {key[1]: tool for key, tool in self.tools.items() if key[0] == turn_id}
         seen: set[str] = set()
-        for message in self._pending_messages[1:]:
+        for message in messages[1:]:
             for call in message.get("tool_calls") or []:
                 tool = turn_tools.get(call["id"])
                 if tool is None or any(

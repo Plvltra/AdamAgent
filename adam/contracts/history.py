@@ -4,6 +4,13 @@ from dataclasses import dataclass
 from typing import Any
 
 CONTEXT_LAYOUT_VERSION = "stable_prefix_v1"
+COMPACTION_VERSION = "task_aware_v1"
+
+
+def validate_compaction_version(value: object) -> None:
+    """None 保留旧摘要输入；未知版本拒绝重放，不猜测当时的压缩策略。"""
+    if value is not None and value != COMPACTION_VERSION:
+        raise ValueError("unknown compaction version")
 
 
 def validate_context_layout(value: object) -> None:

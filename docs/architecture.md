@@ -2,11 +2,28 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B04.3 状态输入与父子日志对应、真实并发预留、失败隔离、权限及预算停止；7 项组合验收。
+本次核对范围：B05.1 当前任务进入摘要输入、预算和来源记录，完整工具前缀校验及旧新录制重放。
 
-核对结论：生产架构无变化，保持以下 B04.2 关系；本次只补充组合测试和验收文档。实际线程与 JSONL 证实状态是观察、预算与权限仍由原执行路径检查。新增测试说明已核对，没有删除生产代码或既有关键注释。
+核对结论：沿用 Conversation → CompactionService → SessionStore，不新增压缩服务；SessionLog 提取共用工具来源校验，CaptureRuntime 记录摘要协议版本。摘要提交、未知消费和重启边界保持，来源快照不变成成功历史。原有失败与预算说明保留，移动的校验职责已补充简短契约。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B05.1 任务导向摘要
+
+~~~mermaid
+flowchart LR
+    TC_APP["Conversation / 当前问题与完整工具前缀"] --> TC_SERVICE["CompactionService / 复制任务及有界连续历史"]
+    TC_STORE["SessionStore / 原历史与上一摘要"] --> TC_SERVICE
+    TC_SERVICE --> TC_MODEL["无工具摘要请求 / 全输入计入预算"]
+    TC_SERVICE --> TC_LOG["SessionLog / 轮次与真实工具来源校验"]
+    TC_MODEL --> TC_COMMIT["请求结算 / 完整摘要提交"]
+    TC_LOG --> TC_COMMIT
+    TC_COMMIT --> TC_STORE
+    TC_CAPTURE["CaptureRuntime / compaction_version"] --> TC_REPLAY["离线重放 / 保持旧新摘要协议"]
+    TC_REPLAY --> TC_SERVICE
+~~~
+
+[CompactionService](../adam/context/compaction.py) 的任务快照不扩展历史覆盖；[SessionLog](../adam/session/log.py) 复用工具轨迹校验，记录可追溯且失败仍原子回退。引用要求及尚未完成的质量验收见 [任务导向压缩](task-aware-compaction.md)。
 
 ## B04.2 状态进入上下文与记录
 
