@@ -92,6 +92,38 @@ class MemoryService:
         save_organization(self.store.root, organization)
         return organization
 
+    def accept_organization(
+        self,
+        identity: str,
+        candidate_id: str,
+        *,
+        global_scope: bool = False,
+        content: str | None = None,
+        session_id: str | None = None,
+    ) -> MemoryRecord:
+        """确认具体候选，保存概览及完整来源；冲突正文须由用户明确提供。"""
+        plan = self.organize(identity, global_scope=global_scope)
+        candidate = next((c for c in plan.candidates if c.candidate_id == candidate_id), None)
+        if candidate is None:
+            raise MemoryInputError("该整理记录中没有此候选。")
+        return self.store.consolidate(
+            candidate, identity, plan.project, MemorySource("add", session_id), content=content
+        )
+
+    def undo_organization(
+        self,
+        memory_id: str,
+        revision: int,
+        *,
+        global_scope: bool = False,
+        session_id: str | None = None,
+    ) -> MemoryRecord:
+        """撤销尚未修改的整理概览，原子恢复原记录；不隐式扩大项目范围。"""
+        project = None if global_scope else project_identity(self.workspace)
+        return self.store.undo_consolidation(
+            memory_id, project, MemorySource("delete", session_id), expected_revision=revision
+        )
+
     def select(self, query: str, available_tokens: int) -> MemorySelection:
         """按相关性选择完整记录；可选记忆读取失败时返回带警告的空快照。
 

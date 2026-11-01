@@ -134,6 +134,38 @@ class AgentApplication:
             raise AgentError("当前应用未配置记忆管理。")
         return self._memories.organize(identity, global_scope=global_scope)
 
+    def accept_memory_organization(
+        self,
+        identity: str,
+        candidate_id: str,
+        *,
+        global_scope: bool = False,
+        content: str | None = None,
+    ) -> MemoryRecord:
+        """执行用户对一个整理候选的明确确认，不调用模型或创建会话。"""
+        if self._memories is None:
+            raise AgentError("当前应用未配置记忆管理。")
+        return self._memories.accept_organization(
+            identity,
+            candidate_id,
+            global_scope=global_scope,
+            content=content,
+            session_id=self.session.session_id if self.session else None,
+        )
+
+    def undo_memory_organization(
+        self, memory_id: str, revision: int, *, global_scope: bool = False
+    ) -> MemoryRecord:
+        """撤销未改动概览，返回已追加的撤销记录；故障不提前报告成功。"""
+        if self._memories is None:
+            raise AgentError("当前应用未配置记忆管理。")
+        return self._memories.undo_organization(
+            memory_id,
+            revision,
+            global_scope=global_scope,
+            session_id=self.session.session_id if self.session else None,
+        )
+
     def experience_candidates(self) -> list[dict[str, Any]]:
         """查询当前会话候选；不创建会话，不发模型请求。"""
         if self.session is None or self._experiences is None:

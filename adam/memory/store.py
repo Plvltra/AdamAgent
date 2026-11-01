@@ -21,6 +21,8 @@ from adam.contracts.memory import (
     timestamp,
     validate_record,
 )
+from adam.contracts.memory_organization import MemoryCandidate
+from adam.memory.organization_change import consolidate, undo_consolidation
 
 MAX_FILE_BYTES = 16 * 1024 * 1024
 
@@ -182,6 +184,36 @@ class MemoryStore:
             self._append(records, record)
             return record
 
+    def consolidate(
+        self,
+        candidate: MemoryCandidate,
+        organization_id: str,
+        project: str | None,
+        source: MemorySource,
+        *,
+        content: str | None = None,
+    ) -> MemoryRecord:
+        """持锁核对候选快照，原子保存旧事实结束和新概览；重复确认不追加版本。"""
+        with self._locked():
+            records = self._load()
+            change = consolidate(
+                records, candidate, organization_id, project, source, self._clock(), content
+            )
+            if not change.already_saved:
+                self._append(records, change.result, preceding=change.preceding)
+            return change.result
+
+    def undo_consolidation(
+        self, memory_id: str, project: str | None, source: MemorySource, *, expected_revision: int
+    ) -> MemoryRecord:
+        """原子撤销未改动的概览及其到期变更；任何并发修改都会阻止整组恢复。"""
+        with self._locked():
+            records = self._load()
+            result = self._current(records, memory_id, project, expected_revision)
+            change = undo_consolidation(records, result, source, self._clock())
+            self._append(records, change.result, preceding=change.preceding)
+            return change.result
+
     @contextmanager
     def _locked(self) -> Iterator[None]:
         """锁覆盖读取、校验和替换；等待有上限，不把占用伪装成空库。"""
@@ -232,6 +264,7 @@ class MemoryStore:
                     or record.source.operation == "add"
                     or record.experience != previous.experience
                     or record.supersedes != previous.supersedes
+                    or record.derivation != previous.derivation
                 ):
                     raise ValueError("invalid version chain")
                 self._validate_reference(record, records)
@@ -323,25 +356,26 @@ class MemoryStore:
     @staticmethod
     def _validate_reference(record: MemoryRecord, history: list[MemoryRecord]) -> None:
         """关系只指向先前存在的确切版本，防止悬空引用、跨范围和同名异人的串联。"""
-        if record.supersedes is None:
-            return
-        reference = record.supersedes
-        source = next(
-            (
-                item
-                for item in history
-                if item.memory_id == reference.memory_id and item.revision == reference.revision
-            ),
-            None,
-        )
-        if (
-            source is None
-            or source.deleted
-            or source.project != record.project
-            or (source.subject.key if source.subject else None)
-            != (record.subject.key if record.subject else None)
-        ):
-            raise ValueError("invalid supersession source")
+        references = (record.supersedes,) if record.supersedes is not None else ()
+        if record.derivation is not None:
+            references += record.derivation.sources
+        for reference in references:
+            source = next(
+                (
+                    item
+                    for item in history
+                    if item.memory_id == reference.memory_id and item.revision == reference.revision
+                ),
+                None,
+            )
+            if (
+                source is None
+                or source.deleted
+                or source.project != record.project
+                or (source.subject.key if source.subject else None)
+                != (record.subject.key if record.subject else None)
+            ):
+                raise ValueError("invalid referenced memory source")
 
     @staticmethod
     def _current(

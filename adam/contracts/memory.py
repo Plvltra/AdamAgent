@@ -39,6 +39,16 @@ class MemoryReference:
 
 
 @dataclass(frozen=True)
+class MemoryDerivation:
+    """用户确认整理后的来源链；接受保存不表示原事实或新概览已被验证。"""
+
+    organization_id: str
+    candidate_id: str
+    sources: tuple[MemoryReference, ...]
+    verification: str = "unverified"
+
+
+@dataclass(frozen=True)
 class MemoryRecord:
     """一条记忆的一个版本；project 为 None 表示用户显式选择的全局范围。"""
 
@@ -55,6 +65,7 @@ class MemoryRecord:
     subject: MemorySubject | None = None
     valid_from: str | None = None
     supersedes: MemoryReference | None = None
+    derivation: MemoryDerivation | None = None
 
     def active(self, now: datetime) -> bool:
         """判断指定时刻是否处于事实有效期；未生效、过期和删除版本仍保留供追溯。"""
@@ -69,9 +80,11 @@ class MemoryRecord:
         value = asdict(self)
         if self.experience is None:
             value.pop("experience")
-        for key in ("subject", "valid_from", "supersedes"):
+        for key in ("subject", "valid_from", "supersedes", "derivation"):
             if value[key] is None:
                 value.pop(key)
+        if self.derivation:
+            value["derivation"]["sources"] = [asdict(source) for source in self.derivation.sources]
         return value
 
 
@@ -152,6 +165,10 @@ def decode_record(value: object) -> MemoryRecord:
         item["subject"] = MemorySubject(**item["subject"])
     if item.get("supersedes") is not None:
         item["supersedes"] = MemoryReference(**item["supersedes"])
+    if item.get("derivation") is not None:
+        origin = dict(item["derivation"])
+        origin["sources"] = tuple(MemoryReference(**source) for source in origin["sources"])
+        item["derivation"] = MemoryDerivation(**origin)
     record = MemoryRecord(**item)
     validate_record(record)
     return record
@@ -316,3 +333,29 @@ def validate_record(record: MemoryRecord) -> None:
             or record.valid_from is None
         ):
             raise ValueError("invalid replaced memory reference")
+    if record.derivation is not None:
+        origin = record.derivation
+        if (
+            not isinstance(origin, MemoryDerivation)
+            or not isinstance(origin.organization_id, str)
+            or not valid_session_id(origin.organization_id)
+            or not isinstance(origin.candidate_id, str)
+            or re.fullmatch(r"[0-9a-f]{12}", origin.candidate_id) is None
+            or origin.verification != "unverified"
+            or not isinstance(origin.sources, tuple)
+            or not 1 <= len(origin.sources) <= 256
+        ):
+            raise ValueError("invalid memory derivation")
+        identities = set()
+        for reference in origin.sources:
+            if (
+                not isinstance(reference, MemoryReference)
+                or not isinstance(reference.memory_id, str)
+                or not valid_session_id(reference.memory_id)
+                or reference.memory_id == record.memory_id
+                or reference.memory_id in identities
+                or type(reference.revision) is not int
+                or reference.revision < 1
+            ):
+                raise ValueError("invalid derived source")
+            identities.add(reference.memory_id)

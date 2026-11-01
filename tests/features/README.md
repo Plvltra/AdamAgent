@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B07.2 确认与撤销 | 15 项概览/来源/幂等确认、明确解决冲突、原子故障、并发保护、有效期、损坏及请求重放 | [test_memory_consolidation.py](test_memory_consolidation.py) |
 | B07.1 离线整理候选 | 16 项四类候选、确切来源、范围和同名隔离、不调用模型、重启、损坏与保存失败；相关回归共 70 项 | [test_memory_organization.py](test_memory_organization.py) |
 | B06.3 召回组合验收 | 7 项固定题集/来源留证、不可用与降级、写入停止、主子版本继承；真实本地十题结果另存并保留失败 | [test_memory_retrieval_acceptance.py](test_memory_retrieval_acceptance.py)、[真实对照](../../docs/memory-retrieval-evaluation.md) |
 | B06.2 主体与事实时间 | 20 项同名/显式主体、有效期、原子替代、失败回滚、重启、错误来源及真实请求/重放；相关回归共 131 项 | [test_memory_identity.py](test_memory_identity.py) |
