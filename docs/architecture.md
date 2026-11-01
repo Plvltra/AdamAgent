@@ -326,6 +326,7 @@ flowchart LR
 ~~~
 
 读取工具与资料索引均已接入；PDF 页码是物理页，行号是页内提取位置，扫描提示不代表执行了 OCR；原文件授权、元数据校验和资源限制见 [PDF 感知](pdf-perception.md)。
+C 系列规划核对（2026-11-01）：主线 B06.2 的实现正文和图完整保留；拟议能力边界见 [能力模块设计](capability-module-design.md)，任务见 [C 系列规划](agent-capability-practice-plan.md)。C 能力尚未实现，本提交未改写 Python 代码或注释。
 
 ## B16 语义工具目录与运行时接入
 
@@ -638,6 +639,7 @@ flowchart LR
 ~~~
 
 本地入口不使用 CX_MODEL 分支；真实模型只在用户显式开启实验时运行。详见 [语境对照](contextual-retrieval.md)。
+
 
 ## B10.2 语境进入评分
 
