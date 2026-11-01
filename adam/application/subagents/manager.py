@@ -242,7 +242,7 @@ class SubagentManager:
         return tuple(proposals)
 
     def instructions(self, session_id: str | None) -> str:
-        """系统层只补本会话的受控 ID，子回复仅经 tool 结果回传。
+        """提供本会话的受控 ID 和收尾提醒，子回复仅经 tool 结果回传。
 
         session_id 用于预览作用域隔离；预览另一会话不绑定或带入旧子任务状态。
         """

@@ -99,7 +99,10 @@ def test_replay_runs_plan_reminder_and_tool_loop_without_repeating_command(tmp_p
         elif number == 2:
             value = answer("premature")
         elif number == 3:
-            assert "计划收尾提醒" in body["messages"][0]["content"]
+            assert any(
+                m["role"] == "user" and "计划收尾提醒" in (m.get("content") or "")
+                for m in body["messages"]
+            )
             value = tool_response(
                 [call("done", "update_plan", steps=[step("completed", ["read", "command"])])]
             )

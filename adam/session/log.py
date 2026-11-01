@@ -6,7 +6,7 @@ from typing import Any
 
 from adam.contracts.artifacts import ArtifactRef, decode_artifact_reference
 from adam.contracts.execution import FILE_EDIT_TOOLS
-from adam.contracts.history import HistoryTurn
+from adam.contracts.history import HistoryTurn, validate_context_layout
 from adam.contracts.memory import validate_selection
 from adam.contracts.planning import decode_plan
 from adam.contracts.protocol import validate_turn
@@ -322,6 +322,7 @@ class SessionLog:
             return
         if not isinstance(context, dict) or context.get("strategy") != "recent_turns_v1":
             raise ValueError("invalid context strategy")
+        validate_context_layout(context.get("layout_version"))
         selected, omitted = context.get("selected_turn_ids"), context.get("omitted_turn_ids")
         if not isinstance(selected, list) or not isinstance(omitted, list):
             raise ValueError("invalid context ranges")

@@ -112,7 +112,8 @@ def show_context(
         f"（系统 {estimate.system_tokens}，历史 {estimate.history_tokens}，"
         f"本轮 {estimate.turn_tokens}，工具说明 {estimate.tools_tokens}，摘要 {estimate.summary_tokens}，"
         f"记忆 {estimate.memory_tokens}、反思建议 {estimate.reflection_tokens}、"
-        f"Skill目录 {estimate.skill_tokens}、项目规则 {estimate.rules_tokens}）。"
+        f"Skill目录 {estimate.skill_tokens}、项目规则 {estimate.rules_tokens}、"
+        f"运行提示 {estimate.runtime_tokens}）。"
     )
     write(
         f"历史：保留 {len(context.selected_turn_ids)} 轮，省略 {len(context.omitted_turn_ids)} 轮；原始日志保留。"

@@ -16,6 +16,7 @@ from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.config.settings import AgentConfig, ContextConfig, PlanningConfig, ReflectionConfig
 from adam.contracts.delegation import RequestAccount
+from adam.contracts.history import validate_context_layout
 from adam.contracts.models import ModelOutput
 from adam.contracts.ports import ToolRunner
 from adam.contracts.skills import SkillSelection, validate_catalog
@@ -79,6 +80,11 @@ class CaptureRuntime:
             "accounting": conversation.accounting is not None,
             "mode": conversation.mode_provider is not None,
             "skills": list(conversation.skills),
+            **(
+                {"context_layout": conversation.context_builder.layout_version}
+                if conversation.context_builder.layout_version
+                else {}
+            ),
         }
         previous_observer = conversation.observe_input
 
@@ -223,7 +229,7 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
     }
     if (
         not isinstance(boot, dict)
-        or boot.keys() != flags | {"skills"}
+        or boot.keys() - {"context_layout"} != flags | {"skills"}
         or any(type(boot[key]) is not bool for key in flags)
         or not isinstance(arguments, dict)
         or arguments.keys() != {"text", "selected_skill"}
@@ -231,10 +237,11 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
     ):
         raise RecordingError("录制运行资料的字段或输入无效。")
     try:
+        validate_context_layout(boot.get("context_layout"))
         validate_catalog(boot["skills"])
         decode_skill(arguments["selected_skill"], boot["skills"])
     except (ValueError, TypeError, KeyError) as error:
-        raise RecordingError("录制的技能目录或选择无效。") from error
+        raise RecordingError("录制的上下文布局、技能目录或选择无效。") from error
     return boot, arguments
 
 
@@ -265,6 +272,8 @@ def build_replay(
         limits,
         model=seed["model"],
         context_config=context_limits,
+        # 缺少布局标记的旧录制继续使用旧消息顺序和估算，不伪造相同请求。
+        context_layout=boot.get("context_layout"),
         planning=PlanningService(store, PlanningConfig(**controls["planning"]))
         if boot["planning"]
         else None,

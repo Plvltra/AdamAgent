@@ -3,6 +3,14 @@
 from dataclasses import dataclass
 from typing import Any
 
+CONTEXT_LAYOUT_VERSION = "stable_prefix_v1"
+
+
+def validate_context_layout(value: object) -> None:
+    """None 表示旧消息排列；未知布局拒绝读取，不以当前顺序猜测旧请求。"""
+    if value is not None and value != CONTEXT_LAYOUT_VERSION:
+        raise ValueError("unknown context layout")
+
 
 @dataclass(frozen=True)
 class HistoryTurn:

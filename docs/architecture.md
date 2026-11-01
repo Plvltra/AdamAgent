@@ -2,11 +2,29 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B03.1 模型缓存和输入前缀观测、普通/摘要结算、录制重放及43项专项验收。
+本次核对范围：B03.2 稳定前缀与运行资料分离、独立预算分类、排列版本及旧新重放；17 项专项验收。
 
-核对结论：模型适配层新增可选观测，应用仅传递，日志/录制严格校验并兼容缺省；send 和 CLI 未增加缓存策略。总用量解析及其说明从 streaming 迁到 llm/usage，原 complete 的参数/协议说明保留，非流式实现拆入 _complete_json；其他关键注释保留或随新契约更新。
+核对结论：Conversation 分别传入稳定约束与运行提示；ContextBuilder 负责排列和预算，CLI 只展示，录制通过应用参数恢复原布局。模块依赖方向无新增跨层边。旧拼接保留供回放，工具配对和原注释约束保留；子任务提示及构造入口的说明按新位置更新。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B03.2 稳定前缀与运行资料
+
+~~~mermaid
+flowchart LR
+    LAYOUT_APP["Conversation / 原系统约束、运行提示分开"] --> LAYOUT_BUILDER["ContextBuilder / 排列完整来源块"]
+    LAYOUT_SERVICES["子任务、计划、审查 instructions"] --> LAYOUT_APP
+    LAYOUT_CONTRACT["contracts.history / 布局版本"] --> LAYOUT_BUILDER
+    LAYOUT_BUILDER --> LAYOUT_CONTEXT["RequestContext / 消息、运行提示估算、选择版本"]
+    LAYOUT_CONTEXT --> LAYOUT_REQUEST["RequestRunner / 实际模型请求"]
+    LAYOUT_CONTEXT --> LAYOUT_UI["terminal.show_context / 只读展示"]
+    LAYOUT_REQUEST --> LAYOUT_LOG["SessionLog / 校验排列版本"]
+    LAYOUT_CONTRACT --> LAYOUT_LOG
+    LAYOUT_CAPTURE["CaptureRuntime / 保存 context_layout"] --> LAYOUT_REPLAY["build_replay / 注入旧或新布局"]
+    LAYOUT_REPLAY --> LAYOUT_APP
+~~~
+
+[构造器](../adam/context/builder.py) 保留系统/模式与目录前缀，将运行提示作为历史之后的参考资料；完整历史及本轮工具链内部不重排。运行提示计入受保护预算，审查内容不提升为 system。排列版本定义于 [历史契约](../adam/contracts/history.py)，[录制运行组装](../adam/recording/runtime.py) 通过 Conversation 参数恢复旧布局，不直接依赖上下文实现。详见 [上下文排列](cache-observation.md)。
 
 ## B03.1 模型缓存与输入前缀观测
 
@@ -35,7 +53,7 @@ flowchart LR
 
 [录制](../adam/recording/capture.py) 保存可选字段，[协议校验](../adam/recording/format.py) 不放开任意字段，
 [重放适配](../adam/recording/replay_adapters.py) 与 [错误恢复](../adam/recording/replay.py) 直接恢复原数据，离线不创建新模型客户端。
-字节布局、兼容及验收边界见 [缓存观测](cache-observation.md)；B03.2 的上下文排列尚未修改。
+字节观测与消息排列各有独立版本；兼容及验收边界见 [缓存观测](cache-observation.md)。
 
 ## B02 成对评估、显式运行与只读报告
 

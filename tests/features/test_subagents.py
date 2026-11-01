@@ -280,7 +280,10 @@ def test_parent_cannot_commit_answer_before_collecting_child_result(tmp_path):
         elif len(requests) == 2:
             result = answer("premature answer")
         elif len(requests) == 3:
-            assert "尚未收集" in body["messages"][0]["content"]
+            assert any(
+                m["role"] == "user" and "尚未收集" in (m.get("content") or "")
+                for m in body["messages"]
+            )
             result = tool_response([call("wait", "wait_agents", agent_ids=[])])
         else:
             result = answer("answer with evidence")

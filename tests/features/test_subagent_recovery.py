@@ -53,7 +53,10 @@ def delegation_api():
         def do_POST(self):  # noqa: N802
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             state.calls.append(body)
-            user = next(item["content"] for item in body["messages"] if item["role"] == "user")
+            # 目录和运行状态也可用 user 角色提供；按最近任务输入识别测试请求。
+            user = next(
+                item["content"] for item in reversed(body["messages"]) if item["role"] == "user"
+            )
             child = "辅助子 Agent" in body["messages"][0]["content"]
             try:
                 if child:

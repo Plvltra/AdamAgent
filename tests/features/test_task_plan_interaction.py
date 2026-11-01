@@ -29,7 +29,10 @@ def test_unfinished_final_is_reminded_at_most_once_and_never_exceeds_budget(tmp_
         else:
             data = answer(f"reply {len(requests)}")
         if len(requests) == 3:
-            assert "计划收尾提醒" in body["messages"][0]["content"]
+            assert any(
+                m["role"] == "user" and "计划收尾提醒" in (m.get("content") or "")
+                for m in body["messages"]
+            )
         return httpx.Response(200, json=data)
 
     with plan_app(tmp_path, handler, config=config, notices=notices, plans=plans) as (app, store):
@@ -48,10 +51,14 @@ def test_unfinished_final_is_reminded_at_most_once_and_never_exceeds_budget(tmp_
         session_id = app.session.session_id
         assert store.load_messages(session_id)[-1].content == reply
         assert len(requests) == min(max_requests, 3)
-        assert "计划收尾提醒" not in app.preview_context().messages[0]["content"]
+        assert not any(
+            "计划收尾提醒" in (m.get("content") or "") for m in app.preview_context().messages
+        )
         app.new("another")
         assert app.plan_report() is None
-        assert "计划收尾提醒" not in app.preview_context().messages[0]["content"]
+        assert not any(
+            "计划收尾提醒" in (m.get("content") or "") for m in app.preview_context().messages
+        )
         handle_command("/plan unexpected", app, shown.append)
         assert shown[-1] == "用法：/plan"
         assert len(requests) == min(max_requests, 3)
@@ -153,7 +160,10 @@ def test_streamed_premature_final_is_hidden_until_plan_is_closed(tmp_path):
         if len(bodies) == 1:
             return plan_stream("start", step("in_progress"))
         if len(bodies) == 3:
-            assert "计划收尾提醒" in body["messages"][0]["content"]
+            assert any(
+                m["role"] == "user" and "计划收尾提醒" in (m.get("content") or "")
+                for m in body["messages"]
+            )
             return plan_stream("close", step("cancelled", reason="cannot finish"))
         text = "premature" if len(bodies) == 2 else "honest final"
         return sse([event({"content": text}), event(reason="stop", usage=USAGE), DONE])

@@ -22,7 +22,7 @@ from adam.contracts.errors import (
     TurnSaveError,
 )
 from adam.contracts.execution import ExecutionMode, ToolBudget
-from adam.contracts.history import Summary
+from adam.contracts.history import CONTEXT_LAYOUT_VERSION, Summary
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import ExecutionReport, ModelOutput, Session
 from adam.contracts.planning import TaskPlanner
@@ -58,6 +58,7 @@ class Conversation:
         *,
         model: str,
         context_config: ContextConfig | None = None,
+        context_layout: str | None = CONTEXT_LAYOUT_VERSION,
         notify: Callable[[str], None] | None = None,
         accounting: Callable[[str], RequestAccount] | None = None,
         delegation: Delegation | None = None,
@@ -71,6 +72,7 @@ class Conversation:
         rules: ProjectRules | None = None,
         mode_provider: Callable[[], ExecutionMode] | None = None,
     ) -> None:
+        """注入会话依赖；context_layout 仅供旧录制重放，默认使用当前排列。"""
         self.observe_input: Callable[[str, SkillSelection | None], None] | None = None
         self.store = store
         self.client = client
@@ -81,7 +83,9 @@ class Conversation:
         self.tool_executor = tools
         self._last_turn: tuple[str, str] | None = None
         self.context_builder = ContextBuilder(
-            context_config or ContextConfig(), self.limits.max_output_tokens
+            context_config or ContextConfig(),
+            self.limits.max_output_tokens,
+            layout_version=context_layout,
         )
         self.notify = notify or (lambda _: None)
         self.accounting, self.delegation = accounting, delegation
@@ -419,12 +423,15 @@ class Conversation:
         selected_skill: SkillSelection | None = None,
         tool_turn_id: str | None = None,
     ) -> RequestContext:
-        """读取成功历史并委托构造；预览与每次真实请求共用，模式同步且工具结果加入后重新估算。"""
+        """读取成功历史并委托构造；稳定约束与运行提示分开，预览和请求共享预算及模式。
+
+        每次工具结果加入后重新估算，不沿用上一请求的预算。
+        """
         history = self.store.load_turns(session.session_id) if session is not None else []
         return self.context_builder.build(
             model=self.model,
-            system_prompt=(session.system_prompt if session is not None else self.system_prompt)
-            + (
+            system_prompt=session.system_prompt if session is not None else self.system_prompt,
+            runtime_instructions=(
                 self.delegation.instructions(session.session_id if session else None)
                 if self.delegation
                 else ""
