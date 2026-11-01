@@ -2,11 +2,27 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B05.2 合成长历史与八个查询、严格样本加载和只读引用审计；生产压缩关系保持 B05.1。
+本次核对范围：B05.3 同历史双查询的摘要对照、独立证据记录、只读报告与人工判读。
 
-核对结论：生产架构无变化；新增 scripts.compaction_cases 作为离线评估入口，复用 HistoryTurn 和协议校验，读取固定 JSON 数据，不进入工具调用或摘要提交链路。引用解析和语义评审分开；本次新增接口说明已核对，没有移除生产代码注释。
+核对结论：生产压缩架构无变化；新增评估入口复用 CompactionService.plan 和 LLMClient，在专用目录保存合成来源和请求记录，不执行历史工具、不激活摘要。fixture、运行与报告职责分离，报告无联网依赖；新增关键接口契约已审查，原有说明保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B05.3 压缩对照入口
+
+~~~mermaid
+flowchart LR
+    CE_CASES["compaction_cases / 固定历史和判据"] --> CE_FIXTURE["compaction_fixture / 独立合成来源与运行顺序"]
+    CE_FIXTURE --> CE_RUN["compaction_eval / 生产摘要规划与预算"]
+    CE_RUN --> CE_API["LLMClient / 显式启用真实请求"]
+    CE_RUN --> CE_FILES["新目录 / manifest 与逐请求证据"]
+    CE_API --> CE_FILES
+    CE_FILES --> CE_REPORT["compaction_report / 只读验证与引用审计"]
+    CE_CASES --> CE_REPORT
+    CE_REVIEW["绑定哈希的人工判读"] --> CE_REPORT
+~~~
+
+[运行器](../scripts/compaction_eval.py)、[合成来源](../scripts/compaction_fixture.py) 和 [报告](../scripts/compaction_report.py) 的成功、故障、未知消费与质量边界见 [压缩保真评估](compaction-evaluation.md)。
 
 ## B05.1 任务导向摘要
 
