@@ -2,9 +2,9 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B08.2 主 Agent 历史工具、显式授权配置、输出分页与执行边界。
+本次核对范围：B08.3 多来源变化、读取竞争、压缩后重启与实际目录链接验收。
 
-核对结论：bootstrap 只向主应用注册 SessionTools；它由当前存储身份与已校验配置形成授权范围，复用 SessionSearchIndex，仍经过原工具执行器。Conversation 与录制协议无需增加分支，子 Agent 不继承额外历史授权。新增契约已说明范围、版本及输出预算；原有说明保持。
+核对结论：本次只补业务验收和边界说明，架构无变化。实际执行验证 SessionSearchIndex 淘汰无效缓存并报告读取竞争；SessionTools 不恢复旧日志，恢复仍由 SessionStore 持锁完成。原文索引与诊断状态关系沿用下图，原有关键说明保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
