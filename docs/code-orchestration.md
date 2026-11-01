@@ -105,6 +105,28 @@ Python 必须兼容隔离发行版的 3.8 版本。代码参数在 Hook 和后�
 python -m scripts.chat_orchestration_acceptance --distribution Ubuntu --output chat-rpc-result.json
 ```
 
-报告必须新建。B14.3 仍负责真实进程取消、强杀、异常清理和组合故障；本节不把成功路径报告当成这些故障已验收。
+报告必须新建。B14.3 的独立故障证据见下节，成功路径与失败清理分别验收。
 
 B14.2.2 新增 17 项场景；与嵌套、隔离 API、子任务、录制、计划、配置和架构共 176 项通过。Ruff、Pyright 与文档链接已检查，主线提交仍执行全量 pytest。
+
+
+## B14.3 真实故障与重启验收
+
+[故障入口](../scripts/orchestration_fault_acceptance.py) 每例启动独立 Windows 宿主，经过生产聊天和真实 WSL/Bubblewrap。只在第一次真实底层工具结束后暂停，父进程确认 Linux supervisor、wrapper 和 worker 的身份后放行、取消或强杀宿主。代码带本例随机身份，清理核对 PID 和启动时间，不匹配其他测试或用户进程。
+
+| 故障 | 观察到的行为 |
+| --- | --- |
+| 工作目录外读取 | 原路径权限拒绝，敏感哨兵不进入模型；模型可以继续说明拒绝事实 |
+| 根入口与底层调用总计超额 | 第二次底层动作未开始，轮次以 tool_limit 停止；第一项已有记录保留 |
+| worker 退出 7 | 工具保留非零退出事实；后续回答说明失败，不将退出改为成功 |
+| worker 写出坏帧 | 以 isolation_error 停止，无后续模型请求或自动重跑 |
+| 取消正在等待的 worker | 协作取消结束本轮，保留 interrupted 和原有效历史 |
+| 直接强杀 Windows 宿主 | Linux 端收到通道断开并清理；重新持锁读取追加 restart_recovery，不重发、不提交失败输入 |
+
+[真实报告](evaluations/b14-faults.json) 六例均确认所有已跟踪 Linux 进程退出，并两次打开会话验证恢复幂等。报告中的 succeeded 仅表示“说明失败的回答已完整保存”，不表示底层工具或用户任务成功。停止耗时是这次观察，不是所有机器和所有工具的延迟承诺。验收使用临时目录，模型为固定 MockTransport，付费请求 0；未测试的内核漏洞和真实模型编排效果不在结论内。
+
+```powershell
+python -m scripts.orchestration_fault_acceptance --distribution Ubuntu --output rpc-faults-result.json
+```
+
+[宿主管道测试](../tests/features/test_orchestration_cleanup.py) 新增 8 项：成功、EOF、残帧、坏帧、尾部杂字、启动器异常退出、取消、回调存储异常。它用真实 Python 子进程和管道替换 Linux 启动器，验证生产宿主清理和异常传播；不能代替上面的 OS 验收。与协议、隔离、嵌套、工具循环和架构共 112 项通过；Ruff、Pyright 和文档链接已检查，主线提交门禁仍运行全量 pytest。

@@ -1,0 +1,74 @@
+{
+  "checked_at": "2026-11-01T10:38:39.859220+00:00",
+  "real_backend": true,
+  "model_transport": "httpx.MockTransport",
+  "paid_requests": 0,
+  "cases": [
+    {
+      "phase": "denied_path",
+      "requests": 2,
+      "tool_starts": 2,
+      "turn_status": "succeeded",
+      "reason": "completed",
+      "tracked_linux_processes": 4,
+      "all_reaped": true,
+      "stop_and_reap_seconds": 0.81,
+      "restart_idempotent": true
+    },
+    {
+      "phase": "budget",
+      "requests": 1,
+      "tool_starts": 2,
+      "turn_status": "failed",
+      "reason": "tool_limit",
+      "tracked_linux_processes": 4,
+      "all_reaped": true,
+      "stop_and_reap_seconds": 0.69,
+      "restart_idempotent": true
+    },
+    {
+      "phase": "worker_exit",
+      "requests": 2,
+      "tool_starts": 2,
+      "turn_status": "succeeded",
+      "reason": "completed",
+      "tracked_linux_processes": 4,
+      "all_reaped": true,
+      "stop_and_reap_seconds": 0.73,
+      "restart_idempotent": true
+    },
+    {
+      "phase": "malformed",
+      "requests": 1,
+      "tool_starts": 2,
+      "turn_status": "failed",
+      "reason": "isolation_error",
+      "tracked_linux_processes": 4,
+      "all_reaped": true,
+      "stop_and_reap_seconds": 0.58,
+      "restart_idempotent": true
+    },
+    {
+      "phase": "cancel",
+      "requests": 1,
+      "tool_starts": 2,
+      "turn_status": "interrupted",
+      "reason": "interrupted",
+      "tracked_linux_processes": 4,
+      "all_reaped": true,
+      "stop_and_reap_seconds": 0.95,
+      "restart_idempotent": true
+    },
+    {
+      "phase": "kill",
+      "requests": 1,
+      "tool_starts": 2,
+      "turn_status": "interrupted",
+      "reason": "restart_recovery",
+      "tracked_linux_processes": 4,
+      "all_reaped": true,
+      "stop_and_reap_seconds": 0.33,
+      "restart_idempotent": true
+    }
+  ]
+}

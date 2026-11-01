@@ -1,6 +1,6 @@
 # Adam
 
-B14.2 已接入可选隔离代码编排：开启 `[orchestration]` 后，模型可用 execute_code 在固定 WSL/Bubblewrap worker 内筛选和组合工具结果。底层工具沿原权限、批准、Hook、共享额度和日志；脚本成功不能把失败命令变成计划完成证据。默认关闭，配置与真实本地验收见 [代码编排](docs/code-orchestration.md)；B14.3 故障组合验收仍待完成。
+B14.2 已接入可选隔离代码编排：开启 `[orchestration]` 后，模型可用 execute_code 在固定 WSL/Bubblewrap worker 内筛选和组合工具结果。底层工具沿原权限、批准、Hook、共享额度和日志；脚本成功不能把失败命令变成计划完成证据。默认关闭，配置与真实本地验收见 [代码编排](docs/code-orchestration.md)；B14.3 已通过真实越权/超额/故障、取消和宿主强杀恢复验收，模型效果仍须另行评估。
 
 B12 知识使用入口已接通：主模型可用 propose_knowledge 保存有支持/反证的待审候选，主子模型可用 query_published_knowledge 查询已发布、来源当前且在有效期的知识。独立 `python -m adam.knowledge` 提供查看、显式审查、确认发布与撤回；审查可能产生 API 费用，模型不能自行批准。配置、命令和持久数据边界见 [知识候选与发布](docs/knowledge-proposals.md)。
 
