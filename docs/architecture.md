@@ -2,11 +2,24 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B10.3 语境对照、显式模型生成、消费与捕获边界、语境版本一致性。
+本次核对范围：B11.1 独立二层知识目录、原文引用和概览缓存。
 
-核对结论：生产聊天默认路径无变化；独立脚本可显式注入 ModelContextBuilder，使用生产 LLMClient，不提供工具执行。固定资料、输入/响应与失败证据单独保存；documents.evaluation 增加语境版本一致性检查。原指标与引用解释保留，新增说明区分意图、已知未发送、未知消费及真实效果。
+核对结论：新增 documents.catalog，从已授权 Corpus 构造主题与原片段两层结构，复用文件锁和原子快照；尚未接入聊天工具。既有检索、语境和实验说明保留，新说明明确代表摘录、全部引用、重建与失败契约。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B11.1 二层知识目录
+
+~~~mermaid
+flowchart LR
+    KC_INDEX["DocumentIndex / 已授权 Corpus"] --> KC_BUILD["documents.catalog / build_catalog"]
+    KC_BUILD --> KC_TOPICS["KnowledgeTopic / 有界逐字概览"]
+    KC_TOPICS --> KC_REFS["CatalogReference / 全部原文版本与位置"]
+    KC_STORE["KnowledgeCatalogStore / 文件锁"] --> KC_BUILD
+    KC_STORE --> KC_SNAPSHOT["原子快照 / 来源与规则版本"]
+~~~
+
+目录不增加文件权限，当前入口为独立 API；详见 [知识目录](knowledge-catalog.md)。
 
 ## B10.3 独立语境实验
 

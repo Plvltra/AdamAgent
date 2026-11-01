@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B11.1 二层知识目录 | 12 项真实索引、主题合并、全部引用、逐字截断、更新删除、重启损坏、保存失败和取消 | [test_knowledge_catalog.py](test_knowledge_catalog.py) |
 | B10.3 语境对照与生成 | 19 项固定资料/JSON与SSE/预算与未知/捕获失败/取消/工具拒绝/错误说明和版本/显式入口；归档实际本地退步 | [test_context_prefix_evaluation.py](test_context_prefix_evaluation.py) |
 | B10.2 语境检索接入 | 13 项三路检索与原文分离/前缀向量失效/源变化/关闭与故障/输出限额/日志重放/配置 CLI | [test_contextual_retrieval.py](test_contextual_retrieval.py) |
 | B10.1 独立语境说明 | 11 项原文分离/来源与生成器变化/有限输入/缓存重启/失败原子保存/错绑与损坏拒绝 | [test_context_prefixes.py](test_context_prefixes.py) |
