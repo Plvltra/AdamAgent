@@ -49,7 +49,7 @@ class RequestRunner:
     ) -> tuple[str, Completion]:
         """执行一次物理请求：检查预算、登记、调用和结算；外层策略决定是否重试。
 
-        record_context 仅用于专门反思的来源记录；普通请求沿用上下文选择记录。
+        record_context 可为反思或显式视觉问答提供来源记录；普通请求沿用上下文选择记录。
         反思协议错误且用量已结算时返回空正文，保留请求失败记录，调用方再记录无效反思。
         返回本次 request_id 与包含可靠用量的 Completion，供工具关联来源请求。
         turn_id 指向已记录的用户输入；context 是本次构造结果，先检查输入预算再登记请求。

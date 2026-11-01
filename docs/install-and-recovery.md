@@ -26,6 +26,7 @@ ADAM_HOME 可以切换整套配置/数据根目录。--config、--llm-config 指
 
 C04.1 默认关闭。显式 `uv sync --locked --extra vision` 后在 [vision] 设置 enabled=true，可用 load_image 保存单帧 PNG/JPEG/WebP 的原始版本、尺寸与 EXIF 方向。关闭时不要求 Pillow；加载并不升级默认模型或隐式附图，见 [图片输入](image-input.md)。备份时原图片证据仍随整个 _media 与会话来源日志保留，不能仅复制工具结果。
 
+C04.2 另有显式 `python -m adam.cli.image_question`，仅消费已保存的 load_image 主会话原图；先退出持锁聊天，再传会话目录、ID、media_id 与完整 version。需用户自己准备并启动回环 llama.cpp 视觉服务，正常聊天/pytest 不会下载模型或启动服务；默认 DeepSeek 配置与密钥不变。IO 超时/取消、已知/未知用量、无单价费用及已有子日志预算沿原会话留证，失败不自动续发；模型效果不保证，实际失败见 [视觉问答](visual-question-answering.md)。
 ## 本地回归
 
 ```powershell

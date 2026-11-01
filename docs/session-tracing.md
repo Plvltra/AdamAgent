@@ -286,3 +286,9 @@ proposal_submitted 在本子轮 submit_proposal 进行中保存，read 指向同
 ## T12.2 实际工具说明
 
 request_started.context.tool_schema 可选记录 names 与 utf8_bytes，来自实际该次 RequestContext.tools；大小按 ensure_ascii=False 的默认 JSON 编码统计，不等于 HTTP 字节或 token。整段输入估算仍在 estimated_input_tokens，旧记录缺省保持未知。工具开始/结束继续绑定原 turn_id、request_id、tool_call_id；同批发现不能扩展触发本批请求的工具名单。
+
+## C04.2 专用视觉请求
+
+独立显式单图入口仍使用原 request_started/request_usage/request_finished、turn_started/turn_completed/turn_finished；不新增事件类型或版本。request_started.context.image_question 是可选证据：version=1、backend=llama_cpp、images 为与当前 turn_started.media 完全相等的一张原图、cost/currency=null、cost_status=unpriced。有字段时 contracts.vision 严格校验，不允许换图或伪造零价；旧请求无字段仍兼容。
+
+该段表示输入来源和无可核实价格，不是已计费图片量；实际 token/未知用量、请求耗时、超时/取消原因继续以原结算事件为准。成本未知不冒充零，成功请求也可能因未知用量或最终保存失败而整轮失败。专用入口恢复既有子日志消费并共用预算预留，不自动重发模型或子任务。使用、真实失败及与冻结录制的区别见 [视觉问答](visual-question-answering.md)。

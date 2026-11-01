@@ -69,8 +69,9 @@
 | B17.3.1 图片扩展 API | 24项来源/单次调用/不可用/用量/故障契约，相关97项通过；无生产视觉后端，不代表视觉效果验收 | [test_image_analysis_contract.py](test_image_analysis_contract.py) |
 | B17.2.2 PDF 页级索引 | 21项新增；两组相关143与227项通过，涵盖来源/扫描提示/版本/权限/故障/重放；主线门禁全量验证 | [test_pdf_indexing.py](test_pdf_indexing.py) |
 | B17.2.1 PDF 读取工具 | 15项权限/变化/页码/额度/取消/配置/重放；两组相关162和111项通过，新增TOML后62项 | [test_pdf_tools.py](test_pdf_tools.py) |
+| C04.2 显式本地视觉问答 | 62 项业务/配置/复现边界：原字节/来源与原系统约束、无旧历史/工具、JSON/SSE、未知费用、主子共享额度、超时/取消/保存失败、真实 TCP/CLI/重启及不重复结算；真实固定烟测首批 2/4、复验 3/4，失败保留 | [test_image_questions.py](test_image_questions.py)、[真实入口](../../scripts/vision_acceptance.py)、[限制与证据](../../docs/visual-question-answering.md) |
+| C04.1 本地图片输入 | 29 项业务、36 项解码及 13 项配置/独立进程导入：真实 PNG/JPEG/WebP、尺寸/EXIF 方向、原字节与版本、显式附图/无能力拒绝、发现/规则/Hook/预算、取消/保存失败、重启/父子隔离及零解码事实重放；C04.2 已另做有限真实烟测，综合视觉/OCR 质量待 C04.3～4 | [test_image_input.py](test_image_input.py)、[解码](../test_image_decoding.py)、[配置](../test_vision_config.py) |
 | B17.1 PDF 提取基础 | 15项真实页码/版本/图像标记/截断/加密/解码限额/取消/配置隔离；架构合计37项，真实中文书稿三页另存统计 | [test_pdf_extraction.py](test_pdf_extraction.py) |
-| C04.1 本地图片输入 | 29 项业务、36 项解码及 13 项配置/独立进程导入：真实 PNG/JPEG/WebP、尺寸/EXIF 方向、原字节与版本、显式附图/无能力拒绝、发现/规则/Hook/预算、取消/保存失败、重启/父子隔离及零解码事实重放；视觉质量待 C04.2～4 | [test_image_input.py](test_image_input.py)、[解码](../test_image_decoding.py)、[配置](../test_vision_config.py) |
 | B16.3 二十工具对照 | 7项报告、错误与权限验收；相关共115项；真实本地命中9/10，多余候选与失败原样归档 | [test_tool_discovery_evaluation.py](test_tool_discovery_evaluation.py) |
 | B16.2 语义发现接入 | 8项真实发现/请求名单/文件调用、同批与路径拒绝、降级/分页、变更目录、主子隔离及重启重放；相关共108项 | [test_semantic_tool_flow.py](test_semantic_tool_flow.py) |
 | B16.1 语义工具目录基础 | 22项真实目录权限/选择隔离、固定向量排序、缓存失效、坏批次/取消和配置；相关共136项，聊天接入待B16.2 | [test_semantic_tool_directory.py](test_semantic_tool_directory.py) |

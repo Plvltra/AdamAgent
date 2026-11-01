@@ -6,7 +6,7 @@ from contextlib import AbstractContextManager, ExitStack, contextmanager
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -94,6 +94,12 @@ from adam.tool_calls.terminal_tools import TerminalTools
 from adam.tool_calls.trigger_tools import TriggerTools
 from adam.tool_calls.vision_tools import register_vision
 from adam.tool_calls.web_tools import register_web
+
+if TYPE_CHECKING:
+    from adam.application.image_questions import ImageQuestions
+    from adam.config.settings import AgentConfig, ContextConfig
+    from adam.config.vision import LocalVisionConfig
+
 
 ChildClientFactory = Callable[[CancellationToken], AbstractContextManager[ModelClient]]
 
@@ -995,3 +1001,47 @@ def open_application(
             raise
         else:
             application.close()
+
+
+@contextmanager
+def open_image_questions(
+    sessions_dir: Path,
+    session_id: str,
+    local: "LocalVisionConfig",
+    *,
+    limits: "AgentConfig | None" = None,
+    context: "ContextConfig | None" = None,
+    cancel: CancellationToken | None = None,
+) -> Iterator["ImageQuestions"]:
+    """显式打开本地单图问答；借用已有会话来源，不读取默认聊天密钥或启动模型。
+
+    独占会话写锁、可取消 HTTP 及媒体读取端口在退出/失败时释放；不共享原应用的连接。
+    不跟随重定向或环境代理，地址只允许 LocalVisionConfig 校验的字面回环。
+    调用方传入项目额度可保持原限制；未传时使用保守默认额度，不合并其他会话。
+    """
+    from adam.application.image_questions import ImageQuestions
+    from adam.config.settings import AgentConfig, ContextConfig
+    from adam.llm.local_vision import LlamaVisionClient
+
+    token = cancel or CancellationToken()
+    token.check()
+    with (
+        SessionStore(sessions_dir) as store,
+        httpx.Client(
+            transport=InterruptibleTransport(token), follow_redirects=False, trust_env=False
+        ) as http,
+    ):
+        store.select_session(session_id)
+        media = SessionMedia(store, MediaStore(store.root / "_media"))
+        client = LlamaVisionClient(
+            local, http, lambda ref: media.read(ref.media_id, expected_version=ref.version)
+        )
+        yield ImageQuestions(
+            store,
+            client,
+            media,
+            local.model,
+            limits or AgentConfig(),
+            context or ContextConfig(),
+            token,
+        )

@@ -67,3 +67,28 @@ class SessionAccount:
             self.budget.update(self.owner + ":unreadable", 0, True)
             raise
         self.budget.update(self.owner, tokens, unknown)
+
+
+def restore_account(store: SessionStore, session_id: str, maximum: int) -> SessionAccount:
+    """在主会话持锁且不派生新子任务的入口恢复整组额度，不漏掉旧子会话消费。
+
+    子日志逐个取得原写锁并按 SessionStore 规则恢复；缺失、占用或损坏时停止，
+    不用零替代。这里只结算日志快照，不改委派索引、不重发任务。
+    返回账本仅供当前入口使用；调用期间不能另启共享同一主会话的子任务。
+    """
+    from adam.contracts.errors import StorageError
+    from adam.session.delegation import DelegationStore
+
+    if store.active_session_id != session_id:
+        raise StorageError("恢复共享额度必须持有当前主会话写锁。")
+    budget = SharedTokenBudget(maximum)
+    root = store.root / "_subagents" / session_id
+    if root.exists():
+        index = DelegationStore(root)
+        with SessionStore(root / "sessions") as children:
+            for agent in index.agents():
+                children.select_session(agent.agent_id)
+                budget.update(str(children.root / agent.agent_id), *children.usage(agent.agent_id))
+    account = SessionAccount(store, session_id, budget)
+    account.usage()
+    return account

@@ -21,6 +21,7 @@ from adam.contracts.runtime import decode_runtime_state
 from adam.contracts.skills import validate_catalog, validate_skill_selection
 from adam.contracts.tool_catalog import validate_tool_schema_record
 from adam.contracts.usage import decode_observations, encode_observations
+from adam.contracts.vision import validate_image_question
 from adam.session.command_log import validate_finish, validate_start
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
@@ -395,7 +396,7 @@ class SessionLog:
         request.update(encode_observations(cache, prefix))
 
     def _validate_context(self, context: object, turn_id: str) -> None:
-        """校验摘要覆盖前缀、连续历史后缀、模式、反思及诊断来源；旧请求可没有选择和新增观察字段。"""
+        """校验摘要、历史、模式、反思及诊断和视觉来源；旧请求可无新增观察字段。"""
         if isinstance(context, dict) and "tool_schema" in context:
             validate_tool_schema_record(context["tool_schema"])
         if isinstance(context, dict) and context.get("strategy") == "reflection_v1":
@@ -420,6 +421,8 @@ class SessionLog:
             return
         if not isinstance(context, dict) or context.get("strategy") != "recent_turns_v1":
             raise ValueError("invalid context strategy")
+        if "image_question" in context:
+            validate_image_question(context["image_question"], self.turns[turn_id].get("media"))
         validate_context_layout(context.get("layout_version"))
         if "diagnostics" in context:
             diagnostics = decode_selection(context["diagnostics"])

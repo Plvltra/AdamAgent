@@ -1,0 +1,845 @@
+{
+  "reviewed_utc": "2026-11-01T14:12:26.356919+00:00",
+  "visual_reviewer": "isolated c042_visual_acceptance subagent; viewed only three generated PNGs with view_image before requests",
+  "transport_passed": 4,
+  "semantic_passed": 2,
+  "total_cases": 4,
+  "actual_usage_source": "only each official ImageAnswer.request_id matching request_usage; mock loading requests excluded",
+  "input_tokens": 2868,
+  "output_tokens": 141,
+  "total_tokens": 3009,
+  "summed_request_duration_ms": 44828,
+  "cost": null,
+  "currency": null,
+  "cost_status": "unpriced",
+  "paired_layout_result": "Answers differ and left/right flips correctly, but the swapped B layout has false containment and fails vertical inside-shape comparison. Not a complete paired-layout pass.",
+  "limitations": [
+    "Three synthetic samples and four questions are a smoke test, not a general OCR/grounding quality evaluation.",
+    "No model retries, prompt retuning, image modification, external OCR, remote models, or paid API calls.",
+    "Generation questions/expected facts were fixed and visually verified before real model requests.",
+    "Sampling parameters use the existing server defaults; inference is not guaranteed deterministic.",
+    "Server warns Qwen-VL grounding needs at least 1024 image tokens and suggests --image-min-tokens 1024. Existing command line has no such flag. This warning is evidence only, not a proven cause; server was not restarted or retuned.",
+    "First request 41094 ms includes cold prompt processing; later requests are warm and not comparable as steady-state benchmarks.",
+    "Local compute cost and currency are unknown, not zero. Cache-hit fields do not reduce the reported token totals."
+  ],
+  "runtime": {
+    "started_utc": "2026-11-01T14:10:10.429173+00:00",
+    "artifacts_manifest": [
+      {
+        "name": "llama-b12032-bin-win-vulkan-x64.zip",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12032/llama-b12032-bin-win-vulkan-x64.zip",
+        "sha256": "19a8bbf269fa683ae7bc04f886c9c2a93e0655c2606f37d2b60069bf9e8bcc32"
+      },
+      {
+        "name": "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf",
+        "url": "https://huggingface.co/ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/resolve/5037fcf163dd95d1e41d1974465f0898ed108ca2/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf",
+        "sha256": "d02fe9b69ad8cadbbd228e387667af66612c44bed29ffc8eb1e7caf9ac486c12"
+      },
+      {
+        "name": "mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/resolve/5037fcf163dd95d1e41d1974465f0898ed108ca2/mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf",
+        "sha256": "980c9b2f78c04e6cff93d277ada09e768394f112d75db3b4e9dea8a69f9fb904"
+      }
+    ],
+    "server_process": {
+      "ProcessId": 127396,
+      "ExecutablePath": "G:\\Myself\\Adam2\\.cache\\local-vision\\llama-b12032\\llama-server.exe",
+      "CommandLine": "\"G:\\Myself\\Adam2\\.cache\\local-vision\\llama-b12032\\llama-server.exe\" --model G:\\Myself\\Adam2\\.cache\\local-vision\\Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf --mmproj G:\\Myself\\Adam2\\.cache\\local-vision\\mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf --alias adam-vision --host 127.0.0.1 --port 8087 --ctx-size 16384 --parallel 1 --n-gpu-layers 99 --threads 8 --no-webui",
+      "CreationDate": "2026-11-01T22:05:53.451197+08:00"
+    },
+    "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "packages": {
+      "pillow": "13.0.0",
+      "httpx": "0.28.1",
+      "pytest": "9.1.1"
+    },
+    "local_config": {
+      "model": "adam-vision",
+      "endpoint": "http://127.0.0.1:8087/v1",
+      "timeout_seconds": 180,
+      "stream": true
+    },
+    "limits": {
+      "max_model_requests": 1,
+      "max_tool_calls": 16,
+      "max_session_tokens": 50000,
+      "max_output_tokens": 512,
+      "max_edit_attempts": 3
+    },
+    "context": {
+      "max_input_tokens": 16000,
+      "safety_margin_tokens": 1024,
+      "retain_recent_turns": 2,
+      "summary_max_output_tokens": 2048,
+      "prune_tool_results": true,
+      "compression_trigger_ratio": 0.8,
+      "auto_compact": false,
+      "compression_target_ratio": 0.6,
+      "tool_prune_threshold_chars": 4000,
+      "tool_prune_head_chars": 1500,
+      "tool_prune_tail_chars": 500
+    },
+    "official_entry": "adam.bootstrap.open_image_questions / ImageQuestions.ask",
+    "load_entry": "tests.features.test_image_input.image_app + load_then_answer -> real load_image",
+    "load_only_http": "MockTransport (not a visual answer; isolated per image)",
+    "vision_http": "real 127.0.0.1 llama.cpp, SSE, no remote provider, no retries",
+    "price": {
+      "cost": null,
+      "currency": null,
+      "cost_status": "unpriced"
+    },
+    "models_http_status": 200,
+    "models": {
+      "models": [
+        {
+          "name": "adam-vision",
+          "model": "adam-vision",
+          "modified_at": "",
+          "size": "",
+          "digest": "",
+          "type": "model",
+          "description": "",
+          "tags": [
+            ""
+          ],
+          "capabilities": [
+            "completion",
+            "multimodal"
+          ],
+          "parameters": "",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "",
+            "families": [
+              ""
+            ],
+            "parameter_size": "",
+            "quantization_level": ""
+          }
+        }
+      ],
+      "object": "list",
+      "data": [
+        {
+          "id": "adam-vision",
+          "aliases": [
+            "adam-vision"
+          ],
+          "tags": [],
+          "object": "model",
+          "architecture": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ]
+          },
+          "created": 1793542210,
+          "owned_by": "llamacpp",
+          "meta": {
+            "vocab_type": 2,
+            "n_vocab": 151936,
+            "n_ctx": 16384,
+            "n_ctx_train": 128000,
+            "n_embd": 2048,
+            "n_params": 3085938688,
+            "size": 1923946496,
+            "ftype": "Q4_K - Medium"
+          }
+        }
+      ]
+    },
+    "finished_utc": "2026-11-01T14:10:56.264354+00:00"
+  },
+  "fixed_samples": {
+    "created_utc": "2026-11-01T14:08:51.146546+00:00",
+    "sample_type": "Pillow synthetic raster, not screenshots; no user images",
+    "font_path": "C:\\Windows\\Fonts\\arialbd.ttf",
+    "font_sha256": "e8f4e3baf6cc35fed6fcce3a540e8b39e8f6cda1d22a28f2ec8f526fef7a43f5",
+    "image_size": [
+      800,
+      600
+    ],
+    "image_sha256": {
+      "labels.png": "ee46c511da7dc10a17551a3bf7c004ee7eec708c59da7933e3ef0c85ba2cf05d",
+      "layout_a.png": "fa8ddc84f077ba5c82650efabb7cdaf5925f25f39fcd85b6c95b01ab4e7218a5",
+      "layout_b.png": "1238e8ac67521158111ca29e924bbdaabd384b89d97ace0aa1ac35abaf681221"
+    },
+    "cases": [
+      {
+        "id": "labels_words",
+        "image": "labels.png",
+        "question": "What exact word is printed above the red object, and what exact word is printed above the blue object?",
+        "expected": {
+          "word_above_red": "ORBIT",
+          "word_above_blue": "HARBOR"
+        }
+      },
+      {
+        "id": "labels_geometry",
+        "image": "labels.png",
+        "question": "Compare the red and blue objects: identify each shape, say which is farther left, and say whether the text labels are above or below their corresponding objects.",
+        "expected": {
+          "red_shape": "circle",
+          "blue_shape": "square",
+          "farther_left": "red circle",
+          "text_relative_to_shapes": "above"
+        }
+      },
+      {
+        "id": "layout_a_relations",
+        "image": "layout_a.png",
+        "question": "Which colored shapes are inside the orange outline, which one is higher than the other, and is the red square to the left or right of the outlined region?",
+        "expected": {
+          "inside": [
+            "blue circle",
+            "green triangle"
+          ],
+          "higher": "blue circle",
+          "lower": "green triangle",
+          "red_square_relative_to_outline": "right",
+          "red_square_inside": false
+        }
+      },
+      {
+        "id": "layout_b_relations",
+        "image": "layout_b.png",
+        "question": "Which colored shapes are inside the orange outline, which one is higher than the other, and is the red square to the left or right of the outlined region?",
+        "expected": {
+          "inside": [
+            "blue circle",
+            "green triangle"
+          ],
+          "higher": "green triangle",
+          "lower": "blue circle",
+          "red_square_relative_to_outline": "left",
+          "red_square_inside": false
+        }
+      }
+    ],
+    "scoring": "Human semantic review of all expected facts; any incorrect or missing required fact fails the case. Paired layouts must produce opposite vertical and horizontal relations. No retries or question retuning."
+  },
+  "results": [
+    {
+      "id": "labels_words",
+      "image": "labels.png",
+      "question": "What exact word is printed above the red object, and what exact word is printed above the blue object?",
+      "expected": {
+        "word_above_red": "ORBIT",
+        "word_above_blue": "HARBOR"
+      },
+      "image_path": "G:\\Myself\\Adam2\\.cache\\local-vision\\acceptance\\images\\labels.png",
+      "answer": {
+        "text": "Above the red object, the word \"ORBIT\" is printed. Above the blue object, the word \"HARBOR\" is printed.",
+        "images": [
+          {
+            "media_id": "4e0aff62997e1bb6cef5d6151dc46dde",
+            "source": {
+              "session_id": "3af45a54",
+              "turn_id": "33b1be4054144c7fd9d5a6217e26f99c",
+              "kind": "tool",
+              "request_id": "497ddd098352b4e18d3f28d536b6683e",
+              "tool_call_id": "load",
+              "tool_name": "load_image"
+            },
+            "mime_type": "image/png",
+            "size_bytes": 7543,
+            "version": "ee46c511da7dc10a17551a3bf7c004ee7eec708c59da7933e3ef0c85ba2cf05d",
+            "created_at": "2026-11-01T14:10:10.718406+00:00",
+            "schema_version": 1
+          }
+        ],
+        "session_id": "3af45a54",
+        "turn_id": "2e8542fcb25b57dee056d3dc47ef109b",
+        "request_id": "49d3332e0fb1524444e6e40871f2c3df"
+      },
+      "transport_success": true,
+      "wall_duration_ms": 41153,
+      "image_sha256": "ee46c511da7dc10a17551a3bf7c004ee7eec708c59da7933e3ef0c85ba2cf05d",
+      "cost": null,
+      "currency": null,
+      "cost_status": "unpriced",
+      "request_started": {
+        "type": "request_started",
+        "timestamp": "2026-11-01T14:10:10.829450+00:00",
+        "payload": {
+          "turn_id": "2e8542fcb25b57dee056d3dc47ef109b",
+          "request_id": "49d3332e0fb1524444e6e40871f2c3df",
+          "model": "adam-vision",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [
+              "33b1be4054144c7fd9d5a6217e26f99c"
+            ],
+            "estimated_input_tokens": 8517,
+            "original_history_tokens": 378,
+            "image_question": {
+              "version": 1,
+              "backend": "llama_cpp",
+              "images": [
+                {
+                  "media_id": "4e0aff62997e1bb6cef5d6151dc46dde",
+                  "source": {
+                    "session_id": "3af45a54",
+                    "turn_id": "33b1be4054144c7fd9d5a6217e26f99c",
+                    "kind": "tool",
+                    "request_id": "497ddd098352b4e18d3f28d536b6683e",
+                    "tool_call_id": "load",
+                    "tool_name": "load_image"
+                  },
+                  "mime_type": "image/png",
+                  "size_bytes": 7543,
+                  "version": "ee46c511da7dc10a17551a3bf7c004ee7eec708c59da7933e3ef0c85ba2cf05d",
+                  "created_at": "2026-11-01T14:10:10.718406+00:00",
+                  "schema_version": 1
+                }
+              ],
+              "cost": null,
+              "currency": null,
+              "cost_status": "unpriced"
+            },
+            "tool_schema": {
+              "names": [],
+              "utf8_bytes": 2
+            }
+          }
+        }
+      },
+      "request_finished": {
+        "type": "request_finished",
+        "timestamp": "2026-11-01T14:10:51.933133+00:00",
+        "payload": {
+          "turn_id": "2e8542fcb25b57dee056d3dc47ef109b",
+          "request_id": "49d3332e0fb1524444e6e40871f2c3df",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 41094,
+          "error": null
+        }
+      },
+      "request_usage": {
+        "type": "request_usage",
+        "timestamp": "2026-11-01T14:10:51.933133+00:00",
+        "payload": {
+          "turn_id": "2e8542fcb25b57dee056d3dc47ef109b",
+          "request_id": "49d3332e0fb1524444e6e40871f2c3df",
+          "input_tokens": 709,
+          "output_tokens": 30,
+          "cache_usage": {
+            "format": "chat_completions_cache_v1",
+            "hit_tokens": 0,
+            "miss_tokens": null
+          },
+          "input_prefix": {
+            "scope_id": "1ae9a4fad320e06f",
+            "sequence": 1,
+            "model": "adam-vision",
+            "input_bytes": 979,
+            "input_sha256": "2ab65b153065ff375e7db670db3afb899dcc298fb94e3219d72f778cfd94b36a",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      "turn_completed": {
+        "type": "turn_completed",
+        "timestamp": "2026-11-01T14:10:51.944142+00:00",
+        "payload": {
+          "turn_id": "2e8542fcb25b57dee056d3dc47ef109b",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 41109,
+          "error": null
+        }
+      },
+      "session_jsonl": "G:\\Myself\\Adam2\\.cache\\local-vision\\acceptance\\runs\\labels\\sessions\\2026\\11\\01\\3af45a54.jsonl",
+      "manual_review": {
+        "passed": true,
+        "findings": "Both exact words and their corresponding colored objects are correct: ORBIT above red, HARBOR above blue.",
+        "facts": {
+          "ORBIT_above_red": true,
+          "HARBOR_above_blue": true
+        }
+      }
+    },
+    {
+      "id": "labels_geometry",
+      "image": "labels.png",
+      "question": "Compare the red and blue objects: identify each shape, say which is farther left, and say whether the text labels are above or below their corresponding objects.",
+      "expected": {
+        "red_shape": "circle",
+        "blue_shape": "square",
+        "farther_left": "red circle",
+        "text_relative_to_shapes": "above"
+      },
+      "image_path": "G:\\Myself\\Adam2\\.cache\\local-vision\\acceptance\\images\\labels.png",
+      "answer": {
+        "text": "- The red object is a circle.\n- The blue object is a square.\n- The red object is farther to the left.\n- The text labels are below their corresponding objects.",
+        "images": [
+          {
+            "media_id": "4e0aff62997e1bb6cef5d6151dc46dde",
+            "source": {
+              "session_id": "3af45a54",
+              "turn_id": "33b1be4054144c7fd9d5a6217e26f99c",
+              "kind": "tool",
+              "request_id": "497ddd098352b4e18d3f28d536b6683e",
+              "tool_call_id": "load",
+              "tool_name": "load_image"
+            },
+            "mime_type": "image/png",
+            "size_bytes": 7543,
+            "version": "ee46c511da7dc10a17551a3bf7c004ee7eec708c59da7933e3ef0c85ba2cf05d",
+            "created_at": "2026-11-01T14:10:10.718406+00:00",
+            "schema_version": 1
+          }
+        ],
+        "session_id": "3af45a54",
+        "turn_id": "d5289a27c23ceb7e948829629cd0035a",
+        "request_id": "5088740fb69109699f9e9b04903906c4"
+      },
+      "transport_success": true,
+      "wall_duration_ms": 1934,
+      "image_sha256": "ee46c511da7dc10a17551a3bf7c004ee7eec708c59da7933e3ef0c85ba2cf05d",
+      "cost": null,
+      "currency": null,
+      "cost_status": "unpriced",
+      "request_started": {
+        "type": "request_started",
+        "timestamp": "2026-11-01T14:10:51.985177+00:00",
+        "payload": {
+          "turn_id": "d5289a27c23ceb7e948829629cd0035a",
+          "request_id": "5088740fb69109699f9e9b04903906c4",
+          "model": "adam-vision",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [
+              "33b1be4054144c7fd9d5a6217e26f99c",
+              "2e8542fcb25b57dee056d3dc47ef109b"
+            ],
+            "estimated_input_tokens": 8537,
+            "original_history_tokens": 622,
+            "image_question": {
+              "version": 1,
+              "backend": "llama_cpp",
+              "images": [
+                {
+                  "media_id": "4e0aff62997e1bb6cef5d6151dc46dde",
+                  "source": {
+                    "session_id": "3af45a54",
+                    "turn_id": "33b1be4054144c7fd9d5a6217e26f99c",
+                    "kind": "tool",
+                    "request_id": "497ddd098352b4e18d3f28d536b6683e",
+                    "tool_call_id": "load",
+                    "tool_name": "load_image"
+                  },
+                  "mime_type": "image/png",
+                  "size_bytes": 7543,
+                  "version": "ee46c511da7dc10a17551a3bf7c004ee7eec708c59da7933e3ef0c85ba2cf05d",
+                  "created_at": "2026-11-01T14:10:10.718406+00:00",
+                  "schema_version": 1
+                }
+              ],
+              "cost": null,
+              "currency": null,
+              "cost_status": "unpriced"
+            },
+            "tool_schema": {
+              "names": [],
+              "utf8_bytes": 2
+            }
+          }
+        }
+      },
+      "request_finished": {
+        "type": "request_finished",
+        "timestamp": "2026-11-01T14:10:53.868748+00:00",
+        "payload": {
+          "turn_id": "d5289a27c23ceb7e948829629cd0035a",
+          "request_id": "5088740fb69109699f9e9b04903906c4",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 1875,
+          "error": null
+        }
+      },
+      "request_usage": {
+        "type": "request_usage",
+        "timestamp": "2026-11-01T14:10:53.868748+00:00",
+        "payload": {
+          "turn_id": "d5289a27c23ceb7e948829629cd0035a",
+          "request_id": "5088740fb69109699f9e9b04903906c4",
+          "input_tokens": 719,
+          "output_tokens": 37,
+          "cache_usage": {
+            "format": "chat_completions_cache_v1",
+            "hit_tokens": 72,
+            "miss_tokens": null
+          },
+          "input_prefix": {
+            "scope_id": "1ae9a4fad320e06f",
+            "sequence": 2,
+            "model": "adam-vision",
+            "input_bytes": 1038,
+            "input_sha256": "21e5252d90767945d07d1c726f2d52522960fb2db1fc0b04ce129e3923da3ffb",
+            "previous_sequence": 1,
+            "previous_bytes": 979,
+            "previous_sha256": "2ab65b153065ff375e7db670db3afb899dcc298fb94e3219d72f778cfd94b36a",
+            "common_prefix_bytes": 425,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      "turn_completed": {
+        "type": "turn_completed",
+        "timestamp": "2026-11-01T14:10:53.881263+00:00",
+        "payload": {
+          "turn_id": "d5289a27c23ceb7e948829629cd0035a",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 1890,
+          "error": null
+        }
+      },
+      "session_jsonl": "G:\\Myself\\Adam2\\.cache\\local-vision\\acceptance\\runs\\labels\\sessions\\2026\\11\\01\\3af45a54.jsonl",
+      "manual_review": {
+        "passed": false,
+        "findings": "Red circle, blue square, and red farther left are correct. The answer says labels are below their objects, but both labels are clearly above in the fixed image.",
+        "facts": {
+          "red_circle": true,
+          "blue_square": true,
+          "red_left": true,
+          "labels_above": false
+        }
+      }
+    },
+    {
+      "id": "layout_a_relations",
+      "image": "layout_a.png",
+      "question": "Which colored shapes are inside the orange outline, which one is higher than the other, and is the red square to the left or right of the outlined region?",
+      "expected": {
+        "inside": [
+          "blue circle",
+          "green triangle"
+        ],
+        "higher": "blue circle",
+        "lower": "green triangle",
+        "red_square_relative_to_outline": "right",
+        "red_square_inside": false
+      },
+      "image_path": "G:\\Myself\\Adam2\\.cache\\local-vision\\acceptance\\images\\layout_a.png",
+      "answer": {
+        "text": "Inside the orange outline, there is a blue circle and a green triangle. The red square is to the right of the outlined region. The blue circle is higher than the green triangle.",
+        "images": [
+          {
+            "media_id": "c8f234b94ea759f559cfcfe46acbf437",
+            "source": {
+              "session_id": "8cce2956",
+              "turn_id": "529d8195287d4ba3c56cbdf72815eb47",
+              "kind": "tool",
+              "request_id": "32e3e91abf007b83468c99fb68df99ba",
+              "tool_call_id": "load",
+              "tool_name": "load_image"
+            },
+            "mime_type": "image/png",
+            "size_bytes": 3732,
+            "version": "fa8ddc84f077ba5c82650efabb7cdaf5925f25f39fcd85b6c95b01ab4e7218a5",
+            "created_at": "2026-11-01T14:10:53.997458+00:00",
+            "schema_version": 1
+          }
+        ],
+        "session_id": "8cce2956",
+        "turn_id": "439fbc3216c415ab98eca59267e5f132",
+        "request_id": "be9877fa2f5355e4113317b8fe002896"
+      },
+      "transport_success": true,
+      "wall_duration_ms": 989,
+      "image_sha256": "fa8ddc84f077ba5c82650efabb7cdaf5925f25f39fcd85b6c95b01ab4e7218a5",
+      "cost": null,
+      "currency": null,
+      "cost_status": "unpriced",
+      "request_started": {
+        "type": "request_started",
+        "timestamp": "2026-11-01T14:10:54.104558+00:00",
+        "payload": {
+          "turn_id": "439fbc3216c415ab98eca59267e5f132",
+          "request_id": "be9877fa2f5355e4113317b8fe002896",
+          "model": "adam-vision",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [
+              "529d8195287d4ba3c56cbdf72815eb47"
+            ],
+            "estimated_input_tokens": 8534,
+            "original_history_tokens": 378,
+            "image_question": {
+              "version": 1,
+              "backend": "llama_cpp",
+              "images": [
+                {
+                  "media_id": "c8f234b94ea759f559cfcfe46acbf437",
+                  "source": {
+                    "session_id": "8cce2956",
+                    "turn_id": "529d8195287d4ba3c56cbdf72815eb47",
+                    "kind": "tool",
+                    "request_id": "32e3e91abf007b83468c99fb68df99ba",
+                    "tool_call_id": "load",
+                    "tool_name": "load_image"
+                  },
+                  "mime_type": "image/png",
+                  "size_bytes": 3732,
+                  "version": "fa8ddc84f077ba5c82650efabb7cdaf5925f25f39fcd85b6c95b01ab4e7218a5",
+                  "created_at": "2026-11-01T14:10:53.997458+00:00",
+                  "schema_version": 1
+                }
+              ],
+              "cost": null,
+              "currency": null,
+              "cost_status": "unpriced"
+            },
+            "tool_schema": {
+              "names": [],
+              "utf8_bytes": 2
+            }
+          }
+        }
+      },
+      "request_finished": {
+        "type": "request_finished",
+        "timestamp": "2026-11-01T14:10:55.049204+00:00",
+        "payload": {
+          "turn_id": "439fbc3216c415ab98eca59267e5f132",
+          "request_id": "be9877fa2f5355e4113317b8fe002896",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 937,
+          "error": null
+        }
+      },
+      "request_usage": {
+        "type": "request_usage",
+        "timestamp": "2026-11-01T14:10:55.049204+00:00",
+        "payload": {
+          "turn_id": "439fbc3216c415ab98eca59267e5f132",
+          "request_id": "be9877fa2f5355e4113317b8fe002896",
+          "input_tokens": 720,
+          "output_tokens": 38,
+          "cache_usage": {
+            "format": "chat_completions_cache_v1",
+            "hit_tokens": 72,
+            "miss_tokens": null
+          },
+          "input_prefix": {
+            "scope_id": "720f12178f915a5c",
+            "sequence": 1,
+            "model": "adam-vision",
+            "input_bytes": 1031,
+            "input_sha256": "87c4ef00b72a324295d9e3f7867c110af73739f96dac67dca29e5119cad1c16f",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      "turn_completed": {
+        "type": "turn_completed",
+        "timestamp": "2026-11-01T14:10:55.060821+00:00",
+        "payload": {
+          "turn_id": "439fbc3216c415ab98eca59267e5f132",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 969,
+          "error": null
+        }
+      },
+      "session_jsonl": "G:\\Myself\\Adam2\\.cache\\local-vision\\acceptance\\runs\\layout_a\\sessions\\2026\\11\\01\\8cce2956.jsonl",
+      "manual_review": {
+        "passed": true,
+        "findings": "Correctly identifies both inside shapes, blue circle above green triangle, and red square to the right outside the orange outline.",
+        "facts": {
+          "inside_blue_circle_and_green_triangle": true,
+          "blue_above_green": true,
+          "red_right_of_outline": true
+        }
+      }
+    },
+    {
+      "id": "layout_b_relations",
+      "image": "layout_b.png",
+      "question": "Which colored shapes are inside the orange outline, which one is higher than the other, and is the red square to the left or right of the outlined region?",
+      "expected": {
+        "inside": [
+          "blue circle",
+          "green triangle"
+        ],
+        "higher": "green triangle",
+        "lower": "blue circle",
+        "red_square_relative_to_outline": "left",
+        "red_square_inside": false
+      },
+      "image_path": "G:\\Myself\\Adam2\\.cache\\local-vision\\acceptance\\images\\layout_b.png",
+      "answer": {
+        "text": "The orange outline contains a red square and a blue circle inside. The red square is higher than the blue circle. The red square is to the left of the outlined region.",
+        "images": [
+          {
+            "media_id": "bd2901fb49a0fdae0afc96186af7a7da",
+            "source": {
+              "session_id": "acd5116b",
+              "turn_id": "2c83c737e42feb349fa952284051eaf8",
+              "kind": "tool",
+              "request_id": "6769e7d84be3eb884514dfe47c6456d0",
+              "tool_call_id": "load",
+              "tool_name": "load_image"
+            },
+            "mime_type": "image/png",
+            "size_bytes": 3845,
+            "version": "1238e8ac67521158111ca29e924bbdaabd384b89d97ace0aa1ac35abaf681221",
+            "created_at": "2026-11-01T14:10:55.189222+00:00",
+            "schema_version": 1
+          }
+        ],
+        "session_id": "acd5116b",
+        "turn_id": "590f024b7df2c9eefc95f4a77ac08951",
+        "request_id": "e7cea8b5dd235f762dddf65f1c626c7b"
+      },
+      "transport_success": true,
+      "wall_duration_ms": 981,
+      "image_sha256": "1238e8ac67521158111ca29e924bbdaabd384b89d97ace0aa1ac35abaf681221",
+      "cost": null,
+      "currency": null,
+      "cost_status": "unpriced",
+      "request_started": {
+        "type": "request_started",
+        "timestamp": "2026-11-01T14:10:55.300897+00:00",
+        "payload": {
+          "turn_id": "590f024b7df2c9eefc95f4a77ac08951",
+          "request_id": "e7cea8b5dd235f762dddf65f1c626c7b",
+          "model": "adam-vision",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [
+              "2c83c737e42feb349fa952284051eaf8"
+            ],
+            "estimated_input_tokens": 8534,
+            "original_history_tokens": 378,
+            "image_question": {
+              "version": 1,
+              "backend": "llama_cpp",
+              "images": [
+                {
+                  "media_id": "bd2901fb49a0fdae0afc96186af7a7da",
+                  "source": {
+                    "session_id": "acd5116b",
+                    "turn_id": "2c83c737e42feb349fa952284051eaf8",
+                    "kind": "tool",
+                    "request_id": "6769e7d84be3eb884514dfe47c6456d0",
+                    "tool_call_id": "load",
+                    "tool_name": "load_image"
+                  },
+                  "mime_type": "image/png",
+                  "size_bytes": 3845,
+                  "version": "1238e8ac67521158111ca29e924bbdaabd384b89d97ace0aa1ac35abaf681221",
+                  "created_at": "2026-11-01T14:10:55.189222+00:00",
+                  "schema_version": 1
+                }
+              ],
+              "cost": null,
+              "currency": null,
+              "cost_status": "unpriced"
+            },
+            "tool_schema": {
+              "names": [],
+              "utf8_bytes": 2
+            }
+          }
+        }
+      },
+      "request_finished": {
+        "type": "request_finished",
+        "timestamp": "2026-11-01T14:10:56.234348+00:00",
+        "payload": {
+          "turn_id": "590f024b7df2c9eefc95f4a77ac08951",
+          "request_id": "e7cea8b5dd235f762dddf65f1c626c7b",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 922,
+          "error": null
+        }
+      },
+      "request_usage": {
+        "type": "request_usage",
+        "timestamp": "2026-11-01T14:10:56.234348+00:00",
+        "payload": {
+          "turn_id": "590f024b7df2c9eefc95f4a77ac08951",
+          "request_id": "e7cea8b5dd235f762dddf65f1c626c7b",
+          "input_tokens": 720,
+          "output_tokens": 36,
+          "cache_usage": {
+            "format": "chat_completions_cache_v1",
+            "hit_tokens": 105,
+            "miss_tokens": null
+          },
+          "input_prefix": {
+            "scope_id": "ddba9a8b4f079f11",
+            "sequence": 1,
+            "model": "adam-vision",
+            "input_bytes": 1031,
+            "input_sha256": "ba1bccf70e827d7b0454c118831ab135566bf2e3286d8ff3f384bad21d5c0250",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      "turn_completed": {
+        "type": "turn_completed",
+        "timestamp": "2026-11-01T14:10:56.245345+00:00",
+        "payload": {
+          "turn_id": "590f024b7df2c9eefc95f4a77ac08951",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 953,
+          "error": null
+        }
+      },
+      "session_jsonl": "G:\\Myself\\Adam2\\.cache\\local-vision\\acceptance\\runs\\layout_b\\sessions\\2026\\11\\01\\acd5116b.jsonl",
+      "manual_review": {
+        "passed": false,
+        "findings": "Red square being left of the outline is correct. The answer falsely places red square inside, omits the green triangle, and never answers the required green-triangle-above-blue-circle relation. Red-square-above-blue-circle is not itself a false pixel relation, but it is not the requested comparison of inside shapes.",
+        "facts": {
+          "inside_blue_circle_and_green_triangle": false,
+          "green_above_blue": false,
+          "red_left_of_outline": true,
+          "does_not_claim_red_inside": false
+        }
+      }
+    }
+  ]
+}

@@ -2,17 +2,9 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B01～B42 最终交付与回归结果归档；架构无变化。固定 41c0dfb 全量 3127 项通过，此后仅文档改动；B42.3 的正式宿主策略回调、共享账本和原审批关系保持。
-本次核对范围：B41.2 角色绑定、有限上下文显式移交与失败恢复。
-本次核对范围：B40.1 新增独立 Git 副本生命周期管理，尚未接入子任务提案合并。
-本次核对范围：B31.2 独立评估矩阵runner、应用组装与逐次报告；生产聊天架构无变化。
-本次核对范围：B27.2.2 终端运行输入、独立留痕与共享取消。
-本次核对范围：C01.3 主子搜索、已保存网页快照与逐字引用；同步主线 B12.2.2 单次独立模型审查、请求记录及用量和故障边界。
-本次核对范围：C00.3 公共消息/能力声明、媒体预检与发送边界、摘要/反思、来源日志及媒体冻结重放；保留 C01.3 和主线 B12.2.2 的已实现关系。
-本次核对范围：C00.3 公共消息/能力声明、媒体预检与发送边界、摘要/反思、来源日志及媒体冻结重放；同步固定主线 1b24093 的 B12.2.3/B12.3 知识保护与 B13.1 字节解析/人工分享边界。
-本次核对范围：C04.1 可选图片解码、主子 load_image 来源与权限、原媒体发布及显式附图边界；同步固定主线 808dfb9 的 B13.2/3 分享命令与嵌套脱敏，保留 C00.3 冻结验证及 B12 知识保护。
+本次核对范围：C04.2 显式本地视觉问答、单图来源/原系统约束、统一请求与未知费用、既有子会话共享额度恢复及可复现视觉烟测；保留 C04.1 可选图片解码、主子 load_image 来源与权限、原媒体发布及显式附图边界；同步固定主线 808dfb9 的 B13.2/3 分享命令与嵌套脱敏，保留 C00.3 冻结验证及 B12 知识保护。
 
-核对结论：C04.1 新增 vision.models/service/adapters.pillow 与 tool_calls.vision_tools；bootstrap 按 VisionConfig 注入原路径策略及主子独立 SessionMedia，Conversation 不新增图片工具分支或 SDK 依赖，默认模型不获视觉能力。C00.3 新增 contracts.model_input、application.media_input、llm.message_encoding 与 recording.media；复用 C00.2，不新增上传/解码能力。媒体字节只在模型发送边界编码及录制旁路冻结，Conversation 只编排通用输入预检与引用，不认识具体图片 SDK；默认客户端仍无视觉声明。C01.3 新增 web.evidence 与 tool_calls.web_sources，复用原工具/JSONL 边界。B12.2.2 新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用；B12.2.3 已接入显式知识入口与主子目录保护，B12.3 已验收竞争/中断边界。B12.2.1 的独立状态、锁外回调与落盘前来源/修订复核，以及 B11.3 的原文审计和冻结证据说明保留；生产聊天流程不新增最终回答拦截，来源与逐字引用有效不能证明语义正确。
+核对结论：C04.2 新增 application.image_questions、config.vision、contracts.vision、llm.local_vision、cli.image_question；bootstrap 只在显式独立入口组装回环模型，复用 ContextBuilder/RequestRunner 与 SessionAccount/SharedTokenBudget，subagents.account.restore_account 恢复既有子日志，不生成新任务。SessionLog 验证可选 image_question 来源及未知费用，旧文本格式不变；默认聊天/DeepSeek/主子工具链不升级。真实视觉首批严格 2/4、最终复验 3/4，均非全通过，不能当通用可靠布局能力；详见 [视觉问答](visual-question-answering.md)。C04.1 新增 vision.models/service/adapters.pillow 与 tool_calls.vision_tools；bootstrap 按 VisionConfig 注入原路径策略及主子独立 SessionMedia，Conversation 不新增图片工具分支或 SDK 依赖，默认模型不获视觉能力。C00.3 新增 contracts.model_input、application.media_input、llm.message_encoding 与 recording.media；复用 C00.2，不新增上传/解码能力。媒体字节只在模型发送边界编码及录制旁路冻结，Conversation 只编排通用输入预检与引用，不认识具体图片 SDK；默认客户端仍无视觉声明。C01.3 新增 web.evidence 与 tool_calls.web_sources，复用原工具/JSONL 边界。B12.2.2 新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用；B12.2.3 已接入显式知识入口与主子目录保护，B12.3 已验收竞争/中断边界。B12.2.1 的独立状态、锁外回调与落盘前来源/修订复核，以及 B11.3 的原文审计和冻结证据说明保留；生产聊天流程不新增最终回答拦截，来源与逐字引用有效不能证明语义正确。
 
 主线同步：recording.journal 提取 parse_recording，读取与导出复用原协议和残缺尾部规则；新增 redaction 与 sharing，仅处理本地数据。先识别敏感值再替换重复文本，报告不保存原文；同目录临时文件完成后排他发布，分享格式不当作录制格式。原注释及协议说明保持并补充同份字节来源约束。
 
@@ -38,7 +30,27 @@ B16.3 同步核对（固定主线 446d767）：生产架构无变化；新增离
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-C 系列最近核对（2026-11-01）：C00.3 已接入宿主 send 的当前会话固定媒体引用、能力与正文双重校验、摘要/反思媒体预算，以及完整字节旁路校验的离线重放；实际图片加载/解码由 C04.1 接入原工具/媒体边界，真实视觉质量仍为 C04.2～4。C01.3 把 search_web 与 read_web_source 接入主子原工具管线；web.evidence 先限长再绑定快照 ID/逐字范围，WebSources 只从当前所属 SessionStore 已保存 read_webpage 结果回查，搜索候选不成为正文证据。原 JSONL/录制格式保持，无新来源数据库或回答语义拦截。C01.2 新增独立 SearchBackend/SearchResult、WikipediaSearch 及搜索 CLI；open_search 按次创建 JSON 专用 HTTP 资源，复用原 DNS 固定/TLS/取消边界，候选与网页正文版本分开，独立后端本身不改变日志协议。C02.3 扩展每会话标签/弹窗/对话框及显式附件下载；浏览器保持窄端口，SDK 仅由适配器持有。bootstrap 把原执行来源和 SessionMedia 注入主浏览器工具，并向 facade 注入主轮次中断清理；字节经 C00.2 发布并提交来源后才交付引用，录制重放仅导入媒体事实、不重做动作。弹窗事件窗口从点击完成后计时，原标签丢失不自动创建重定向替代页；原逐次批准、_media 保护、文本附件与主线 B 关系保持，C02.4 真实模型质量仍待验收。主线文首与正文保留。
+C 系列最近核对（2026-11-01）：C00.3 已接入宿主 send 的当前会话固定媒体引用、能力与正文双重校验、摘要/反思媒体预算，以及完整字节旁路校验的离线重放；实际图片加载/解码由 C04.1 接入原工具/媒体边界，C04.2 显式本地问答已接通但真实烟测首批严格 2/4、最终复验 3/4，OCR 与综合质量仍为 C04.3～4。C01.3 把 search_web 与 read_web_source 接入主子原工具管线；web.evidence 先限长再绑定快照 ID/逐字范围，WebSources 只从当前所属 SessionStore 已保存 read_webpage 结果回查，搜索候选不成为正文证据。原 JSONL/录制格式保持，无新来源数据库或回答语义拦截。C01.2 新增独立 SearchBackend/SearchResult、WikipediaSearch 及搜索 CLI；open_search 按次创建 JSON 专用 HTTP 资源，复用原 DNS 固定/TLS/取消边界，候选与网页正文版本分开，独立后端本身不改变日志协议。C02.3 扩展每会话标签/弹窗/对话框及显式附件下载；浏览器保持窄端口，SDK 仅由适配器持有。bootstrap 把原执行来源和 SessionMedia 注入主浏览器工具，并向 facade 注入主轮次中断清理；字节经 C00.2 发布并提交来源后才交付引用，录制重放仅导入媒体事实、不重做动作。弹窗事件窗口从点击完成后计时，原标签丢失不自动创建重定向替代页；原逐次批准、_media 保护、文本附件与主线 B 关系保持，C02.4 真实模型质量仍待验收。主线文首与正文保留。
+
+## C04.2 单图本地问答
+
+~~~mermaid
+flowchart LR
+    VQ_CLI["cli.image_question / 显式图 ID 与版本"] --> VQ_BOOT["bootstrap.open_image_questions / 独占主会话与 HTTP"]
+    VQ_BOOT --> VQ_APP["application.ImageQuestions / 单次问题"]
+    VQ_APP --> VQ_MEDIA["MediaInputService / 当前 SessionMedia 原图"]
+    VQ_APP --> VQ_CTX["ContextBuilder / 原系统约束与当前图问"]
+    VQ_APP --> VQ_REQ["RequestRunner / 原开始、用量与终态"]
+    VQ_REQ --> VQ_BUDGET["restore_account / SessionAccount / SharedTokenBudget"]
+    VQ_BUDGET --> VQ_CHILD["既有子日志 / 持锁恢复消费，不重发"]
+    VQ_REQ --> VQ_LLM["LlamaVisionClient / ChatInputEncoder / LLMClient"]
+    VQ_LLM --> VQ_LOCAL["127.0.0.1 / llama.cpp 真实视觉模型"]
+    VQ_APP --> VQ_STORE["SessionStore / 原问题、图片引用与已提交回答"]
+    VQ_REQ --> VQ_STORE
+    VQ_STORE --> VQ_CONTRACT["contracts.vision / 严格来源与未知费用"]
+~~~
+
+不接入普通聊天自动选工具，不发送旧历史，不把已有引用升级成跨会话授权。CLI 与宿主入口使用同一单次问答服务；费用未配置保持未知，完整多维消费仍为 C00.4。测试架构只给 main 与 image_question 两个 CLI 组装入口放行，不放宽其他模块。正式流程尚未连接录制 CLI 的重建配置；本次不宣称该独立问答已可冻结离线回放。固定真实烟测及限制见 [视觉问答](visual-question-answering.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
@@ -693,7 +705,7 @@ flowchart LR
     IMG_RESULT -.宿主另行显式附图.-> IMG_SEND["已有 send(media=...) / 能力与来源校验"]
 ~~~
 
-vision 只依赖本包/contracts，SDK 仅在适配器实际调用时导入；工具串行 SESSION_STATE 可在 plan 调查，但不授予额外读写权限。ImageLoader 不认识会话、路径或模型，发布端口由组装层注入。原字节、EXIF 与版本不变，显示换轴不是重编码；无模型能力时附图在登记轮次前拒绝。尺寸/方向随工具结果保存，不另建媒体日志。解码/保存失败不交付伪引用，孤立正文及重启不自动重做。像素/字节限制不是 OS 内存沙箱或硬取消保证。29 项业务与 49 项解码/配置场景、真实本地后端及使用限制见 [图片输入](image-input.md)；C04.2～4 仍待验收。
+vision 只依赖本包/contracts，SDK 仅在适配器实际调用时导入；工具串行 SESSION_STATE 可在 plan 调查，但不授予额外读写权限。ImageLoader 不认识会话、路径或模型，发布端口由组装层注入。原字节、EXIF 与版本不变，显示换轴不是重编码；无模型能力时附图在登记轮次前拒绝。尺寸/方向随工具结果保存，不另建媒体日志。解码/保存失败不交付伪引用，孤立正文及重启不自动重做。像素/字节限制不是 OS 内存沙箱或硬取消保证。29 项业务与 49 项解码/配置场景、真实本地后端及使用限制见 [图片输入](image-input.md)；C04.2 显式问答已接通并保留真实失败，C04.3～4 仍待验收。
 
 ## C02.3 浏览器资源与下载
 

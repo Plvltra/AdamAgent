@@ -132,7 +132,10 @@ def test_package_dependency_direction(package, allowed):
         for module in imported_modules(source):
             if module.startswith("adam.") and module.split(".")[1] not in allowed:
                 violations.append(f"{source.relative_to(ROOT)} -> {module}")
-            if module == "adam.bootstrap" and source != ROOT / "cli" / "main.py":
+            if module == "adam.bootstrap" and source not in {
+                ROOT / "cli" / "main.py",
+                ROOT / "cli" / "image_question.py",
+            }:
                 violations.append(f"{source.relative_to(ROOT)} cannot assemble dependencies")
     assert not violations, "\n".join(violations)
 

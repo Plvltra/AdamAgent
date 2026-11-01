@@ -1,6 +1,6 @@
 # C 系列能力模块设计（按实际消费者逐项落地）
 
-最近核对：2026-11-01；已同步主线 B13.3。C00.1 可选注册、C00.2 二进制证据、C00.3 消息/能力/媒体冻结重放、C01.1 网页读取、C01.2/3 百科搜索与网页引用闭环、C02.1～3 DOM 动作/生命周期及 C04.1 图片输入已实现，其余未勾选能力仍为规划。需求与小任务见 [C 系列练习规划](agent-capability-practice-plan.md)。本图是拟议边界，不代替 [已实现架构](architecture.md)。
+最近核对：2026-11-01；已同步主线 B13.3。C00.1 可选注册、C00.2 二进制证据、C00.3 消息/能力/媒体冻结重放、C01.1 网页读取、C01.2/3 百科搜索与网页引用闭环、C02.1～3 DOM 动作/生命周期及 C04.1 图片输入及 C04.2 显式本地单图问答已实现（真实烟测首批严格 2/4、最终复验 3/4，均非全通过），其余未勾选能力仍为规划。需求与小任务见 [C 系列练习规划](agent-capability-practice-plan.md)。本图是拟议边界，不代替 [已实现架构](architecture.md)。
 
 目标：增加观察和动作种类时，主要改动落在所属能力包及组装入口；Conversation 不随着工具数量增加而不断出现新的工具分支。低耦合不等于零公共依赖，也不要求一个文件对应一个类。
 
@@ -74,13 +74,13 @@ flowchart TB
 
 协议只有跨包注入或替换后端的实际需求时才提取。首版一个本地服务可以直接用函数，不需要强制 Repository/Factory/Manager 各一层。
 
-C00.3 实际边界：`contracts.model_input → application.media_input / llm.message_encoding / recording.media`；公共契约不访问 IO，应用借用所属 SessionMedia 预检，llm 只在 HTTP 边界编码，录制旁路副本使用 MediaStore 幂等原子发布。Conversation 不加载图片 SDK，摘要/反思保持实际媒体输入和预算，默认模型不获视觉能力。B24.1 只同步必要增量，C04.1 解码已接入，真实视觉/OCR 质量仍待 C04.2～4。
+C00.3 实际边界：`contracts.model_input → application.media_input / llm.message_encoding / recording.media`；公共契约不访问 IO，应用借用所属 SessionMedia 预检，llm 只在 HTTP 边界编码，录制旁路副本使用 MediaStore 幂等原子发布。Conversation 不加载图片 SDK，摘要/反思保持实际媒体输入和预算，默认模型不获视觉能力。B24.1 只同步必要增量，C04.1 解码已接入，C04.2 真实烟测首批严格 2/4、最终复验 3/4，均非全通过，OCR/综合质量仍待 C04.3～4。
 
 C01.2 实际边界：`open_search → SearchBackend → adapters.wikipedia → PageTransport`。搜索只返回独立候选与响应版本；JSON 类型由可信工厂注入，原 HTML 网页读取契约不变；SDK 仍在适配器，应用内核无需认识百科协议。C01.3 经 web_tools 注册搜索/正文及串行 WebSources 回查，证据值规则放 web.evidence；bootstrap 只注入各自主子 store，原 JSONL 保存固定引用，不把来源访问放入 Conversation。使用及真实范围见 [网页与搜索](web-reading.md)。
 
 C02.1 初始边界：`browser.runtime → BrowserObserver → BrowserDriver → adapters.chromium/dom`，最初为单标签独立观察；C02.2/3 已接入原批准动作与每会话标签/下载，完整任务与真实模型质量仍为 C02.4。站点白名单及引用版本由能力包校验；不是给模型开放任意 evaluate。使用和网络限制见 [浏览器观察](browser-observation.md)。
 
-C04.1 实际边界：`vision_tools → ImageLoader → ImageDecoder / adapters.pillow`；工具持有原 PathPolicy 和 SessionMedia，能力服务只借用发布端口。主子媒体来源和目录分开，不在 Conversation 里按工具名附图。Pillow 只在解码时导入，原字节不重编码；真实视觉请求及 OCR 仍未实现，见 [图片输入](image-input.md)。
+C04.1 实际边界：`vision_tools → ImageLoader → ImageDecoder / adapters.pillow`；工具持有原 PathPolicy 和 SessionMedia，能力服务只借用发布端口。主子媒体来源和目录分开，不在 Conversation 里按工具名附图。Pillow 只在解码时导入，原字节不重编码；C04.2 经独立宿主/CLI 入口接入真实本地视觉，不自动升级普通聊天；OCR 仍未实现，见 [图片输入](image-input.md) 与 [视觉问答](visual-question-answering.md)。
 
 ## 能力归属与资源所有权
 
