@@ -34,6 +34,8 @@ from adam.contracts.ports import ModelClient, ToolRunner
 from adam.contracts.proposals import ProposalOwner
 from adam.documents.embedding import FastEmbedBackend
 from adam.hooks.runner import HookRunner
+from adam.isolation.backend import WslBubblewrap
+from adam.isolation.rpc import IsolatedOrchestrator
 from adam.llm.client import LLMClient
 from adam.llm.http_transport import InterruptibleTransport
 from adam.memory.semantic import SemanticMemoryRanker
@@ -53,6 +55,7 @@ from adam.tool_calls.factory import create_tool_registry
 from adam.tool_calls.feedback_tools import SPECS as FEEDBACK_SPECS
 from adam.tool_calls.feedback_tools import handlers as feedback_handlers
 from adam.tool_calls.mcp_tools import register_mcp
+from adam.tool_calls.orchestration_tools import register_orchestration
 from adam.tool_calls.planning_tools import SPECS as PLANNING_SPECS
 from adam.tool_calls.planning_tools import handlers as planning_handlers
 from adam.tool_calls.policy import PathPolicy
@@ -250,6 +253,13 @@ def build_application(
         )
         if rules:
             registry = registry.guarded(rules.check)
+        if config.orchestration.enabled:
+            # 闭包在动作执行时才取得完成组装的原执行器，不能改用无日志的注册表桥。
+            registry = register_orchestration(
+                registry,
+                IsolatedOrchestrator(WslBubblewrap(config.orchestration.distribution)),
+                lambda name, args: executor.execute_nested(name, args),
+            )
         registry = registry.with_mode(modes.current)
         registry, discovery = register_discovery(registry, config.tool_discovery, modes.current)
 
@@ -450,6 +460,13 @@ def _open_child(
                 cancel,
             )
             registry = register_submission(registry, submission)
+        if config.orchestration.enabled:
+            registry = register_orchestration(
+                registry,
+                IsolatedOrchestrator(WslBubblewrap(config.orchestration.distribution)),
+                lambda name, args: executor.execute_nested(name, args),
+                cancel=cancel,
+            )
         registry = registry.with_mode(lambda: mode)
         registry, discovery = register_discovery(registry, config.tool_discovery, lambda: mode)
         executor = ToolExecutor(

@@ -2,12 +2,11 @@
 
 import asyncio
 import os
-from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from adam.contracts.cancellation import CancellationToken
+from adam.contracts.orchestration import OrchestrationResult, ToolCallback
 from adam.isolation.backend import IsolationError, WslBubblewrap
 from adam.isolation.rpc_protocol import (
     MAX_FRAME_BYTES,
@@ -16,20 +15,6 @@ from adam.isolation.rpc_protocol import (
     encode_frame,
     validate_call,
 )
-
-ToolCallback = Callable[[str, dict[str, Any]], dict[str, Any]]
-
-
-@dataclass(frozen=True)
-class OrchestrationResult:
-    """最终结果和实际调用数；has_result 为假时不能把空值宣称成脚本的成功结果。"""
-
-    result: Any
-    has_result: bool
-    exit_code: int
-    reason: str
-    calls: int
-    stderr: str
 
 
 class IsolatedOrchestrator:
@@ -59,7 +44,11 @@ class IsolatedOrchestrator:
         if not self.backend.probe().available:
             raise IsolationError("编排所需隔离不可用，未执行代码。")
         token.check()
-        return asyncio.run(self._run(initial, invoke, token))
+        try:
+            return asyncio.run(self._run(initial, invoke, token))
+        except OSError as error:
+            # 探测后启动器仍可能被删除或撤权；启动竞争也必须是可记录的停止原因。
+            raise IsolationError("编排启动失败；未回退到宿主执行。") from error
 
     async def _run(
         self, initial: bytes, invoke: ToolCallback, token: CancellationToken

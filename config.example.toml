@@ -147,6 +147,12 @@ additional_write_dirs = []
 [tool_discovery]
 mode = "on_demand"
 
+# Opt in only with the fixed WSL/Bubblewrap backend installed; never falls back to host execution.
+# Shares agent tool/edit budgets. Kernel, RPC and mount limits stay fixed.
+[orchestration]
+enabled = false
+distribution = "Ubuntu"
+
 [tool_limits]
 max_read_lines = 200
 max_result_chars = 8000

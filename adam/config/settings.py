@@ -419,6 +419,27 @@ class SessionSearchConfig:
 
 
 @dataclass(frozen=True)
+class OrchestrationConfig:
+    """显式启用固定 WSL 隔离编排；不提供宿主回退或自行放宽挂载与内核策略。"""
+
+    enabled: bool = False
+    distribution: str = "Ubuntu"
+
+    def __post_init__(self) -> None:
+        """只接收发行版名称，不接收可执行文件、启动命令或环境变量。"""
+        if type(self.enabled) is not bool:
+            raise ConfigError("orchestration.enabled 必须是布尔值。")
+        if (
+            not isinstance(self.distribution, str)
+            or not 1 <= len(self.distribution) <= 64
+            or not self.distribution[0].isascii()
+            or not self.distribution[0].isalnum()
+            or any(not c.isascii() or not (c.isalnum() or c in "_.-") for c in self.distribution)
+        ):
+            raise ConfigError("orchestration.distribution 必须是有效的 WSL 发行版名称。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
@@ -446,3 +467,4 @@ class AppConfig:
     no_progress: NoProgressConfig = field(default_factory=NoProgressConfig)
     session_search: SessionSearchConfig = field(default_factory=SessionSearchConfig)
     knowledge_dir: Path | None = None
+    orchestration: OrchestrationConfig = field(default_factory=OrchestrationConfig)

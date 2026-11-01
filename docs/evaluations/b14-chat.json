@@ -1,0 +1,14 @@
+{
+  "checked_at": "2026-11-01T10:20:12.708528+00:00",
+  "real_backend": true,
+  "model_transport": "httpx.MockTransport",
+  "paid_requests": 0,
+  "production_bootstrap": true,
+  "worker_calls": 2,
+  "shared_tool_count": 3,
+  "nested_source_verified": true,
+  "intermediate_text_in_model": false,
+  "restart_verified": true,
+  "replay_status": "matched",
+  "reply": "gamma"
+}

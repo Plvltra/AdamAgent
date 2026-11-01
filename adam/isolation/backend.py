@@ -7,6 +7,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 
+from adam.contracts.errors import IsolationError
+
 POLICY = "bubblewrap-single-process-v1"
 CHECKS = frozenset(
     {
@@ -25,10 +27,6 @@ CHECKS = frozenset(
     }
 )
 MAX_CODE_BYTES = 65536
-
-
-class IsolationError(Exception):
-    """隔离不可用、协议不完整或输入超限；调用方必须停止，不能回退到宿主执行。"""
 
 
 @dataclass(frozen=True)

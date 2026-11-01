@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B14.2.2 生产隔离工具 | 17 项发现/关闭/参数、失败重放、配置、启动竞争、子任务和计划底层证据；相关共 176 项，真实 WSL 聊天报告独立保存 | [业务场景](test_code_orchestration_loop.py)、[真实入口](../../scripts/chat_orchestration_acceptance.py) |
 | B14.2.1 嵌套执行 | 24 项父子来源、原权限/批准/Hook、共享额度、取消/保存失败、线程/递归限制与离线重放；相关共 175 项 | [业务场景](test_nested_tool_execution.py)、[来源边界](../test_nested_tool_log.py) |
 | B14.1 窄 RPC | 17 项协议/真实工具桥与相关共 63 项；另有实际 WSL 双工具筛选、拒绝、直接访问及回复阻塞停止证据，聊天接入待 B14.2 | [契约场景](test_code_orchestration.py)、[真实入口](../../scripts/orchestration_acceptance.py) |
 | B19.1 隔离前置 | 24 项宿主协议与架构共 46 项；独立真实 12 探针与 8 执行案例，不能以替身代替 | [宿主契约](test_isolation_backend.py)、[真实入口](../../scripts/isolation_acceptance.py)、[证据](../../docs/runtime-isolation.md) |

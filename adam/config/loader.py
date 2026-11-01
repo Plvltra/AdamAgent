@@ -20,6 +20,7 @@ from adam.config.settings import (
     LLMConfig,
     MemoryConfig,
     NoProgressConfig,
+    OrchestrationConfig,
     PermissionConfig,
     PlanningConfig,
     ReflectionConfig,
@@ -145,6 +146,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "tool_discovery",
             "no_progress",
             "session_search",
+            "orchestration",
         },
         "主配置",
     )
@@ -328,6 +330,13 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
                 data.get("no_progress", {}),
                 {item.name for item in fields(NoProgressConfig)},
                 "no_progress",
+            )
+        ),
+        orchestration=OrchestrationConfig(
+            **checked_section(
+                data.get("orchestration", {}),
+                {item.name for item in fields(OrchestrationConfig)},
+                "orchestration",
             )
         ),
         tool_discovery=ToolDiscoveryConfig(

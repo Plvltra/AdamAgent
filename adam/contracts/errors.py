@@ -30,6 +30,7 @@ class FailureCode(StrEnum):
     EDIT_LOG_ERROR = "edit_log_error"
     HOOK_LOG_ERROR = "hook_log_error"
     TOOL_CLEANUP_ERROR = "tool_cleanup_error"
+    ISOLATION_ERROR = "isolation_error"
     APPROVAL_DENIED = "approval_denied"
     EXECUTION_UNKNOWN = "execution_unknown"
     INTERNAL_ERROR = "internal_error"
@@ -83,6 +84,12 @@ class ToolCleanupError(AgentError):
     def __init__(self, call_ids: tuple[str, ...]) -> None:
         self.call_ids = call_ids
         super().__init__("只读工具线程未能及时退出，已禁止继续派发工具；请结束本次进程后再运行。")
+
+
+class IsolationError(AgentError):
+    """隔离不可用或协议不完整；停止当前轮次，不能回退宿主执行或重做未知动作。"""
+
+    code = FailureCode.ISOLATION_ERROR
 
 
 class ApprovalDeniedError(AgentError):

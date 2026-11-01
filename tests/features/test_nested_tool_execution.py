@@ -171,7 +171,15 @@ def test_nested_tools_keep_sources_hooks_and_restart_without_adding_raw_messages
             CODE_TOOL_NAME,
         ]
         assert env.bindings[-1]["tool_call_id"] == "parent"
-        assert outputs(env.bodies[1]) == [{"ok": True, "size": len(text), "lines": 2}]
+        result = outputs(env.bodies[1])[-1]
+        assert {key: result[key] for key in ("ok", "size", "lines")} == {
+            "ok": True,
+            "size": len(text),
+            "lines": 2,
+        }
+        assert result["nested_calls"] == [
+            {"tool_call_id": e["tool_call_id"], "name": e["name"]} for e in started[1:]
+        ]
         assert "private intermediate line" not in json.dumps(env.bodies[1]["messages"])
         sid, events = env.sid, env.store.load_events(env.sid)
     with SessionStore(tmp_path / "sessions") as reopened:

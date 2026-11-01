@@ -1,8 +1,8 @@
-# B14.1：隔离脚本与注册工具之间的窄 RPC
+# B14：隔离代码编排与原工具执行链
 
 已实现独立 API：`IsolatedOrchestrator.run(code, invoke)`。Python 脚本在 [B19.1 隔离后端](runtime-isolation.md) 中运行，通过 `call_tool(name, arguments)` 请求宿主，脚本的 `result` 变量成为最后的有界返回值。循环、列表筛选和聚合都在 worker 内完成，中间工具结果不必逐项回传给模型。
 
-当前尚未注册生产模型的代码编排工具。B14.2.1 已提供执行器的嵌套派发、共享额度、来源与录制基础；B14.2.2 再组装真实隔离 worker、配置与模型工具。B14.3 做生产闭环、超额、中断及真实进程故障组合验收。
+B14.2 已将 execute_code 接入主/子应用、原工具执行链、共享额度、来源与录制。默认关闭，显式开启后仍需实际隔离后端。B14.3 的越权、超额、中断及真实进程故障组合验收尚未完成。
 
 ## 模块职责
 
@@ -13,6 +13,8 @@
 | [linux_rpc.py](../adam/isolation/linux_rpc.py) | 可信 Linux 转发器；只转发一问一答，监督隔离进程，不执行工具 |
 | [linux_worker.py](../adam/isolation/linux_worker.py) | 复用固定命名空间、只读运行时、两阶段内核过滤和资源硬限额 |
 | [code_bridge.py](../adam/tool_calls/code_bridge.py) | 显式 API 的注册工具桥；宿主选择允许名称，沿用 ToolRegistry 参数、模式、路径和可选前置回调 |
+| [orchestration.py](../adam/contracts/orchestration.py) | CodeRunner 窄接口与有界执行结果，不依赖 OS 实现 |
+| [orchestration_tools.py](../adam/tool_calls/orchestration_tools.py) | 模型工具说明、代码参数校验与执行结果；bootstrap 注入真实后端及原执行器回调 |
 
 `RegisteredToolBridge` 只接受已注册且不重复的工具名称。脚本不能扩大列表、修改挂载或拿到处理函数；未开放工具返回明确失败。文件内容实际由宿主原工具读取，worker 无法直接读取 Windows 磁盘；命令和编辑若以后开放，仍需原工具的确认机制。没有为 B14 新造绕过这些规则的文件或命令实现。
 
@@ -26,7 +28,7 @@
 
 继承 256 MiB 地址空间、2 秒 CPU、无派生进程/线程、无网络、不可再次 exec 的内核限制。计算阶段累计最多 5 秒；等待宿主工具期间暂停这项计时，但每次等待最多 60 秒、总墙钟最多 300 秒，CPU 等硬限额不暂停。宿主通道自身还有 330 秒等待边界，业务回调必须沿用自己的取消/超时约束。
 
-返回包含真实退出码、结束原因、宿主实际派发次数及 `has_result`。失败不得把 `None` 当成成功摘要；协议断开时实际工具动作可能已经发生，所以只能报告结果未知并停止，不能自动重跑。B14.2 需将这些事实纳入会话记录。
+返回包含真实退出码、结束原因、宿主实际派发次数及 `has_result`。失败不得把 `None` 当成成功摘要；协议断开时实际工具动作可能已经发生，所以只能报告结果未知并停止，不能自动重跑。B14.2 已将返回事实与底层来源纳入会话记录。
 
 ## 已有验证
 
@@ -60,6 +62,49 @@ python -m scripts.orchestration_acceptance --backpressure --output rpc-result.js
 
 录制继续保存整批工具边界和实际会话增量，不新增嵌套模型请求。离线重放逐个导入 `tool_started`，由当前 ToolBudget 同样扣额；不构造执行器或启动 worker。新字段是会话 v4 中的可选来源扩展，旧的平面日志保持可读。
 
-本阶段的 [业务测试](../tests/features/test_nested_tool_execution.py) 使用固定宿主编排回调和模拟 HTTP，实际经过原执行器、文件编辑、批准、Hook 契约、JSONL 与录制；[来源边界](../tests/test_nested_tool_log.py) 拒绝无效父项、提前完成、独立子消息和隐藏工具。共 24 项新场景通过；这些测试验证宿主执行链，不替代 B19.1/B14.1 的真实隔离证明，也不代表生产聊天已经开放 execute_code。
+本阶段的 [业务测试](../tests/features/test_nested_tool_execution.py) 使用固定宿主编排回调和模拟 HTTP，实际经过原执行器、文件编辑、批准、Hook 契约、JSONL 与录制；[来源边界](../tests/test_nested_tool_log.py) 拒绝无效父项、提前完成、独立子消息和隐藏工具。共 24 项新场景通过；这些测试验证宿主执行链，不替代 B19.1/B14.1 的真实隔离证明，生产入口的验证见下文。
 
 连同普通工具循环、并发、发现、重复失败、编辑修正、附件、任务压缩、运行状态及旧录制重放，175 项相关检查通过；Ruff、Pyright 通过。每次主线提交仍执行完整 pytest 门禁。
+
+## B14.2.2 配置与模型使用
+
+在用户 config.toml 中明确开启；该设置不自动安装 WSL 或 Bubblewrap，也不影响既有 run_command 的运行位置：
+
+```toml
+[orchestration]
+enabled = true
+distribution = "Ubuntu"
+```
+
+默认 enabled=false。distribution 只能是发行版名称，不接受路径、启动命令、挂载或宿主回退选项。每次实际编排都先探测该发行版；组装或查看工具目录不启动进程。配置示例见 [config.example.toml](../config.example.toml)。
+
+按需模式下先发现 execute_code 及所需底层工具，下一次请求才能组合调用。模型传入 code 字符串，例如：
+
+```python
+info = call_tool("file_info", {"path": "notes.txt"})
+content = call_tool("read_file", {"path": "notes.txt"})
+result = {
+    "size": info["size"],
+    "matches": [row for row in content["lines"] if "TODO" in row["text"]],
+}
+```
+
+Python 必须兼容隔离发行版的 3.8 版本。代码参数在 Hook 和后端探测前验证，不可编码、空或超长内容直接拒绝。当前只有同步串行 call_tool，单个脚本最多 16 次；同轮主额度也计算根入口与所有底层调用。plan 模式允许隔离计算，但每个底层动作仍检查自身模式；子任务的命令和直接编辑仍返回需要主任务批准，不因包装进脚本而放开。
+
+结果中的 ok/status 说明脚本是否成功返回，result 中每项业务是否成功须检查各自事实。已知脚本非零退出保存 failed、exit_code 和 stderr；隔离不可用、启动竞争或协议失联以 isolation_error 停止轮次，不重试、不回退。取消和原日志故障保留原来的停止原因。
+
+宿主另附 nested_calls，只包含已结束底层调用的 ID 和名称；worker 不能伪造这些身份。后续模型可以用这些 ID 为计划提供实际证据。若以整次 execute_code 作为“完成”证据，程序还要求其所有底层工具成功；命令必须退出 0，编辑必须 applied。脚本吞掉命令错误后正常返回，不能绕过原规则。发生失败后修好了某一步，可单独引用对应成功的底层 ID。需要 read_call_id 的提案也可在后续请求引用，而不要求 worker 自行猜测 ID。
+
+### 验证边界
+
+[生产组装测试](../tests/features/test_code_orchestration_loop.py) 使用模拟 HTTP 和隔离传输替身，实际经过原注册表、文件/命令、子任务、额度和日志；覆盖发现后调用、关闭、参数、后端/脚本/预算失败、子任务权限、配置和启动竞争，以及命令退出 0/7 的计划证据对照。替身不证明 OS 隔离。
+
+[真实聊天验收入口](../scripts/chat_orchestration_acceptance.py) 则使用实际 WSL/Bubblewrap 和生产 build_application，模型仍为固定 HTTP 响应，付费请求为零。[已保存报告](evaluations/b14-chat.json) 验证两项真实文件工具、worker 筛选、总调用计数 3、父子来源、源正文未进入模型输入、JSONL 重启及删除源文件后的离线重放。
+
+```powershell
+python -m scripts.chat_orchestration_acceptance --distribution Ubuntu --output chat-rpc-result.json
+```
+
+报告必须新建。B14.3 仍负责真实进程取消、强杀、异常清理和组合故障；本节不把成功路径报告当成这些故障已验收。
+
+B14.2.2 新增 17 项场景；与嵌套、隔离 API、子任务、录制、计划、配置和架构共 176 项通过。Ruff、Pyright 与文档链接已检查，主线提交仍执行全量 pytest。

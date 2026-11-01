@@ -32,6 +32,7 @@ class _NestedScope:
     provided: frozenset[str] | None
     cancel: CancellationToken
     thread_id: int
+    completed_calls: list[dict[str, str]]
 
 
 class ToolExecutor:
@@ -180,6 +181,7 @@ class ToolExecutor:
             action = self._prepare(invocation, scope.budget, scope.provided)
             scope.cancel.check()
             output = self._finish(invocation, action(scope.cancel))
+            scope.completed_calls.append({"tool_call_id": invocation.call_id, "name": name})
             return json.loads(output)
         finally:
             self._inside_nested = False
@@ -251,8 +253,11 @@ class ToolExecutor:
         """限定嵌套能力的存活时间；父动作结束或失败后，旧回调无法继续派发。"""
         if self._nested_scope is not None:
             raise RuntimeError("编排动作不可重入。")
-        self._nested_scope = _NestedScope(invocation, budget, provided, cancel, get_ident())
+        scope = _NestedScope(invocation, budget, provided, cancel, get_ident(), [])
+        self._nested_scope = scope
         try:
-            return action(cancel)
+            result = action(cancel)
+            # 证据身份由宿主提供；worker 的汇总不能伪造调用 ID，也不能隐藏失败底层记录。
+            return {**result, "nested_calls": list(scope.completed_calls)}
         finally:
             self._nested_scope = None

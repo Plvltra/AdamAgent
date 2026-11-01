@@ -2,11 +2,27 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B14.2.1 嵌套执行器、共享调用额度、父子来源和离线重放。
+本次核对范围：B14.2.2 隔离工具、配置、主/子组装、宿主证据 ID 和计划完成校验。
 
-核对结论：ToolExecutor 增加限于父编排动作的串行嵌套入口，复用 ToolInvocation 原边界；ToolBudget 统一工具与编辑计数，SessionLog 校验父子关系并保持根消息配对。录制重放复用原事件导入，不调用 worker。尚未组装生产 execute_code 工具。原有协议、存储和注释说明保留并更新扩展后的契约。
+核对结论：bootstrap 通过 CodeRunner 契约连接真实 IsolatedOrchestrator 与原执行器，不让工具层导入 OS 实现。主/子能力保持原限制；IsolationError 迁到共享错误契约，结果类型与说明同步迁移。根编排附宿主证据 ID，计划检查底层真实退出/编辑结果；原注释已保留或迁移并更新新增边界。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B14.2.2 生产隔离工具
+
+~~~mermaid
+flowchart LR
+    OC_CONFIG["OrchestrationConfig / 显式开启与发行版"] --> OC_BOOT["bootstrap / 主与子应用分别组装"]
+    OC_BOOT --> OC_TOOL["orchestration_tools / execute_code"]
+    OC_BOOT --> OC_RUNNER["IsolatedOrchestrator / 固定 WSL 后端"]
+    OC_TOOL --> OC_PORT["contracts.orchestration / CodeRunner"]
+    OC_RUNNER -.实现.-> OC_PORT
+    OC_RUNNER --> OC_NESTED["原 ToolExecutor.execute_nested"]
+    OC_NESTED --> OC_FACTS["宿主 nested_calls / 实际 JSONL 事实"]
+    OC_FACTS --> OC_PLAN["plan_evidence / 根及底层成功校验"]
+~~~
+
+默认关闭；查看目录不启动后端，失败不回退宿主。组装与实际 WSL 验收见 [代码编排](code-orchestration.md)。
 
 ## B14.2.1 嵌套执行基础
 
@@ -23,7 +39,7 @@ flowchart LR
     NE_CAPTURE --> NE_REPLAY["ReplayStore / 逐项扣额，零真实动作"]
 ~~~
 
-当前由显式组装接口使用；生产隔离 worker 与聊天工具的连接待 B14.2.2，不把独立桥当成完整执行器。见 [代码编排](code-orchestration.md)。
+生产隔离工具已通过该执行基础接入；独立工具桥仍只供显式 API，不替代完整执行器。见 [代码编排](code-orchestration.md)。
 
 ## B14.1 窄 RPC 与注册工具桥
 
@@ -40,7 +56,7 @@ flowchart LR
     RPC_RESPONSE --> RPC_WSL
 ~~~
 
-独立工具桥没有完整聊天调用链；上面的 B14.2.1 已提供宿主执行基础，B14.2.2 再接真实 RPC。见 [边界与验收](code-orchestration.md)。
+此图描述独立 API；生产聊天使用上面的 B14.2 执行器连接，不使用简化工具桥。见 [边界与验收](code-orchestration.md)。
 
 ## B19.1 隔离前置
 
@@ -56,7 +72,7 @@ flowchart LR
     IS_RESULT --> IS_HOST
 ~~~
 
-无主聊天或 run_command 连接；B14 后续通过宿主窄 RPC 调用原工具，B19.2 再接命令。详见 [固定策略与真实证据](runtime-isolation.md)。
+B14.2 已复用此后端进行计算与窄 RPC；run_command 本身接入 OS 隔离仍待 B19.2。详见 [固定策略与真实证据](runtime-isolation.md)。
 
 ## B13.2 分享命令与来源核对
 
