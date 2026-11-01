@@ -2,11 +2,26 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B14.3 真实管道清理、WSL 故障与宿主强杀后的日志恢复。
+本次核对范围：B15.1 MCP 资源配置、目录与文本读取、内容版本及工具映射。
 
-核对结论：架构无变化，保留隔离端口、原执行器和会话恢复图。新增验收脚本和测试辅助进程，生产模块没有修改；确认隔离取消/通道断开会清理进程，恢复只追加中断事实。原代码注释均保留，新验收入口注明同步边界、进程身份与不重跑约束。
+核对结论：MCPConnection 共用原等待和进程清理，新增 mcp.resources 处理元信息、限额与内容摘要；tool_calls.mcp_resources 将显式资料入口接到原执行器。配置仅保留 URI 范围，不解释为宿主路径。原工具无重试和清理契约已保留并迁入共用方法，新资料仍作为工具结果。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B15.1 MCP 文本资源
+
+~~~mermaid
+flowchart LR
+    MR_CFG["MCPServerConfig.resources / 显式 URI"] --> MR_REG["register_mcp / 组装与资源栈"]
+    MR_REG --> MR_CONN["MCPConnection / 共用总等待与清理"]
+    MR_CONN --> MR_SDK["ClientSession / stdio 服务"]
+    MR_CONN --> MR_DATA["mcp.resources / 目录、正文与内容版本"]
+    MR_REG --> MR_TOOLS["mcp_resources / list 与 read"]
+    MR_TOOLS --> MR_CONN
+    MR_TOOLS --> MR_LOOP["原 ToolRegistry 与 ToolExecutor / 日志及额度"]
+~~~
+
+资源正文仅回传为工具结果，不转成系统提示，不执行 URI 或服务给出的指令。限制、教学配置和真实 SDK 验收见 [MCP](mcp.md)。
 
 ## B14.2.2 生产隔离工具
 

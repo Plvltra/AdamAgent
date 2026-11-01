@@ -118,6 +118,7 @@ max_output_bytes = 8192
 
 [mcp]
 # Explicitly enable only trusted local servers. See docs/mcp.md.
+# Server entries may allow exact resources URIs as well as read-only tools.
 enabled = false
 servers = []
 

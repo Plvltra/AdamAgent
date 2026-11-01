@@ -53,6 +53,11 @@ def main() -> None:
         """读取本服务工作目录内的短 UTF-8 文件，返回文本与 SHA-256。"""
         return read_text(root, path)
 
+    @server.resource("project://readme", mime_type="text/markdown")
+    def project_readme() -> str:
+        """提供短 README；复用工具的根目录、凭据和大小检查，不把 URI 当作文件路径。"""
+        return read_text(root, "README.md")["content"]
+
     server.run()
 
 

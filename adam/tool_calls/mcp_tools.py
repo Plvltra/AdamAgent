@@ -11,6 +11,7 @@ from adam.contracts.execution import ToolCapability
 from adam.contracts.models import ExecutionRecorder
 from adam.mcp.client import MCPConnection
 from adam.mcp.schema import validator_for
+from adam.tool_calls.mcp_resources import register_resources
 from adam.tool_calls.registry import ToolHandler, ToolRegistry
 
 
@@ -20,7 +21,7 @@ def register_mcp(
     workspace: Path,
     resources: ExitStack,
 ) -> ToolRegistry:
-    """启动配置中的可信服务；名字隔离、明确工具白名单和只读声明缺一不可。"""
+    """启动可信服务并隔离名称；工具须白名单和只读声明，资源须独立 URI 白名单。"""
     if not config.enabled:
         return registry
     for server in config.servers:
@@ -54,6 +55,7 @@ def register_mcp(
                 )
             except ValueError as error:
                 raise ToolError("MCP 工具名称冲突；未覆盖已有工具。") from error
+        registry = register_resources(registry, connection)
     return registry
 
 
