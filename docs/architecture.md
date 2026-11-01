@@ -2,11 +2,24 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B07.3 拒绝候选、采纳前锁内重查，以及真实多进程与中断恢复验收。
+本次核对范围：B08.1 授权旧对话的只读索引、原文引用及独立查询入口。
 
-核对结论：MemoryStore 在同一把锁内读候选拒绝状态并验证采纳来源，memory.organization 原子保存拒绝标记；不引入第二个事实存储。已有概览和撤销机制保持，真实进程测试覆盖替换前后终止；旧关键说明保留，CLI 契约补充拒绝语义。
+核对结论：SessionSearchIndex 只读取显式授权会话，复用 parse_log 校验并区分成功原文与诊断输入；来源版本和整文件快照分别记录。不创建 SessionStore、取得写锁或执行恢复。新增模块已说明权限、引用和失败契约，原有说明保持。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B08.1 旧对话只读索引
+
+~~~mermaid
+flowchart LR
+    SS_CLI["session_search / 显式会话范围"] --> SS_INDEX["session.search / 有界只读索引"]
+    SS_INDEX --> SS_FILES["授权 JSONL / 版本快照"]
+    SS_INDEX --> SS_LOG["session.log / 严格协议解析"]
+    SS_LOG --> SS_SOURCE["成功原文 / 显式诊断输入"]
+    SS_INDEX --> SS_DATA["contracts.session_search / 位置、引用、覆盖问题"]
+~~~
+
+索引缓存每次验证当前文件字节，失败来源淘汰旧结果。独立入口不加载聊天 API 配置；范围、来源字段及限额见 [旧对话检索](session-search.md)。模型工具接入由 B08.2 完成。
 
 ## B07.3 拒绝与恢复边界
 
@@ -1111,6 +1124,9 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [session/proposal_log.py](../adam/session/proposal_log.py) | ProposalLog、validate_application | 回放子候选来源与主编辑候选关联，不重读源文件或执行修改 |
 | [contracts/protocol.py](../adam/contracts/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
 | [session/storage.py](../adam/session/storage.py) | `SessionStore` | 管理会话文件、锁、读写与持锁恢复；先备份再原子替换，提供会话身份及已提交消息 |
+| [session/search.py](../adam/session/search.py) | `SessionSearchIndex` | 读取明确授权日志、原文倒排检索和版本引用；损坏来源淘汰缓存，不执行恢复 |
+| [contracts/session_search.py](../adam/contracts/session_search.py) | `SessionExcerpt`、`SessionSearchResult` | 精确来源位置、成功或诊断状态及不完整覆盖；不提供授权或写入能力 |
+| [session_search.py](../adam/session_search.py) | `main` | 独立显式会话查询、JSON 输出与覆盖失败退出码，无模型连接，不改变聊天 CLI 依赖 |
 | [session/edit_log.py](../adam/session/edit_log.py) | `EditLog` | 编辑状态纯投影；未开始计划恢复为 not_started，写入未知结果不猜测 |
 | [session/log.py](../adam/session/log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，重建状态、有效历史及用量，规划并回放恢复事件；自身不访问文件 |
 | [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor` | 实现 ToolRunner，消费共享编辑额度、组装批次任务、绑定来源并形成有序消息 |

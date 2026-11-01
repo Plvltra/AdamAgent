@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B08.1 旧对话索引 | 15 项授权、精确来源、追加/编辑、失效缓存、诊断隔离、资源限额、分页、越界和只读 CLI | [test_session_search.py](test_session_search.py) |
 | B07.3 拒绝与中断恢复 | 9 项明确拒绝/保存失败/到期、独立进程同时确认或编辑或拒绝、原子替换前后强杀重启；已接受结果保留可撤销 | [test_memory_organization_recovery.py](test_memory_organization_recovery.py) |
 | B07.2 确认与撤销 | 15 项概览/来源/幂等确认、明确解决冲突、原子故障、并发保护、有效期、损坏及请求重放 | [test_memory_consolidation.py](test_memory_consolidation.py) |
 | B07.1 离线整理候选 | 16 项四类候选、确切来源、范围和同名隔离、不调用模型、重启、损坏与保存失败；相关回归共 70 项 | [test_memory_organization.py](test_memory_organization.py) |
