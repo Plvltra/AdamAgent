@@ -10,3 +10,6 @@
 .gitignore text eol=lf
 # Preserve the byte identity of versioned evaluation inputs across checkouts.
 examples/injection-evaluation/*.json text eol=lf
+tests/fixtures/document_multi_questions.json text eol=lf
+tests/fixtures/documents/*.txt text eol=lf
+docs/evaluations/b09-*.json text eol=lf

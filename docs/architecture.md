@@ -2,11 +2,24 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B09.2 可选本地精排、后端契约、降级来源及查询/评估入口。
+本次核对范围：B09.3 多片段金标准、MRR/Recall/无答案指标，以及同版本四路评估和真实证据。
 
-核对结论：DocumentSearch 在 RRF 后可调用 documents.reranking，后端仅返回分数，原片段不变。可选后端故障整体回退到融合次序，取消及源读取故障仍传播；工具与评估均保留真实状态。原候选池、引用与输出上限解释保留，独立准备入口说明补充精排模型。
+核对结论：生产检索架构无结构变化；原评估模块增加多证据匹配与分母规则，独立入口保留未精排基线并检查路线间版本一致。原证据评估与旧题契约保留；新增说明解释版本、重复命中及无答案边界。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B09.3 检索评估
+
+~~~mermaid
+flowchart LR
+    EV_CASES["固定题集 / 文件版本与片段位置"] --> EV_VALIDATE["documents.evaluation / 先验证全部题"]
+    EV_CLI["document_search evaluate / 同版本四路"] --> EV_VALIDATE
+    EV_VALIDATE --> EV_SEARCH["DocumentSearch / 当前候选与实际排序"]
+    EV_SEARCH --> EV_METRICS["逐题证据 / Hit、MRR、宏微 Recall、无答案"]
+    EV_METRICS --> EV_REPORT["完整报告 / 来源变化则停止"]
+~~~
+
+真实小题集与指标边界见 [检索评估](retrieval-evaluation.md)。源检索图保持，模型分数不等于回答正确性。
 
 ## B09.2 可选精排
 

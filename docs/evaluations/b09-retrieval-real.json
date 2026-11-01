@@ -1,0 +1,3643 @@
+{
+  "metadata": {
+    "embedding_model": "BAAI/bge-small-zh-v1.5",
+    "semantic_min_score": 0.5,
+    "chunk_chars": 400,
+    "rerank": true,
+    "reranker_model": "BAAI/bge-reranker-v2-m3-int8",
+    "encoding": "window256-mean-v1",
+    "hybrid_candidates": 20,
+    "rrf_constant": 60
+  },
+  "keyword": {
+    "format_version": 2,
+    "cases_sha256": "45739cac8f0340368b38a3d3fdffb05e5d11e97ca16025750fe0d77340be10bf",
+    "source_generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+    "k": 3,
+    "answerable": 10,
+    "hits": 7,
+    "hit_at_k": 0.7,
+    "mrr_at_k": 0.7,
+    "macro_recall_at_k": 0.7,
+    "micro_recall_at_k": 0.7692307692307693,
+    "relevant_count": 13,
+    "recalled_count": 10,
+    "no_answer": 2,
+    "no_answer_empty": 2,
+    "no_answer_false_positive_at_k": 0.0,
+    "query_time_ms": 290.606,
+    "returned_chars": 542,
+    "by_kind": {
+      "answer": {
+        "answerable": 3,
+        "hits": 3,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 1.0,
+        "macro_recall_at_k": 1.0,
+        "micro_recall_at_k": 1.0,
+        "relevant_count": 6,
+        "recalled_count": 6,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 69.328,
+        "returned_chars": 208
+      },
+      "exact": {
+        "answerable": 4,
+        "hits": 4,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 1.0,
+        "macro_recall_at_k": 1.0,
+        "micro_recall_at_k": 1.0,
+        "relevant_count": 4,
+        "recalled_count": 4,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 98.199,
+        "returned_chars": 277
+      },
+      "no_answer": {
+        "answerable": 0,
+        "hits": 0,
+        "hit_at_k": null,
+        "mrr_at_k": null,
+        "macro_recall_at_k": null,
+        "micro_recall_at_k": null,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "no_answer": 2,
+        "no_answer_empty": 2,
+        "no_answer_false_positive_at_k": 0.0,
+        "query_time_ms": 46.244,
+        "returned_chars": 0
+      },
+      "paraphrase": {
+        "answerable": 3,
+        "hits": 0,
+        "hit_at_k": 0.0,
+        "mrr_at_k": 0.0,
+        "macro_recall_at_k": 0.0,
+        "micro_recall_at_k": 0.0,
+        "relevant_count": 3,
+        "recalled_count": 0,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 76.835,
+        "returned_chars": 57
+      }
+    },
+    "rows": [
+      {
+        "id": "exact-http429",
+        "kind": "exact",
+        "query": "HTTP 429 等待规则",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "服务端指定的等待时间",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 25.157,
+        "returned_chars": 80,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "HTTP 429 使用服务端指定的等待时间；没有等待时间时终止并提示限流。",
+            "score": 6.350686,
+            "chunk_id": "1a2eca1fe8d02ff9",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "并发写入规则",
+            "score": 3.792816,
+            "chunk_id": "fabe22331a07c34d",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/installation.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "测试使用临时目录，不修改真实用户数据。模型响应通过本地假 HTTP 提供。",
+            "score": 1.806155,
+            "chunk_id": "724db339902bb7dc",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "exact-jsonl",
+        "kind": "exact",
+        "query": "JSONL 会话记录格式",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "JSONL",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 24.607,
+        "returned_chars": 91,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 10.692557,
+            "chunk_id": "806ac7a10fa23a8e",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 1.702469,
+            "chunk_id": "e861225342eec15d",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 1.520603,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "exact-python",
+        "kind": "exact",
+        "query": "Python 3.11 运行环境",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/installation.md",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "Python 3.11",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 23.699,
+        "returned_chars": 25,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/installation.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "运行环境需要 Python 3.11 或更新版本。",
+            "score": 17.485028,
+            "chunk_id": "ef7ee682681b1f17",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "exact-permission",
+        "kind": "exact",
+        "query": "权限错误不重试",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "权限错误不重试",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 24.736,
+        "returned_chars": 81,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 14.658928,
+            "chunk_id": "7240a4b5e0e0e60e",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 2.675491,
+            "chunk_id": "83e37aa8e5785d82",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 1.744052,
+            "chunk_id": "e6422e1871282a28",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-restart",
+        "kind": "paraphrase",
+        "query": "电脑突然断电，任务会自己再执行吗",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 1,
+        "recalled_count": 0,
+        "recall_at_k": 0.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "不重跑工具",
+            "retrieved_rank": null
+          }
+        ],
+        "empty": true,
+        "elapsed_ms": 29.816,
+        "returned_chars": 0,
+        "retrieved": []
+      },
+      {
+        "id": "paraphrase-history",
+        "kind": "paraphrase",
+        "query": "答案还没落盘就能算作正式聊过的内容吗",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 1,
+        "recalled_count": 0,
+        "recall_at_k": 0.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "完整回答保存成功",
+            "retrieved_rank": null
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 23.843,
+        "returned_chars": 57,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 1.982652,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 1.872844,
+            "chunk_id": "4c74423b9c452e0a",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-update",
+        "kind": "paraphrase",
+        "query": "资料改过了还要等半小时才生效吗",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 1,
+        "recalled_count": 0,
+        "recall_at_k": 0.0,
+        "expected": [
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "立即刷新",
+            "retrieved_rank": null
+          }
+        ],
+        "empty": true,
+        "elapsed_ms": 23.176,
+        "returned_chars": 0,
+        "retrieved": []
+      },
+      {
+        "id": "multi-network",
+        "kind": "answer",
+        "query": "网络连接失败与权限错误分别怎么重试",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "最多重试 2 次",
+            "retrieved_rank": 1
+          },
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "权限错误不重试",
+            "retrieved_rank": 2
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 23.293,
+        "returned_chars": 78,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 12.410288,
+            "chunk_id": "83e37aa8e5785d82",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 11.46558,
+            "chunk_id": "7240a4b5e0e0e60e",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 2.936637,
+            "chunk_id": "ac2e850d72293fb9",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "multi-cache",
+        "kind": "answer",
+        "query": "源文件修改与删除时，缓存如何同步",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "立即刷新",
+            "retrieved_rank": 2
+          },
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "缓存条目也必须删除",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 22.581,
+        "returned_chars": 63,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 6.749171,
+            "chunk_id": "4c74423b9c452e0a",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 6.051942,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 缓存配置",
+            "score": 3.059362,
+            "chunk_id": "335adc11c5285b0a",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "multi-recovery",
+        "kind": "answer",
+        "query": "重启不重跑工具和保存成功才加入历史分别有什么规则",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "不重跑工具",
+            "retrieved_rank": 2
+          },
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "完整回答保存成功",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 23.454,
+        "returned_chars": 67,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 10.612629,
+            "chunk_id": "abf9044344d1b6c1",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 8.23205,
+            "chunk_id": "e6422e1871282a28",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "并发写入规则",
+            "score": 3.792816,
+            "chunk_id": "fabe22331a07c34d",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "unknown-space",
+        "kind": "no_answer",
+        "query": "火星基地氧气配给",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "recall_at_k": null,
+        "expected": [],
+        "empty": true,
+        "elapsed_ms": 22.287,
+        "returned_chars": 0,
+        "retrieved": []
+      },
+      {
+        "id": "unknown-login",
+        "kind": "no_answer",
+        "query": "默认支持哪种企业单点登录供应商",
+        "method": "keyword",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "recall_at_k": null,
+        "expected": [],
+        "empty": true,
+        "elapsed_ms": 23.957,
+        "returned_chars": 0,
+        "retrieved": []
+      }
+    ]
+  },
+  "semantic": {
+    "format_version": 2,
+    "cases_sha256": "45739cac8f0340368b38a3d3fdffb05e5d11e97ca16025750fe0d77340be10bf",
+    "source_generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+    "k": 3,
+    "answerable": 10,
+    "hits": 10,
+    "hit_at_k": 1.0,
+    "mrr_at_k": 1.0,
+    "macro_recall_at_k": 0.95,
+    "micro_recall_at_k": 0.9230769230769231,
+    "relevant_count": 13,
+    "recalled_count": 12,
+    "no_answer": 2,
+    "no_answer_empty": 2,
+    "no_answer_false_positive_at_k": 0.0,
+    "query_time_ms": 2040.402,
+    "returned_chars": 797,
+    "by_kind": {
+      "answer": {
+        "answerable": 3,
+        "hits": 3,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 1.0,
+        "macro_recall_at_k": 0.8333333333333334,
+        "micro_recall_at_k": 0.8333333333333334,
+        "relevant_count": 6,
+        "recalled_count": 5,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 239.456,
+        "returned_chars": 266
+      },
+      "exact": {
+        "answerable": 4,
+        "hits": 4,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 1.0,
+        "macro_recall_at_k": 1.0,
+        "micro_recall_at_k": 1.0,
+        "relevant_count": 4,
+        "recalled_count": 4,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 1409.263,
+        "returned_chars": 276
+      },
+      "no_answer": {
+        "answerable": 0,
+        "hits": 0,
+        "hit_at_k": null,
+        "mrr_at_k": null,
+        "macro_recall_at_k": null,
+        "micro_recall_at_k": null,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "no_answer": 2,
+        "no_answer_empty": 2,
+        "no_answer_false_positive_at_k": 0.0,
+        "query_time_ms": 153.024,
+        "returned_chars": 0
+      },
+      "paraphrase": {
+        "answerable": 3,
+        "hits": 3,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 1.0,
+        "macro_recall_at_k": 1.0,
+        "micro_recall_at_k": 1.0,
+        "relevant_count": 3,
+        "recalled_count": 3,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 238.659,
+        "returned_chars": 255
+      }
+    },
+    "rows": [
+      {
+        "id": "exact-http429",
+        "kind": "exact",
+        "query": "HTTP 429 等待规则",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "服务端指定的等待时间",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 1157.623,
+        "returned_chars": 43,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "HTTP 429 使用服务端指定的等待时间；没有等待时间时终止并提示限流。",
+            "score": 0.683249,
+            "chunk_id": "1a2eca1fe8d02ff9",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "并发写入规则",
+            "score": 0.512495,
+            "chunk_id": "fabe22331a07c34d",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "exact-jsonl",
+        "kind": "exact",
+        "query": "JSONL 会话记录格式",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "JSONL",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 97.757,
+        "returned_chars": 91,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 0.704971,
+            "chunk_id": "806ac7a10fa23a8e",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 0.610188,
+            "chunk_id": "e861225342eec15d",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.509565,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "exact-python",
+        "kind": "exact",
+        "query": "Python 3.11 运行环境",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/installation.md",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "Python 3.11",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 68.89,
+        "returned_chars": 62,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/installation.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "运行环境需要 Python 3.11 或更新版本。",
+            "score": 0.770593,
+            "chunk_id": "ef7ee682681b1f17",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/installation.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "测试使用临时目录，不修改真实用户数据。模型响应通过本地假 HTTP 提供。",
+            "score": 0.503436,
+            "chunk_id": "724db339902bb7dc",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "exact-permission",
+        "kind": "exact",
+        "query": "权限错误不重试",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "权限错误不重试",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 84.993,
+        "returned_chars": 80,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 0.772814,
+            "chunk_id": "7240a4b5e0e0e60e",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 0.612167,
+            "chunk_id": "83e37aa8e5785d82",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.577314,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-restart",
+        "kind": "paraphrase",
+        "query": "电脑突然断电，任务会自己再执行吗",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "不重跑工具",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 76.747,
+        "returned_chars": 98,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 0.62076,
+            "chunk_id": "e6422e1871282a28",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 0.551098,
+            "chunk_id": "4c74423b9c452e0a",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.550748,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-history",
+        "kind": "paraphrase",
+        "query": "答案还没落盘就能算作正式聊过的内容吗",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "完整回答保存成功",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 80.004,
+        "returned_chars": 63,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 0.621197,
+            "chunk_id": "abf9044344d1b6c1",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 0.553919,
+            "chunk_id": "e861225342eec15d",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "# 对话恢复",
+            "score": 0.543371,
+            "chunk_id": "832ce1a4a2e20a22",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-update",
+        "kind": "paraphrase",
+        "query": "资料改过了还要等半小时才生效吗",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "立即刷新",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 81.908,
+        "returned_chars": 94,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.586985,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.581819,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 0.580147,
+            "chunk_id": "ac2e850d72293fb9",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "multi-network",
+        "kind": "answer",
+        "query": "网络连接失败与权限错误分别怎么重试",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "最多重试 2 次",
+            "retrieved_rank": 2
+          },
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "权限错误不重试",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 80.762,
+        "returned_chars": 78,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 0.768639,
+            "chunk_id": "7240a4b5e0e0e60e",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 0.76599,
+            "chunk_id": "83e37aa8e5785d82",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 0.643895,
+            "chunk_id": "ac2e850d72293fb9",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "multi-cache",
+        "kind": "answer",
+        "query": "源文件修改与删除时，缓存如何同步",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "立即刷新",
+            "retrieved_rank": 1
+          },
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "缓存条目也必须删除",
+            "retrieved_rank": 2
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 80.709,
+        "returned_chars": 91,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.78938,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 0.707327,
+            "chunk_id": "4c74423b9c452e0a",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.654739,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "multi-recovery",
+        "kind": "answer",
+        "query": "重启不重跑工具和保存成功才加入历史分别有什么规则",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 1,
+        "recall_at_k": 0.5,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "不重跑工具",
+            "retrieved_rank": 1
+          },
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "完整回答保存成功",
+            "retrieved_rank": null
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 77.985,
+        "returned_chars": 97,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 0.633083,
+            "chunk_id": "e6422e1871282a28",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.589086,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": []
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.538838,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": []
+          }
+        ]
+      },
+      {
+        "id": "unknown-space",
+        "kind": "no_answer",
+        "query": "火星基地氧气配给",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "recall_at_k": null,
+        "expected": [],
+        "empty": true,
+        "elapsed_ms": 71.88,
+        "returned_chars": 0,
+        "retrieved": []
+      },
+      {
+        "id": "unknown-login",
+        "kind": "no_answer",
+        "query": "默认支持哪种企业单点登录供应商",
+        "method": "semantic",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "recall_at_k": null,
+        "expected": [],
+        "empty": true,
+        "elapsed_ms": 81.144,
+        "returned_chars": 0,
+        "retrieved": []
+      }
+    ]
+  },
+  "hybrid": {
+    "format_version": 2,
+    "cases_sha256": "45739cac8f0340368b38a3d3fdffb05e5d11e97ca16025750fe0d77340be10bf",
+    "source_generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+    "k": 3,
+    "answerable": 10,
+    "hits": 10,
+    "hit_at_k": 1.0,
+    "mrr_at_k": 0.95,
+    "macro_recall_at_k": 1.0,
+    "micro_recall_at_k": 1.0,
+    "relevant_count": 13,
+    "recalled_count": 13,
+    "no_answer": 2,
+    "no_answer_empty": 2,
+    "no_answer_false_positive_at_k": 0.0,
+    "query_time_ms": 1003.218,
+    "returned_chars": 825,
+    "by_kind": {
+      "answer": {
+        "answerable": 3,
+        "hits": 3,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 1.0,
+        "macro_recall_at_k": 1.0,
+        "micro_recall_at_k": 1.0,
+        "relevant_count": 6,
+        "recalled_count": 6,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 234.2,
+        "returned_chars": 236
+      },
+      "exact": {
+        "answerable": 4,
+        "hits": 4,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 1.0,
+        "macro_recall_at_k": 1.0,
+        "micro_recall_at_k": 1.0,
+        "relevant_count": 4,
+        "recalled_count": 4,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 428.313,
+        "returned_chars": 314
+      },
+      "no_answer": {
+        "answerable": 0,
+        "hits": 0,
+        "hit_at_k": null,
+        "mrr_at_k": null,
+        "macro_recall_at_k": null,
+        "micro_recall_at_k": null,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "no_answer": 2,
+        "no_answer_empty": 2,
+        "no_answer_false_positive_at_k": 0.0,
+        "query_time_ms": 129.468,
+        "returned_chars": 0
+      },
+      "paraphrase": {
+        "answerable": 3,
+        "hits": 3,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 0.8333333333333334,
+        "macro_recall_at_k": 1.0,
+        "micro_recall_at_k": 1.0,
+        "relevant_count": 3,
+        "recalled_count": 3,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 211.237,
+        "returned_chars": 275
+      }
+    },
+    "rows": [
+      {
+        "id": "exact-http429",
+        "kind": "exact",
+        "query": "HTTP 429 等待规则",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 4,
+          "semantic_candidates": 2
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "服务端指定的等待时间",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 244.463,
+        "returned_chars": 80,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "HTTP 429 使用服务端指定的等待时间；没有等待时间时终止并提示限流。",
+            "score": 0.032787,
+            "chunk_id": "1a2eca1fe8d02ff9",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 6.350686175687741
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.6832488439809495
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "并发写入规则",
+            "score": 0.032258,
+            "chunk_id": "fabe22331a07c34d",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 3.7928160616581104
+              },
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.5124954302506624
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/installation.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "测试使用临时目录，不修改真实用户数据。模型响应通过本地假 HTTP 提供。",
+            "score": 0.015873,
+            "chunk_id": "724db339902bb7dc",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 3,
+                "score": 1.8061550975456697
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "exact-jsonl",
+        "kind": "exact",
+        "query": "JSONL 会话记录格式",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 3,
+          "semantic_candidates": 4
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "JSONL",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 62.704,
+        "returned_chars": 91,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 0.032787,
+            "chunk_id": "806ac7a10fa23a8e",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 10.692557067101854
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.7049711506969972
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 0.032258,
+            "chunk_id": "e861225342eec15d",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 1.7024691302299795
+              },
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.6101884795549782
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.031746,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 3,
+                "score": 1.5206029916890915
+              },
+              {
+                "method": "semantic",
+                "rank": 3,
+                "score": 0.5095650807463268
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "exact-python",
+        "kind": "exact",
+        "query": "Python 3.11 运行环境",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 1,
+          "semantic_candidates": 2
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/installation.md",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "Python 3.11",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 61.163,
+        "returned_chars": 62,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/installation.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "运行环境需要 Python 3.11 或更新版本。",
+            "score": 0.032787,
+            "chunk_id": "ef7ee682681b1f17",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 17.485028485018468
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.7705927578586826
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/installation.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "测试使用临时目录，不修改真实用户数据。模型响应通过本地假 HTTP 提供。",
+            "score": 0.016129,
+            "chunk_id": "724db339902bb7dc",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.5034359419536563
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "exact-permission",
+        "kind": "exact",
+        "query": "权限错误不重试",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 3,
+          "semantic_candidates": 7
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "权限错误不重试",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 59.983,
+        "returned_chars": 81,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 0.032787,
+            "chunk_id": "7240a4b5e0e0e60e",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 14.658927753721926
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.7728141526743542
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 0.032258,
+            "chunk_id": "83e37aa8e5785d82",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 2.6754912873533656
+              },
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.6121667315912327
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 0.031498,
+            "chunk_id": "e6422e1871282a28",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 3,
+                "score": 1.7440523434753314
+              },
+              {
+                "method": "semantic",
+                "rank": 4,
+                "score": 0.574450382718422
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-restart",
+        "kind": "paraphrase",
+        "query": "电脑突然断电，任务会自己再执行吗",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 0,
+          "semantic_candidates": 8
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "不重跑工具",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 64.895,
+        "returned_chars": 98,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 0.016393,
+            "chunk_id": "e6422e1871282a28",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.6207603781095342
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 0.016129,
+            "chunk_id": "4c74423b9c452e0a",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.5510979630876177
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.015873,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 3,
+                "score": 0.550747717706041
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-history",
+        "kind": "paraphrase",
+        "query": "答案还没落盘就能算作正式聊过的内容吗",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 2,
+          "semantic_candidates": 4
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 2,
+        "reciprocal_rank": 0.5,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "完整回答保存成功",
+            "retrieved_rank": 2
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 71.829,
+        "returned_chars": 83,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.016393,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 1.9826523383481782
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 0.016393,
+            "chunk_id": "abf9044344d1b6c1",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.6211965338438368
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 0.016129,
+            "chunk_id": "4c74423b9c452e0a",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 1.8728439011473559
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-update",
+        "kind": "paraphrase",
+        "query": "资料改过了还要等半小时才生效吗",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 0,
+          "semantic_candidates": 7
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "立即刷新",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 74.513,
+        "returned_chars": 94,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.016393,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.5869845094981319
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.016129,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.5818186121006029
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 0.015873,
+            "chunk_id": "ac2e850d72293fb9",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 3,
+                "score": 0.5801466149055922
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "multi-network",
+        "kind": "answer",
+        "query": "网络连接失败与权限错误分别怎么重试",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 7,
+          "semantic_candidates": 10
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "最多重试 2 次",
+            "retrieved_rank": 1
+          },
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "权限错误不重试",
+            "retrieved_rank": 2
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 78.908,
+        "returned_chars": 78,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 0.032522,
+            "chunk_id": "83e37aa8e5785d82",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 12.410288333365441
+              },
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.7659898822188151
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 0.032522,
+            "chunk_id": "7240a4b5e0e0e60e",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 11.465580409666666
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.7686393612722606
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 0.031746,
+            "chunk_id": "ac2e850d72293fb9",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 3,
+                "score": 2.9366372962706233
+              },
+              {
+                "method": "semantic",
+                "rank": 3,
+                "score": 0.643895146166103
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "multi-cache",
+        "kind": "answer",
+        "query": "源文件修改与删除时，缓存如何同步",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 8,
+          "semantic_candidates": 11
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "立即刷新",
+            "retrieved_rank": 1
+          },
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "缓存条目也必须删除",
+            "retrieved_rank": 2
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 78.632,
+        "returned_chars": 91,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.032522,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 6.051941876815597
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.789380408205227
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 0.032522,
+            "chunk_id": "4c74423b9c452e0a",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 6.749171114001249
+              },
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.7073267807915259
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.031258,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 5,
+                "score": 2.4443404881887063
+              },
+              {
+                "method": "semantic",
+                "rank": 3,
+                "score": 0.6547385731620446
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "multi-recovery",
+        "kind": "answer",
+        "query": "重启不重跑工具和保存成功才加入历史分别有什么规则",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 7,
+          "semantic_candidates": 9
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "不重跑工具",
+            "retrieved_rank": 1
+          },
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "完整回答保存成功",
+            "retrieved_rank": 2
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 76.66,
+        "returned_chars": 67,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 0.032522,
+            "chunk_id": "e6422e1871282a28",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 8.232050019148375
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.6330830925846996
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 0.032018,
+            "chunk_id": "abf9044344d1b6c1",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 10.61262904351726
+              },
+              {
+                "method": "semantic",
+                "rank": 4,
+                "score": 0.5335093333556498
+              }
+            ]
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "并发写入规则",
+            "score": 0.031258,
+            "chunk_id": "fabe22331a07c34d",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 3,
+                "score": 3.7928160616581104
+              },
+              {
+                "method": "semantic",
+                "rank": 5,
+                "score": 0.53259242360741
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "unknown-space",
+        "kind": "no_answer",
+        "query": "火星基地氧气配给",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 0,
+          "semantic_candidates": 0
+        },
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "recall_at_k": null,
+        "expected": [],
+        "empty": true,
+        "elapsed_ms": 67.074,
+        "returned_chars": 0,
+        "retrieved": []
+      },
+      {
+        "id": "unknown-login",
+        "kind": "no_answer",
+        "query": "默认支持哪种企业单点登录供应商",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 0,
+          "semantic_candidates": 0
+        },
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "recall_at_k": null,
+        "expected": [],
+        "empty": true,
+        "elapsed_ms": 62.394,
+        "returned_chars": 0,
+        "retrieved": []
+      }
+    ]
+  },
+  "hybrid_reranked": {
+    "format_version": 2,
+    "cases_sha256": "45739cac8f0340368b38a3d3fdffb05e5d11e97ca16025750fe0d77340be10bf",
+    "source_generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+    "k": 3,
+    "answerable": 10,
+    "hits": 10,
+    "hit_at_k": 1.0,
+    "mrr_at_k": 1.0,
+    "macro_recall_at_k": 1.0,
+    "micro_recall_at_k": 1.0,
+    "relevant_count": 13,
+    "recalled_count": 13,
+    "no_answer": 2,
+    "no_answer_empty": 2,
+    "no_answer_false_positive_at_k": 0.0,
+    "query_time_ms": 14508.208,
+    "returned_chars": 812,
+    "by_kind": {
+      "answer": {
+        "answerable": 3,
+        "hits": 3,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 1.0,
+        "macro_recall_at_k": 1.0,
+        "micro_recall_at_k": 1.0,
+        "relevant_count": 6,
+        "recalled_count": 6,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 5871.018,
+        "returned_chars": 258
+      },
+      "exact": {
+        "answerable": 4,
+        "hits": 4,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 1.0,
+        "macro_recall_at_k": 1.0,
+        "micro_recall_at_k": 1.0,
+        "relevant_count": 4,
+        "recalled_count": 4,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 4891.321,
+        "returned_chars": 307
+      },
+      "no_answer": {
+        "answerable": 0,
+        "hits": 0,
+        "hit_at_k": null,
+        "mrr_at_k": null,
+        "macro_recall_at_k": null,
+        "micro_recall_at_k": null,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "no_answer": 2,
+        "no_answer_empty": 2,
+        "no_answer_false_positive_at_k": 0.0,
+        "query_time_ms": 127.402,
+        "returned_chars": 0
+      },
+      "paraphrase": {
+        "answerable": 3,
+        "hits": 3,
+        "hit_at_k": 1.0,
+        "mrr_at_k": 1.0,
+        "macro_recall_at_k": 1.0,
+        "micro_recall_at_k": 1.0,
+        "relevant_count": 3,
+        "recalled_count": 3,
+        "no_answer": 0,
+        "no_answer_empty": 0,
+        "no_answer_false_positive_at_k": null,
+        "query_time_ms": 3618.467,
+        "returned_chars": 247
+      }
+    },
+    "rows": [
+      {
+        "id": "exact-http429",
+        "kind": "exact",
+        "query": "HTTP 429 等待规则",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 4,
+          "semantic_candidates": 2
+        },
+        "reranking": {
+          "status": "applied",
+          "backend": "fastembed:0.9.1:BAAI/bge-reranker-v2-m3-int8",
+          "candidates": 4,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "服务端指定的等待时间",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 2754.074,
+        "returned_chars": 77,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "HTTP 429 使用服务端指定的等待时间；没有等待时间时终止并提示限流。",
+            "score": 0.032787,
+            "chunk_id": "1a2eca1fe8d02ff9",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 6.350686175687741
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.6832488439809495
+              }
+            ],
+            "rerank_score": 3.7917320728302
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.015625,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 4,
+                "score": 1.8061550975456697
+              }
+            ],
+            "rerank_score": -1.3471360206604004
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "并发写入规则",
+            "score": 0.032258,
+            "chunk_id": "fabe22331a07c34d",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 3.7928160616581104
+              },
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.5124954302506624
+              }
+            ],
+            "rerank_score": -3.457385540008545
+          }
+        ]
+      },
+      {
+        "id": "exact-jsonl",
+        "kind": "exact",
+        "query": "JSONL 会话记录格式",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 3,
+          "semantic_candidates": 4
+        },
+        "reranking": {
+          "status": "applied",
+          "backend": "fastembed:0.9.1:BAAI/bge-reranker-v2-m3-int8",
+          "candidates": 4,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "JSONL",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 682.099,
+        "returned_chars": 83,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "会话记录保存为 JSONL 文件，每个会话一个文件。",
+            "score": 0.032787,
+            "chunk_id": "806ac7a10fa23a8e",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 10.692557067101854
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.7049711506969972
+              }
+            ],
+            "rerank_score": 3.1247668266296387
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 0.032258,
+            "chunk_id": "e861225342eec15d",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 1.7024691302299795
+              },
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.6101884795549782
+              }
+            ],
+            "rerank_score": -2.0310568809509277
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 0.015625,
+            "chunk_id": "abf9044344d1b6c1",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 4,
+                "score": 0.5017884804948997
+              }
+            ],
+            "rerank_score": -4.658121109008789
+          }
+        ]
+      },
+      {
+        "id": "exact-python",
+        "kind": "exact",
+        "query": "Python 3.11 运行环境",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 1,
+          "semantic_candidates": 2
+        },
+        "reranking": {
+          "status": "applied",
+          "backend": "fastembed:0.9.1:BAAI/bge-reranker-v2-m3-int8",
+          "candidates": 2,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/installation.md",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "Python 3.11",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 334.49,
+        "returned_chars": 62,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/installation.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "运行环境需要 Python 3.11 或更新版本。",
+            "score": 0.032787,
+            "chunk_id": "ef7ee682681b1f17",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 17.485028485018468
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.7705927578586826
+              }
+            ],
+            "rerank_score": 4.1222243309021
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/installation.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "测试使用临时目录，不修改真实用户数据。模型响应通过本地假 HTTP 提供。",
+            "score": 0.016129,
+            "chunk_id": "724db339902bb7dc",
+            "version": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.5034359419536563
+              }
+            ],
+            "rerank_score": -5.581402778625488
+          }
+        ]
+      },
+      {
+        "id": "exact-permission",
+        "kind": "exact",
+        "query": "权限错误不重试",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 3,
+          "semantic_candidates": 7
+        },
+        "reranking": {
+          "status": "applied",
+          "backend": "fastembed:0.9.1:BAAI/bge-reranker-v2-m3-int8",
+          "candidates": 7,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "权限错误不重试",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 1120.658,
+        "returned_chars": 85,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 0.032787,
+            "chunk_id": "7240a4b5e0e0e60e",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 14.658927753721926
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.7728141526743542
+              }
+            ],
+            "rerank_score": 4.3730926513671875
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 0.031498,
+            "chunk_id": "e6422e1871282a28",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 3,
+                "score": 1.7440523434753314
+              },
+              {
+                "method": "semantic",
+                "rank": 4,
+                "score": 0.574450382718422
+              }
+            ],
+            "rerank_score": -1.6306132078170776
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "修改索引使用临时文件和原子替换。保存失败时保留原先有效的索引。",
+            "score": 0.014925,
+            "chunk_id": "538484f058282728",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 7,
+                "score": 0.5130754028621297
+              }
+            ],
+            "rerank_score": -1.7233386039733887
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-restart",
+        "kind": "paraphrase",
+        "query": "电脑突然断电，任务会自己再执行吗",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 0,
+          "semantic_candidates": 8
+        },
+        "reranking": {
+          "status": "applied",
+          "backend": "fastembed:0.9.1:BAAI/bge-reranker-v2-m3-int8",
+          "candidates": 8,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "不重跑工具",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 1389.148,
+        "returned_chars": 90,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 0.016393,
+            "chunk_id": "e6422e1871282a28",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.6207603781095342
+              }
+            ],
+            "rerank_score": -3.467745065689087
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.015152,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 6,
+                "score": 0.5134373360876439
+              }
+            ],
+            "rerank_score": -5.2999677658081055
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 0.015385,
+            "chunk_id": "83e37aa8e5785d82",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 5,
+                "score": 0.5137986224553659
+              }
+            ],
+            "rerank_score": -6.461593151092529
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-history",
+        "kind": "paraphrase",
+        "query": "答案还没落盘就能算作正式聊过的内容吗",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 2,
+          "semantic_candidates": 4
+        },
+        "reranking": {
+          "status": "applied",
+          "backend": "fastembed:0.9.1:BAAI/bge-reranker-v2-m3-int8",
+          "candidates": 6,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "完整回答保存成功",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 972.269,
+        "returned_chars": 63,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 0.016393,
+            "chunk_id": "abf9044344d1b6c1",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.6211965338438368
+              }
+            ],
+            "rerank_score": -1.782728672027588
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "这里的 session 是数据库连接上下文，不是用户聊天会话。",
+            "score": 0.016129,
+            "chunk_id": "e861225342eec15d",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.5539188558210013
+              }
+            ],
+            "rerank_score": -6.102157115936279
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "并发写入规则",
+            "score": 0.015625,
+            "chunk_id": "fabe22331a07c34d",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 4,
+                "score": 0.5001267985131629
+              }
+            ],
+            "rerank_score": -8.204476356506348
+          }
+        ]
+      },
+      {
+        "id": "paraphrase-update",
+        "kind": "paraphrase",
+        "query": "资料改过了还要等半小时才生效吗",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 0,
+          "semantic_candidates": 7
+        },
+        "reranking": {
+          "status": "applied",
+          "backend": "fastembed:0.9.1:BAAI/bge-reranker-v2-m3-int8",
+          "candidates": 7,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 1,
+        "recalled_count": 1,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "立即刷新",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 1257.05,
+        "returned_chars": 94,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.016393,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.5869845094981319
+              }
+            ],
+            "rerank_score": -3.002305269241333
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 0.015873,
+            "chunk_id": "ac2e850d72293fb9",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 3,
+                "score": 0.5801466149055922
+              }
+            ],
+            "rerank_score": -3.990786552429199
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "修改会话前必须获得文件锁。另一个进程占用时提示等待，不允许同时追加。",
+            "score": 0.016129,
+            "chunk_id": "fc736b0fd208e776",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.5818186121006029
+              }
+            ],
+            "rerank_score": -4.421066761016846
+          }
+        ]
+      },
+      {
+        "id": "multi-network",
+        "kind": "answer",
+        "query": "网络连接失败与权限错误分别怎么重试",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 7,
+          "semantic_candidates": 10
+        },
+        "reranking": {
+          "status": "applied",
+          "backend": "fastembed:0.9.1:BAAI/bge-reranker-v2-m3-int8",
+          "candidates": 11,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "最多重试 2 次",
+            "retrieved_rank": 2
+          },
+          {
+            "path": "documents/network.md",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "权限错误不重试",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 1881.595,
+        "returned_chars": 78,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "权限错误不重试，需要用户修正授权配置。",
+            "score": 0.032522,
+            "chunk_id": "7240a4b5e0e0e60e",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 11.465580409666666
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.7686393612722606
+              }
+            ],
+            "rerank_score": 1.830454707145691
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/network.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "网络连接失败最多重试 2 次。每次重试都计入请求预算。",
+            "score": 0.032522,
+            "chunk_id": "83e37aa8e5785d82",
+            "version": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 12.410288333365441
+              },
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.7659898822188151
+              }
+            ],
+            "rerank_score": 1.6848610639572144
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/transactions.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "数据库事务提交成功后，修改才对其他连接可见。事务失败时回滚修改。",
+            "score": 0.031746,
+            "chunk_id": "ac2e850d72293fb9",
+            "version": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 3,
+                "score": 2.9366372962706233
+              },
+              {
+                "method": "semantic",
+                "rank": 3,
+                "score": 0.643895146166103
+              }
+            ],
+            "rerank_score": -1.5298528671264648
+          }
+        ]
+      },
+      {
+        "id": "multi-cache",
+        "kind": "answer",
+        "query": "源文件修改与删除时，缓存如何同步",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 8,
+          "semantic_candidates": 11
+        },
+        "reranking": {
+          "status": "applied",
+          "backend": "fastembed:0.9.1:BAAI/bge-reranker-v2-m3-int8",
+          "candidates": 12,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "立即刷新",
+            "retrieved_rank": 1
+          },
+          {
+            "path": "documents/cache.md",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "缓存条目也必须删除",
+            "retrieved_rank": 2
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 2090.924,
+        "returned_chars": 88,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 3,
+            "end_line": 3,
+            "text": "文档缓存保留 30 分钟。源文件内容发生变化时立即刷新。",
+            "score": 0.032522,
+            "chunk_id": "5da95059edd89924",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 6.051941876815597
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.789380408205227
+              }
+            ],
+            "rerank_score": 1.1897701025009155
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/cache.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "文件删除后，对应的缓存条目也必须删除，不能继续引用旧内容。",
+            "score": 0.032522,
+            "chunk_id": "4c74423b9c452e0a",
+            "version": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 6.749171114001249
+              },
+              {
+                "method": "semantic",
+                "rank": 2,
+                "score": 0.7073267807915259
+              }
+            ],
+            "rerank_score": -0.8497877717018127
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "修改索引使用临时文件和原子替换。保存失败时保留原先有效的索引。",
+            "score": 0.03125,
+            "chunk_id": "538484f058282728",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 4,
+                "score": 2.488648774983668
+              },
+              {
+                "method": "semantic",
+                "rank": 4,
+                "score": 0.6435547457199352
+              }
+            ],
+            "rerank_score": -4.407148361206055
+          }
+        ]
+      },
+      {
+        "id": "multi-recovery",
+        "kind": "answer",
+        "query": "重启不重跑工具和保存成功才加入历史分别有什么规则",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 7,
+          "semantic_candidates": 9
+        },
+        "reranking": {
+          "status": "applied",
+          "backend": "fastembed:0.9.1:BAAI/bge-reranker-v2-m3-int8",
+          "candidates": 10,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": true,
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "relevant_count": 2,
+        "recalled_count": 2,
+        "recall_at_k": 1.0,
+        "expected": [
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "不重跑工具",
+            "retrieved_rank": 2
+          },
+          {
+            "path": "documents/sessions.md",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "start_line": 7,
+            "end_line": 7,
+            "evidence": "完整回答保存成功",
+            "retrieved_rank": 1
+          }
+        ],
+        "empty": false,
+        "elapsed_ms": 1898.499,
+        "returned_chars": 92,
+        "retrieved": [
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 7,
+            "end_line": 7,
+            "text": "只有完整回答保存成功，才能把这一轮加入有效聊天历史。",
+            "score": 0.032018,
+            "chunk_id": "abf9044344d1b6c1",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 1,
+                "score": 10.61262904351726
+              },
+              {
+                "method": "semantic",
+                "rank": 4,
+                "score": 0.5335093333556498
+              }
+            ],
+            "rerank_score": 0.9420455694198608
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/sessions.md",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "程序异常退出后，正在进行的轮次标为中断。不自动重发请求，也不重跑工具。",
+            "score": 0.032522,
+            "chunk_id": "e6422e1871282a28",
+            "version": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 2,
+                "score": 8.232050019148375
+              },
+              {
+                "method": "semantic",
+                "rank": 1,
+                "score": 0.6330830925846996
+              }
+            ],
+            "rerank_score": -2.9711978435516357
+          },
+          {
+            "path": "G:/Agent/tmp/b093/checkout/tests/fixtures/documents/locking.txt",
+            "start_line": 5,
+            "end_line": 5,
+            "text": "修改索引使用临时文件和原子替换。保存失败时保留原先有效的索引。",
+            "score": 0.029631,
+            "chunk_id": "538484f058282728",
+            "version": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+            "retrieval_ranks": [
+              {
+                "method": "keyword",
+                "rank": 7,
+                "score": 1.54816679214267
+              },
+              {
+                "method": "semantic",
+                "rank": 8,
+                "score": 0.5158384819234961
+              }
+            ],
+            "rerank_score": -2.971522808074951
+          }
+        ]
+      },
+      {
+        "id": "unknown-space",
+        "kind": "no_answer",
+        "query": "火星基地氧气配给",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 0,
+          "semantic_candidates": 0
+        },
+        "reranking": {
+          "status": "empty",
+          "backend": null,
+          "candidates": 0,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "recall_at_k": null,
+        "expected": [],
+        "empty": true,
+        "elapsed_ms": 60.169,
+        "returned_chars": 0,
+        "retrieved": []
+      },
+      {
+        "id": "unknown-login",
+        "kind": "no_answer",
+        "query": "默认支持哪种企业单点登录供应商",
+        "method": "hybrid",
+        "generation": "348a98b9daffd485ad8e6974370522cea3109ba53749e831170242bd0b2248ca",
+        "fusion": {
+          "rrf_constant": 60,
+          "candidate_limit": 20,
+          "keyword_candidates": 0,
+          "semantic_candidates": 0
+        },
+        "reranking": {
+          "status": "empty",
+          "backend": null,
+          "candidates": 0,
+          "query_chars": 256,
+          "passage_chars": 512,
+          "query_truncated": false,
+          "truncated_passages": 0,
+          "failure": null,
+          "input_policy": "prefix_then_model_tokenizer"
+        },
+        "answerable": false,
+        "hit": false,
+        "rank": null,
+        "reciprocal_rank": 0.0,
+        "relevant_count": 0,
+        "recalled_count": 0,
+        "recall_at_k": null,
+        "expected": [],
+        "empty": true,
+        "elapsed_ms": 67.233,
+        "returned_chars": 0,
+        "retrieved": []
+      }
+    ]
+  }
+}

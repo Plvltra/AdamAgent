@@ -1,6 +1,6 @@
 # B09 混合检索与可选精排
 
-B09.1 已把 BM25 与本地向量召回接到同一条文档检索路径，以 RRF 融合并保留来源。B09.2 已接入默认关闭的本地精排及明确降级。B09.3 的 MRR、多相关片段 Recall@k 对照尚未完成。
+B09.1 已把 BM25 与本地向量召回接到同一条文档检索路径，以 RRF 融合并保留来源。B09.2 已接入默认关闭的本地精排及明确降级。B09.3 已完成 MRR、多相关片段 Recall@k，并保存 [真实十二题四路对照](retrieval-evaluation.md)。
 
 ## 配置与运行
 
@@ -21,7 +21,7 @@ semantic_min_score = 0.5
 python -m adam.document_search --workspace . --root docs --hybrid --limit 5 search "连接失败怎样重试"
 ```
 
-`--semantic` 和 `--hybrid` 互斥；省略两者使用关键词。可用 `--hybrid-candidates` 和 `--rrf-constant` 做有界对照。`evaluate` 配合 `--hybrid` 会在同一题集分别运行 keyword、semantic、hybrid，当前仍用原 Hit@k 口径；新的多证据指标由 B09.3 增加。
+`--semantic` 和 `--hybrid` 互斥；省略两者使用关键词。可用 `--hybrid-candidates` 和 `--rrf-constant` 做有界对照。`evaluate` 配合 `--hybrid` 会在同一题集分别运行 keyword、semantic、hybrid，同时报告 Hit@k、MRR@k、宏/微 Recall@k 和无答案误召回；开启 --rerank 会另加精排路线，保留原融合基线。
 
 混合与纯向量都使用已有本地 embedding。普通查询不会联网下载；先按 [文档检索](local-document-rag.md) 准备可选依赖及公开模型。没有准备模型时明确失败，不把关键词结果冒称为完整混合结果。
 
@@ -81,4 +81,4 @@ python -m adam.document_search --workspace . --root docs --hybrid --rerank searc
 
 精排报告也占工具输出预算。若元数据本身已放不进上限，明确报错；不会为保留一个片段而静默删除降级说明。使用 `--hybrid --rerank evaluate 题集.json` 时，报告使用 hybrid_reranked 标签，并逐题保存真实 applied/fallback 状态与来源版本；不能仅凭启用了配置就宣称精排已运行。
 
-[18 项新场景](../tests/features/test_document_reranking.py) 覆盖候选池、原排名/原文、部分失败整体回退、非法后端输出、明确前缀、输出预算、取消、关闭/空池、本地加载与显式准备、缺少依赖、工具日志/离线重放、配置及评估降级标签。相关共 146 项通过，Ruff 与 Pyright 通过；提交门禁执行全量 pytest。Cross-encoder 分数使用受控后端验证工程流程，本阶段没有下载或运行真实精排模型，其召回效果不能由这些测试证明。
+[18 项新场景](../tests/features/test_document_reranking.py) 覆盖候选池、原排名/原文、部分失败整体回退、非法后端输出、明确前缀、输出预算、取消、关闭/空池、本地加载与显式准备、缺少依赖、工具日志/离线重放、配置及评估降级标签。相关共 146 项通过，Ruff 与 Pyright 通过；提交门禁执行全量 pytest。Cross-encoder 分数使用受控后端验证工程流程，B09.2 当时未运行真实精排模型；后续 B09.3 已保存独立真实对照，不能用这里的受控测试代替其质量证据。

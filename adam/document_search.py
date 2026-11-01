@@ -12,6 +12,7 @@ from adam.contracts.reranking import RerankError
 from adam.documents.embedding import FastEmbedBackend
 from adam.documents.evaluation import evaluate
 from adam.documents.index import DocumentIndex
+from adam.documents.models import DocumentError
 from adam.documents.reranking import FastEmbedReranker
 from adam.documents.search import DocumentSearch
 from adam.tool_calls.document_tools import pack_results
@@ -42,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     search = commands.add_parser("search", help="查询指定文档并返回可核查片段")
     search.add_argument("query")
     evaluation = commands.add_parser(
-        "evaluate", help="固定题集；--semantic 比较两路，--hybrid 同时比较两路与融合"
+        "evaluate", help="固定题集；比较关键词/语义/融合，--rerank 另保留精排对照"
     )
     evaluation.add_argument("questions", type=Path)
     args = parser.parse_args(argv)
@@ -107,19 +108,25 @@ def main(argv: list[str] | None = None) -> int:
                     if args.semantic
                     else ["keyword"]
                 )
-                for name in methods:
-                    selected = replace(
-                        config, method=name, rerank=config.rerank and name == "hybrid"
-                    )
+                routes = [(name, False) for name in methods]
+                if args.rerank:
+                    routes.append(("hybrid", True))
+                generation = None
+                for name, rerank in routes:
+                    selected = replace(config, method=name, rerank=rerank)
                     engine = DocumentSearch(
                         DocumentIndex(args.cache_dir, args.workspace, selected, policy.resolve)
                     )
-                    label = "hybrid_reranked" if name == "hybrid" and config.rerank else name
-                    result[label] = evaluate(engine.search, cases, args.limit)
+                    label = "hybrid_reranked" if rerank else name
+                    report = evaluate(engine.search, cases, args.limit)
+                    if generation is not None and report["source_generation"] != generation:
+                        raise DocumentError("不同评估路线之间语料发生变化；请固定资料后重新运行。")
+                    generation = report["source_generation"]
+                    result[label] = report
         encoded = json.dumps(result, ensure_ascii=False, indent=2)
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(encoded + "\n", encoding="utf-8")
+            args.output.write_text(encoded + "\n", encoding="utf-8", newline="\n")
         else:
             print(encoded)
         return 0

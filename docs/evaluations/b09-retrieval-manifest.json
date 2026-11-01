@@ -1,0 +1,44 @@
+{
+  "run_date": "2026-11-01",
+  "scope": "固定人工资料与12题，CPU真实推理，不加载聊天连接、不调用付费API",
+  "execution_order": [
+    "keyword",
+    "semantic",
+    "hybrid",
+    "hybrid_reranked"
+  ],
+  "python": "3.12.14",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "dependencies": {
+    "fastembed": "0.9.1",
+    "onnxruntime": "1.31.1",
+    "numpy": "2.5.4"
+  },
+  "query_download_policy": "local_files_only; models prepared explicitly before evaluation",
+  "latency_caveat": "单次顺序执行，首次加载、跨路缓存复用和机器负载不同，不是稳态性能基准",
+  "report_sha256": "d9ffe1801548ccca8d7d3cfe88f8461a2b1abbadaa2120701beed6bad38aeada",
+  "sources": {
+    "tests/fixtures/documents/cache.md": "3e6a760bd3f17476126d145a5352e9edabb225d8f9b44979b6575a6e56aa7f9c",
+    "tests/fixtures/documents/installation.md": "d4a14239c884a88ff22f29eb1ef76b774021fe59d6f2d05bd564336658f96a83",
+    "tests/fixtures/documents/locking.txt": "5ef425f4a086449d5cfe14e10552e3c5ebf6b1b082d755c7904da37326ff7bcd",
+    "tests/fixtures/documents/network.md": "4f70fafa08c675648bee28be1aece942148243c3187c174e207cf6a3c18b9044",
+    "tests/fixtures/documents/sessions.md": "05801be813cc16f38a1a587cc7a15ca0b7b63cd737e1f39af76539760cf60e12",
+    "tests/fixtures/documents/transactions.md": "244af954c23fd56b714bbbfbe9d2397fbe41fc5865ad333ee10ae6eba0ebf807"
+  },
+  "questions": {
+    "path": "tests/fixtures/document_multi_questions.json",
+    "sha256": "d13eca7788aca816101e1ca15f894b4a327df932358e894ffb87d419980c6ab3"
+  },
+  "models": [
+    {
+      "path": "models/models--Qdrant--bge-small-zh-v1.5/snapshots/46fbe35fd4374a00fee7de77dfddaeb6dd6a2c59/model_optimized.onnx",
+      "bytes": 94781076,
+      "sha256": "1294ea4b6331115a353d81f96b85e8c8d7fdcc284453d5b2fab5b016230aad38"
+    },
+    {
+      "path": "rerankers/models--onnx-community--bge-reranker-v2-m3-ONNX/snapshots/6f5ff65298512715a1e669753bc754d2bc8f367b/onnx/model_int8.onnx",
+      "bytes": 570727094,
+      "sha256": "912fc1215c2dbff6499700534bd8d31253af01573861abbfc43afd1fab6cce5d"
+    }
+  ]
+}
