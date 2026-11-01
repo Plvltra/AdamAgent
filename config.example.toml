@@ -234,3 +234,14 @@ enabled = false
 max_bytes = 10485760
 max_pixels = 16000000
 max_dimension = 8192
+
+
+[consumption]
+# 可选独立单位账本；配置与限制详见 docs/multimodal-input.md。
+# 不配置时保留旧 token 流程；启用旧日志可能因媒体计量未知而停止。
+enabled = false
+# 启用后才可配置；0 是禁止该单位，省略表示不限。
+# max_images = 20
+# max_audio_ms = 0
+# max_calls = 30
+# 单价只接受字符串，必须显式按确切模型名配置；无价保持未知。

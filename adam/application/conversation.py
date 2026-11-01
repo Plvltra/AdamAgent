@@ -11,6 +11,8 @@ from adam.application.event_queue import EventQueue
 from adam.application.reflection import ReflectionService
 from adam.application.request_policy import RequestPolicy
 from adam.application.request_runner import RequestRunner, save_failure
+from adam.application.subagents.account import SessionAccount, restore_account
+from adam.config.consumption import DEFAULT_CONSUMPTION, ConsumptionConfig
 from adam.config.settings import AgentConfig, ContextConfig
 from adam.context.builder import ContextBuilder, RequestContext
 from adam.context.compaction import CompactionService
@@ -93,6 +95,7 @@ class Conversation:
         input_owner: str | None = None,
         verifier: TaskVerifier | None = None,
         media_input: MediaInputValidator | None = None,
+        consumption: ConsumptionConfig = DEFAULT_CONSUMPTION,
     ) -> None:
         """注入会话依赖；context_layout 仅供旧录制重放，默认使用当前排列。
 
@@ -103,12 +106,15 @@ class Conversation:
         input_provider由宿主按turn_id提供运行队列；启用后暂存最终正文，避免先展示后补充。
         input_owner仅供宿主绑定子运行run_id，与用户输入队列的turn_id归属分开。
         media_input 只校验当前会话已有媒体；不提供时拒绝媒体输入，不改发文字。
+        consumption 显式启用时共享独立单位账本；无子调度器也不能绕过历史消费。
         """
         validate_compaction_version(compaction_version)
         self.compaction_version = compaction_version
         self.observe_input: Callable[[str, SkillSelection | None], None] | None = None
         self.observe_media_input: Callable[[tuple[MediaRef, ...]], None] | None = None
         self.media_input = media_input
+        self.consumption = consumption
+        self._local_accounts: dict[str, SessionAccount] = {}
         self.store = store
         self.client = client
         self.system_prompt = system_prompt
@@ -124,7 +130,8 @@ class Conversation:
             layout_version=context_layout,
         )
         self.notify = notify or (lambda _: None)
-        self.accounting, self.delegation = accounting, delegation
+        self.accounting = accounting or (self._local_account if consumption.enabled else None)
+        self.delegation = delegation
         self.cancel, self.on_turn_started = cancel, on_turn_started
         self.memory_provider, self.skills = memory_provider, skills
         self.rules = rules
@@ -139,9 +146,10 @@ class Conversation:
             store,
             client,
             self._check_session_budget,
-            accounting,
+            self.accounting,
             cancel,
             clock=lambda: monotonic_ns(),
+            consumption=consumption,
         )
 
     def new(self, title: str = "新对话") -> Session:
@@ -494,6 +502,7 @@ class Conversation:
                 self._check_session_budget,
                 self.accounting,
                 version=self.compaction_version,
+                consumption=self.consumption,
             )
             desired = max(
                 1,
@@ -549,6 +558,7 @@ class Conversation:
             self._check_session_budget,
             self.accounting,
             version=self.compaction_version,
+            consumption=self.consumption,
         )
         plan = service.plan(session)
         if plan is None:
@@ -640,6 +650,14 @@ class Conversation:
             runtime_state=runtime_state,
             diagnostics=diagnostics,
         )
+
+    def _local_account(self, session_id: str) -> SessionAccount:
+        """无子调度器时仍恢复主子历史消费；同一会话重复请求共用账本，不重新预留。"""
+        if session_id not in self._local_accounts:
+            self._local_accounts[session_id] = restore_account(
+                self.store, session_id, self.limits.max_session_tokens, self.consumption
+            )
+        return self._local_accounts[session_id]
 
     def _check_session_budget(self, session_id: str) -> None:
         """用量未知或累计额度耗尽时停止，避免静默漏记后继续请求。"""

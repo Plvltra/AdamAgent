@@ -100,7 +100,7 @@ class CompactionLog:
         }
 
     def _settle(self, operation: dict[str, Any], payload: dict[str, Any]) -> None:
-        """保存一次请求的结果和消费；失败或用量未知不激活摘要。"""
+        """保存一次请求的结果、原 token 与可选独立单位证据；失败或未知不激活摘要。"""
         if operation["settled"]:
             raise ValueError("duplicate compaction usage")
         inputs, outputs = payload.get("input_tokens"), payload.get("output_tokens")
@@ -124,5 +124,13 @@ class CompactionLog:
         operation.update(
             settled=True,
             usage=usage,
-            request={**outcome_details(payload, status), **encode_observations(cache, prefix)},
+            request={
+                **outcome_details(payload, status),
+                **encode_observations(cache, prefix),
+                **(
+                    {"consumption_usage": payload["consumption"]}
+                    if "consumption" in payload
+                    else {}
+                ),
+            },
         )

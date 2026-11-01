@@ -5,8 +5,11 @@ from contextlib import nullcontext
 from time import monotonic_ns
 from typing import Any
 
+from adam.config.consumption import DEFAULT_CONSUMPTION, ConsumptionConfig
 from adam.context.builder import RequestContext
+from adam.context.consumption import plan_consumption, settle_consumption
 from adam.contracts.cancellation import CancellationToken
+from adam.contracts.consumption import ConsumptionPlan
 from adam.contracts.delegation import RequestAccount
 from adam.contracts.errors import (
     FailureCode,
@@ -34,9 +37,14 @@ class RequestRunner:
         accounting: Callable[[str], RequestAccount] | None = None,
         cancel: CancellationToken | None = None,
         clock: Callable[[], int] = monotonic_ns,
+        *,
+        consumption: ConsumptionConfig = DEFAULT_CONSUMPTION,
     ) -> None:
         self.store, self.client, self.check_budget = store, client, check_budget
         self.accounting, self.cancel, self.clock = accounting, cancel, clock
+        self.consumption = consumption
+        if consumption.enabled and accounting is None:
+            raise ValueError("unit metering requires shared accounting")
 
     def run(
         self,
@@ -57,19 +65,30 @@ class RequestRunner:
         明确未发出的连接错误结算为零；只有结算成功才允许外层重试。
         中断或未知用量会阻止继续消费。最终回答记账失败时保留回答供终端显示；
         请求耗时只包含完整模型调用及响应解析，不含开始与结算日志写入。
+        启用独立单位时按本次实际消息冻结预留/单价，与原请求同块结算；调用数不证明远端计费。
         失败收尾不遮蔽原始异常；崩溃遗留状态由下次取得会话写锁时恢复。
         """
         self.check_budget(session_id)
         context.ensure_within_budget()
+        plan = plan_consumption(
+            self.consumption,
+            context.model,
+            context.messages,
+            context.budgeted_input_tokens,
+            context.max_output_tokens,
+        )
         scope = (
             self.accounting(session_id).request(
-                context.budgeted_input_tokens + context.max_output_tokens
+                context.budgeted_input_tokens + context.max_output_tokens,
+                **({"units": plan.reservation} if plan is not None else {}),
             )
             if self.accounting
             else nullcontext()
         )
         with scope:
-            return self._perform_request(session_id, turn_id, context, on_output, record_context)
+            return self._perform_request(
+                session_id, turn_id, context, on_output, record_context, plan
+            )
 
     def _perform_request(
         self,
@@ -78,6 +97,7 @@ class RequestRunner:
         context: RequestContext,
         on_output: Callable[[ModelOutput], None] | None,
         record_context: dict[str, Any] | None,
+        consumption: ConsumptionPlan | None,
     ) -> tuple[str, Completion]:
         """在额度预留内登记、调用与结算；共享额度退出时读取本次持久化结果。"""
         if self.cancel:
@@ -86,6 +106,7 @@ class RequestRunner:
             session_id,
             turn_id,
             context.model,
+            **({"consumption": consumption} if consumption is not None else {}),
             context={
                 **(record_context or context.selection_record()),
                 "tool_schema": tool_schema_record(context.tools),
@@ -109,6 +130,8 @@ class RequestRunner:
             cache_usage = error.cache_usage if known_model_error else None
             input_prefix = error.input_prefix if known_model_error else None
             outcome = ExecutionOutcome.failure(error, (self.clock() - started_ns) // 1_000_000)
+            metered = settle_consumption(consumption, usage, error)
+            settlement = {"consumption": metered} if metered is not None else {}
             degradable = (
                 is_reflection
                 and isinstance(error, LLMError)
@@ -125,6 +148,7 @@ class RequestRunner:
                     outcome=outcome,
                     cache_usage=cache_usage,
                     input_prefix=input_prefix,
+                    **settlement,
                 )
             else:
                 save_failure(
@@ -136,6 +160,7 @@ class RequestRunner:
                         outcome=outcome,
                         cache_usage=cache_usage,
                         input_prefix=input_prefix,
+                        **settlement,
                     ),
                     error,
                 )
@@ -158,6 +183,11 @@ class RequestRunner:
                 outcome=outcome,
                 cache_usage=result.cache_usage,
                 input_prefix=result.input_prefix,
+                **(
+                    {"consumption": settle_consumption(consumption, result.usage)}
+                    if consumption is not None
+                    else {}
+                ),
             )
         except StorageError as error:
             if not is_reflection and not result.message.get("tool_calls"):

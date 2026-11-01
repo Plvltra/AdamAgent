@@ -6,6 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from adam.bootstrap import open_image_questions
+from adam.config.consumption import DEFAULT_CONSUMPTION, load_consumption_config
 from adam.config.vision import LocalVisionConfig
 from adam.contracts.errors import AgentError, RequestInterrupted
 
@@ -24,12 +25,20 @@ def main() -> int:
     parser.add_argument("--endpoint", default="http://127.0.0.1:8087/v1")
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--no-stream", action="store_true")
+    parser.add_argument("--consumption-config", type=Path)
     args = parser.parse_args()
     try:
         local = LocalVisionConfig(
             args.model, args.endpoint, args.timeout, stream=not args.no_stream
         )
-        with open_image_questions(args.sessions_dir, args.session, local) as questions:
+        consumption = (
+            load_consumption_config(args.consumption_config)
+            if args.consumption_config
+            else DEFAULT_CONSUMPTION
+        )
+        with open_image_questions(
+            args.sessions_dir, args.session, local, consumption=consumption
+        ) as questions:
             answer = questions.ask_saved(args.question, args.media_id, args.version)
         print(json.dumps({"ok": True, **asdict(answer)}, ensure_ascii=False))
         return 0

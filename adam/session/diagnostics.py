@@ -11,7 +11,7 @@ from adam.session.log import parse_log
 
 
 def read_report(path: Path) -> dict[str, Any]:
-    """读取 JSONL 快照，按轮次列出执行信息，并独立列出用户撤销记录。
+    """读取 JSONL 快照，按轮次列出执行信息，独立列出用户撤销及多单位消费/估价。
 
     不创建目录、不修复文件，也不把诊断输入加入模型历史。正在写入的文件可能暂时
     不完整，此时明确报错；需要稳定快照时应在聊天进程退出后读取。
@@ -67,6 +67,7 @@ def read_report(path: Path) -> dict[str, Any]:
         "title": log.metadata["title"],
         "known_tokens": log.tokens,
         "unknown_usage": log.unknown_usage,
+        "consumption": log.consumption.report(),
         "turns": turns,
         "compactions": list(log.compactions.operations.values()),
         "undos": list(log.undos.operations.values()),

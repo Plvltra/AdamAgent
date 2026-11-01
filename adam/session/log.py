@@ -24,6 +24,7 @@ from adam.contracts.usage import decode_observations, encode_observations
 from adam.contracts.vision import validate_image_question
 from adam.session.command_log import validate_finish, validate_start
 from adam.session.compaction_log import CompactionLog
+from adam.session.consumption_log import ConsumptionLog
 from adam.session.edit_log import EditLog
 from adam.session.feedback_log import FeedbackLog, feedback_context
 from adam.session.hook_log import HookLog
@@ -112,6 +113,7 @@ class SessionLog:
         self.tools: dict[tuple[str, str], dict[str, Any]] = {}
         self.executions: dict[str, dict[str, Any]] = {}
         self.compactions = CompactionLog()
+        self.consumption = ConsumptionLog()
         self.edits = EditLog()
         self.undos = UndoLog()
         self.hooks = HookLog()
@@ -192,6 +194,7 @@ class SessionLog:
             }:
                 raise ValueError("interleaved message block")
             handlers[kind](kind, payload)
+            self.consumption.apply(kind, payload)
             self.events.append(entry)
         if self._pending_messages:
             if not allow_pending:
@@ -374,6 +377,7 @@ class SessionLog:
                 **({"context": context} if context is not None else {}),
                 "turn_id": turn_id,
                 "model": payload["model"],
+                **({"consumption": payload["consumption"]} if "consumption" in payload else {}),
                 "settled": False,
                 "status": "in_progress",
             }
@@ -393,6 +397,8 @@ class SessionLog:
             raise ValueError("invalid usage")
         request["settled"] = True
         request["usage"] = (inputs, outputs)
+        if "consumption" in payload:
+            request["consumption_usage"] = payload["consumption"]
         request.update(encode_observations(cache, prefix))
 
     def _validate_context(self, context: object, turn_id: str) -> None:

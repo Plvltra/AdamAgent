@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from adam.config.consumption import parse_consumption
 from adam.config.hooks import parse_hooks
 from adam.config.mcp import parse_mcp
 from adam.config.settings import (
@@ -168,6 +169,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "web",
             "browser",
             "vision",
+            "consumption",
         },
         "主配置",
     )
@@ -329,6 +331,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
     search_data["allowed_session_ids"] = tuple(search_ids)
     return AppConfig(
         llm=llm,
+        consumption=parse_consumption(data.get("consumption", {})),
         sessions_dir=sessions_dir,
         memories_dir=memories_dir,
         system_prompt=prompt,

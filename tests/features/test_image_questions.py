@@ -12,6 +12,7 @@ import pytest
 from adam.application.image_questions import ImageQuestions
 from adam.bootstrap import open_image_questions
 from adam.cli.image_question import main
+from adam.config.consumption import DEFAULT_CONSUMPTION, ConsumptionConfig
 from adam.config.settings import AgentConfig, ContextConfig, LLMConfig
 from adam.config.vision import LocalVisionConfig
 from adam.contracts.cancellation import CancellationToken
@@ -28,7 +29,7 @@ from adam.contracts.media import decode_media_reference
 from adam.llm.client import LLMClient
 from adam.llm.local_vision import LlamaVisionClient
 from adam.session.storage import SessionStore
-from tests.features.test_image_input import image_app, load_then_answer
+from tests.features.test_image_input import image_app, image_config, load_then_answer
 from tests.features.test_multimodal_input import wire_bytes
 from tests.features.test_streaming import DONE, USAGE, event, sse
 from tests.features.test_subagents import call, outputs
@@ -38,9 +39,17 @@ from tests.image_samples import image_bytes
 
 @contextmanager
 def questions_at(
-    root, respond=None, *, stream=False, limits=None, context=None, token=None, supported=True
+    root,
+    respond=None,
+    *,
+    stream=False,
+    limits=None,
+    context=None,
+    token=None,
+    supported=True,
+    consumption=DEFAULT_CONSUMPTION,
 ):
-    """只替换远端 HTTP；先真实经过 C04.1 工具加载，再通过独立视觉客户端显式附图。"""
+    """只替换远端 HTTP；真实加载与独立图问沿同一消费配置，共用已发生消费。"""
     (root / "sample.bin").write_bytes(image_bytes())
     bodies = []
 
@@ -49,7 +58,12 @@ def questions_at(
         result = respond(request) if respond else answer("label and layout", tokens=20)
         return result if isinstance(result, httpx.Response) else httpx.Response(200, json=result)
 
-    with image_app(root, load_then_answer) as (app, store, media, original):
+    with image_app(root, load_then_answer, config=image_config(root, consumption=consumption)) as (
+        app,
+        store,
+        media,
+        original,
+    ):
         app.send("load only, not a vision question")
         ref = decode_media_reference(outputs(original[-1])[-1]["media"])
         with httpx.Client(transport=httpx.MockTransport(handler)) as http:
@@ -69,6 +83,7 @@ def questions_at(
                 limits or AgentConfig(),
                 context or ContextConfig(),
                 token or CancellationToken(),
+                consumption=consumption,
             )
             yield service, store, ref, bodies, app
 
@@ -559,3 +574,65 @@ def test_fixed_sample_generator_is_frozen_and_never_overwrites_existing_batch(tm
     with pytest.raises(FileExistsError):
         generate(root)
     assert (root / "fixed_cases.json").read_bytes() == before
+
+
+def test_unit_caps_cover_prior_load_and_repeat_question_without_new_input(tmp_path):
+    consumption = ConsumptionConfig(enabled=True, max_calls=3, max_images=1)
+    with questions_at(tmp_path, consumption=consumption) as (qa, store, ref, bodies, _):
+        result = qa.ask("layout", ref)
+        before = store.load_events(ref.source.session_id)
+        usage = store.consumption_usage(ref.source.session_id)
+        assert usage.known.calls == 3 and usage.known.images == 1
+        assert usage.unknown_units == ()
+        assert result.text == "label and layout"
+        with pytest.raises(BudgetError):
+            qa.ask("second question", ref)
+        assert len(bodies) == 1 and store.load_events(ref.source.session_id) == before
+
+
+def test_cli_independent_consumption_config_counts_real_tcp_without_default_key(
+    tmp_path, monkeypatch, capsys
+):
+    with questions_at(tmp_path, consumption=ConsumptionConfig(enabled=True)) as (
+        _,
+        store,
+        ref,
+        _,
+        _,
+    ):
+        root = store.root
+    config = tmp_path / "explicit-consumption.toml"
+    config.write_text("[consumption]\nenabled=true\nmax_images=1\nmax_calls=3\n", encoding="utf-8")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    with local_server() as (endpoint, seen):
+        arguments = [
+            "image-question",
+            "--sessions-dir",
+            str(root),
+            "--session",
+            ref.source.session_id,
+            "--media-id",
+            ref.media_id,
+            "--version",
+            ref.version,
+            "--question",
+            "layout",
+            "--model",
+            "adam-vision",
+            "--endpoint",
+            endpoint,
+            "--no-stream",
+            "--consumption-config",
+            str(config),
+        ]
+        monkeypatch.setattr("sys.argv", arguments)
+        assert main() == 0
+        assert json.loads(capsys.readouterr().out)["ok"]
+        assert main() == 1
+        assert json.loads(capsys.readouterr().out)["reason"] == "budget_exhausted"
+        assert len(seen) == 1
+    with SessionStore(root) as store:
+        store.select_session(ref.source.session_id)
+        usage = store.consumption_usage(ref.source.session_id)
+        assert usage.known.calls == 3 and usage.known.images == 1 and not usage.unknown_units

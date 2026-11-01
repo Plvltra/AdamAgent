@@ -16,7 +16,9 @@ from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.delegation_policy import choose_delegation
 from adam.application.subagents.exploration import ExplorationGroup
 from adam.application.subagents.mailbox import RunMailbox
+from adam.application.subagents.unit_budget import UnitBudget
 from adam.application.subagents.workspaces import PrivateCopy, PrivateWorkspaces
+from adam.config.consumption import DEFAULT_CONSUMPTION, ConsumptionConfig
 from adam.config.settings import PermissionConfig, SubagentConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
@@ -63,6 +65,7 @@ class SubagentManager:
         *,
         mode_provider: Callable[[], ExecutionMode] | None = None,
         private_children: bool = False,
+        consumption: ConsumptionConfig = DEFAULT_CONSUMPTION,
     ) -> None:
         self.store, self.workspace = store, workspace.resolve()
         self.permissions, self.limits = permissions, limits
@@ -70,9 +73,12 @@ class SubagentManager:
         self.open_child, self.notify = open_child, notify
         self.mode_provider = mode_provider
         self.private_children = private_children
+        self.consumption = consumption
         self._session_id: str | None = None
         self._index: DelegationStore | None = None
-        self._budget = SharedTokenBudget(token_limit)
+        self._budget = SharedTokenBudget(
+            token_limit, units=UnitBudget(consumption.limits()) if consumption.enabled else None
+        )
         self._pool: ThreadPoolExecutor | None = None
         self._active: dict[str, tuple[Future[None], CancellationToken]] = {}
         self._mailboxes: dict[str, RunMailbox] = {}
@@ -519,13 +525,23 @@ class SubagentManager:
         self._copies = copies
         root = self.store.root / "_subagents" / session_id
         index = DelegationStore(root)
-        budget = SharedTokenBudget(self.token_limit)
+        budget = SharedTokenBudget(
+            self.token_limit,
+            units=UnitBudget(self.consumption.limits()) if self.consumption.enabled else None,
+        )
         # 此时主会话锁已持有，且没有当前进程的子任务；可安全恢复子会话。
         with SessionStore(root / "sessions") as children:
             for agent in index.agents():
                 children.select_session(agent.agent_id)
                 tokens, unknown = children.usage(agent.agent_id)
-                budget.update(str(children.root / agent.agent_id), tokens, unknown)
+                budget.update(
+                    str(children.root / agent.agent_id),
+                    tokens,
+                    unknown,
+                    units=children.consumption_usage(agent.agent_id)
+                    if self.consumption.enabled
+                    else None,
+                )
                 self._recover_runs(index, children, agent)
                 for run in index.get(agent.agent_id).runs:
                     path = index.root / "mailboxes" / agent.agent_id / f"{run.run_id}.json"
@@ -548,7 +564,11 @@ class SubagentManager:
         self._index, self._budget, self._session_id = index, budget, session_id
         self._delivered = set()
         self._announced = {run.run_id for agent in index.agents() for run in agent.runs}
-        self._budget.update(str(self.store.root / session_id), *self.store.usage(session_id))
+        self._budget.update(
+            str(self.store.root / session_id),
+            *self.store.usage(session_id),
+            units=self.store.consumption_usage(session_id) if self.consumption.enabled else None,
+        )
         self._poll_groups()
 
     @staticmethod

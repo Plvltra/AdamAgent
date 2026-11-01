@@ -29,6 +29,7 @@
 | B27.1 运行事件队列 | 有界FIFO、去重/冲突、关闭保留、并发投递 | [队列契约](test_running_events.py) |
 | B26.3 真实后台故障 | 双进程输出隔离、独立取消、强杀宿主后恢复未知且不重跑 | [实际验收](test_background_acceptance.py) |
 | B26.2.2 生产后台工具 | 模型启动/等待真实进程、Ctrl+C、任务锁/恢复、意图保存失败无执行 | [持久任务](test_background_persistence.py) |
+| C00.4 独立单位与估价 | 新增 105 项：50 单位/并发、16 配置、13 存储/估价、24 实际主子/反思/摘要/重放及 2 显式图问；未知/取消/保存/旧日志/限额/价格冻结/收尾竞争，提交门禁运行全量检查；音频消费者仍待 C05 | [实际业务](test_consumption_loop.py)、[存储](test_consumption_evidence.py)、[单位](../test_consumption.py)、[配置](../test_consumption_config.py)、[图问](test_image_questions.py)、[限制](../../docs/multimodal-input.md#c004-多单位消费) |
 | B26.2.1 输出游标 | 退出前短输出可读、独立续读、缺口与字符边界、会话所有权 | [输出游标](test_background_output_cursor.py) |
 | B26.1 后台进程 | 真实返回、一次批准、所有权、输出限额、取消及超时 | [后台任务](test_background_jobs.py) |
 | B25.3 真实HTTP | 4项实际回环TCP/时钟验收心跳、慢输出、断流和总时限；相关123项通过 | [网络验收](test_stream_http_deadlines.py) |

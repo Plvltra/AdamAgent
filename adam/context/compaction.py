@@ -8,9 +8,12 @@ from dataclasses import dataclass
 from time import monotonic_ns
 from typing import Any
 
+from adam.config.consumption import DEFAULT_CONSUMPTION, ConsumptionConfig
 from adam.config.settings import ContextConfig
 from adam.context.builder import estimate_json_tokens
+from adam.context.consumption import plan_consumption, settle_consumption
 from adam.context.pruning import prune_history
+from adam.contracts.consumption import ConsumptionPlan
 from adam.contracts.delegation import RequestAccount
 from adam.contracts.errors import (
     BudgetError,
@@ -73,13 +76,17 @@ class CompactionService:
         accounting: Callable[[str], RequestAccount] | None = None,
         *,
         version: str | None = COMPACTION_VERSION,
+        consumption: ConsumptionConfig = DEFAULT_CONSUMPTION,
     ) -> None:
-        """注入原摘要预算和记账边界；version=None 只用于旧录制的精确重放。"""
+        """注入原摘要预算和可选多单位记账；version=None 只用于旧录制的精确重放。"""
         validate_compaction_version(version)
         self.store, self.client, self.limits = store, client, limits
         self.check_budget = check_budget
         self.accounting = accounting
         self.version = version
+        self.consumption = consumption
+        if consumption.enabled and accounting is None:
+            raise ValueError("unit metering requires shared accounting")
 
     def plan(
         self,
@@ -181,17 +188,26 @@ class CompactionService:
     ) -> Summary:
         """执行已规划的一次请求；调用者先预留请求次数，来源在持久化边界再次校验。"""
         self.check_budget(session.session_id)
+        consumption = plan_consumption(
+            self.consumption,
+            model,
+            plan.messages,
+            plan.estimated_input_tokens + self.limits.safety_margin_tokens,
+            self.limits.summary_max_output_tokens,
+            purpose="summary",
+        )
         scope = (
             self.accounting(session.session_id).request(
                 plan.estimated_input_tokens
                 + self.limits.safety_margin_tokens
-                + self.limits.summary_max_output_tokens
+                + self.limits.summary_max_output_tokens,
+                **({"units": consumption.reservation} if consumption is not None else {}),
             )
             if self.accounting
             else nullcontext()
         )
         with scope:
-            return self._execute(session, model, plan, turn_id=turn_id)
+            return self._execute(session, model, plan, turn_id=turn_id, consumption=consumption)
 
     def _input_messages(self, material: dict[str, Any]) -> list[dict[str, Any]]:
         """保留可追溯 JSON 素材，同时交付真实媒体；同一引用只附一次并计入预算。"""
@@ -226,7 +242,13 @@ class CompactionService:
         return {"turn_id": turn_id, "messages": deepcopy(messages)}
 
     def _execute(
-        self, session: Session, model: str, plan: CompactionPlan, *, turn_id: str | None
+        self,
+        session: Session,
+        model: str,
+        plan: CompactionPlan,
+        *,
+        turn_id: str | None,
+        consumption: ConsumptionPlan | None,
     ) -> Summary:
         """在预留范围内保存独立摘要事件；失败时退出前结算共享消费。"""
         operation_id = self.store.new_identity("compaction", 16)
@@ -235,6 +257,7 @@ class CompactionService:
             "compaction_started",
             {
                 "operation_id": operation_id,
+                **({"consumption": consumption.as_record()} if consumption is not None else {}),
                 "turn_id": turn_id,
                 "model": model,
                 "source_turn_ids": plan.source_turn_ids,
@@ -251,7 +274,7 @@ class CompactionService:
         )
         started = monotonic_ns()
         try:
-            result = self._request(session.session_id, operation_id, model, plan)
+            result = self._request(session.session_id, operation_id, model, plan, consumption)
             text = result.message.get("content")
             if result.message.get("tool_calls") or not isinstance(text, str) or not text.strip():
                 raise LLMError(
@@ -285,7 +308,12 @@ class CompactionService:
         return summary
 
     def _request(
-        self, session_id: str, operation_id: str, model: str, plan: CompactionPlan
+        self,
+        session_id: str,
+        operation_id: str,
+        model: str,
+        plan: CompactionPlan,
+        consumption: ConsumptionPlan | None,
     ) -> Completion:
         """结算模型请求后才允许提交摘要；结算失败保留未知消费，不能激活结果。"""
         started = monotonic_ns()
@@ -304,6 +332,7 @@ class CompactionService:
                     operation_id,
                     usage,
                     ExecutionOutcome.failure(error, self._elapsed(started)),
+                    consumption=settle_consumption(consumption, usage, error),
                     cache_usage=error.cache_usage
                     if isinstance(error, (LLMError, RequestInterrupted))
                     else None,
@@ -321,6 +350,7 @@ class CompactionService:
             operation_id,
             result.usage,
             ExecutionOutcome.success(self._elapsed(started)),
+            consumption=settle_consumption(consumption, result.usage),
             cache_usage=result.cache_usage,
             input_prefix=result.input_prefix,
         )
@@ -337,8 +367,9 @@ class CompactionService:
         *,
         cache_usage: CacheUsage | None = None,
         input_prefix: InputPrefix | None = None,
+        consumption: dict[str, Any] | None = None,
     ) -> None:
-        """在一个事件中记录请求终态和用量，与摘要是否提交分别保存。"""
+        """同一事件记录原 token、独立单位和冻结单价估算；不等同于摘要提交。"""
         self.store.append_compaction_event(
             session_id,
             "compaction_usage",
@@ -348,6 +379,7 @@ class CompactionService:
                 "output_tokens": usage[1] if usage else None,
                 **outcome.payload(),
                 **encode_observations(cache_usage, input_prefix),
+                **({"consumption": consumption} if consumption is not None else {}),
             },
         )
 

@@ -14,10 +14,13 @@ from adam.application.planning import PlanningService
 from adam.application.reflection import ReflectionService
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
+from adam.application.subagents.unit_budget import UnitBudget
+from adam.config.consumption import DEFAULT_CONSUMPTION, ConsumptionConfig, parse_consumption
 from adam.config.settings import AgentConfig, ContextConfig, PlanningConfig, ReflectionConfig
+from adam.contracts.consumption import ConsumptionSnapshot, Quantities
 from adam.contracts.delegation import RequestAccount
 from adam.contracts.diagnostic_context import DIAGNOSTIC_CONTEXT_VERSION
-from adam.contracts.errors import AgentError
+from adam.contracts.errors import AgentError, ConfigError
 from adam.contracts.history import validate_compaction_version, validate_context_layout
 from adam.contracts.media import MediaRef
 from adam.contracts.model_input import media_records, message_media
@@ -78,6 +81,11 @@ class CaptureRuntime:
             lambda: previous_identity(kind, size) if previous_identity else secrets.token_hex(size),
         )
         boot = {
+            **(
+                {"consumption": conversation.consumption.as_record()}
+                if conversation.consumption.enabled
+                else {}
+            ),
             "planning": conversation.planning is not None,
             "reflection": conversation.reflection is not None,
             "memory": conversation.memory_provider is not None,
@@ -170,8 +178,20 @@ class CaptureRuntime:
                     self.exchange(
                         "accounting",
                         operation,
-                        {"session_id": session_id, "estimate": state["estimate"]},
-                        lambda: {key: value for key, value in state.items() if key != "estimate"},
+                        {
+                            "session_id": session_id,
+                            "estimate": state["estimate"],
+                            **(
+                                {"units": state["requested_units"]}
+                                if "requested_units" in state
+                                else {}
+                            ),
+                        },
+                        lambda: {
+                            key: value
+                            for key, value in state.items()
+                            if key not in {"estimate", "requested_units"}
+                        },
                     )
 
                 result.on_snapshot = snapshot
@@ -184,24 +204,56 @@ class CaptureRuntime:
 class ReplayAccount:
     """使用当时其他成员的已观察消费与预留，当前主会话消费仍读取真实重放日志。"""
 
-    def __init__(self, tape: ReplayTape, store: ReplayStore, maximum: int) -> None:
+    def __init__(
+        self,
+        tape: ReplayTape,
+        store: ReplayStore,
+        maximum: int,
+        consumption: ConsumptionConfig = DEFAULT_CONSUMPTION,
+    ) -> None:
         self.tape, self.store, self.maximum = tape, store, maximum
+        self.consumption = consumption
+        self.owner = ""
 
-    def _budget(self, operation: str, estimate: int | None = None) -> SharedTokenBudget:
+    def _budget(
+        self, operation: str, estimate: int | None = None, units: Quantities | None = None
+    ) -> SharedTokenBudget:
         value = self.tape.exchange(
             "accounting",
             operation,
-            {"session_id": self.store.session_id, "estimate": estimate},
+            {
+                "session_id": self.store.session_id,
+                "estimate": estimate,
+                **({"units": units.as_record()} if units is not None else {}),
+            },
             lambda: dict[str, Any](),
         )
         if (
             not isinstance(value, dict)
-            or value.keys() != {"owner", "members", "reserved"}
+            or value.keys()
+            != {"owner", "members", "reserved"} | ({"units"} if self.consumption.enabled else set())
             or not isinstance(value["owner"], str)
             or not isinstance(value["members"], list)
         ):
             raise RecordingError("共享额度快照格式无效。")
-        budget = SharedTokenBudget(self.maximum, reserved=value["reserved"])
+        unit_budget = None
+        if self.consumption.enabled:
+            try:
+                unit_budget = UnitBudget.from_record(self.consumption.limits(), value["units"])
+            except (ValueError, TypeError, KeyError) as error:
+                raise RecordingError("独立单位额度快照格式无效。") from error
+            for member in value["units"]["members"]:
+                if member["owner"] == value["owner"]:
+                    actual_units = self.store.consumption_usage(self.store.session_id)
+                    recorded = ConsumptionSnapshot.from_record(
+                        {key: item for key, item in member.items() if key != "owner"}
+                    )
+                    self.tape.compare(
+                        recorded.as_record(), actual_units.as_record(), "$.accounting.parent_units"
+                    )
+                    unit_budget.update(member["owner"], actual_units)
+        self.owner = value["owner"]
+        budget = SharedTokenBudget(self.maximum, reserved=value["reserved"], units=unit_budget)
         seen = set()
         for member in value["members"]:
             if (
@@ -220,9 +272,29 @@ class ReplayAccount:
                 actual = self.store.usage(self.store.session_id)
                 self.tape.compare([tokens, unknown], list(actual), "$.accounting.parent")
                 tokens, unknown = actual
-            budget.update(member["owner"], tokens, unknown)
+            member_units = None
+            if unit_budget is not None:
+                found = next(
+                    (
+                        item
+                        for item in value["units"]["members"]
+                        if item["owner"] == member["owner"]
+                    ),
+                    None,
+                )
+                if found is None:
+                    raise RecordingError("独立单位与 token 账本成员不一致。")
+                member_units = ConsumptionSnapshot.from_record(
+                    {key: item for key, item in found.items() if key != "owner"}
+                )
+            budget.update(member["owner"], tokens, unknown, units=member_units)
         if value["owner"] not in seen:
             raise RecordingError("共享额度快照缺少主会话。")
+        if (
+            unit_budget is not None
+            and {member["owner"] for member in value["units"]["members"]} != seen
+        ):
+            raise RecordingError("独立单位与 token 账本成员不一致。")
         return budget
 
     def check(self) -> None:
@@ -234,11 +306,13 @@ class ReplayAccount:
         return self._budget("usage").usage()
 
     @contextmanager
-    def request(self, estimate: int) -> Iterator[None]:
-        """当前请求估算重新参与预留，失败和退出沿真实预算作用域处理。"""
-        budget = self._budget("reserve", estimate)
-        with budget.reserve(estimate):
+    def request(self, estimate: int, *, units: Quantities | None = None) -> Iterator[None]:
+        """当前 token/独立单位估算重新参与预留，失败和退出沿真实预算作用域处理。"""
+        budget = self._budget("reserve", estimate, units)
+        with budget.reserve(estimate, units=units):
             yield
+            if budget.units is not None:
+                self._budget("settled").check_units()
 
 
 def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -275,6 +349,7 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
             "runtime_state_version",
             "compaction_version",
             "diagnostic_context_version",
+            "consumption",
         }
         != flags | {"skills"}
         or any(type(boot[key]) is not bool for key in flags)
@@ -284,6 +359,14 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
     ):
         raise RecordingError("录制运行资料的字段或输入无效。")
     try:
+        if "consumption" in boot:
+            config = parse_consumption(boot["consumption"])
+            if (
+                not config.enabled
+                or not boot["accounting"]
+                or config.as_record() != boot["consumption"]
+            ):
+                raise ValueError("unit-enabled replay requires accounting")
         validate_context_layout(boot.get("context_layout"))
         if "diagnostic_context_version" in boot and (
             boot["diagnostic_context_version"] != DIAGNOSTIC_CONTEXT_VERSION
@@ -299,7 +382,7 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
             raise ValueError("运行状态版本或布局无效。")
         validate_catalog(boot["skills"])
         decode_skill(arguments["selected_skill"], boot["skills"])
-    except (ValueError, TypeError, KeyError) as error:
+    except (ValueError, TypeError, KeyError, ConfigError) as error:
         raise RecordingError("录制的上下文布局、摘要版本、状态或技能资料无效。") from error
     return boot, arguments
 
@@ -353,11 +436,12 @@ def build_replay(
     controls = seed["controls"]
     limits = agent or AgentConfig(**controls["agent"])
     context_limits = context or ContextConfig(**controls["context"])
+    consumption = parse_consumption(boot.get("consumption", {}))
     exchange: Exchange = tape.exchange
 
     def account(session_id: str) -> RequestAccount:
         tape.exchange("accounting", "select", {"session_id": session_id}, lambda: None)
-        return ReplayAccount(tape, store, limits.max_session_tokens)
+        return ReplayAccount(tape, store, limits.max_session_tokens, consumption)
 
     conversation = Conversation(
         store,
@@ -368,6 +452,7 @@ def build_replay(
         model=seed["model"],
         media_input=ReplayMediaInput(tape.recording, store),
         context_config=context_limits,
+        consumption=consumption,
         # 缺少布局标记的旧录制继续使用旧消息顺序和估算，不伪造相同请求。
         context_layout=boot.get("context_layout"),
         compaction_version=boot.get("compaction_version"),

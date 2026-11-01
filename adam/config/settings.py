@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from adam.config.consumption import ConsumptionConfig
 from adam.config.hooks import HooksConfig
 from adam.config.mcp import MCPConfig
 from adam.contracts.errors import ConfigError
@@ -646,3 +647,4 @@ class AppConfig:
     web: WebConfig = field(default_factory=WebConfig)
     browser: BrowserConfig = field(default_factory=BrowserConfig)
     vision: VisionConfig = field(default_factory=VisionConfig)
+    consumption: ConsumptionConfig = field(default_factory=ConsumptionConfig)

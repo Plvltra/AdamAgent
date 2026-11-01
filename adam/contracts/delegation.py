@@ -4,6 +4,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from adam.contracts.consumption import Quantities
 from adam.contracts.memory import MemorySelection
 
 
@@ -47,8 +48,10 @@ class RequestAccount(Protocol):
         """刷新自己的已结算消费，并检查整组额度。"""
         ...
 
-    def request(self, estimate: int) -> AbstractContextManager[None]:
-        """预留一次请求的估算消费，退出前从日志结算；超限时不登记远端请求。"""
+    def request(
+        self, estimate: int, *, units: Quantities | None = None
+    ) -> AbstractContextManager[None]:
+        """预留 token 及可选独立单位，退出前从日志结算；超限时不登记远端请求。"""
         ...
 
     def usage(self) -> tuple[int, bool]:

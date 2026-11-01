@@ -1,10 +1,12 @@
 """并发请求共享额度；在途预留与已经无法确定的消费分别记录。"""
 
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from threading import RLock
 from typing import Any
 
+from adam.application.subagents.unit_budget import UnitBudget
+from adam.contracts.consumption import ConsumptionSnapshot, Quantities
 from adam.contracts.errors import BudgetError, FailureCode
 from adam.contracts.runtime import TokenState
 
@@ -17,21 +19,28 @@ class SharedTokenBudget:
     已在途的请求可以完成结算；未知消费阻止新请求，不主动取消其他请求。
     """
 
-    def __init__(self, maximum: int, *, reserved: int = 0) -> None:
+    def __init__(self, maximum: int, *, reserved: int = 0, units: UnitBudget | None = None) -> None:
         if type(reserved) is not int or reserved < 0:
             raise ValueError("invalid existing reservation")
         self.maximum = maximum
+        self.units = units
         self._totals: dict[str, tuple[int, bool]] = {}
         # 离线诊断可恢复当时其他请求的预留，正常组装仍从零开始。
         self._reserved = reserved
         self._lock = RLock()
 
-    def update(self, owner: str, tokens: int, unknown: bool) -> None:
-        """替换一个成员的持久化累计快照；仅由该成员拥有日志的线程调用。"""
+    def update(
+        self, owner: str, tokens: int, unknown: bool, *, units: ConsumptionSnapshot | None = None
+    ) -> None:
+        """替换成员累计快照；由日志所属线程调用，启用独立单位时必须同时提供 units。"""
         if tokens < 0:
             raise ValueError("negative token usage")
+        if self.units is not None and units is None:
+            raise ValueError("unit-enabled member refresh requires a complete snapshot")
         with self._lock:
             self._totals[owner] = (tokens, unknown)
+            if self.units is not None and units is not None:
+                self.units.update(owner, units)
 
     def usage(self, *, observe: Callable[[dict[str, Any]], None] | None = None) -> tuple[int, bool]:
         """返回整组已知消费及未知标记；正常在途预留不算未知消费。"""
@@ -60,36 +69,62 @@ class SharedTokenBudget:
                     "主会话或子 Agent 用量未知；已停止新增请求，不自动重发。",
                     code=FailureCode.USAGE_UNKNOWN,
                 )
+            self.check_units()
+            if self.units is not None:
+                # 下一次模型调用必占一次；在工具执行前也拒绝无后续回答额度的动作。
+                with self.units.reserve(Quantities(calls=1)):
+                    pass
             if tokens >= self.maximum:
                 raise BudgetError("主会话共享额度已用完。", code=FailureCode.SESSION_TOKEN_LIMIT)
 
+    def check_units(self, *, observe: Callable[[dict[str, Any]], None] | None = None) -> None:
+        """已结算独立单位未知或超限时停止；token 的原有耗尽策略不在此改变。"""
+        with self._lock:
+            if observe:
+                observe(self._snapshot())
+            if self.units is not None:
+                self.units.check()
+
     @contextmanager
     def reserve(
-        self, estimate: int, *, observe: Callable[[dict[str, Any]], None] | None = None
+        self,
+        estimate: int,
+        *,
+        units: Quantities | None = None,
+        observe: Callable[[dict[str, Any]], None] | None = None,
     ) -> Iterator[None]:
         """在发请求前原子预留，退出时释放；调用方须在退出前更新实际消费快照。
 
         observe 在同一锁内取得决策所用状态；读取记录不会被并发子任务更新插入。
         观察者异常发生在新增预留之前，仍由调用方决定是否结束本轮。
+        启用独立单位时必须完整传入 units；任一单位不足会一起释放预留。
         """
         if estimate <= 0:
             raise ValueError("reservation must be positive")
-        with self._lock:
-            if observe:
-                observe(self._snapshot())
-            self.check()
-            tokens, _ = self.usage()
-            if tokens + self._reserved + estimate > self.maximum:
-                raise BudgetError(
-                    "剩余额度不足以预留本次请求；可等待在途请求结束或减少输入。",
-                    code=FailureCode.SESSION_TOKEN_LIMIT,
-                )
-            self._reserved += estimate
-        try:
-            yield
-        finally:
+        with ExitStack() as reservations:
             with self._lock:
-                self._reserved -= estimate
+                if observe:
+                    observe(self._snapshot())
+                self.check()
+                tokens, _ = self.usage()
+                if tokens + self._reserved + estimate > self.maximum:
+                    raise BudgetError(
+                        "剩余额度不足以预留本次请求；可等待在途请求结束或减少输入。",
+                        code=FailureCode.SESSION_TOKEN_LIMIT,
+                    )
+                if self.units is not None:
+                    if units is None:
+                        raise ValueError("unit-enabled accounting requires a complete reservation")
+                    # 同一 token 锁内完成全部准入；单位不足或观察失败不会留下半份预留。
+                    reservations.enter_context(self.units.reserve(units))
+                elif units is not None:
+                    raise ValueError("unit reservation requires enabled accounting")
+                self._reserved += estimate
+            try:
+                yield
+            finally:
+                with self._lock:
+                    self._reserved -= estimate
 
     def _snapshot(self) -> dict[str, Any]:
         """在调用者已持锁时复制成员与预留；仅供宿主观察，不暴露可修改的内部字典。"""
@@ -99,4 +134,5 @@ class SharedTokenBudget:
                 for owner, (tokens, unknown) in self._totals.items()
             ],
             "reserved": self._reserved,
+            **({"units": self.units.as_record()} if self.units is not None else {}),
         }

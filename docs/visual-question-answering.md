@@ -102,3 +102,6 @@ python -m scripts.vision_acceptance run --output .cache/vision-new-batch `
 
 服务器和采样默认值未改；两批回答有差异不证明共享额度恢复提高了模型质量。没有重试、调题、换图、换模型或 OCR 替代。复验结束后已核对运行时路径并关闭本次本地服务；模型与二进制仅留在忽略缓存中。
 这是首个真实后端的有限烟测，不是 C04.4 清晰/模糊/旋转/混合 PDF 的综合验收，也不是 OCR 字错率/区域定位测试。失败原样保留，不能从工具成功推断业务判断正确。
+
+
+C00.4 接入更新（2026-11-02）：显式图问可传入与项目相同的独立单位额度/逐模型单价，恢复主子历史消费；上限预检失败不新增用户输入。CLI 的 `--consumption-config` 只读独立 `[consumption]` TOML，不读取默认聊天密钥。配置估价另存于原请求的 consumption 字段，原 image_question 来源中的 null/unpriced 不是新估价入口。缺价仍未知，真实烟测历史不回填费用。详见 [计量配置与边界](multimodal-input.md#c004-多单位消费)。

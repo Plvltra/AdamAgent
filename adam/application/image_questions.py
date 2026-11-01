@@ -7,8 +7,10 @@ from typing import Any
 from adam.application.media_input import MediaInputService
 from adam.application.request_runner import RequestRunner, save_failure
 from adam.application.subagents.account import SessionAccount, restore_account
+from adam.config.consumption import DEFAULT_CONSUMPTION, ConsumptionConfig
 from adam.config.settings import AgentConfig, ContextConfig
 from adam.context.builder import ContextBuilder, RequestContext, estimate_json_tokens
+from adam.context.consumption import plan_consumption
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import (
     AgentError,
@@ -38,7 +40,7 @@ class ImageQuestions:
     """只消费当前持锁会话的已提交图片；一次调用最多一次物理请求，不自动重试。
 
     不加载路径、不创建会话、不共享图片或更改默认模型；先完成 C04.1 加载，再显式提问。
-    费用未配置即保持未知；图片 token 预留是本地预算估计，不是实际计价。
+    费用未配置即保持未知；显式单价只给出配置估价，图片 token 预留不是实际计价。
     """
 
     def __init__(
@@ -50,15 +52,23 @@ class ImageQuestions:
         limits: AgentConfig,
         context: ContextConfig,
         cancel: CancellationToken,
+        *,
+        consumption: ConsumptionConfig = DEFAULT_CONSUMPTION,
     ) -> None:
         self._store, self._client = store, client
+        self._consumption = consumption
         self._media_store = media
         self._media = MediaInputService(media, client)
         self._model, self._limits, self._cancel = model, limits, cancel
         self._builder = ContextBuilder(context, limits.max_output_tokens)
         self._accounts: dict[str, SessionAccount] = {}
         self._runner = RequestRunner(
-            store, client, self._check_budget, self._account, cancel=cancel
+            store,
+            client,
+            self._check_budget,
+            self._account,
+            cancel=cancel,
+            consumption=consumption,
         )
 
     def ask_saved(self, question: str, media_id: str, version: str) -> ImageAnswer:
@@ -95,6 +105,19 @@ class ImageQuestions:
             raise BudgetError(
                 "视觉请求预留超过会话剩余额度，未发送请求。", code=FailureCode.SESSION_TOKEN_LIMIT
             )
+        plan = plan_consumption(
+            self._consumption,
+            self._model,
+            context.messages,
+            context.budgeted_input_tokens,
+            context.max_output_tokens,
+        )
+        if plan is not None:
+            # 此入口不派生子任务；先完整预检，额度不足不新增用户输入。
+            with self._account(sid).request(
+                context.budgeted_input_tokens + context.max_output_tokens, units=plan.reservation
+            ):
+                pass
         self._cancel.check()
         turn_id = self._store.start_turn(sid, question, media=(reference,))
         started = monotonic_ns()
@@ -166,7 +189,7 @@ class ImageQuestions:
         """本入口不派生子任务；首次恢复既有子日志，后续预留/结算共用同一账本。"""
         if session_id not in self._accounts:
             self._accounts[session_id] = restore_account(
-                self._store, session_id, self._limits.max_session_tokens
+                self._store, session_id, self._limits.max_session_tokens, self._consumption
             )
         return self._accounts[session_id]
 

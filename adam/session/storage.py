@@ -15,6 +15,7 @@ from filelock import FileLock, Timeout
 
 from adam.contracts.artifacts import ArtifactRef, validate_artifact_identity
 from adam.contracts.checkpoints import EditCheckpoint
+from adam.contracts.consumption import ConsumptionPlan, ConsumptionSnapshot
 from adam.contracts.errors import FailureCode, SessionNotFoundError, StorageError
 from adam.contracts.history import HistoryTurn, Summary
 from adam.contracts.media import MediaRef, MediaSource
@@ -339,6 +340,14 @@ class SessionStore:
         _, _, tokens, unknown = self._read(session_id)
         return tokens, unknown
 
+    def consumption_usage(self, session_id: str) -> ConsumptionSnapshot:
+        """读取已验证日志的多单位小计；旧媒体量与未结算请求保持未知，不修改原日志。"""
+        return self._read_log(session_id).consumption.snapshot()
+
+    def consumption_report(self, session_id: str) -> dict[str, Any]:
+        """按单位与币种报告消费；配置价格仅作估价，未知和无价格请求独立列出。"""
+        return self._read_log(session_id).consumption.report()
+
     def new_identity(self, kind: str, size: int) -> str:
         """分配执行关联 ID；宿主可在轮次外注入来源，返回值仍须为指定字节数的十六进制。"""
         value = (
@@ -376,9 +385,19 @@ class SessionStore:
         return turn_id
 
     def start_request(
-        self, session_id: str, turn_id: str, model: str, *, context: dict[str, Any] | None = None
+        self,
+        session_id: str,
+        turn_id: str,
+        model: str,
+        *,
+        context: dict[str, Any] | None = None,
+        consumption: ConsumptionPlan | None = None,
     ) -> str:
-        """登记模型请求及可选选择依据，返回 request_id；context 不含完整请求副本。"""
+        """登记模型请求及可选选择依据，返回 request_id；context 不含完整请求副本。
+
+        consumption 在请求前冻结独立单位预留与可选单价，结算必须与此计划关联。
+        未传时沿用旧格式；缺少媒体计量不能在多单位查询中补零。
+        """
         request_id = self.new_identity("request", 16)
         self._append(
             session_id,
@@ -389,6 +408,7 @@ class SessionStore:
                     "request_id": request_id,
                     "model": model,
                     **({"context": context} if context is not None else {}),
+                    **({"consumption": consumption.as_record()} if consumption is not None else {}),
                 },
             ),
         )
@@ -404,6 +424,7 @@ class SessionStore:
         outcome: ExecutionOutcome | None = None,
         cache_usage: CacheUsage | None = None,
         input_prefix: InputPrefix | None = None,
+        consumption: dict[str, Any] | None = None,
     ) -> None:
         """在同一追加块内保存请求用量和终态；非法关联或重复结束抛出 ValueError。
 
@@ -411,6 +432,7 @@ class SessionStore:
         cache_usage 和 input_prefix 是独立诊断，不减少总 token 计费；缺字段保持未知。
         outcome 描述模型请求本身，与后续整轮结果独立；省略时按成功处理，耗时未知。
         有效响应缺少用量时请求仍可成功，不将用量未知当作请求失败。
+        可选 consumption 必须绑定开始时的单位计划、原 token 和冻结单价；不能伪造费用或重复结算。
         可捕获的写入失败回滚整个块；后续轮次失败不会删除已落盘的消费记录。
         """
         link = {"turn_id": turn_id, "request_id": request_id}
@@ -421,6 +443,7 @@ class SessionStore:
                 "input_tokens": usage[0] if usage else None,
                 "output_tokens": usage[1] if usage else None,
                 **encode_observations(cache_usage, input_prefix),
+                **({"consumption": consumption} if consumption is not None else {}),
             },
         )
         data += record(

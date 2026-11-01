@@ -31,6 +31,7 @@ from adam.application.subagents.manager import SubagentManager
 from adam.application.terminals import TerminalService
 from adam.application.triggers import LocalTriggers
 from adam.application.undo import UndoService
+from adam.config.consumption import DEFAULT_CONSUMPTION, ConsumptionConfig
 from adam.config.loader import load_config
 from adam.config.roles import RoleProfile
 from adam.config.settings import AppConfig, ArtifactConfig, DocumentConfig, PermissionConfig
@@ -336,6 +337,7 @@ def build_application(
                 on_notice or (lambda _: None),
                 mode_provider=modes.current,
                 private_children=private_children,
+                consumption=config.consumption,
             )
             resources.callback(manager.close)
             registry = register_proposal_review(
@@ -503,6 +505,7 @@ def build_application(
             else None,
             input_provider=input_queue if inputs else None,
             context_config=config.context,
+            consumption=config.consumption,
             media_input=MediaInputService(SessionMedia(store, MediaStore(media_dir)), client),
             notify=on_notice,
             accounting=manager.account if manager else None,
@@ -846,6 +849,7 @@ def _open_child(
             config.agent,
             model=run.model,
             context_config=config.context,
+            consumption=config.consumption,
             media_input=MediaInputService(
                 SessionMedia(store, MediaStore(media_dir / "children" / root.parent.name)), client
             ),
@@ -1012,12 +1016,14 @@ def open_image_questions(
     limits: "AgentConfig | None" = None,
     context: "ContextConfig | None" = None,
     cancel: CancellationToken | None = None,
+    consumption: ConsumptionConfig = DEFAULT_CONSUMPTION,
 ) -> Iterator["ImageQuestions"]:
     """显式打开本地单图问答；借用已有会话来源，不读取默认聊天密钥或启动模型。
 
     独占会话写锁、可取消 HTTP 及媒体读取端口在退出/失败时释放；不共享原应用的连接。
     不跟随重定向或环境代理，地址只允许 LocalVisionConfig 校验的字面回环。
-    调用方传入项目额度可保持原限制；未传时使用保守默认额度，不合并其他会话。
+    调用方传入项目额度和 consumption 可保持原限制；未传时沿保守默认 token 额度。
+    独立单位配置不读取默认聊天密钥；启用时恢复同组主子消费，不合并其他主会话。
     """
     from adam.application.image_questions import ImageQuestions
     from adam.config.settings import AgentConfig, ContextConfig
@@ -1044,4 +1050,5 @@ def open_image_questions(
             limits or AgentConfig(),
             context or ContextConfig(),
             token,
+            consumption=consumption,
         )

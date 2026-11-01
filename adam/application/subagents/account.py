@@ -1,10 +1,13 @@
-"""把当前线程拥有的会话日志接到整组 token 额度。"""
+"""把当前线程拥有的会话日志接到整组 token 与可选独立单位额度。"""
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any
 
 from adam.application.subagents.budget import SharedTokenBudget
+from adam.application.subagents.unit_budget import UnitBudget
+from adam.config.consumption import DEFAULT_CONSUMPTION, ConsumptionConfig
+from adam.contracts.consumption import UNITS, ConsumptionSnapshot, Quantities
 from adam.contracts.runtime import TokenState
 from adam.session.storage import SessionStore
 
@@ -33,10 +36,12 @@ class SessionAccount:
         return self.budget.snapshot()
 
     @contextmanager
-    def request(self, estimate: int) -> Iterator[None]:
+    def request(self, estimate: int, *, units: Quantities | None = None) -> Iterator[None]:
         """请求开始前预留，日志收尾后结算；日志读取失败时保守保留未知消费。"""
         self._refresh()
-        with self.budget.reserve(estimate, observe=self._observer("reserve", estimate)):
+        with self.budget.reserve(
+            estimate, units=units, observe=self._observer("reserve", estimate, units)
+        ):
             try:
                 yield
             except BaseException as error:
@@ -47,48 +52,82 @@ class SessionAccount:
                 raise
             else:
                 self._refresh()
+                if self.budget.units is not None:
+                    # 其他成员可能在本次 IO 期间结算；收尾决策不能重用请求开始时的快照。
+                    self.budget.check_units(observe=self._observer("settled"))
 
     def _observer(
-        self, operation: str, estimate: int | None = None
+        self, operation: str, estimate: int | None = None, units: Quantities | None = None
     ) -> Callable[[dict[str, Any]], None] | None:
         """宿主可观察当前线程真实使用的共享账本；不从其他线程读取会话文件。"""
         callback = self.on_snapshot
         if callback is None:
             return None
         return lambda state: callback(
-            operation, {"owner": self.owner, "estimate": estimate, **state}
+            operation,
+            {
+                "owner": self.owner,
+                "estimate": estimate,
+                **({"requested_units": units.as_record()} if units is not None else {}),
+                **state,
+            },
         )
 
     def _refresh(self) -> None:
+        """只在日志所属线程更新成对快照；读取失败保留原已知量并标记未知。"""
         try:
             tokens, unknown = self.store.usage(self.session_id)
+            units = (
+                self.store.consumption_usage(self.session_id)
+                if self.budget.units is not None
+                else None
+            )
         except Exception:
             # 无法确认该成员的新快照时，另立未知标记，不用零覆盖既有已知消费。
-            self.budget.update(self.owner + ":unreadable", 0, True)
+            self.budget.update(
+                self.owner + ":unreadable",
+                0,
+                True,
+                units=ConsumptionSnapshot(Quantities(), UNITS) if self.budget.units else None,
+            )
             raise
-        self.budget.update(self.owner, tokens, unknown)
+        self.budget.update(self.owner, tokens, unknown, units=units)
 
 
-def restore_account(store: SessionStore, session_id: str, maximum: int) -> SessionAccount:
+def restore_account(
+    store: SessionStore,
+    session_id: str,
+    maximum: int,
+    consumption: ConsumptionConfig = DEFAULT_CONSUMPTION,
+) -> SessionAccount:
     """在主会话持锁且不派生新子任务的入口恢复整组额度，不漏掉旧子会话消费。
 
     子日志逐个取得原写锁并按 SessionStore 规则恢复；缺失、占用或损坏时停止，
     不用零替代。这里只结算日志快照，不改委派索引、不重发任务。
     返回账本仅供当前入口使用；调用期间不能另启共享同一主会话的子任务。
+    consumption 启用时同时恢复所有成员的独立单位；旧记录缺少媒体计量时保持未知。
     """
     from adam.contracts.errors import StorageError
     from adam.session.delegation import DelegationStore
 
     if store.active_session_id != session_id:
         raise StorageError("恢复共享额度必须持有当前主会话写锁。")
-    budget = SharedTokenBudget(maximum)
+    budget = SharedTokenBudget(
+        maximum, units=UnitBudget(consumption.limits()) if consumption.enabled else None
+    )
     root = store.root / "_subagents" / session_id
     if root.exists():
         index = DelegationStore(root)
         with SessionStore(root / "sessions") as children:
             for agent in index.agents():
                 children.select_session(agent.agent_id)
-                budget.update(str(children.root / agent.agent_id), *children.usage(agent.agent_id))
+                budget.update(
+                    str(children.root / agent.agent_id),
+                    *children.usage(agent.agent_id),
+                    units=children.consumption_usage(agent.agent_id)
+                    if consumption.enabled
+                    else None,
+                )
     account = SessionAccount(store, session_id, budget)
     account.usage()
     return account
