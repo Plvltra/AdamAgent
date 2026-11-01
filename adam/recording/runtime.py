@@ -313,9 +313,14 @@ class ReplayMediaInput:
     def validate(self, references: tuple[MediaRef, ...], model: str) -> None:
         """核对完整冻结身份与当前诊断会话；未验证副本不可作为媒体输入。"""
         media_records(references)
-        if model != self.recording.seed["model"] or any(
-            ref not in self.recording.media or ref.source.session_id != self.store.active_session_id
-            for ref in references
+        if (
+            not self.recording.media_verified
+            or model != self.recording.seed["model"]
+            or any(
+                ref not in self.recording.media
+                or ref.source.session_id != self.store.active_session_id
+                for ref in references
+            )
         ):
             raise AgentError("离线输入媒体不在已验证的录制中。")
 
@@ -337,7 +342,12 @@ def build_replay(
     agent: AgentConfig | None = None,
     context: ContextConfig | None = None,
 ) -> tuple[Conversation, SkillSelection | None]:
-    """仅构造生产内部流程及离线端口；不导入工具工厂、HTTP、MCP 或真实子调度器。"""
+    """仅构造生产内部流程及离线端口；带媒体时须已验证旁路副本。
+
+    不导入工具工厂、HTTP、MCP 或真实子调度器。
+    """
+    if tape.recording.media and not tape.recording.media_verified:
+        raise RecordingError("录制仅解析了事件，媒体副本尚未验证，不能回放。")
     boot, arguments = runtime_start(tape.recording)
     seed = tape.recording.seed
     controls = seed["controls"]

@@ -19,8 +19,11 @@ from adam.llm.client import LLMClient
 from adam.llm.message_encoding import ChatInputEncoder
 from adam.recording.capture import RecordingModel, TurnRecorder
 from adam.recording.format import RecordingError
-from adam.recording.journal import RecordingWriter, read_recording
-from adam.recording.runtime import CaptureRuntime, replay_turn
+from adam.recording.journal import RecordingWriter, parse_recording, read_recording
+from adam.recording.replay import ReplayTape
+from adam.recording.replay_store import ReplayStore
+from adam.recording.runtime import CaptureRuntime, build_replay, replay_turn
+from adam.recording.sharing import export_share
 from adam.recording.snapshot import capture_seed
 from adam.session.media import MediaStore
 from adam.session.media_evidence import SessionMedia
@@ -599,3 +602,42 @@ def test_host_input_rejects_noncanonical_reference_collection_without_side_effec
         with pytest.raises(AgentError):
             app.send("task", media=media)
         assert store.load_events(ref.source.session_id) == before and bodies == []
+
+
+@pytest.mark.parametrize("missing", [False, True])
+def test_json_share_is_not_binary_verification_and_cannot_enter_media_replay(
+    tmp_path, monkeypatch, missing
+):
+    with multimodal_app(tmp_path, lambda *_: answer("frozen"), capture=True) as (
+        app,
+        _,
+        ref,
+        _,
+        _,
+        recorder,
+        path,
+    ):
+        recorder.run(lambda: app.send("task", media=(ref,)))
+    verified = read_recording(path)
+    assert verified.media == (ref,) and verified.media_verified
+    archive = path.with_name(path.name + ".media")
+    if missing:
+        shutil.rmtree(archive)
+    raw = path.read_bytes()
+    forbid_external_actions(monkeypatch)
+    monkeypatch.setattr(
+        "adam.recording.journal.MediaArchive.verify",
+        lambda *_: pytest.fail("pure parsing/sharing must not access binaries"),
+    )
+    parsed = parse_recording(raw)
+    assert parsed.complete and parsed.media == (ref,) and not parsed.media_verified
+    tape = ReplayTape(parsed)
+    with ReplayStore(tmp_path / "manual-offline", tape) as store:
+        with pytest.raises(RecordingError, match="尚未验证"):
+            build_replay(tape, store)
+        assert store.offset == len(parsed.seed["session_events"])
+    summary = export_share(path, tmp_path / "human-only.json")
+    shared = json.loads((tmp_path / "human-only.json").read_text(encoding="utf-8"))
+    assert summary["replayable"] is False and shared["purpose"] == "human_review_only"
+    assert "data:image/" not in json.dumps(shared) and path.read_bytes() == raw
+    assert archive.exists() is not missing

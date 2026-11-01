@@ -2,7 +2,7 @@
 
 import os
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
@@ -22,12 +22,13 @@ DEFAULT_LIMITS = RecordingLimits()
 
 @dataclass(frozen=True)
 class Recording:
-    """已验证的录制前缀；complete 只表示录制有明确结尾，不代表业务成功。"""
+    """结构有效的录制前缀；complete 只表示明确结尾，不代表业务成功或媒体已验证。"""
 
     events: tuple[dict[str, Any], ...]
     complete: bool
     torn_tail: bool
     media: tuple[MediaRef, ...] = ()
+    media_verified: bool = False
 
     @property
     def seed(self) -> dict[str, Any]:
@@ -135,7 +136,9 @@ def read_recording(path: Path, limits: RecordingLimits = DEFAULT_LIMITS) -> Reco
     try:
         with path.open("rb") as file:
             raw = file.read(limits.max_bytes + 1)
-        return parse_recording(raw, limits)
+        recording = parse_recording(raw, limits)
+        MediaArchive(path).verify(recording.media)
+        return replace(recording, media_verified=True)
     except OSError as error:
         raise RecordingError("录制无法读取：路径不存在或无读取权限。") from error
 
@@ -145,6 +148,8 @@ def parse_recording(raw: bytes, limits: RecordingLimits = DEFAULT_LIMITS) -> Rec
 
     导出来源摘要与内容必须来自同一份 raw，不能两次读取活动文件后错绑版本。
     本函数不修复原文件，也不将缺失结尾的录制升级为完整。
+    只校验 JSONL 结构和来源关联，不访问媒体文件；带媒体时 media_verified=False，
+    须经 read_recording 验证副本后才能用于回放。纯文本没有待验证的二进制。
     """
     try:
         if len(raw) > limits.max_bytes:
@@ -166,7 +171,12 @@ def parse_recording(raw: bytes, limits: RecordingLimits = DEFAULT_LIMITS) -> Rec
             raise ValueError("missing header or data after recording finish")
         # 完整 JSON 仅少换行与真正残缺尾行都保持不完整；不推断落盘是否成功。
         references = tuple(state.media.values())
-        MediaArchive(path).verify(references)
-        return Recording(tuple(events), state.closed and not torn, torn, references)
+        return Recording(
+            tuple(events),
+            state.closed and not torn,
+            torn,
+            references,
+            media_verified=not references,
+        )
     except (OSError, ValueError, TypeError, KeyError, AttributeError, RecursionError) as error:
         raise RecordingError("录制无法读取：文件损坏、版本或关联无效，或超过读取上限。") from error

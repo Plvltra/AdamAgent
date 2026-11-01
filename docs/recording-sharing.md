@@ -2,6 +2,8 @@
 
 B13.1 提供显式宿主 API [export_share](../adam/recording/sharing.py)。它将一份已验证录制转换为独立 JSON 分享副本，包含脱敏事件、替换位置报告和来源摘要；不改写原录制、不调用模型或工具，不发送任何数据到外部。B13.2 已接入下方 CLI 和来源核对入口。
 
+媒体录制的 `parse_recording` 只校验 JSONL 事件和来源关联；分享导出不读取或复制同名 .media 目录。source_complete 仅表示 JSONL 有完整结尾，不表示媒体副本存在/完好，更不表示原任务成功。带媒体的离线回放必须由 read_recording 实际验证副本；详见 [多模态输入](multimodal-input.md)。
+
 ## 怎样使用 API
 
 ```python

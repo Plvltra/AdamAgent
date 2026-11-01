@@ -9,8 +9,9 @@
 本次核对范围：B27.2.2 终端运行输入、独立留痕与共享取消。
 本次核对范围：C01.3 主子搜索、已保存网页快照与逐字引用；同步主线 B12.2.2 单次独立模型审查、请求记录及用量和故障边界。
 本次核对范围：C00.3 公共消息/能力声明、媒体预检与发送边界、摘要/反思、来源日志及媒体冻结重放；保留 C01.3 和主线 B12.2.2 的已实现关系。
+本次核对范围：C00.3 公共消息/能力声明、媒体预检与发送边界、摘要/反思、来源日志及媒体冻结重放；同步固定主线 1b24093 的 B12.2.3/B12.3 知识保护与 B13.1 字节解析/人工分享边界。
 
-核对结论：C00.3 新增 contracts.model_input、application.media_input、llm.message_encoding 与 recording.media；复用 C00.2，不新增上传/解码能力。媒体字节只在模型发送边界编码及录制旁路冻结，Conversation 只编排通用输入预检与引用，不认识具体图片 SDK；默认客户端仍无视觉声明。C01.3 新增 web.evidence 与 tool_calls.web_sources，复用原工具/JSONL 边界。B12.2.2 新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用；当前仍为宿主 API，配置及使用入口留在 B12.2.3。B12.2.1 的独立状态、锁外回调与落盘前来源/修订复核，以及 B11.3 的原文审计和冻结证据说明保留；生产聊天流程不新增最终回答拦截，来源与逐字引用有效不能证明语义正确。
+核对结论：C00.3 新增 contracts.model_input、application.media_input、llm.message_encoding 与 recording.media；复用 C00.2，不新增上传/解码能力。媒体字节只在模型发送边界编码及录制旁路冻结，Conversation 只编排通用输入预检与引用，不认识具体图片 SDK；默认客户端仍无视觉声明。C01.3 新增 web.evidence 与 tool_calls.web_sources，复用原工具/JSONL 边界。B12.2.2 新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用；B12.2.3 已接入显式知识入口与主子目录保护，B12.3 已验收竞争/中断边界。B12.2.1 的独立状态、锁外回调与落盘前来源/修订复核，以及 B11.3 的原文审计和冻结证据说明保留；生产聊天流程不新增最终回答拦截，来源与逐字引用有效不能证明语义正确。
 
 主线同步：recording.journal 提取 parse_recording，读取与导出复用原协议和残缺尾部规则；新增 redaction 与 sharing，仅处理本地数据。先识别敏感值再替换重复文本，报告不保存原文；同目录临时文件完成后排他发布，分享格式不当作录制格式。原注释及协议说明保持并补充同份字节来源约束。
 
@@ -667,13 +668,14 @@ flowchart LR
     MI_MODEL --> MI_CAPTURE["RecordingModel、TurnRecorder / 调用前冻结"]
     MI_CAPTURE --> MI_ARCHIVE["MediaArchive / 同名 .media 目录"]
     MI_ARCHIVE --> MI_FILES["MediaStore.restore / 幂等且不覆盖身份"]
-    MI_READ["read_recording / 来源与字节只读校验"] --> MI_ARCHIVE
+    MI_PARSE["parse_recording / 仅事件与来源校验"] --> MI_READ["read_recording / 来源与字节只读校验"]
+    MI_READ --> MI_ARCHIVE
     MI_READ --> MI_REPLAY["ReplayMediaInput / 冻结引用及零外部动作回放"]
 ~~~
 
 公共视图保留工具 ID/名称/原参数、结果身份及推理字段，未知供应商字段显式拒绝；原文字 content 与文本会话事件不变。宿主只能提交当前会话已有引用，主子不自动共享图片；输入预检和显式冻结失败不登记轮次，发送边界失败以零消费本地原因收尾。摘要和反思同时携带真实媒体并计预算，不把引用 JSON 当成已读取图片。媒体模型能力只由宿主显式声明，默认 DeepSeek 不升级；B24.1 仅必要增量，第二协议与切换未实现。
 
-录制 JSONL 仍保存原引用和顺序，TraceState 核对已提交来源，媒体正文按录制路径派生旁路目录冻结。读取验证完整来源、时间、大小和 SHA-256，不访问原会话或创建锁；缺失/损坏不得匹配，离线运行使用已验证引用、不重发。新消息契约、配额/隐私、8192 token 预留的非计费保证及 86 项新增工程验收见 [多模态输入](multimodal-input.md)；C04 解码与真实视觉能力尚待实现。
+录制 JSONL 仍保存原引用和顺序，TraceState 核对已提交来源，媒体正文按录制路径派生旁路目录冻结。parse_recording 仅解析同一份字节供人工分享，带媒体时 media_verified=False；read_recording 验证完整来源、时间、大小和 SHA-256 后才置 True，不访问原会话或创建锁；缺失/损坏及仅解析未验证副本不得回放或匹配，离线运行使用已验证引用、不重发。新消息契约、配额/隐私、8192 token 预留的非计费保证及 88 项新增工程验收（同步后 392 项联合回归）见 [多模态输入](multimodal-input.md)；C04 解码与真实视觉能力尚待实现。
 
 ## C02.3 浏览器资源与下载
 
