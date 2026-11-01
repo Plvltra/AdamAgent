@@ -84,7 +84,7 @@ def test_action_protocol_has_no_arbitrary_code_or_unbounded_values(values):
 )
 def test_action_schema_rejects_bad_arguments_before_hook_or_approval(tmp_path, suffix):
     with ExitStack() as resources:
-        registry = binding.register_browser(
+        registry, _ = binding.register_browser(
             create_tool_registry(tmp_path),
             BrowserConfig(True, ("https://example.test",)),
             lambda: "abcd1234",
@@ -111,7 +111,7 @@ def test_enabled_but_unused_and_invalid_origin_never_launch_sdk(tmp_path, monkey
         binding, "open_browser", lambda *_a, **_k: pytest.fail("unexpected SDK resource")
     )
     with ExitStack() as resources:
-        registry = binding.register_browser(
+        registry, _ = binding.register_browser(
             create_tool_registry(tmp_path),
             BrowserConfig(True, ("https://example.test",)),
             lambda: "abcd1234",
@@ -140,7 +140,7 @@ def test_cancel_or_session_change_after_approval_does_not_construct_resources(
         return True
 
     with ExitStack() as resources:
-        registry = binding.register_browser(
+        registry, _ = binding.register_browser(
             create_tool_registry(tmp_path),
             BrowserConfig(True, ("https://example.test",)),
             lambda: session[0],
@@ -150,7 +150,7 @@ def test_cancel_or_session_change_after_approval_does_not_construct_resources(
         with pytest.raises(RequestInterrupted):
             registry.execute("browser_open", '{"url":"https://example.test/"}', cancel=cancel)
     with ExitStack() as resources:
-        registry = binding.register_browser(
+        registry, _ = binding.register_browser(
             create_tool_registry(tmp_path),
             BrowserConfig(True, ("https://example.test",)),
             lambda: session[0],

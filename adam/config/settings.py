@@ -549,6 +549,9 @@ class BrowserConfig:
     max_chars: int = 4000
     max_elements: int = 40
     timeout_seconds: float = 15
+    max_tabs: int = 8
+    max_contexts: int = 4
+    max_download_bytes: int = 10485760
 
     def __post_init__(self) -> None:
         if type(self.enabled) is not bool:
@@ -567,7 +570,13 @@ class BrowserConfig:
             "msedge",
         }:
             raise ConfigError("browser.channel 只支持 chromium、chrome 或 msedge。")
-        for name, maximum in (("max_chars", 100000), ("max_elements", 500)):
+        for name, maximum in (
+            ("max_chars", 100000),
+            ("max_elements", 500),
+            ("max_tabs", 32),
+            ("max_contexts", 16),
+            ("max_download_bytes", 100000000),
+        ):
             value = getattr(self, name)
             if type(value) is not int or not 1 <= value <= maximum:
                 raise ConfigError(f"browser.{name} 超出允许范围。")

@@ -15,6 +15,8 @@ class BrowserApproval:
     reference: tuple[str, str, str, str] | None = None
     value: str | None = None
     scroll_y: int | None = None
+    browser_id: str | None = None
+    tab_id: str | None = None
 
 
 class BrowserActionUnknownError(AgentError):

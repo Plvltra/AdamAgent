@@ -258,6 +258,7 @@ class AgentApplication:
 
         skill_id 由用户显式选择，正文只作用于本轮；读取失败不提交轮次或请求模型。
         已绑定模式时固定到本轮及子任务收尾结束，异常也会释放占用。
+        中断后在所属线程回收宿主注册的交互资源，不重放先前动作；清理失败保留原中断。
         """
         with (
             self._interrupt_scope(),
@@ -335,12 +336,12 @@ class AgentApplication:
         """用户中断时回收当前会话附属任务；清理失败不覆盖原始中断。"""
         try:
             yield
-        except (KeyboardInterrupt, EOFError) as error:
+        except (KeyboardInterrupt, EOFError, SystemExit) as error:
             if self._on_interrupt:
                 try:
                     self._on_interrupt()
                 except Exception:
-                    error.add_note("附属后台任务清理或保存失败，请检查任务记录。")
+                    error.add_note("附属后台任务或交互资源清理失败；原始中断保留，请检查任务记录与残留进程。")
             raise
 
     @contextmanager

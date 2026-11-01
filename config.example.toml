@@ -219,3 +219,7 @@ channel = "chromium"
 max_chars = 4000
 max_elements = 40
 timeout_seconds = 15
+max_tabs = 8
+max_contexts = 4
+# 完整下载交付/保存上限，不是 SDK 缓冲或流量硬限制。
+max_download_bytes = 10485760

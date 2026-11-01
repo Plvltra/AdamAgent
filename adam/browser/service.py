@@ -5,9 +5,11 @@ from uuid import uuid4
 
 from adam.browser.models import (
     BrowserAction,
+    BrowserDownload,
     BrowserDriver,
     BrowserError,
     BrowserObservation,
+    BrowserTab,
     DomSnapshot,
     ElementReference,
     ObservedElement,
@@ -18,13 +20,12 @@ from adam.contracts.cancellation import CancellationToken
 
 
 class BrowserObserver:
-    """单线程、单标签观察；每次观察替换引用，关闭权属于创建后端的宿主。"""
+    """单线程上下文观察；每次观察、切换或关闭使旧引用失效，关闭权属于创建后端的宿主。"""
 
     def __init__(self, driver: BrowserDriver, policy: BrowserPolicy) -> None:
         self._driver = driver
         self._policy = policy
         self._browser_id = uuid4().hex
-        self._tab_id = uuid4().hex
         self._last: BrowserObservation | None = None
         self._snapshot: DomSnapshot | None = None
 
@@ -47,7 +48,7 @@ class BrowserObserver:
         observation_id = uuid4().hex
         observation = BrowserObservation(
             self._browser_id,
-            self._tab_id,
+            snapshot.tab_id,
             observation_id,
             snapshot.document_id,
             snapshot.revision,
@@ -56,7 +57,7 @@ class BrowserObserver:
             snapshot.text,
             tuple(
                 ObservedElement(
-                    ElementReference(self._browser_id, self._tab_id, observation_id, identifier),
+                    ElementReference(self._browser_id, snapshot.tab_id, observation_id, identifier),
                     tag,
                     role,
                     name,
@@ -68,6 +69,7 @@ class BrowserObserver:
             snapshot.elements_truncated,
             datetime.now(UTC).isoformat(),
             snapshot.blocked_requests,
+            dismissed_dialogs=snapshot.dismissed_dialogs,
         )
         self._last, self._snapshot = observation, snapshot
         return observation
@@ -141,3 +143,81 @@ class BrowserObserver:
             return self.observe(cancel=token)
         except (BrowserError, OSError, ValueError):
             return None
+
+    def tabs(self, *, cancel: CancellationToken | None = None) -> tuple[BrowserTab, ...]:
+        """返回所属上下文的标签；不新建、不切换，也不使当前控件引用失效。"""
+        return self._driver.tabs(cancel or CancellationToken())
+
+    @property
+    def browser_id(self) -> str:
+        """返回当前资源身份；关闭重建后的身份不会复用。"""
+        return self._browser_id
+
+    def plan_tab(
+        self, operation: str, browser_id: str, tab_id: str, *, cancel: CancellationToken
+    ) -> BrowserApproval:
+        """固定切换/关闭的确切页面；调用方批准后还须比较新的计划。"""
+        if browser_id != self._browser_id:
+            raise BrowserError("stale_reference", "标签不属于当前浏览器。")
+        tab = next((item for item in self.tabs(cancel=cancel) if item.tab_id == tab_id), None)
+        if tab is None or operation not in {"select_tab", "close_tab"}:
+            raise BrowserError("stale_reference", "标签已关闭或不属于当前上下文。")
+        return BrowserApproval(operation, tab.url, tab.title, browser_id=browser_id, tab_id=tab_id)
+
+    def perform_tab(self, plan: BrowserApproval, *, cancel: CancellationToken) -> None:
+        """批准后复检完整页面计划；不默认选择替代页面或恢复旧控件引用。"""
+        if (
+            self.plan_tab(plan.operation, plan.browser_id or "", plan.tab_id or "", cancel=cancel)
+            != plan
+        ):
+            raise BrowserError("stale_reference", "批准期间标签已变化，未切换或关闭。")
+        self._last = self._snapshot = None
+        try:
+            if plan.operation == "select_tab":
+                self._driver.select_tab(plan.tab_id or "", cancel)
+            else:
+                self._driver.close_tab(plan.tab_id or "", cancel)
+        except (BrowserError, OSError, ValueError):
+            raise BrowserActionUnknownError(
+                "标签操作结果未确认，已停止；不自动重开或重复关闭。"
+            ) from None
+
+    def plan_download(
+        self, reference: ElementReference, *, cancel: CancellationToken
+    ) -> BrowserApproval:
+        """只允许原观察中的链接；下载是单独批准，不继承普通 click 的许可。"""
+        element = self.inspect_reference(reference, cancel=cancel)
+        if element.tag != "a":
+            raise BrowserError("unsupported_control", "下载只支持已观察的原生链接。")
+        assert self._snapshot is not None
+        target = self._driver.link_target(self._snapshot, reference.element_id, cancel)
+        self._policy.check(target)
+        return BrowserApproval(
+            "download",
+            target,
+            element.name,
+            (
+                reference.browser_id,
+                reference.tab_id,
+                reference.observation_id,
+                reference.element_id,
+            ),
+        )
+
+    def download(
+        self, reference: ElementReference, *, cancel: CancellationToken
+    ) -> BrowserDownload:
+        """复检原链接后派发一次下载；失败可能已有网络副作用，停止且不重试。
+
+        可信调用方须先批准 plan_download 的确切对象；本服务不自行授予下载权限。
+        """
+        self.plan_download(reference, cancel=cancel)
+        snapshot = self._snapshot
+        assert snapshot is not None
+        self._last = self._snapshot = None
+        try:
+            return self._driver.download(snapshot, reference, cancel)
+        except (BrowserError, OSError, ValueError):
+            raise BrowserActionUnknownError(
+                "下载未形成有效媒体证据，已停止；不要自动重新下载或提交。"
+            ) from None

@@ -16,6 +16,7 @@ TOOL_EVENTS = {
     "tool_started",
     "tool_finished",
     "artifact_saved",
+    "media_saved",
     "hook_started",
     "hook_finished",
     "plan_updated",

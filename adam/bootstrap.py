@@ -58,6 +58,8 @@ from adam.memory.store import MemoryStore
 from adam.rules.catalog import RuleCatalog
 from adam.rules.tracker import RuleTracker
 from adam.session.artifacts import ArtifactStore
+from adam.session.media import MediaStore
+from adam.session.media_evidence import SessionMedia
 from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.background_jobs import BackgroundJobs
@@ -274,8 +276,15 @@ def build_application(
             registry, config.mcp, workspace, resources, media_store=MCPMediaStore(mcp_media_dir)
         )
         registry = register_web(registry, config.web)
-        registry = register_browser(
-            registry, config.browser, lambda: store.active_session_id, resources, confirm_browser
+        registry, browser = register_browser(
+            registry,
+            config.browser,
+            lambda: store.active_session_id,
+            resources,
+            confirm_browser,
+            media=SessionMedia(
+                store, MediaStore(media_dir, max_bytes=config.browser.max_download_bytes)
+            ),
         )
         if artifacts:
             registry = artifacts.register(registry)
@@ -425,6 +434,8 @@ def build_application(
             terminal_tools.bind_source(link)
             if trigger_tools:
                 trigger_tools.bind_source(link)
+            if browser:
+                browser.bind_source(link)
             if manager:
                 manager.bind_source(link)
             if planner:
@@ -525,6 +536,13 @@ def build_application(
 
         if observe_conversation:
             observe_conversation(conversation)
+        def interrupt_resources() -> None:
+            """中断时尝试回收后台与交互资源；一项失败不跳过另一项清理。"""
+            with ExitStack() as cleanup:
+                cleanup.callback(interrupt_processes)
+                if browser:
+                    cleanup.callback(browser.close)
+
         return AgentApplication(
             conversation,
             store,
@@ -532,7 +550,7 @@ def build_application(
             memories,
             close_resources=resources.pop_all().close,
             running_inputs=inputs,
-            on_interrupt=interrupt_processes,
+            on_interrupt=interrupt_resources,
             on_session_selected=recover_attached,
             skills=skills,
             modes=modes,

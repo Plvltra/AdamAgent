@@ -27,11 +27,12 @@ SNAPSHOT_SCRIPT = r"""({key, mode, expected, maxChars, maxElements}) => {
         location.href, el.outerHTML, el.value, el.checked, el.selectedIndex,
         visible(el), enabled(el)
     ]);
-    if (mode === 'validate' || mode === 'handle') {
+    if (mode === 'validate' || mode === 'handle' || mode === 'target') {
         const item = state.refs.get(expected.elementId);
         const valid = state.documentId === expected.documentId && state.revision === expected.revision &&
             !!item && visible(item.element) && enabled(item.element) &&
             item.signature === signature(item.element) && state.pageText === (document.body?.innerText || '');
+        if (mode === 'target') return valid && item.element.tagName === 'A' ? item.element.href : null;
         return mode === 'handle' ? (valid ? item.element : null) : valid;
     }
     const elements = [];

@@ -8,7 +8,7 @@
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-C 系列最近核对（2026-11-01）：C00.2 新增独立二进制存储、纯媒体引用与 SessionMedia 宿主来源边界；SessionLog 通过 MediaLog 严格校验 media_saved，JSONL 不写正文。bootstrap 将 _media 加入主/子保留目录，原文本附件、浏览器动作、主线 B 关系保持。C02.2 已实现的逐次批准不变；媒体模型消息、浏览器下载/标签完整生命周期仍分别由 C00.3/C02.3～4 验收。新增/既有说明已审查，主线文首和正文保留。
+C 系列最近核对（2026-11-01）：C02.3 扩展每会话标签/弹窗/对话框及显式附件下载；浏览器保持窄端口，SDK 仅由适配器持有。bootstrap 把原执行来源和 SessionMedia 注入主浏览器工具，并向 facade 注入主轮次中断清理；字节经 C00.2 发布并提交来源后才交付引用，录制重放仅导入媒体事实、不重做动作。弹窗事件窗口从点击完成后计时，原标签丢失不自动创建重定向替代页；原逐次批准、_media 保护、文本附件与主线 B 关系保持，C00.3/C02.4 仍待验收。主线文首与正文保留。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
@@ -620,6 +620,25 @@ flowchart LR
 ~~~
 
 存储不解码媒体，不导入 SDK 或应用内核。SessionMedia 先核对当前宿主/来源，完整正文发布后才提交引用；读取比较日志和文件中的完整引用，IO 返回后复查所有者。文件存在不能替代授权，日志失败的孤立正文不自动发布或重跑来源。原 ArtifactStore 文本契约保持；多模态模型消息和媒体摘要重放尚待 C00.3，不将存储 API 当成模型视觉能力。接口、格式与真实 PNG/WAV 验收见 [媒体证据](media-evidence.md)。
+
+## C02.3 浏览器资源与下载
+
+~~~mermaid
+flowchart LR
+    BL_BOOT["bootstrap / 主会话资源与来源"] --> BL_TOOLS["BrowserTools / 标签、关闭、显式下载批准"]
+    BL_TOOLS --> BL_OBSERVER["BrowserObserver / 当前标签与原引用复检"]
+    BL_OBSERVER --> BL_DRIVER["ChromiumDriver / 有限标签、弹窗、对话框"]
+    BL_DRIVER --> BL_NETWORK["白名单逐请求路由 / 完整附件"]
+    BL_NETWORK --> BL_RESULT["BrowserDownload / 窄字节结果"]
+    BL_RESULT --> BL_TOOLS
+    BL_TOOLS --> BL_MEDIA["SessionMedia / 保存后提交来源"]
+    BL_MEDIA --> BL_LOG["media_saved / 原工具来源与固定版本"]
+    BL_BOOT --> BL_FACADE["AgentApplication.send / 宿主中断清理"]
+    BL_FACADE --> BL_CLOSE["BrowserTools.close / 所属线程回收全部上下文"]
+    BL_LOG --> BL_REPLAY["ReplayStore / 导入引用事实，不执行动作"]
+~~~
+
+网络字节经窄下载结果返回工具绑定，再由其调用 SessionMedia；SDK 不访问会话存储。上下文独立且有总数/标签限制，关闭/取消/崩溃不自动重提表单。模型只见固定身份，不能提供保存路径或 JS。SDK 缓冲限制、弹窗首请求关联、取消及真实 POST 后终止证据见 [浏览器生命周期](browser-observation.md)。
 
 ## C02.1 / C02.2 DOM 浏览器观察与动作
 
@@ -1642,7 +1661,7 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [session/diagnostics.py](../adam/session/diagnostics.py) | `read_report`、`main` | 只读单个日志快照，按轮次输出请求和工具详情；不请求模型、不修复文件 |
 | [session/outcome.py](../adam/session/outcome.py) | `ExecutionOutcome`、`outcome_details` | 表达请求或轮次的终态、原因和已测耗时；写入和回放共用字段校验，不负责计时或 IO |
 | [bootstrap.py](../adam/bootstrap.py) | `open_application`、`build_application` | 组装组件并关闭自己创建的资源 |
-| [application/facade.py](../adam/application/facade.py) | `AgentApplication` | 面向界面的会话、模型、上下文、继续方式与执行事实查询 |
+| [application/facade.py](../adam/application/facade.py) | `AgentApplication` | 面向界面的会话、模型、上下文、继续方式与执行事实查询；主轮次中断调用宿主交互资源清理，不依赖浏览器 SDK |
 | [config/settings.py](../adam/config/settings.py) | 配置值 | 不可变运行配置 |
 | [contracts/models.py](../adam/contracts/models.py) | 共享数据、EditPlan、ActionFact 与 ExecutionReport | 不依赖具体实现的跨层数据 |
 | [application/subagents/manager.py](../adam/application/subagents/manager.py) | SubagentManager | 委派准入、追问、结果交付、取消与重启恢复 |
@@ -1661,8 +1680,8 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [session/media.py](../adam/session/media.py) | MediaStore | 完整二进制原子保存、会话配额、版本和真实路径验证 |
 | [session/media_evidence.py](../adam/session/media_evidence.py) | SessionMedia | 当前所有者与日志授权；发布顺序、完整引用比对及 IO 后复检 |
 | [session/media_log.py](../adam/session/media_log.py) | MediaLog | 当前输入/工具来源与 media_saved 的纯关联校验 |
-| [browser/](../adam/browser/) | BrowserObserver、BrowserAction、open_browser | 版本化 DOM、有限动作与原节点复检；隔离可选 Chromium 后端 |
-| [tool_calls/browser_tools.py](../adam/tool_calls/browser_tools.py) | register_browser、BrowserTools | 主会话资源、逐次批准、固定动作参数与有界结果，原调度接入 |
+| [browser/](../adam/browser/) | BrowserObserver、BrowserAction、BrowserTab、BrowserDownload、open_browser | 版本化 DOM/标签、原节点复检、弹窗/对话框和附件窄结果；隔离可选 Chromium 后端 |
+| [tool_calls/browser_tools.py](../adam/tool_calls/browser_tools.py) | register_browser、BrowserTools | 主会话资源、原来源绑定、逐次批准、标签分页与下载字节交付 SessionMedia，原调度接入 |
 | [contracts/browser.py](../adam/contracts/browser.py) | BrowserApproval、BrowserActionUnknownError | 纯批准数据与未知副作用停止契约 |
 | [tool_calls/code_tools.py](../adam/tool_calls/code_tools.py) | `CodeTools`、`pack_page` | 三个只读查询、共享查询截止时间、完整来源分页 |
 | [recording/snapshot.py](../adam/recording/snapshot.py) | `capture_seed`、`validate_seed` | 选定轮次的历史与非凭据配置白名单 |
@@ -1674,7 +1693,7 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [recording/environment.py](../adam/recording/environment.py) | `ObservedRules`、`ObservedDelegation`、`ObservedReview` | 冻结外部来源及状态，保持主流程接口 |
 | [recording/replay.py](../adam/recording/replay.py) | `ReplayTape`、`ReplayDifference` | 精确比较全局调用、参数和完整终态，固定首次差异或缺失 |
 | [recording/replay_adapters.py](../adam/recording/replay_adapters.py) | `ReplayModel`、`ReplayTools` | 返回录制外部结果，零真实网络和工具动作 |
-| [recording/replay_store.py](../adam/recording/replay_store.py) | `ReplayStore` | 独立诊断写入、内部事件比较及原工具事实导入 |
+| [recording/replay_store.py](../adam/recording/replay_store.py) | `ReplayStore` | 独立诊断写入、内部事件比较及原工具/媒体引用事实导入，不重做动作 |
 | [tool_calls/factory.py](../adam/tool_calls/factory.py) | `create_tool_registry` | 组装内置工具和编码器 |
 | [tool_calls/catalog.py](../adam/tool_calls/catalog.py) | `SPECS` | 模型可见的工具说明 |
 | [config/loader.py](../adam/config/loader.py) | `load_config`、`load_llm_config` | 加载并校验运行配置，区分模型连接、循环/消费限额及单次输入预算 |

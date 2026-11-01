@@ -7,16 +7,24 @@ from dataclasses import asdict
 from functools import partial
 from typing import Any
 
-from adam.browser.models import BrowserAction, BrowserError, ElementReference, ObservationLimits
+from adam.browser.models import (
+    BrowserAction,
+    BrowserError,
+    BrowserObservation,
+    ElementReference,
+    ObservationLimits,
+)
 from adam.browser.policy import BrowserPolicy
 from adam.browser.runtime import open_browser
 from adam.browser.service import BrowserObserver
 from adam.config.settings import BrowserConfig
-from adam.contracts.browser import BrowserApproval
+from adam.contracts.browser import BrowserActionUnknownError, BrowserApproval
 from adam.contracts.cancellation import CancellationToken
-from adam.contracts.errors import ConfigError, ToolError
+from adam.contracts.errors import ConfigError, StorageError, ToolError
 from adam.contracts.execution import ToolCapability
+from adam.contracts.media import MediaSource
 from adam.contracts.models import ExecutionRecorder, valid_session_id
+from adam.session.media_evidence import SessionMedia
 from adam.tool_calls.catalog import schema
 from adam.tool_calls.registry import ToolRegistry
 
@@ -47,6 +55,32 @@ SPECS = {
         },
         [*_REFERENCE, "action"],
     ),
+    "browser_tabs": schema(
+        "列出当前会话浏览器的标签/获准动作产生的弹窗，不自动切换。next_offset 用于有界续读。",
+        {"offset": ("integer", "从 0 开始的标签偏移；页面变化时重新从 0 列举")},
+        [],
+    ),
+    "browser_select_tab": schema(
+        "逐次批准后选择确切标签；切换使原控件引用失效。",
+        {key: _REFERENCE[key] for key in ("browser_id", "tab_id")},
+        ["browser_id", "tab_id"],
+    ),
+    "browser_close_tab": schema(
+        "批准后关闭确切标签，不运行 beforeunload，不自动选择其他标签。",
+        {key: _REFERENCE[key] for key in ("browser_id", "tab_id")},
+        ["browser_id", "tab_id"],
+    ),
+    "browser_close": schema(
+        "批准后关闭当前会话的整个浏览器上下文；不会撤销已提交表单或已保存媒体。",
+        {"browser_id": _REFERENCE["browser_id"]},
+        ["browser_id"],
+    ),
+    "browser_download": schema(
+        "单独批准后点击最近观察的原链接并保存完整附件媒体引用；不接受 URL、路径或 filename。"
+        "服务器须返回 Content-Disposition: attachment，超限或保存失败不自动重新下载。",
+        _REFERENCE,
+        list(_REFERENCE),
+    ),
 }
 
 
@@ -56,20 +90,28 @@ def register_browser(
     current_session: Callable[[], str | None],
     resources: ExitStack,
     confirm: Callable[[BrowserApproval], bool] | None = None,
-) -> ToolRegistry:
-    """默认禁用；仅主宿主显式组装，实际调用才创建每会话独立资源，不借用用户登录态。"""
+    *,
+    media: SessionMedia | None = None,
+) -> tuple[ToolRegistry, "BrowserTools | None"]:
+    """返回注册表及可绑定来源的宿主；禁用时宿主为空，不借用用户登录态。
+
+    仅主应用组装；资源在实际 open 时创建，清理仍注册到调用方 ExitStack。
+    """
     if not config.enabled:
-        return registry
-    tools = BrowserTools(config, current_session, registry.limits.max_result_chars, confirm)
+        return registry, None
+    tools = BrowserTools(config, current_session, registry.limits.max_result_chars, confirm, media)
     resources.callback(tools.close)
     return registry.extended(
         SPECS,
         {name: partial(tools.direct, name) for name in SPECS},
         capabilities=dict.fromkeys(SPECS, ToolCapability.EXTERNAL_ACTION),
         interruptible_handlers={name: partial(tools.invoke, name) for name in SPECS},
-        validators={"browser_action": _validate_action},
+        validators={
+            "browser_action": _validate_action,
+            "browser_download": _validate_download,
+        },
         groups=dict.fromkeys(SPECS, "browser"),
-    )
+    ), tools
 
 
 class BrowserTools:
@@ -81,6 +123,7 @@ class BrowserTools:
         current_session: Callable[[], str | None],
         max_result_chars: int,
         confirm: Callable[[BrowserApproval], bool] | None,
+        media: SessionMedia | None = None,
     ) -> None:
         try:
             self._policy = BrowserPolicy(frozenset(config.allowed_origins))
@@ -88,9 +131,15 @@ class BrowserTools:
             raise ConfigError("browser.allowed_origins 必须是无凭据的 HTTP(S) origin。") from None
         self._config, self._session, self._confirm = config, current_session, confirm
         self._max_result_chars = max_result_chars
+        self._media = media
+        self._source: dict[str, str] | None = None
         self._owners: dict[
             str, tuple[AbstractContextManager[BrowserObserver], BrowserObserver]
         ] = {}
+
+    def bind_source(self, source: dict[str, str]) -> None:
+        """由原执行器绑定当前工具来源；后续媒体发布还须用真实日志复核。"""
+        self._source = dict(source)
 
     def close(self) -> None:
         """在创建资源的线程关闭所有已用会话；一个资源失败仍尝试关闭其余资源。"""
@@ -127,33 +176,30 @@ class BrowserTools:
             cancel.check()
             if name == "browser_open":
                 self._policy.check(args["url"])
-                plan = BrowserApproval("open", args["url"])
-                if not self._approve(session_id, plan, cancel):
+                if not self._approve(session_id, BrowserApproval("open", args["url"]), cancel):
                     return {"ok": False, "status": "denied"}
                 browser = self._get_or_open(session_id, cancel)
-                observation = browser.open(args["url"], cancel=cancel)
-                status = "opened"
+                return _bounded(
+                    _observed("opened", browser.open(args["url"], cancel=cancel)),
+                    self._max_result_chars,
+                )
+            owner = self._owners.get(session_id)
+            if owner is None:
+                raise BrowserError("not_open", "当前会话没有浏览器；请先显式打开页面。")
+            browser = owner[1]
+            if name == "browser_observe":
+                result = _observed("observed", browser.observe(cancel=cancel))
+            elif name == "browser_action":
+                action = _decode_action(args)
+                if not self._approve(
+                    session_id, browser.plan_action(action, cancel=cancel), cancel
+                ):
+                    return {"ok": False, "status": "denied"}
+                result = _observed("dispatched", browser.perform(action, cancel=cancel))
+            elif name == "browser_download":
+                result = self._download(session_id, browser, args, cancel)
             else:
-                owner = self._owners.get(session_id)
-                if owner is None:
-                    raise BrowserError("not_open", "当前会话没有浏览器；请先显式打开页面。")
-                browser = owner[1]
-                if name == "browser_observe":
-                    observation = browser.observe(cancel=cancel)
-                    status = "observed"
-                else:
-                    action = _decode_action(args)
-                    plan = browser.plan_action(action, cancel=cancel)
-                    if not self._approve(session_id, plan, cancel):
-                        return {"ok": False, "status": "denied"}
-                    observation = browser.perform(action, cancel=cancel)
-                    status = "dispatched"
-            result: dict[str, Any] = {"ok": True, "status": status}
-            if observation is not None:
-                result["observation"] = asdict(observation)
-            else:
-                result["observation_unavailable"] = True
-                result["hint"] = "动作已派发但新观察失败；不要重做，请人工检查。"
+                result = self._manage_tabs(session_id, browser, name, args, cancel)
             return _bounded(result, self._max_result_chars)
         except BrowserError as error:
             if error.kind not in {
@@ -162,6 +208,8 @@ class BrowserTools:
                 "invalid_reference",
                 "unsupported_control",
                 "not_open",
+                "no_active_tab",
+                "resource_limit",
             }:
                 self._discard(session_id, error)
             return {
@@ -173,6 +221,88 @@ class BrowserTools:
         except BaseException as error:
             self._discard(session_id, error)
             raise
+
+    def _manage_tabs(
+        self,
+        session_id: str,
+        browser: BrowserObserver,
+        name: str,
+        args: dict[str, Any],
+        cancel: CancellationToken,
+    ) -> dict[str, Any]:
+        """明确枚举、选择或关闭；不将空页面和观察失败伪装成新的有效观察。"""
+        if name == "browser_tabs":
+            offset = args.get("offset", 0)
+            if not 0 <= offset <= self._config.max_tabs:
+                raise ToolError("标签偏移超过当前资源上限。")
+            return {
+                "ok": True,
+                "status": "listed",
+                "browser_id": browser.browser_id,
+                "offset": offset,
+                "next_offset": None,
+                "tabs": [asdict(tab) for tab in browser.tabs(cancel=cancel)][offset:],
+            }
+        if args["browser_id"] != browser.browser_id:
+            raise BrowserError("stale_reference", "浏览器身份已失效，未关闭或切换。")
+        if name == "browser_close":
+            plan = BrowserApproval("close_browser", "", browser_id=browser.browser_id)
+            if not self._approve(session_id, plan, cancel):
+                return {"ok": False, "status": "denied"}
+            try:
+                self._discard(session_id)
+            except (BrowserError, OSError, ValueError):
+                raise BrowserActionUnknownError(
+                    "浏览器关闭未确认，请检查残留资源；不自动重建。"
+                ) from None
+            return {"ok": True, "status": "closed", "browser_id": browser.browser_id}
+        operation = "select_tab" if name == "browser_select_tab" else "close_tab"
+        plan = browser.plan_tab(operation, browser.browser_id, args["tab_id"], cancel=cancel)
+        if not self._approve(session_id, plan, cancel):
+            return {"ok": False, "status": "denied"}
+        browser.perform_tab(plan, cancel=cancel)
+        if operation == "select_tab":
+            return _observed("selected", browser.observe(cancel=cancel))
+        return {
+            "ok": True,
+            "status": "tab_closed",
+            "browser_id": browser.browser_id,
+            "tab_id": args["tab_id"],
+        }
+
+    def _download(
+        self,
+        session_id: str,
+        browser: BrowserObserver,
+        args: dict[str, Any],
+        cancel: CancellationToken,
+    ) -> dict[str, Any]:
+        """在单次批准前核对来源，收到完整字节后提交媒体；失败不能成为自动重试理由。"""
+        if self._media is None or self._source is None:
+            raise ToolError("下载缺少宿主媒体存储或真实执行来源，未派发。")
+        try:
+            source = MediaSource(
+                session_id=session_id, kind="tool", tool_name="browser_download", **self._source
+            )
+            self._media.store.validate_media_source(source)
+        except (TypeError, ValueError) as error:
+            raise StorageError("下载来源不是当前有效工具，未派发。") from error
+        reference = ElementReference(*(args[name] for name in _REFERENCE))
+        if not self._approve(session_id, browser.plan_download(reference, cancel=cancel), cancel):
+            return {"ok": False, "status": "denied"}
+        download = browser.download(reference, cancel=cancel)
+        cancel.check()
+        saved = self._media.publish(source, download.data, download.mime_type)
+        return {
+            "ok": True,
+            "status": "downloaded",
+            "media": {
+                "media_id": saved.media_id,
+                "version": saved.version,
+                "mime_type": saved.mime_type,
+                "size_bytes": saved.size_bytes,
+            },
+        }
 
     def _approve(self, session_id: str, plan: BrowserApproval, cancel: CancellationToken) -> bool:
         """无回调默认拒绝；等待批准期间会话切换或取消时不允许派发。"""
@@ -186,9 +316,19 @@ class BrowserTools:
         """只在已批准的 open 请求创建隔离资源，不因观察或动作失败自动重建。"""
         if session_id not in self._owners:
             config = self._config
+            if len(self._owners) >= config.max_contexts:
+                raise BrowserError(
+                    "resource_limit", "浏览器会话资源已达上限；请显式关闭旧会话资源。"
+                )
             context = open_browser(
                 self._policy,
-                ObservationLimits(config.max_chars, config.max_elements, config.timeout_seconds),
+                ObservationLimits(
+                    config.max_chars,
+                    config.max_elements,
+                    config.timeout_seconds,
+                    config.max_tabs,
+                    config.max_download_bytes,
+                ),
                 channel=None if config.channel == "chromium" else config.channel,
                 cancel=cancel,
             )
@@ -230,8 +370,44 @@ def _decode_action(args: dict[str, Any]) -> BrowserAction:
     )
 
 
+def _validate_download(value: object) -> None:
+    """下载只接受四个固定身份，不允许附带 URL、路径或任意宿主代码。"""
+    if not isinstance(value, dict) or value.keys() != _REFERENCE.keys():
+        raise ToolError("下载必须使用原观察的完整引用，不能指定 URL 或路径。")
+    BrowserAction("click", ElementReference(*(value[name] for name in _REFERENCE)))
+
+
+def _observed(status: str, observation: BrowserObservation | None) -> dict[str, Any]:
+    """保留实际派发状态；没有新观察不等于动作未发生。"""
+    result: dict[str, Any] = {"ok": True, "status": status}
+    if observation is not None:
+        result["observation"] = asdict(observation)
+    else:
+        result["observation_unavailable"] = True
+        result["hint"] = "动作已派发但新观察失败；不要重做，请人工检查。"
+    return result
+
+
 def _bounded(result: dict[str, Any], maximum: int) -> dict[str, Any]:
     """缩短文字/控件列表但不截断 JSON 或改写已派发状态；元数据超限不要求重做。"""
+    if "tabs" in result:
+        while len(json.dumps(result, ensure_ascii=False)) > maximum:
+            tabs = result["tabs"]
+            if not tabs:
+                raise ToolError("结果上限不足以返回标签身份。")
+            tab, key = max(
+                ((tab, key) for tab in tabs for key in ("title", "url")),
+                key=lambda item: len(item[0][item[1]]),
+            )
+            if tab[key]:
+                tab[key] = tab[key][: len(tab[key]) // 2]
+                result["details_truncated"] = True
+            elif len(tabs) > 1:
+                tabs.pop()
+                result["next_offset"] = result.get("offset", 0) + len(tabs)
+            else:
+                raise ToolError("结果上限不足以返回标签身份。")
+        return result
     page = result.get("observation")
     if page is None:
         return result
