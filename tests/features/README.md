@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B12.3 知识故障验收 | 15 项：独立进程竞争 4 项、请求/审查/发布/撤回/来源失效强杀 10 个边界、冲突知识独立决定；重启零自动请求 | [test_knowledge_recovery.py](test_knowledge_recovery.py)、[进程入口](support/knowledge_worker.py) |
 | B12.2.3 知识使用入口 | 23 项候选原文补全、发布查询与分页、完整反证、真实聊天/子任务/重放、原始目录保护、配置和 CLI 确认；相关共 66 项 | [test_knowledge_entries.py](test_knowledge_entries.py) |
 | B12.2.2 独立模型审查 | 24 项 JSON/SSE、请求先落盘、无工具/无批准、用量未知/超额/取消、保存失败、旧来源拒用和重复 ID；相关共 72 项 | [test_knowledge_review.py](test_knowledge_review.py) |
 | B12.2.1 知识发布与撤回 | 27 项明确确认、锁外回调、过时审查/确认拒绝、有效期、源变化/撤权、原子保存故障及损坏历史；相关共 66 项 | [test_knowledge_publication.py](test_knowledge_publication.py) |
