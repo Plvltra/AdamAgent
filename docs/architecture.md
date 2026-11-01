@@ -301,7 +301,7 @@ flowchart LR
 
 此图是已实现的扩展 API；生产没有视觉模型后端或图片聊天工具。实际后端集成还需接原请求日志、共享预算与未知用量处理，见 [PDF/图片能力范围](pdf-perception.md)。
 
-C 系列最近核对（2026-11-01）：C00.1 可选网页配置、主子工具注册、按调用资源所有权、失败/取消/重放；已同步主线 B06.2。bootstrap 按 WebConfig 为主/子注册普通只读网页工具，沿用发现、权限/模式、预算、Hook、日志及取消；web.runtime 在实际调用线程创建/关闭资源，不增加另一套循环。来源随原工具结果落盘，重放只读冻结结果。主线文首、正文及图保留；HTTP 夹具说明迁入最近 conftest，入口补充资源契约，原有关键说明保留。
+C 系列最近核对（2026-11-01）：C02.1 新增独立单标签 DOM 观察、版本化引用及 Chromium SDK 隔离；C00.1/C01.1 可选网页工具关系保持，主线文首与正文保留。browser.service 借用窄后端，runtime 延迟创建并关闭无头临时资源，policy 固定可信站点，adapters 负责逐请求/重定向边界和控件当前性；没有注册动作工具或改变 Conversation。新增代码契约覆盖失效、取消与清理边界，现有说明保留。
 
 ## B17 PDF 读取与提取
 
@@ -829,6 +829,23 @@ flowchart LR
 ~~~
 
 主体、时间消歧已由 B06.2 接入。模型准备、范围和降级契约见 [语义记忆](semantic-memory.md)。
+
+## C02.1 独立 DOM 浏览器观察
+
+~~~mermaid
+flowchart LR
+    BR_CLI["python -m adam.browser / 显式站点入口"] --> BR_RUNTIME["browser.runtime.open_browser / 临时资源所有权"]
+    BR_RUNTIME --> BR_SERVICE["browser.service.BrowserObserver / 观察与引用校验"]
+    BR_SERVICE --> BR_PORT["browser.models.BrowserDriver / 窄后端"]
+    BR_PORT --> BR_ADAPTER["browser.adapters.chromium / Playwright 与独立无头上下文"]
+    BR_ADAPTER --> BR_DOM["adapters.dom / 固定观察程序与原节点版本"]
+    BR_ADAPTER --> BR_POLICY["browser.policy / 宿主 origin 白名单、逐跳打开"]
+    BR_SERVICE --> BR_POLICY
+    BR_SERVICE --> BR_RESULT["BrowserObservation / 身份、URL、时间、有界文字与引用"]
+    BR_ADAPTER --> BR_SITE["真实 Chromium 与 HTTP 测试网站"]
+~~~
+
+[观察服务](../adam/browser/service.py) 不导入 SDK、应用内核或会话存储。[资源入口](../adam/browser/runtime.py) 只在实际调用时导入适配器，主/子聊天默认不加载浏览器。每次观察替换引用表；[固定 DOM 程序](../adam/browser/adapters/dom.py) 验证原节点、文档、revision 和属性状态。同名替换不可沿用旧引用。主页面显式逐跳打开，子资源重定向/自动 POST/WebSocket 拒绝；origin 白名单不是 DNS 固定或系统沙箱。C02.2～4 的动作批准、会话标签/弹窗/下载及整体验收尚未实现；不因本项具有基本关闭就提前勾选。接口、真实测试与限制见 [浏览器观察](browser-observation.md)。
 
 ## C00.1 / C01.1 可选网页读取
 

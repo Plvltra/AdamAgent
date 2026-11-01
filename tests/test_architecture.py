@@ -90,6 +90,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
         ("memory", {"memory", "contracts"}),
         ("documents", {"documents", "config", "contracts"}),
         ("web", {"web", "contracts"}),
+        ("browser", {"browser", "contracts"}),
         ("code_index", {"code_index", "contracts"}),
         ("skills", {"skills", "contracts"}),
         ("verification", {"verification", "contracts"}),
@@ -139,5 +140,15 @@ def test_web_vendor_imports_stay_in_adapters():
         if "adapters" not in source.parts:
             assert not any(
                 module == "httpx" or module.startswith("httpx.")
+                for module in imported_modules(source)
+            ), source
+
+
+def test_browser_vendor_imports_stay_in_adapters():
+    """浏览器观察服务不直接引用 SDK，也不向应用层暴露供应商页面对象。"""
+    for source in (ROOT / "browser").rglob("*.py"):
+        if "adapters" not in source.parts:
+            assert not any(
+                module == "playwright" or module.startswith("playwright.")
                 for module in imported_modules(source)
             ), source
