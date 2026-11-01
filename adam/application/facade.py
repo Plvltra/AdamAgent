@@ -16,6 +16,7 @@ from adam.contracts.errors import AgentError, LLMError
 from adam.contracts.execution import ExecutionMode
 from adam.contracts.history import Summary
 from adam.contracts.memory import MemoryCommand, MemoryRecord
+from adam.contracts.memory_organization import MemoryOrganization
 from adam.contracts.models import (
     ContinuationStatus,
     ExecutionReport,
@@ -124,6 +125,14 @@ class AgentApplication:
         if self._memories is None:
             raise AgentError("当前应用未配置记忆管理。")
         return self._memories.manage(command, self.session.session_id if self.session else None)
+
+    def organize_memory(
+        self, identity: str | None = None, *, global_scope: bool = False
+    ) -> MemoryOrganization:
+        """生成或查看明确范围内的整理候选；不开始聊天轮次或调用模型。"""
+        if self._memories is None:
+            raise AgentError("当前应用未配置记忆管理。")
+        return self._memories.organize(identity, global_scope=global_scope)
 
     def experience_candidates(self) -> list[dict[str, Any]]:
         """查询当前会话候选；不创建会话，不发模型请求。"""

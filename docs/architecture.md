@@ -2,11 +2,25 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B06.3 记忆召回对照入口、实际来源留证、主子快照组合验收与真实本地结果。
+本次核对范围：B07.1 手动离线整理候选、分类与来源快照、独立候选保存和重启读取。
 
-核对结论：生产架构无变化；scripts/memory_eval 复用 MemoryStore、MemoryService 和本地 FastEmbedBackend，在新评估目录保存合成来源和实际选择。新增测试覆盖既有主子继承边界；原接口与说明保留。
+核对结论：CLI 通过 AgentApplication 和 MemoryService 调用 memory.organization，contracts.memory_organization 承载候选快照；读取原 MemoryStore 后只写独立候选文件，不改原记忆，不进入模型调用链。已有记忆、权限和委派关系保持，新增与原说明已核对。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B07.1 离线记忆整理
+
+~~~mermaid
+flowchart LR
+    MO_CLI["memory_commands / tidy"] --> MO_APP["AgentApplication / MemoryService"]
+    MO_APP --> MO_STORE["MemoryStore / 当前范围快照"]
+    MO_APP --> MO_RULES["memory.organization / 离线候选"]
+    MO_RULES --> MO_DATA["contracts.memory_organization / 来源版本"]
+    MO_RULES --> MO_FILE["organizations/ID.json / 独立候选"]
+    MO_FILE --> MO_VIEW["校验并显示冻结候选"]
+~~~
+
+范围、分类局限和保存失败语义见 [记忆整理](memory-organization.md)。采纳与撤销尚未实现。
 
 ## B06.3 记忆召回验收
 
@@ -835,9 +849,9 @@ flowchart LR
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
 | session | storage.py、log.py、compaction_log.py、edit_log.py、plan_log.py、plan_evidence.py、feedback_log.py、reflection_log.py、review_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
 | documents | 分块、来源、文本/向量检索、快照、embedding 与 evaluation | config、contracts |
-| memory | store.py、project.py、retrieval.py、semantic.py、subjects.py | contracts |
+| memory | store.py、project.py、retrieval.py、semantic.py、subjects.py、organization.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限、document_tools.py、planning_tools.py 和具体工具 | documents、session、config、contracts |
-| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py、embedding.py、planning.py、reflection.py、review.py | 无 |
+| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py、memory_organization.py、embedding.py、planning.py、reflection.py、review.py | 无 |
 
 包内使用绝对路径显式导入所属实现；类型和错误直接从定义位置导入，避免经过其他业务模块转手。新包的 `__init__.py` 仅说明职责，不批量加载实现。contracts 只承载现有跨模块契约，不作为任意辅助函数目录。
 

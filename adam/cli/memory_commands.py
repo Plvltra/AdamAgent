@@ -13,6 +13,7 @@ from adam.contracts.errors import MemoryInputError
 from adam.contracts.memory import MemoryCommand, MemoryReference, MemorySubject, timestamp
 
 USAGE = (
+    "/memory tidy [ID] [--global]：生成或查看离线整理候选，不修改记忆\n"
     "/memory candidates | candidate ID | accept ID [-- 改写正文] | discard ID\n"
     "/memory add [--global] [--expires 带时区ISO时间] -- 正文\n"
     "/memory list [--global] [--history ID]\n"
@@ -124,6 +125,9 @@ def handle_memory_command(
     if text.split(maxsplit=1)[0] in {"candidates", "candidate", "accept", "discard"}:
         handle_experience_command(text, application, write)
         return
+    if text.split(maxsplit=1)[0] == "tidy":
+        handle_organization(text, application, write)
+        return
     command = parse_memory_command(text)
     records = application.manage_memory(command)
     if not records:
@@ -156,3 +160,29 @@ def handle_memory_command(
             f"  来源：用户 {record.source.operation}；会话 {record.source.session_id or '无'}；"
             f"创建 {record.created_at}；更新 {record.updated_at}；过期 {record.expires_at or '无'}"
         )
+
+
+def handle_organization(
+    text: str, application: AgentApplication, write: Callable[[str], None]
+) -> None:
+    """显示可逐项核对的原文和版本；保存候选成功不代表已采纳整理。"""
+    parser = MemoryParser(add_help=False, allow_abbrev=False)
+    parser.add_argument("action", choices=("tidy",))
+    parser.add_argument("identity", nargs="?")
+    parser.add_argument("--global", dest="global_scope", action="store_true")
+    try:
+        arguments = parser.parse_args(shlex.split(text))
+    except ValueError:
+        raise MemoryInputError("整理命令选项引号未闭合。") from None
+    organization = application.organize_memory(
+        arguments.identity, global_scope=arguments.global_scope
+    )
+    write(
+        f"整理> {organization.organization_id} [{organization.project or '全局'}] 仅为候选，原记忆未修改。"
+    )
+    labels = {"merge": "合并候选", "keep": "保留", "conflict": "可能冲突", "expired": "过期"}
+    for candidate in organization.candidates:
+        write(f"  {candidate.candidate_id} {labels[candidate.kind]}：{candidate.reason}")
+        for record in candidate.records:
+            subject = f" @{record.subject.key}（{record.subject.name}）" if record.subject else ""
+            write(f"    {record.memory_id} v{record.revision}{subject}：{record.content}")

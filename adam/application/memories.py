@@ -8,6 +8,8 @@ from adam.config.settings import MemoryConfig
 from adam.context.builder import estimate_json_tokens
 from adam.contracts.errors import MemoryInputError, MemoryStoreError
 from adam.contracts.memory import MemoryCommand, MemoryRecord, MemorySelection, MemorySource
+from adam.contracts.memory_organization import MemoryOrganization
+from adam.memory.organization import load_organization, propose, save_organization
 from adam.memory.project import project_identity
 from adam.memory.retrieval import rank_records
 from adam.memory.semantic import MemoryRanking, SemanticMemoryRanker
@@ -77,6 +79,18 @@ class MemoryService:
                 command.memory_id, project, source, expected_revision=command.revision
             )
         ]
+
+    def organize(
+        self, identity: str | None = None, *, global_scope: bool = False
+    ) -> MemoryOrganization:
+        """手动生成或读取当前范围的离线候选；不改写记忆、不调用模型、不混合全局和项目。"""
+        project = None if global_scope else project_identity(self.workspace)
+        if identity is not None:
+            return load_organization(self.store.root, identity, project)
+        records = self.store.list_records(project)
+        organization = propose(records, project, datetime.now(UTC))
+        save_organization(self.store.root, organization)
+        return organization
 
     def select(self, query: str, available_tokens: int) -> MemorySelection:
         """按相关性选择完整记录；可选记忆读取失败时返回带警告的空快照。
