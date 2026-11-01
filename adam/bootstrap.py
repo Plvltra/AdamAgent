@@ -32,9 +32,11 @@ from adam.contracts.models import CommandRequest, EditPlan
 from adam.contracts.planning import PlanReport
 from adam.contracts.ports import ModelClient, ToolRunner
 from adam.contracts.proposals import ProposalOwner
+from adam.documents.embedding import FastEmbedBackend
 from adam.hooks.runner import HookRunner
 from adam.llm.client import LLMClient
 from adam.llm.http_transport import InterruptibleTransport
+from adam.memory.semantic import SemanticMemoryRanker
 from adam.memory.store import MemoryStore
 from adam.rules.catalog import RuleCatalog
 from adam.rules.tracker import RuleTracker
@@ -266,7 +268,16 @@ def build_application(
             on_notice=on_notice,
         )
         memories = MemoryService(
-            MemoryStore(config.memories_dir or store.root / "_memories"), workspace, config.memory
+            MemoryStore(config.memories_dir or store.root / "_memories"),
+            workspace,
+            config.memory,
+            semantic=SemanticMemoryRanker(
+                FastEmbedBackend(documents_dir / "models", config.memory.embedding_model),
+                min_score=config.memory.semantic_min_score,
+                max_records=config.memory.max_semantic_records,
+            )
+            if config.memory.method == "semantic"
+            else None,
         )
         conversation = Conversation(
             store,

@@ -2,11 +2,29 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B05.3 同历史双查询的摘要对照、独立证据记录、只读报告与人工判读。
+本次核对范围：B06.1 共享向量契约、本地语义记忆、范围过滤、降级和选择证据重放。
 
-核对结论：生产压缩架构无变化；新增评估入口复用 CompactionService.plan 和 LLMClient，在专用目录保存合成来源和请求记录，不执行历史工具、不激活摘要。fixture、运行与报告职责分离，报告无联网依赖；新增关键接口契约已审查，原有说明保留。
+核对结论：bootstrap 将现有 FastEmbedBackend 注入 SemanticMemoryRanker，MemoryService 先按范围读取，再排序和选择；memory 只依赖 contracts。共享向量接口与数值校验迁入 contracts/embedding.py，原文档入口保留，说明随实现迁移。选择证据进入原日志和录制边界，不新增向量数据库。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B06.1 本地语义记忆
+
+~~~mermaid
+flowchart LR
+    SM_BOOT["bootstrap / 组装本地后端"] --> SM_BACKEND["documents.embedding / FastEmbedBackend"]
+    SM_BOOT --> SM_RANK["memory.semantic / SemanticMemoryRanker"]
+    SM_STORE["MemoryStore / 项目与全局最新版本"] --> SM_SERVICE["MemoryService / 范围与输入预算"]
+    SM_SERVICE --> SM_RANK
+    SM_RANK --> SM_PORT["contracts.embedding / 接口与向量校验"]
+    SM_BACKEND --> SM_PORT
+    SM_RANK --> SM_KEYWORD["rank_records / 明确降级"]
+    SM_SERVICE --> SM_SELECTION["MemorySelection / 实际策略与选中来源"]
+    SM_SELECTION --> SM_CONTEXT["模型资料消息 / 原输入预算"]
+    SM_SELECTION --> SM_LOG["SessionLog 与录制 / 冻结来源，不重新推理"]
+~~~
+
+主体、时间消歧尚未接入。模型准备、范围和降级契约见 [语义记忆](semantic-memory.md)。
 
 ## B05.3 压缩对照入口
 
@@ -788,9 +806,9 @@ flowchart LR
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
 | session | storage.py、log.py、compaction_log.py、edit_log.py、plan_log.py、plan_evidence.py、feedback_log.py、reflection_log.py、review_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
 | documents | 分块、来源、文本/向量检索、快照、embedding 与 evaluation | config、contracts |
-| memory | store.py、project.py、retrieval.py | contracts |
+| memory | store.py、project.py、retrieval.py、semantic.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限、document_tools.py、planning_tools.py 和具体工具 | documents、session、config、contracts |
-| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py、planning.py、reflection.py、review.py | 无 |
+| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py、embedding.py、planning.py、reflection.py、review.py | 无 |
 
 包内使用绝对路径显式导入所属实现；类型和错误直接从定义位置导入，避免经过其他业务模块转手。新包的 `__init__.py` 仅说明职责，不批量加载实现。contracts 只承载现有跨模块契约，不作为任意辅助函数目录。
 

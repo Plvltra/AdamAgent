@@ -10,6 +10,7 @@ from adam.contracts.errors import MemoryInputError, MemoryStoreError
 from adam.contracts.memory import MemoryCommand, MemoryRecord, MemorySelection, MemorySource
 from adam.memory.project import project_identity
 from adam.memory.retrieval import rank_records
+from adam.memory.semantic import MemoryRanking, SemanticMemoryRanker
 from adam.memory.store import MemoryStore
 
 
@@ -17,11 +18,18 @@ class MemoryService:
     """用工作目录确定项目，延迟访问磁盘；用户管理不创建聊天会话。"""
 
     def __init__(
-        self, store: MemoryStore, workspace: Path, limits: MemoryConfig | None = None
+        self,
+        store: MemoryStore,
+        workspace: Path,
+        limits: MemoryConfig | None = None,
+        *,
+        semantic: SemanticMemoryRanker | None = None,
     ) -> None:
+        """注入项目范围、选择预算和可选本地排序器；管理操作不依赖 embedding。"""
         self.store = store
         self.workspace = workspace
         self.limits = limits or MemoryConfig()
+        self.semantic = semantic
 
     def manage(self, command: MemoryCommand, session_id: str | None = None) -> list[MemoryRecord]:
         """执行已解析的用户命令，返回实际持久化版本或查询快照。
@@ -61,7 +69,8 @@ class MemoryService:
         """按相关性选择完整记录；可选记忆读取失败时返回带警告的空快照。
 
         每轮重读有效条目，不挤占系统、本轮及保护历史。
-        仅降级 MemoryStoreError；参数错误、会话日志和请求记账错误仍向上传播。
+        读取故障返回空资料；语义后端故障或超限明确降级关键词。
+        参数错误、会话日志和请求记账错误仍向上传播。
         """
         if not self.limits.enabled:
             return MemorySelection(status="disabled")
@@ -76,17 +85,46 @@ class MemoryService:
                 status="unavailable",
                 warning=f"记忆读取失败，本轮未加载记忆；聊天继续。{error.user_message}",
             )
-        ranked = rank_records(records, query, datetime.now(UTC))
-        selection = MemorySelection(query=query, status="no_match" if not ranked else "budget")
+        ranking = self._rank(records, query)
+        selection = MemorySelection(
+            query=query,
+            status="no_match" if not ranking.records else "budget",
+            strategy=ranking.strategy,
+            embedding=ranking.embedding,
+            fallback_reason=ranking.fallback_reason,
+            warning="语义记忆检索不可用或超限，本轮已降级为关键词检索。"
+            if ranking.fallback_reason
+            else "",
+        )
         budget = min(available_tokens, self.limits.max_input_tokens)
-        for record in ranked:
-            candidate = replace(selection, records=(*selection.records, record), status="selected")
+        scores = dict(ranking.scores)
+        for record in ranking.records:
+            candidate = replace(
+                selection,
+                records=(*selection.records, record),
+                status="selected",
+                scores=(*selection.scores, (record.memory_id, scores[record.memory_id]))
+                if ranking.strategy == "semantic_v1"
+                else (),
+            )
             size = sum(estimate_json_tokens(message) for message in candidate.messages())
             if size <= budget:
                 selection = candidate
                 if len(selection.records) >= self.limits.max_entries:
                     break
         return selection
+
+    def _rank(self, records: list[MemoryRecord], query: str) -> MemoryRanking:
+        """仅把存储已按项目过滤的快照交给排序器，不用全库向量先查后过滤。"""
+        now = datetime.now(UTC)
+        if self.limits.method == "semantic" and self.semantic is not None:
+            return self.semantic.rank(records, query, now)
+        fallback = self.limits.method == "semantic"
+        return MemoryRanking(
+            tuple(rank_records(records, query, now)),
+            "keyword_fallback_v1" if fallback else "keyword_v1",
+            fallback_reason="backend_missing" if fallback else None,
+        )
 
     @staticmethod
     def _validate(command: MemoryCommand) -> None:

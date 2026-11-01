@@ -54,7 +54,7 @@ session_id：一个会话，对应一个 JSONL 文件
 
 ## E1 记忆选择记录
 
-request_started.context.memory 是可选字段，strategy 为 keyword_v1，保存查询、选择状态、完整条目版本与来源。旧请求没有此字段仍可读取；已记录快照不会随记忆库未来修改或删除而变化。条目作为资料参与本次请求，不追加为普通 message；日志解释器复用 contracts/memory.py 校验记录格式。
+request_started.context.memory 是可选字段，strategy 默认为 keyword_v1，B06.1 增加 semantic_v1、keyword_fallback_v1 及严格校验的 retrieval 来源，见 [语义记忆](semantic-memory.md)；保存查询、选择状态、完整条目版本与来源。旧请求没有此字段仍可读取；已记录快照不会随记忆库未来修改或删除而变化。条目作为资料参与本次请求，不追加为普通 message；日志解释器复用 contracts/memory.py 校验记录格式。
 
 ## 失败后留下什么
 

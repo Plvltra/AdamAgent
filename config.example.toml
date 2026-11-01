@@ -51,6 +51,11 @@ max_created_per_turn = 4
 enabled = true
 max_entries = 8
 max_input_tokens = 1024
+# semantic 复用本地已准备的模型；缺失或超限明确降级 keyword，不自动下载。
+method = "keyword"
+embedding_model = "BAAI/bge-small-zh-v1.5"
+semantic_min_score = 0.5
+max_semantic_records = 256
 
 [reflection]
 enabled = true

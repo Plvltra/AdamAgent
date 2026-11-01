@@ -98,7 +98,13 @@ def validate_seed(seed: object) -> None:
         raise ValueError("invalid recording controls")
     for name, values in controls.items():
         cls = CONTROL_TYPES[name]
-        if not isinstance(values, dict) or set(values) != {field.name for field in fields(cls)}:
+        current_fields = {field.name for field in fields(cls)}
+        # 旧关键词录制没有语义配置；重放使用已捕获的记忆，不能重新运行今日的检索。
+        legacy_memory = {"enabled", "max_entries", "max_input_tokens"}
+        if not isinstance(values, dict) or (
+            set(values) != current_fields
+            and not (name == "memory" and set(values) == legacy_memory)
+        ):
             raise ValueError("invalid recording control fields")
         defaults = asdict(cls())
         for key, value in values.items():
@@ -107,6 +113,8 @@ def validate_seed(seed: object) -> None:
                 valid = type(value) is bool
             elif isinstance(expected, int):
                 valid = type(value) is int and 0 <= value <= 1_000_000_000
+            elif isinstance(expected, str):
+                valid = isinstance(value, str)
             else:
                 valid = type(value) in {int, float}
             if not valid:

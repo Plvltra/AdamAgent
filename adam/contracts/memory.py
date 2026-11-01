@@ -1,6 +1,7 @@
 """跨会话记忆的不可变记录；版本来源独立于聊天消息。"""
 
 import json
+import math
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -76,6 +77,10 @@ class MemorySelection:
     query: str = ""
     status: str = "disabled"
     warning: str = ""
+    strategy: str = "keyword_v1"
+    embedding: str | None = None
+    fallback_reason: str | None = None
+    scores: tuple[tuple[str, float], ...] = ()
 
     def messages(self) -> list[dict[str, Any]]:
         """只生成资料消息，不提升为系统规则，也不写入普通聊天历史。"""
@@ -91,13 +96,20 @@ class MemorySelection:
 
     def to_dict(self) -> dict[str, Any]:
         """保存实际使用的内容与版本，而不是随未来修改而变化的 ID 引用。"""
-        return {
-            "strategy": "keyword_v1",
+        value = {
+            "strategy": self.strategy,
             "status": self.status,
             "query": self.query,
             "records": [record.to_dict() for record in self.records],
             "warning": self.warning,
         }
+        if self.strategy != "keyword_v1":
+            value["retrieval"] = {
+                "embedding": self.embedding,
+                "fallback_reason": self.fallback_reason,
+                "scores": [[identity, score] for identity, score in self.scores],
+            }
+        return value
 
 
 def decode_record(value: object) -> MemoryRecord:
@@ -114,7 +126,7 @@ def decode_record(value: object) -> MemoryRecord:
 def validate_selection(value: object) -> None:
     """校验持久化的选择记录，旧会话可以没有该字段；坏记录不能进入可信诊断。"""
     try:
-        if not isinstance(value, dict) or set(value) != {
+        if not isinstance(value, dict) or value.keys() - {"retrieval"} != {
             "strategy",
             "status",
             "query",
@@ -122,7 +134,9 @@ def validate_selection(value: object) -> None:
             "warning",
         }:
             raise ValueError("invalid memory selection")
-        if value["strategy"] != "keyword_v1" or value["status"] not in {
+        if value["strategy"] not in {"keyword_v1", "semantic_v1", "keyword_fallback_v1"} or value[
+            "status"
+        ] not in {
             "selected",
             "no_match",
             "budget",
@@ -142,8 +156,53 @@ def validate_selection(value: object) -> None:
             value["status"] == "selected"
         ):
             raise ValueError("invalid selected memory state")
+        _validate_retrieval(value, records)
     except (KeyError, TypeError, AttributeError) as error:
         raise ValueError("invalid memory selection") from error
+
+
+def _validate_retrieval(value: dict[str, Any], records: list[MemoryRecord]) -> None:
+    """实际召回策略与所选版本一同保存；相似度缺失或错配时不猜测来源。"""
+    if value["strategy"] == "keyword_v1":
+        if "retrieval" in value:
+            raise ValueError("keyword selection has unexpected evidence")
+        return
+    evidence = value.get("retrieval")
+    if not isinstance(evidence, dict) or evidence.keys() != {
+        "embedding",
+        "fallback_reason",
+        "scores",
+    }:
+        raise ValueError("invalid recall evidence")
+    if value["strategy"] == "keyword_fallback_v1":
+        if (
+            evidence["embedding"] is not None
+            or evidence["scores"] != []
+            or evidence["fallback_reason"]
+            not in {"candidate_limit", "query_limit", "embedding_unavailable", "backend_missing"}
+            or not value["warning"].strip()
+        ):
+            raise ValueError("invalid fallback evidence")
+        return
+    if (
+        not isinstance(evidence["embedding"], str)
+        or not evidence["embedding"].strip()
+        or len(evidence["embedding"]) > 512
+        or evidence["fallback_reason"] is not None
+        or not isinstance(evidence["scores"], list)
+        or len(evidence["scores"]) != len(records)
+    ):
+        raise ValueError("invalid semantic evidence")
+    for pair, record in zip(evidence["scores"], records, strict=True):
+        if (
+            not isinstance(pair, list)
+            or len(pair) != 2
+            or pair[0] != record.memory_id
+            or type(pair[1]) not in {int, float}
+            or not math.isfinite(pair[1])
+            or not -1 <= pair[1] <= 1
+        ):
+            raise ValueError("invalid memory similarity")
 
 
 def validate_record(record: MemoryRecord) -> None:

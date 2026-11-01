@@ -46,6 +46,10 @@ def decode_memory(value: dict[str, Any]) -> MemorySelection:
         value["query"],
         value["status"],
         value["warning"],
+        strategy=value["strategy"],
+        embedding=value.get("retrieval", {}).get("embedding"),
+        fallback_reason=value.get("retrieval", {}).get("fallback_reason"),
+        scores=tuple(tuple(pair) for pair in value.get("retrieval", {}).get("scores", [])),
     )
 
 

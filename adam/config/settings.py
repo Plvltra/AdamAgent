@@ -185,6 +185,10 @@ class MemoryConfig:
     enabled: bool = True
     max_entries: int = 8
     max_input_tokens: int = 1024
+    method: str = "keyword"
+    embedding_model: str = "BAAI/bge-small-zh-v1.5"
+    semantic_min_score: float = 0.5
+    max_semantic_records: int = 256
 
     def __post_init__(self) -> None:
         """直接构造和 TOML 配置使用同一校验，不接受布尔值充当计数。"""
@@ -194,6 +198,22 @@ class MemoryConfig:
             raise ConfigError("memory.max_entries 必须在 1～128 之间。")
         if type(self.max_input_tokens) is not int or not 0 <= self.max_input_tokens <= 100000:
             raise ConfigError("memory.max_input_tokens 必须在 0～100000 之间。")
+        if not isinstance(self.method, str) or self.method not in {"keyword", "semantic"}:
+            raise ConfigError("memory.method 必须是 keyword 或 semantic。")
+        if (
+            not isinstance(self.embedding_model, str)
+            or not self.embedding_model.strip()
+            or len(self.embedding_model) > 200
+        ):
+            raise ConfigError("memory.embedding_model 必须是有效模型名称。")
+        if (
+            type(self.semantic_min_score) not in {int, float}
+            or not math.isfinite(self.semantic_min_score)
+            or not 0 <= self.semantic_min_score <= 1
+        ):
+            raise ConfigError("memory.semantic_min_score 必须是 0～1 的有限数。")
+        if type(self.max_semantic_records) is not int or not 1 <= self.max_semantic_records <= 1024:
+            raise ConfigError("memory.max_semantic_records 必须在 1～1024 之间。")
 
 
 @dataclass(frozen=True)
