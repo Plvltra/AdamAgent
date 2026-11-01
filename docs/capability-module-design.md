@@ -14,7 +14,7 @@
 | [ToolExecutor](../adam/tool_calls/executor.py) | 执行控制和工具入口 | 原权限、批准、Hook、预算、取消和调用日志继续经过该入口；新能力不能直接绕开 |
 | [RequestRunner](../adam/application/request_runner.py) | 模型物理请求登记与结算 | 新视觉/审查模型请求复用其控制原则；确需不同请求形式时提取窄请求端口，不复制预算状态机 |
 | [消息协议](../adam/contracts/protocol.py) | 当前文字消息与工具配对校验 | 联合 B24 增加有类型的媒体部分及版本化编码；不是把文件路径随意塞进文本 |
-| [文本附件](../adam/session/artifacts.py) | UTF-8 长文本、来源与不可变版本 | 不能直接存音视频；C00.2 保留文本契约，新增二进制媒体引用和存储实现 |
+| [文本附件](../adam/session/artifacts.py) | UTF-8 长文本、来源与不可变版本 | 不能直接存音视频；C00.2 已保留文本契约并新增 [二进制媒体引用和存储](media-evidence.md)，模型消息仍待 C00.3 |
 | [SessionStore](../adam/session/storage.py) / [日志](../adam/session/log.py) | 会话锁、JSONL、执行关联与恢复 | 写入来源、状态及媒体引用，媒体字节存旁路目录；恢复不自动重发外部动作 |
 | [录制运行](../adam/recording/runtime.py) | 模型/工具边界录制重放 | 扩展媒体摘要与资源状态证据；离线重放不再次点击、发送或生成计费产物 |
 

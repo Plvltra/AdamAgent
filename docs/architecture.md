@@ -8,7 +8,7 @@
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-C 系列最近核对（2026-11-01）：C02.2 新增主应用有限动作与逐次批准；bootstrap 组装 browser_tools，会话来源由宿主注入，资源由应用 ExitStack 持有。CLI 仅依赖不可变批准契约；原发现/模式/Hook/预算/日志保持。ToolRegistry 增加串行取消端口，不授予并发资格；BrowserObserver 负责当前性与未知结果停止，适配器执行原节点原生动作。C02.3～4 尚未验收，主线文首与 B 正文保留。
+C 系列最近核对（2026-11-01）：C00.2 新增独立二进制存储、纯媒体引用与 SessionMedia 宿主来源边界；SessionLog 通过 MediaLog 严格校验 media_saved，JSONL 不写正文。bootstrap 将 _media 加入主/子保留目录，原文本附件、浏览器动作、主线 B 关系保持。C02.2 已实现的逐次批准不变；媒体模型消息、浏览器下载/标签完整生命周期仍分别由 C00.3/C02.3～4 验收。新增/既有说明已审查，主线文首和正文保留。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
@@ -604,6 +604,22 @@ flowchart LR
 ~~~
 
 主体、时间消歧已由 B06.2 接入。模型准备、范围和降级契约见 [语义记忆](semantic-memory.md)。
+
+## C00.2 二进制媒体证据
+
+~~~mermaid
+flowchart LR
+    MEDIA_HOST["可信输入或工具宿主 / 当前所有者"] --> MEDIA_API["SessionMedia / 发布与读取边界"]
+    MEDIA_API --> MEDIA_STORE["MediaStore / 完整二进制与配额"]
+    MEDIA_API --> MEDIA_SESSION["SessionStore / validate、append、load_media"]
+    MEDIA_SESSION --> MEDIA_LOG["SessionLog / MediaLog 来源投影"]
+    MEDIA_STORE --> MEDIA_FILE["单个 .media / 版本头与原字节原子发布"]
+    MEDIA_LOG --> MEDIA_REF["contracts.media / MediaRef 与 MediaSource"]
+    MEDIA_SESSION --> MEDIA_JSONL["media_saved / 仅完整引用"]
+    MEDIA_BOOT["bootstrap / _media 保留目录"] --> MEDIA_POLICY["主子文件、规则、Skill、文档路径保护"]
+~~~
+
+存储不解码媒体，不导入 SDK 或应用内核。SessionMedia 先核对当前宿主/来源，完整正文发布后才提交引用；读取比较日志和文件中的完整引用，IO 返回后复查所有者。文件存在不能替代授权，日志失败的孤立正文不自动发布或重跑来源。原 ArtifactStore 文本契约保持；多模态模型消息和媒体摘要重放尚待 C00.3，不将存储 API 当成模型视觉能力。接口、格式与真实 PNG/WAV 验收见 [媒体证据](media-evidence.md)。
 
 ## C02.1 / C02.2 DOM 浏览器观察与动作
 
@@ -1437,11 +1453,11 @@ flowchart LR
 | config | loader.py、settings.py | contracts |
 | context | builder.py、pruning.py、compaction.py | session、config、contracts |
 | llm | client.py、streaming.py、http_transport.py | config、contracts |
-| session | storage.py、log.py、compaction_log.py、edit_log.py、plan_log.py、plan_evidence.py、feedback_log.py、reflection_log.py、review_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
+| session | storage.py、log.py、compaction_log.py、edit_log.py、plan_log.py、plan_evidence.py、feedback_log.py、reflection_log.py、review_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py、media.py、media_evidence.py、media_log.py | contracts |
 | documents | 分块、来源、文本/向量检索、快照、embedding 与 evaluation | config、contracts |
 | memory | store.py、project.py、retrieval.py、semantic.py、subjects.py、organization.py、organization_change.py | contracts |
 | tool_calls | 工厂、注册表、执行器、权限、browser_tools.py 和具体工具 | documents、web、browser、code_index、skills、mcp、session、config、contracts |
-| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py、memory_organization.py、embedding.py、planning.py、reflection.py、review.py | 无 |
+| contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py、memory_organization.py、embedding.py、media.py、planning.py、reflection.py、review.py | 无 |
 
 包内使用绝对路径显式导入所属实现；类型和错误直接从定义位置导入，避免经过其他业务模块转手。新包的 `__init__.py` 仅说明职责，不批量加载实现。contracts 只承载现有跨模块契约，不作为任意辅助函数目录。
 
@@ -1641,6 +1657,10 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [code_index/index.py](../adam/code_index/index.py) | `CodeIndex` | 注入授权、有界读取、SHA-256 增量刷新及内存缓存 |
 | [code_index/bindings.py](../adam/code_index/bindings.py) | `BindingCollector` | 收集名字使用、作用域及不能静态确定的绑定 |
 | [code_index/query.py](../adam/code_index/query.py) | `ReferenceIndex` | 快照内静态引用解析、导入链及未知原因 |
+| [contracts/media.py](../adam/contracts/media.py) | MediaSource、MediaRef、MediaContent | 纯媒体来源、固定版本、MIME/时间与可信宿主字节结果 |
+| [session/media.py](../adam/session/media.py) | MediaStore | 完整二进制原子保存、会话配额、版本和真实路径验证 |
+| [session/media_evidence.py](../adam/session/media_evidence.py) | SessionMedia | 当前所有者与日志授权；发布顺序、完整引用比对及 IO 后复检 |
+| [session/media_log.py](../adam/session/media_log.py) | MediaLog | 当前输入/工具来源与 media_saved 的纯关联校验 |
 | [browser/](../adam/browser/) | BrowserObserver、BrowserAction、open_browser | 版本化 DOM、有限动作与原节点复检；隔离可选 Chromium 后端 |
 | [tool_calls/browser_tools.py](../adam/tool_calls/browser_tools.py) | register_browser、BrowserTools | 主会话资源、逐次批准、固定动作参数与有界结果，原调度接入 |
 | [contracts/browser.py](../adam/contracts/browser.py) | BrowserApproval、BrowserActionUnknownError | 纯批准数据与未知副作用停止契约 |

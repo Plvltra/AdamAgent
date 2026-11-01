@@ -13,10 +13,11 @@ from typing import Any, Self
 
 from filelock import FileLock, Timeout
 
-from adam.contracts.artifacts import ArtifactRef
+from adam.contracts.artifacts import ArtifactRef, validate_artifact_identity
 from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import FailureCode, SessionNotFoundError, StorageError
 from adam.contracts.history import HistoryTurn, Summary
+from adam.contracts.media import MediaRef, MediaSource
 from adam.contracts.models import ExecutionReport, Message, Session, valid_session_id
 from adam.contracts.planning import PlanReport, PlanSnapshot
 from adam.contracts.proposals import EditProposal
@@ -465,6 +466,22 @@ class SessionStore:
         if kind not in {"tool_started", "tool_finished"}:
             raise ValueError("unknown tool event")
         self._append(session_id, record(kind, payload))
+
+    def validate_media_source(self, source: MediaSource) -> None:
+        """发布正文前核对确切来源；不创建轮次、切换会话或补造工具记录。"""
+        log = self._read_log(source.session_id)
+        log.media.validate_source(source, source.session_id, log.turns, log.requests, log.tools)
+
+    def append_media(self, reference: MediaRef) -> None:
+        """保存完整媒体引用，不保存字节；日志失败继续停止，孤立正文不具备读取授权。"""
+        if not isinstance(reference, MediaRef):
+            raise ValueError("invalid media reference")
+        self._append(reference.source.session_id, record("media_saved", asdict(reference)))
+
+    def load_media(self, session_id: str, media_id: str) -> MediaRef | None:
+        """从已校验日志读取固定媒体引用；文件存在不能补造来源。"""
+        validate_artifact_identity(session_id, media_id)
+        return self._read_log(session_id).media.references.get(media_id)
 
     def append_artifact(self, reference: ArtifactRef) -> None:
         """保存已发布附件的真实工具来源；关联或日志失败必须停止，孤立文件不算可读引用。"""

@@ -110,6 +110,7 @@
 | B06.3 召回组合验收 | 7 项固定题集/来源留证、不可用与降级、写入停止、主子版本继承；真实本地十题结果另存并保留失败 | [test_memory_retrieval_acceptance.py](test_memory_retrieval_acceptance.py)、[真实对照](../../docs/memory-retrieval-evaluation.md) |
 | B06.2 主体与事实时间 | 20 项同名/显式主体、有效期、原子替代、失败回滚、重启、错误来源及真实请求/重放；相关回归共 131 项 | [test_memory_identity.py](test_memory_identity.py) |
 | B06.1 本地语义记忆 | 12 项范围/版本/预算/降级/取消/请求/重放业务，17 项配置与来源边界；相关回归共 117 项，真实召回质量待验收 | [业务场景](test_semantic_memory.py)、[契约边界](../test_semantic_memory.py) |
+| C00.2 二进制媒体证据 | 19 项业务、51 项低层边界：有效 PNG/WAV 完整读写、引用来源/所有者、JSONL 无正文、缺失/损坏/超限、跨会话、真实写入/提交故障、并发、备份与主子目录保护；多模态模型输入待 C00.3 | [test_media_evidence.py](test_media_evidence.py)、[边界](../test_media_evidence.py) |
 | C02.2 逐次批准浏览器动作 | 25 项主应用业务场景、40 项协议/配置/CLI 边界；真实填表/选择/滚动/POST/303 回执、原预检拒绝、引用/会话/批准期间替换、拒绝/取消、日志/SDK/OS/观察故障、重定向、零动作重放与主子隔离；真实模型质量未验收 | [test_browser_actions.py](test_browser_actions.py)、[边界](../test_browser_actions.py) |
 | C02.1 DOM 浏览器观察 | 真实 Chromium/动态本地页、版本与控件时效、同名替代/属性变化、截断、逐跳站点拒绝、自动 POST/WebSocket 零请求、cookies 隔离、超时/取消/资源故障与 CLI；模型动作见 C02.2 | [test_browser_observation.py](test_browser_observation.py)、[配置/导入边界](../test_browser_policy.py) |
 | C00.1 可选能力与资源 | 默认禁用/无后端导入、主子发现读取、真实 HTTP 独立关闭、预算/Hook 拒绝、取消与创建/清理失败、完整来源限长、零网络离线重放；21 个原网页场景迁移无变化 | [test_optional_web.py](test_optional_web.py)、[配置边界](../test_web_config.py) |

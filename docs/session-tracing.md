@@ -38,6 +38,7 @@ session_id：一个会话，对应一个 JSONL 文件
 | plan_updated | turn_id、request_id、tool_call_id、version、steps、reason、replan_count、max_steps、max_replans | E3 完整计划版本；证据校验、状态与恢复见 [任务计划](task-planning.md) |
 | message | turn_id、message | 最终成功时追加的完整协议消息，包含工具请求和结果 |
 | turn_completed | turn_id、status、reason、duration_ms、error | 完整成功消息块的提交标记 |
+| media_saved | MediaRef v1：media_id、source、mime_type、size_bytes、version、created_at、schema_version | C00.2 宿主已发布完整二进制后的来源引用；只关联本轮输入/工具，不保存正文或路径，见 [媒体证据](media-evidence.md) |
 | session_recovered | turn_ids、request_ids、tool_keys、uncommitted_messages、终态详情、backup_file、tail_repaired | 新获写锁后的恢复记录；遗留 Hook 另列 hook_ids；明确受影响操作及备份，不猜用量或命令结果 |
 
 几个容易混淆的区别：

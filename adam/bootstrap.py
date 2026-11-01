@@ -158,12 +158,14 @@ def build_application(
         artifacts_dir = store.root / "_artifacts"
         mcp_media_dir = store.root / "_mcp_media"
         background_dir = store.root / "_background"
+        media_dir = store.root / "_media"
         protected_dirs = (
             store.root / "_private",
             store.root / "_handoffs",
             documents_dir,
             checkpoints_dir,
             artifacts_dir,
+            media_dir,
             knowledge_dir,
             mcp_media_dir,
             background_dir,
@@ -250,6 +252,7 @@ def build_application(
             (
                 checkpoints_dir,
                 artifacts_dir,
+                media_dir,
                 mcp_media_dir,
                 background_dir,
                 store.root / "_inputs",
@@ -300,6 +303,7 @@ def build_application(
                     documents_dir,
                     checkpoints_dir,
                     artifacts_dir,
+                    media_dir,
                     knowledge_dir,
                     mcp_media_dir,
                     on_notice or (lambda _: None),
@@ -569,6 +573,7 @@ def _open_child(
     documents_dir: Path,
     checkpoints_dir: Path,
     artifacts_dir: Path,
+    media_dir: Path,
     knowledge_dir: Path,
     mcp_media_dir: Path,
     notify: Callable[[str], None],
@@ -583,7 +588,7 @@ def _open_child(
 ) -> Iterator[Conversation]:
     """在子线程中管理独立资源，继承派发时的模式与主轮次记忆快照。
 
-    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存、知识记录、检查点和附件（含 MCP 媒体）。
+    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存、知识记录、检查点和文本/媒体附件（含 MCP 媒体），避免绕过范围。
     知识仅经当前授权来源的查询接口读取；子任务不能保存候选、审查或发布。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     网页读取继承可信开关与网络策略，每次工具调用独占并关闭连接。
@@ -615,6 +620,7 @@ def _open_child(
                 documents_dir,
                 checkpoints_dir,
                 artifacts_dir,
+                media_dir,
                 knowledge_dir,
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
@@ -634,6 +640,7 @@ def _open_child(
                 memories_dir,
                 checkpoints_dir,
                 artifacts_dir,
+                media_dir,
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
                 checkpoints_dir.parent / "_triggers",
@@ -657,6 +664,7 @@ def _open_child(
                 documents_dir,
                 checkpoints_dir,
                 artifacts_dir,
+                media_dir,
                 knowledge_dir,
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
@@ -677,6 +685,7 @@ def _open_child(
                     documents_dir,
                     checkpoints_dir,
                     artifacts_dir,
+                    media_dir,
                     knowledge_dir,
                     mcp_media_dir,
                     checkpoints_dir.parent / "_background",
@@ -710,6 +719,7 @@ def _open_child(
                         documents_dir,
                         checkpoints_dir,
                         artifacts_dir,
+                        media_dir,
                         knowledge_dir,
                         mcp_media_dir,
                         checkpoints_dir.parent / "_background",

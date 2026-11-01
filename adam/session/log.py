@@ -25,6 +25,7 @@ from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
 from adam.session.feedback_log import FeedbackLog, feedback_context
 from adam.session.hook_log import HookLog
+from adam.session.media_log import MediaLog
 from adam.session.outcome import outcome_details
 from adam.session.plan_evidence import validate_evidence
 from adam.session.plan_log import PlanLog
@@ -118,6 +119,7 @@ class SessionLog:
         self.reflections = ReflectionLog()
         self.reviews = ReviewLog()
         self.artifacts: dict[str, ArtifactRef] = {}
+        self.media = MediaLog()
         self.tokens = 0
         self._unknown_usage = False
         self._pending_turn = ""
@@ -152,6 +154,7 @@ class SessionLog:
             "tool_started": self._apply_tool,
             "tool_finished": self._apply_tool,
             "artifact_saved": self._apply_artifact,
+            "media_saved": self._apply_media,
             "hook_started": self._apply_hook,
             "hook_finished": self._apply_hook,
             "plan_updated": self._apply_plan,
@@ -579,6 +582,10 @@ class SessionLog:
             raise ValueError("edit has no final result")
         self.hooks.check_tool_finish(tool, payload["output"])
         tool.update(output=payload["output"], finished=True, status="finished")
+
+    def _apply_media(self, kind: str, payload: dict[str, Any]) -> None:
+        """只投影引用和来源；正文由媒体读取边界另行验证，不进 JSONL。"""
+        self.media.apply(payload, self.metadata["id"], self.turns, self.requests, self.tools)
 
     def _apply_artifact(self, kind: str, payload: dict[str, Any]) -> None:
         """仅接收本会话进行中工具的宿主引用；文件是否存在由读取边界另行验证。"""
