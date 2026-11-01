@@ -16,6 +16,7 @@ USAGE = (
     "/memory tidy [ID] [--global]：生成或查看离线整理候选，不修改记忆\n"
     "/memory tidy accept 整理ID 候选ID [--global] [-- 整理正文]\n"
     "/memory tidy undo 概览ID --revision N [--global]\n"
+    "/memory tidy reject 整理ID [--global]：拒绝后续采纳，保留旧来源\n"
     "/memory candidates | candidate ID | accept ID [-- 改写正文] | discard ID\n"
     "/memory add [--global] [--expires 带时区ISO时间] -- 正文\n"
     "/memory list [--global] [--history ID]\n"
@@ -175,7 +176,7 @@ def handle_organization(
 ) -> None:
     """显示可逐项核对的原文和版本；保存候选成功不代表已采纳整理。"""
     parts = text.split(maxsplit=2)
-    if len(parts) > 1 and parts[1] in {"accept", "undo"}:
+    if len(parts) > 1 and parts[1] in {"accept", "undo", "reject"}:
         handle_organization_decision(text, application, write)
         return
     parser = MemoryParser(add_help=False, allow_abbrev=False)
@@ -189,9 +190,8 @@ def handle_organization(
     organization = application.organize_memory(
         arguments.identity, global_scope=arguments.global_scope
     )
-    write(
-        f"整理> {organization.organization_id} [{organization.project or '全局'}] 仅为候选，原记忆未修改。"
-    )
+    state = "已拒绝后续采纳" if organization.rejected else "仅为候选，原记忆未修改"
+    write(f"整理> {organization.organization_id} [{organization.project or '全局'}] {state}。")
     labels = {"merge": "合并候选", "keep": "保留", "conflict": "可能冲突", "expired": "过期"}
     for candidate in organization.candidates:
         write(f"  {candidate.candidate_id} {labels[candidate.kind]}：{candidate.reason}")
@@ -203,13 +203,13 @@ def handle_organization(
 def handle_organization_decision(
     text: str, application: AgentApplication, write: Callable[[str], None]
 ) -> None:
-    """明确采纳一个候选或撤销概览；正文沿用独立 -- 分隔，不解释为 shell 参数。"""
+    """明确采纳、拒绝或撤销；正文沿用独立 -- 分隔，不解释为 shell 参数。"""
     delimiter = re.search(r"(?:^|\s)--(?:\s|$)", text)
     options = text[: delimiter.start()] if delimiter else text
     content = text[delimiter.end() :].strip() if delimiter else None
     parser = MemoryParser(add_help=False, allow_abbrev=False)
     parser.add_argument("command", choices=("tidy",))
-    parser.add_argument("action", choices=("accept", "undo"))
+    parser.add_argument("action", choices=("accept", "undo", "reject"))
     parser.add_argument("identity")
     parser.add_argument("candidate", nargs="?")
     parser.add_argument("--revision", type=int)
@@ -226,10 +226,15 @@ def handle_organization_decision(
         )
         state = "已有概览已删除，未恢复" if record.deleted else "已保存或先前已接受"
         write(f"整理> {state}：{record.memory_id} v{record.revision}；尚未验证。")
-    else:
+    elif args.action == "undo":
         if args.candidate is not None or args.revision is None or content is not None:
             raise MemoryInputError("撤销须提供概览 ID 与 --revision，不接受候选 ID 或正文。")
         record = application.undo_memory_organization(
             args.identity, args.revision, global_scope=args.global_scope
         )
         write(f"整理> 已撤销概览 {record.memory_id}，来源已恢复原有效期；历史保留。")
+    else:
+        if args.candidate is not None or args.revision is not None or content is not None:
+            raise MemoryInputError("拒绝仅接受整理 ID 与可选 --global。")
+        application.reject_memory_organization(args.identity, global_scope=args.global_scope)
+        write("整理> 已拒绝后续采纳；候选来源和此前已接受的概览保留。")

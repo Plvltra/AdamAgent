@@ -27,19 +27,23 @@ class MemoryCandidate:
 
 @dataclass(frozen=True)
 class MemoryOrganization:
-    """一个范围的只读整理建议；保存候选不改变原记忆，也不把候选加入模型上下文。"""
+    """一个范围的冻结建议与拒绝状态；保存候选不改变原记忆或模型上下文。"""
 
     organization_id: str
     created_at: str
     project: str | None
     candidates: tuple[MemoryCandidate, ...]
+    rejected: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """输出版本化候选快照；事实有效性以 created_at 的观察时刻为准。"""
-        return {
+        value = {
             "version": 1,
             "organization_id": self.organization_id,
             "created_at": self.created_at,
             "project": self.project,
             "candidates": [candidate.to_dict() for candidate in self.candidates],
         }
+        if self.rejected:
+            value["rejected"] = True
+        return value

@@ -2,11 +2,24 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B07.2 确认候选、稳定概览、来源链与原子撤销，以及请求/重放的来源保存。
+本次核对范围：B07.3 拒绝候选、采纳前锁内重查，以及真实多进程与中断恢复验收。
 
-核对结论：memory.organization_change 构造接受/撤销的纯变更，MemoryStore 持锁校验并原子追加整批版本；MemoryDerivation 保留精确来源，普通选择与录制沿用原链路。CLI 经应用门面传递明确决定，候选生成仍只读原记忆。原存储和权限说明保留并扩展到整组契约。
+核对结论：MemoryStore 在同一把锁内读候选拒绝状态并验证采纳来源，memory.organization 原子保存拒绝标记；不引入第二个事实存储。已有概览和撤销机制保持，真实进程测试覆盖替换前后终止；旧关键说明保留，CLI 契约补充拒绝语义。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B07.3 拒绝与恢复边界
+
+~~~mermaid
+flowchart LR
+    MR_USER["CLI / accept 或 reject"] --> MR_STORE["MemoryStore / 共享文件锁"]
+    MR_STORE --> MR_CHECK["organization / 锁内重读候选"]
+    MR_CHECK --> MR_REJECT["原子保存 rejected / 来源保留"]
+    MR_CHECK --> MR_ACCEPT["未拒绝且快照匹配 / 才能采纳"]
+    MR_ACCEPT --> MR_MEMORY["原子记忆版本 / 完整旧或新状态"]
+~~~
+
+独立进程竞争与强杀后重启结果见 [记忆整理](memory-organization.md)。
 
 ## B07.2 接受与撤销
 

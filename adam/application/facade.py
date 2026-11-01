@@ -153,6 +153,14 @@ class AgentApplication:
             session_id=self.session.session_id if self.session else None,
         )
 
+    def reject_memory_organization(
+        self, identity: str, *, global_scope: bool = False
+    ) -> MemoryOrganization:
+        """执行用户对整份候选的拒绝，不改原记忆或发起模型请求。"""
+        if self._memories is None:
+            raise AgentError("当前应用未配置记忆管理。")
+        return self._memories.reject_organization(identity, global_scope=global_scope)
+
     def undo_memory_organization(
         self, memory_id: str, revision: int, *, global_scope: bool = False
     ) -> MemoryRecord:

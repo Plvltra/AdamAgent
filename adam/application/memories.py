@@ -110,6 +110,13 @@ class MemoryService:
             candidate, identity, plan.project, MemorySource("add", session_id), content=content
         )
 
+    def reject_organization(
+        self, identity: str, *, global_scope: bool = False
+    ) -> MemoryOrganization:
+        """拒绝这份候选的后续采纳；保留来源，不撤销已接受的概览。"""
+        project = None if global_scope else project_identity(self.workspace)
+        return self.store.reject_organization(identity, project)
+
     def undo_organization(
         self,
         memory_id: str,

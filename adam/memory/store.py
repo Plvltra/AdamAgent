@@ -21,7 +21,8 @@ from adam.contracts.memory import (
     timestamp,
     validate_record,
 )
-from adam.contracts.memory_organization import MemoryCandidate
+from adam.contracts.memory_organization import MemoryCandidate, MemoryOrganization
+from adam.memory.organization import load_organization, reject_organization
 from adam.memory.organization_change import consolidate, undo_consolidation
 
 MAX_FILE_BYTES = 16 * 1024 * 1024
@@ -196,12 +197,21 @@ class MemoryStore:
         """持锁核对候选快照，原子保存旧事实结束和新概览；重复确认不追加版本。"""
         with self._locked():
             records = self._load()
+            plan = load_organization(self.root, organization_id, project)
+            if plan.rejected or candidate not in plan.candidates:
+                raise MemoryInputError("整理候选已拒绝或不匹配，未修改记忆。")
             change = consolidate(
                 records, candidate, organization_id, project, source, self._clock(), content
             )
             if not change.already_saved:
                 self._append(records, change.result, preceding=change.preceding)
             return change.result
+
+    def reject_organization(self, identity: str, project: str | None) -> MemoryOrganization:
+        """与采纳使用同一把锁记录拒绝，防止另一进程随后采纳旧的内存快照。"""
+        with self._locked():
+            plan = load_organization(self.root, identity, project)
+            return reject_organization(self.root, plan)
 
     def undo_consolidation(
         self, memory_id: str, project: str | None, source: MemorySource, *, expected_revision: int

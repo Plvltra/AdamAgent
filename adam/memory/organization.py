@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import secrets
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
@@ -99,6 +100,10 @@ def load_organization(root: Path, identity: str, project: str | None) -> MemoryO
             raise ValueError("invalid candidate count")
         records = [decode_record(record) for group in candidates for record in group["records"]]
         actual = propose(records, project, timestamp(value["created_at"]), identity=identity)
+        if "rejected" in value:
+            if value["rejected"] is not True:
+                raise ValueError("invalid rejection state")
+            actual = replace(actual, rejected=True)
         if actual.to_dict() != value:
             raise ValueError("altered candidate classification")
         return actual
@@ -106,6 +111,29 @@ def load_organization(root: Path, identity: str, project: str | None) -> MemoryO
         raise MemoryStoreError(
             "整理候选不存在、损坏或不属于当前范围；原文件和记忆保留。"
         ) from error
+
+
+def reject_organization(root: Path, organization: MemoryOrganization) -> MemoryOrganization:
+    """调用方持记忆锁时原子标记拒绝；保留候选来源，不撤回此前已接受的概览。"""
+    if organization.rejected:
+        return organization
+    rejected = replace(organization, rejected=True)
+    path = _path(root, organization.organization_id)
+    temporary = path.with_suffix(f".{secrets.token_hex(8)}.tmp")
+    try:
+        with temporary.open("xb") as stream:
+            stream.write(json.dumps(rejected.to_dict(), ensure_ascii=False).encode("utf-8"))
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    except OSError as error:
+        raise MemoryStoreError("拒绝状态保存失败，未报告已拒绝；原候选与记忆保留。") from error
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass  # 临时文件清理失败不遮蔽已完成的替换或原始保存错误。
+    return rejected
 
 
 def _path(root: Path, identity: str) -> Path:
