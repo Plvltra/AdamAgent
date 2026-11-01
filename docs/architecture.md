@@ -2,11 +2,25 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B11.2 知识目录查询服务、工具注册、独立 CLI 和版本分页。
+本次核对范围：B11.3 独立知识对照、结构化来源审计和真实本地证据归档。
 
-核对结论：新增 documents.catalog_query 和 tool_calls.knowledge_tools；注册复用已有 DocumentIndex，独立 CLI 调用同一服务。每次读取确认当前来源，分页版本失效报错，录制仍保存普通工具结果。原目录、缓存与权限契约保留，补充概览覆盖范围及输出限额说明。
+核对结论：新增 documents.evidence_audit，只验证当前来源和逐字引用；scripts.knowledge_eval 对照全库摘录与单点查询。生产聊天流程不新增最终回答拦截，原目录与查询契约保留，补充来源核对不能证明语义正确的说明。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B11.3 总结来源与对照
+
+~~~mermaid
+flowchart LR
+    KA_FIX["knowledge_eval / 固定合成资料"] --> KA_GLOBAL["KnowledgeDirectory / 全部主题概览"]
+    KA_FIX --> KA_SINGLE["DocumentSearch / 四题单点查询"]
+    KA_GLOBAL --> KA_QUOTES["逐字总结基线 / 结构化引用"]
+    KA_QUOTES --> KA_AUDIT["evidence_audit / 重新授权读取与定位核对"]
+    KA_AUDIT --> KA_REPORT["来源与覆盖报告 / 语义未检查"]
+    KA_SINGLE --> KA_REPORT
+~~~
+
+该审计是独立接口，不自动替代聊天回答的语义判断；对照和实际遗漏见 [知识目录](knowledge-catalog.md)。
 
 ## B11.2 知识目录入口
 
