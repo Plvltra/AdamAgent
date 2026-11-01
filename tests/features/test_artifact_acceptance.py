@@ -120,10 +120,14 @@ def test_read_artifact_consumes_protected_current_turn_context_budget(tmp_path):
         assert phase == 1, "an over-budget continuation must not reach the model"
         return tool_response([read_call(reference, count=4000)])
 
-    # 只量不含旧历史的基础输入，避免历史被合法省略后掩盖当前工具结果的超限。
-    with application(tmp_path, respond, config=config) as (app, _, requests):
-        baseline = app.preview_context(query=query).estimate.input_tokens
-        assert requests == []
+    # 用无旧历史的实际请求计入运行状态；避免可省略的旧历史掩盖当前工具结果超限。
+    with application(tmp_path, lambda *_: answer("baseline"), config=config) as (app, store, _):
+        app.send(query)
+        baseline = next(
+            e["payload"]["context"]["estimated_input_tokens"]
+            for e in store.load_events(app.session.session_id)
+            if e["type"] == "request_started"
+        )
     limited = replace(
         config,
         context=ContextConfig(

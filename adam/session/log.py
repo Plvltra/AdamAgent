@@ -11,6 +11,7 @@ from adam.contracts.memory import validate_selection
 from adam.contracts.planning import decode_plan
 from adam.contracts.protocol import validate_turn
 from adam.contracts.rules import validate_rules
+from adam.contracts.runtime import decode_runtime_state
 from adam.contracts.skills import validate_catalog, validate_skill_selection
 from adam.contracts.tool_catalog import validate_tool_schema_record
 from adam.contracts.usage import decode_observations, encode_observations
@@ -323,6 +324,12 @@ class SessionLog:
         if not isinstance(context, dict) or context.get("strategy") != "recent_turns_v1":
             raise ValueError("invalid context strategy")
         validate_context_layout(context.get("layout_version"))
+        if "runtime_state" in context:
+            state = decode_runtime_state(context["runtime_state"])
+            if context.get("layout_version") is None or state.mode.value != context.get(
+                "execution_mode"
+            ):
+                raise ValueError("runtime state layout or mode mismatch")
         selected, omitted = context.get("selected_turn_ids"), context.get("omitted_turn_ids")
         if not isinstance(selected, list) or not isinstance(omitted, list):
             raise ValueError("invalid context ranges")

@@ -241,6 +241,12 @@ class SubagentManager:
                     raise ToolError("子任务未确认提案提交成功，不能应用。")
         return tuple(proposals)
 
+    def pending_agents(self, session_id: str) -> tuple[str, ...] | None:
+        """只读当前主会话未交付 ID；作用域不同为未知，不轮询或修改子任务状态。"""
+        if session_id != self._session_id:
+            return None
+        return tuple(self._pending())
+
     def instructions(self, session_id: str | None) -> str:
         """提供本会话的受控 ID 和收尾提醒，子回复仅经 tool 结果回传。
 

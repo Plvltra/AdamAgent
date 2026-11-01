@@ -260,7 +260,12 @@ def test_automatic_summary_does_not_remove_active_plan_restriction(tmp_path):
         ("index", True),
     ],
 )
-def test_restart_validates_mode_records_without_replay_or_silent_rewrite(tmp_path, record, legacy):
+def test_restart_validates_mode_records_without_replay_or_silent_rewrite(
+    tmp_path, monkeypatch, record, legacy
+):
+    if legacy:
+        # 旧模式记录没有后续新增的状态快照；真实走无状态路径再省略旧可选模式字段。
+        monkeypatch.setattr("adam.bootstrap.RuntimeStateReader", lambda *args, **kwargs: None)
     calls = []
 
     def parent(request):

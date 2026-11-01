@@ -10,6 +10,7 @@ from adam.config.settings import LLMConfig
 from adam.contracts.errors import StorageError
 from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
+from tests.support import conversation_messages
 from tests.support import run_chat as chat
 
 
@@ -73,7 +74,7 @@ def test_reopen_resume_isolation_and_failed_switch(tmp_path):
     system = requests[-1]["messages"][0]
     assert system["role"] == "system" and system["content"].startswith("old prompt\n\n")
     assert "当前执行模式：act。" in system["content"] and "new prompt" not in system["content"]
-    assert requests[-1]["messages"][1:] == [
+    assert conversation_messages(requests[-1])[1:] == [
         {"role": "user", "content": "one"},
         {"role": "assistant", "content": "answer:one"},
         {"role": "user", "content": "three"},
@@ -105,7 +106,7 @@ def test_save_failure_shows_reply_and_does_not_retry(tmp_path, monkeypatch):
         )
         assert store.load_messages(session_id) == []
     assert len(requests) == 2
-    assert requests[1]["messages"][1:] == [{"role": "user", "content": "two"}]
+    assert conversation_messages(requests[1])[1:] == [{"role": "user", "content": "two"}]
     assert requests[1]["messages"][0]["role"] == "system"
     assert "当前执行模式：act。" in requests[1]["messages"][0]["content"]
     assert any("未保存" in line and "answer:one" in line for line in output)

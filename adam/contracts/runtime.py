@@ -1,5 +1,7 @@
 """宿主提供的只读执行状态；不读取模型内容、不预留额度，也不授予工具权限。"""
 
+import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -7,6 +9,7 @@ from typing import Any
 from adam.contracts.execution import ExecutionMode
 
 RUNTIME_STATE_VERSION = "runtime_state_v1"
+MAX_STATE_TEXT_CHARS = 4096
 
 
 def _count(value: int, name: str) -> None:
@@ -139,7 +142,7 @@ class RuntimeState:
             raise ValueError("待收集 ID 需为不重复的非空字符串元组，或未知。")
 
     def as_record(self) -> dict[str, Any]:
-        """复制全部字段供后续有界展示；此版本尚不持久化或自动注入模型输入。"""
+        """复制完整来源状态；模型展示可裁短目录和 ID 列表，记录仍可核对原值。"""
         return {
             "format": RUNTIME_STATE_VERSION,
             "requests": self.requests.as_record(),
@@ -151,3 +154,86 @@ class RuntimeState:
             if self.pending_agents is not None
             else None,
         }
+
+    def text(self) -> str:
+        """生成至多 4096 字符的参考资料；裁短标记明确，不截断额度或未知值。"""
+        value = self.as_record()
+        value["environment"]["workspace"] = self.workspace[:256]
+        value["environment"]["workspace_truncated"] = len(self.workspace) > 256
+        pending = self.pending_agents
+        shown = [item for item in (pending or ()) if len(item) <= 64][:8]
+        value["pending_agents"] = {
+            "ids": shown if pending is not None else None,
+            "total": len(pending) if pending is not None else None,
+            "truncated": len(shown) < len(pending) if pending is not None else False,
+        }
+        result = (
+            "程序状态快照：构造本次输入时取得，重试可能复用。剩余请求数包含待发送请求；"
+            "未知是 null，额度不是授权或预留凭证，失败计数不是任务完成判定。\n"
+            + json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+        )
+        if len(result) > MAX_STATE_TEXT_CHARS:
+            raise ValueError("运行状态超出可展示上限；不能静默截断额度字段。")
+        return result
+
+
+StateReader = Callable[[str, str, CountState, CountState], RuntimeState]
+
+
+def decode_runtime_state(value: object) -> RuntimeState:
+    """严格恢复内部记录，交叉校验余量；不会把外部工具内容转成执行许可。"""
+    if (
+        not isinstance(value, dict)
+        or value.keys()
+        != {"format", "requests", "tools", "tokens", "failures", "environment", "pending_agents"}
+        or value["format"] != RUNTIME_STATE_VERSION
+    ):
+        raise ValueError("运行状态格式无效。")
+    try:
+
+        def counts(data: dict[str, Any]) -> CountState:
+            if (
+                data.keys() != {"maximum", "used", "remaining"}
+                or type(data["remaining"]) is not int
+            ):
+                raise ValueError("计数状态字段无效。")
+            result = CountState(data["maximum"], data["used"])
+            if result.remaining != data["remaining"]:
+                raise ValueError("计数余量与来源不符。")
+            return result
+
+        if not isinstance(value["tokens"], dict) or value["tokens"].keys() != {
+            "maximum",
+            "known_used",
+            "unknown_usage",
+            "reserved",
+            "remaining",
+        }:
+            raise ValueError("token 状态字段无效。")
+        if not isinstance(value["failures"], dict) or value["failures"].keys() != {
+            "consecutive",
+            "fingerprint",
+        }:
+            raise ValueError("失败观测字段无效。")
+        tokens = dict(value["tokens"])
+        remaining = tokens.pop("remaining")
+        token_state = TokenState(**tokens)
+        if remaining != token_state.remaining or type(remaining) is not type(token_state.remaining):
+            raise ValueError("token 余量与来源不符。")
+        environment = value["environment"]
+        if environment.keys() != {"workspace", "mode"}:
+            raise ValueError("环境字段无效。")
+        pending = value["pending_agents"]
+        if pending is not None and not isinstance(pending, list):
+            raise ValueError("待收集 ID 格式无效。")
+        return RuntimeState(
+            counts(value["requests"]),
+            counts(value["tools"]),
+            token_state,
+            FailureState(**value["failures"]),
+            environment["workspace"],
+            ExecutionMode(environment["mode"]),
+            tuple(pending) if pending is not None else None,
+        )
+    except (TypeError, KeyError, AttributeError) as error:
+        raise ValueError("运行状态字段无效。") from error

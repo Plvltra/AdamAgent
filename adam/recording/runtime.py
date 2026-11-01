@@ -19,6 +19,7 @@ from adam.contracts.delegation import RequestAccount
 from adam.contracts.history import validate_context_layout
 from adam.contracts.models import ModelOutput
 from adam.contracts.ports import ToolRunner
+from adam.contracts.runtime import RUNTIME_STATE_VERSION
 from adam.contracts.skills import SkillSelection, validate_catalog
 from adam.recording.capture import RecordingTools, TurnRecorder
 from adam.recording.environment import (
@@ -29,6 +30,7 @@ from adam.recording.environment import (
     decode_skill,
     memory_provider,
     mode_provider,
+    state_reader,
 )
 from adam.recording.format import RecordingError, error_record
 from adam.recording.journal import Recording, read_recording
@@ -81,6 +83,11 @@ class CaptureRuntime:
             "mode": conversation.mode_provider is not None,
             "skills": list(conversation.skills),
             **(
+                {"runtime_state_version": RUNTIME_STATE_VERSION}
+                if conversation.state_reader and conversation.context_builder.layout_version
+                else {}
+            ),
+            **(
                 {"context_layout": conversation.context_builder.layout_version}
                 if conversation.context_builder.layout_version
                 else {}
@@ -99,6 +106,8 @@ class CaptureRuntime:
                 previous_observer(text, selection)
 
         conversation.observe_input = observe
+        if conversation.state_reader:
+            conversation.state_reader = state_reader(self.exchange, conversation.state_reader)
         if conversation.memory_provider:
             conversation.memory_provider = memory_provider(
                 self.exchange, conversation.memory_provider
@@ -229,7 +238,7 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
     }
     if (
         not isinstance(boot, dict)
-        or boot.keys() - {"context_layout"} != flags | {"skills"}
+        or boot.keys() - {"context_layout", "runtime_state_version"} != flags | {"skills"}
         or any(type(boot[key]) is not bool for key in flags)
         or not isinstance(arguments, dict)
         or arguments.keys() != {"text", "selected_skill"}
@@ -238,6 +247,10 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
         raise RecordingError("录制运行资料的字段或输入无效。")
     try:
         validate_context_layout(boot.get("context_layout"))
+        if "runtime_state_version" in boot and (
+            boot["runtime_state_version"] != RUNTIME_STATE_VERSION or not boot.get("context_layout")
+        ):
+            raise ValueError("运行状态版本或布局无效。")
         validate_catalog(boot["skills"])
         decode_skill(arguments["selected_skill"], boot["skills"])
     except (ValueError, TypeError, KeyError) as error:
@@ -289,6 +302,7 @@ def build_replay(
         review=ObservedReview(exchange) if boot["review"] else None,
         accounting=account if boot["accounting"] else None,
         skills=tuple(boot["skills"]),
+        state_reader=state_reader(exchange) if "runtime_state_version" in boot else None,
     )
 
     def observe(text: str, selection: SkillSelection | None) -> None:

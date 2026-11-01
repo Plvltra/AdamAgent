@@ -26,7 +26,7 @@ def progress_api():
         def do_POST(self):  # noqa: N802
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             requests.append(body)
-            task = next(m["content"] for m in body["messages"] if m["role"] == "user")
+            task = next(m["content"] for m in reversed(body["messages"]) if m["role"] == "user")
             if task == "new task" and outputs(body):
                 value = answer("still unreadable")
             else:

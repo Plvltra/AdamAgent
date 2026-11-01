@@ -9,6 +9,7 @@ from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ApprovalDeniedError, NoProgressError, ToolError
 from adam.contracts.execution import ToolBudget
 from adam.contracts.hooks import HookService
+from adam.contracts.runtime import FailureState
 from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.discovery_tools import ToolDiscovery
@@ -63,6 +64,15 @@ class ToolExecutor:
         if self.discovery:
             return self.discovery.definitions(turn_id)
         return self.registry.definitions()
+
+    def failure_state(self, session_id: str, turn_id: str) -> FailureState:
+        """只读当前轮次失败观测；禁用为未知，新轮次为零，不重置旧轮次检测器。"""
+        if not self._progress_config.enabled:
+            return FailureState()
+        if self._progress_scope != (session_id, turn_id):
+            return FailureState(0)
+        decision = self._progress.decision
+        return FailureState(decision.consecutive_failures, decision.fingerprint)
 
     def execute(
         self,

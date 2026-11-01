@@ -58,7 +58,7 @@ def test_parallel_children_keep_sources_and_cancellation_isolated(
 
     def child(request):
         body = json.loads(request.content)
-        label = next(m["content"] for m in body["messages"] if m["role"] == "user")
+        label = next(m["content"] for m in reversed(body["messages"]) if m["role"] == "user")
         with mutex:
             child_requests[label].append(body)
             coordinators[label] = get_ident()

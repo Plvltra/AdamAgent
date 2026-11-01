@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from typing import Any
 
 from adam.application.subagents.budget import SharedTokenBudget
+from adam.contracts.runtime import TokenState
 from adam.session.storage import SessionStore
 
 
@@ -25,6 +26,11 @@ class SessionAccount:
         """返回主会话及全部子会话的已知累计消费。"""
         self._refresh()
         return self.budget.usage(observe=self._observer("usage"))
+
+    def snapshot(self) -> TokenState:
+        """刷新本会话后复制整组消费和预留；输入观察者另行保存，不触发执行决策。"""
+        self._refresh()
+        return self.budget.snapshot()
 
     @contextmanager
     def request(self, estimate: int) -> Iterator[None]:

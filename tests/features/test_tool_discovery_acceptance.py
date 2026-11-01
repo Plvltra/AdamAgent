@@ -164,8 +164,14 @@ def test_expanded_schema_stops_at_original_input_budget_before_next_http(tmp_pat
             ]
         )
 
-    with application(tmp_path, respond) as (app, _, _):
-        initial = app.preview_context("task").estimate.input_tokens
+    # 用实际首请求校准，基础预览不包含执行时的动态状态；不能把首请求失败当作扩展拦截。
+    with application(tmp_path, lambda *_: answer("baseline")) as (app, store, _):
+        app.send("task")
+        initial = next(
+            e["payload"]["context"]["estimated_input_tokens"]
+            for e in store.load_events(app.session.session_id)
+            if e["type"] == "request_started"
+        )
     config = settings(tmp_path)
     config = replace(
         config,

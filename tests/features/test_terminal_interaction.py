@@ -13,6 +13,7 @@ from adam.cli.terminal import role_prefix
 from adam.config.settings import AgentConfig, LLMConfig
 from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
+from tests.support import conversation_messages
 from tests.support import run_chat as chat
 
 
@@ -87,7 +88,9 @@ def make_http(requests):
     return httpx.Client(transport=httpx.MockTransport(handle))
 
 
-def test_usage_is_only_shown_on_request_and_not_sent_to_model(tmp_path, interactive_terminal):
+def test_usage_command_is_only_shown_on_request_and_not_sent_as_chat(
+    tmp_path, interactive_terminal
+):
     requests = []
     shown = []
     prompts = []
@@ -115,7 +118,9 @@ def test_usage_is_only_shown_on_request_and_not_sent_to_model(tmp_path, interact
     posts = [request for request in requests if request.method == "POST"]
     assert len(posts) == 1
     messages = json.loads(posts[0].content)["messages"]
-    assert messages[1:] == [{"role": "user", "content": "hello"}]
+    assert conversation_messages({"messages": messages})[1:] == [
+        {"role": "user", "content": "hello"}
+    ]
     assert messages[0]["role"] == "system" and "当前执行模式：act。" in messages[0]["content"]
     assert "/usage" not in json.dumps(messages) and "用量>" not in json.dumps(
         messages, ensure_ascii=False

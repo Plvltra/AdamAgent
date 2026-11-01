@@ -28,6 +28,7 @@ from adam.contracts.models import ExecutionReport, ModelOutput, Session
 from adam.contracts.planning import TaskPlanner
 from adam.contracts.ports import ModelClient, ReviewParticipant, ToolRunner
 from adam.contracts.rules import ProjectRules
+from adam.contracts.runtime import CountState, RuntimeState, StateReader
 from adam.contracts.skills import SkillSelection
 from adam.session.outcome import ExecutionOutcome
 from adam.session.storage import SessionStore
@@ -38,6 +39,7 @@ class TurnProgress:
     """本轮请求消费与自动压缩尝试；摘要同样占用模型请求次数。"""
 
     requests: RequestPolicy
+    tool_calls: int = 0
     summary_attempted: bool = False
     pruning_announced: bool = False
     memory: MemorySelection = MemorySelection()
@@ -71,8 +73,12 @@ class Conversation:
         skills: tuple[dict[str, str], ...] = (),
         rules: ProjectRules | None = None,
         mode_provider: Callable[[], ExecutionMode] | None = None,
+        state_reader: StateReader | None = None,
     ) -> None:
-        """注入会话依赖；context_layout 仅供旧录制重放，默认使用当前排列。"""
+        """注入会话依赖；context_layout 仅供旧录制重放，默认使用当前排列。
+
+        state_reader 由宿主提供窄状态查询；缺省保持不注入，旧排列也不新增状态。
+        """
         self.observe_input: Callable[[str, SkillSelection | None], None] | None = None
         self.store = store
         self.client = client
@@ -93,6 +99,7 @@ class Conversation:
         self.memory_provider, self.skills = memory_provider, skills
         self.rules = rules
         self.mode_provider = mode_provider
+        self.state_reader = state_reader
         self.planning = planning
         self.reflection, self.review = reflection, review
         self.requests = RequestRunner(
@@ -223,6 +230,7 @@ class Conversation:
         包含系统提示、成功历史和当前工具说明；query 为空时不含下一条新问题。
         显式提供 query 时仅用于假设输入和记忆选择，不提交为聊天消息；
         未选会话时使用本次配置的系统提示。超预算仍可查看，不冒充最近实际请求。
+        不查询实际轮次状态；执行时加入的状态快照会额外占用输入预算。
         """
         turn = [{"role": "user", "content": query}] if query else []
         memory = self._select_memory(self.session, turn, query, preview=True)
@@ -247,8 +255,14 @@ class Conversation:
 
         progress = TurnProgress(
             RequestPolicy(self.limits.max_model_requests, self.notify, cancel=self.cancel),
-            memory=self._select_memory(session, turn, text, selected_skill=selected_skill),
             selected_skill=selected_skill,
+        )
+        progress.memory = self._select_memory(
+            session,
+            turn,
+            text,
+            selected_skill=selected_skill,
+            runtime_state=self._runtime_state(session, turn_id, progress),
         )
         if progress.memory.warning:
             self.notify(progress.memory.warning)
@@ -304,6 +318,7 @@ class Conversation:
                 )
             )
             seen_call_ids.update(call["id"] for call in calls)
+            progress.tool_calls = len(seen_call_ids)
             if self.reflection:
                 advice = self.reflection.after_tools(self.model, self.requests, progress.requests)
                 if advice and advice["status"] == "completed":
@@ -331,6 +346,7 @@ class Conversation:
             progress.reflections,
             selected_skill=progress.selected_skill,
             tool_turn_id=turn_id,
+            runtime_state=self._runtime_state(session, turn_id, progress),
         )
         # 受保护部分本身放不下时，先停止，避免花费一次无法解决问题的摘要请求。
         context.ensure_within_budget()
@@ -372,6 +388,7 @@ class Conversation:
                     progress.reflections,
                     selected_skill=progress.selected_skill,
                     tool_turn_id=turn_id,
+                    runtime_state=self._runtime_state(session, turn_id, progress),
                 )
                 self.notify("上下文> 已自动更新历史摘要；原始日志保留。")
                 progress.pruning_announced = True
@@ -403,14 +420,32 @@ class Conversation:
         *,
         preview: bool = False,
         selected_skill: SkillSelection | None = None,
+        runtime_state: RuntimeState | None = None,
     ) -> MemorySelection:
         """先预留受保护输入，再选一次记忆；工具循环复用此快照，不重新读取库。"""
         if self.memory_provider is None:
             return MemorySelection()
         capacity = self._build_context(
-            session, turn, rules_preview=preview, selected_skill=selected_skill
+            session,
+            turn,
+            rules_preview=preview,
+            selected_skill=selected_skill,
+            runtime_state=runtime_state,
         ).memory_capacity
         return self.memory_provider(query, capacity)
+
+    def _runtime_state(
+        self, session: Session, turn_id: str, progress: TurnProgress
+    ) -> RuntimeState | None:
+        """输入构造前查询；重试可复用这一快照，真正请求仍受原计数和预留检查。"""
+        if self.state_reader is None or self.context_builder.layout_version is None:
+            return None
+        return self.state_reader(
+            session.session_id,
+            turn_id,
+            progress.requests.snapshot(),
+            CountState(self.limits.max_tool_calls, progress.tool_calls),
+        )
 
     def _build_context(
         self,
@@ -422,6 +457,7 @@ class Conversation:
         rules_preview: bool = False,
         selected_skill: SkillSelection | None = None,
         tool_turn_id: str | None = None,
+        runtime_state: RuntimeState | None = None,
     ) -> RequestContext:
         """读取成功历史并委托构造；稳定约束与运行提示分开，预览和请求共享预算及模式。
 
@@ -456,6 +492,7 @@ class Conversation:
             selected_skill=selected_skill,
             rules=self.rules.snapshot(preview=rules_preview) if self.rules else None,
             execution_mode=self.mode_provider() if self.mode_provider is not None else None,
+            runtime_state=runtime_state,
         )
 
     def _check_session_budget(self, session_id: str) -> None:

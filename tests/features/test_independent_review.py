@@ -14,7 +14,8 @@ def reviewer(request):
     body = json.loads(request.content)
     names = {item["function"]["name"] for item in body["tools"]}
     assert not {"submit_proposal", "apply_proposal", "collect_proposals"} & names
-    task = next(m["content"] for m in body["messages"] if m["role"] == "user")
+    # 目录和程序状态也使用 user 角色，任务是完整当前工具链之前的最近一条 user。
+    task = next(m["content"] for m in reversed(body["messages"]) if m["role"] == "user")
     target = json.loads(task.split("\n", 1)[0])["targets"][0]["path"]
     if not outputs(body):
         return httpx.Response(200, json=tool_response([call("read", "read_file", path=target)]))

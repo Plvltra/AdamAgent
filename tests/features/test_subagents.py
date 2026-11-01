@@ -97,9 +97,14 @@ def test_two_children_overlap_use_tools_and_parent_collects_results(tmp_path):
             both.wait(timeout=10)
             ready.set()
             assert release.wait(10)
-            task = next(item["content"] for item in body["messages"] if item["role"] == "user")
+            task = next(
+                item["content"] for item in reversed(body["messages"]) if item["role"] == "user"
+            )
             return httpx.Response(200, json=tool_response([call("read", "read_file", path=task)]))
-        return httpx.Response(200, json=answer("verified " + body["messages"][1]["content"]))
+        task = next(
+            item["content"] for item in reversed(body["messages"]) if item["role"] == "user"
+        )
+        return httpx.Response(200, json=answer("verified " + task))
 
     def parent(request):
         body = json.loads(request.content)
@@ -256,10 +261,9 @@ def test_child_can_resume_after_restart_without_automatic_requests(tmp_path):
         app.send("follow up with the same helper")
         assert app.usage().tokens == 8 * 12
         messages = child_bodies[-1]["messages"]
-        assert [item["content"] for item in messages if item["role"] == "user"] == [
-            "initial finding",
-            "continue finding",
-        ]
+        users = [item["content"] for item in messages if item["role"] == "user"]
+        assert users[0] == "initial finding" and users[-1] == "continue finding"
+        assert len(users) == 3 and '"format":"runtime_state_v1"' in users[1]
         assert any(item.get("content") == "first finding" for item in messages)
         record = json.loads(index_for(app).read_text(encoding="utf-8"))["agents"][0]
         assert len(record["runs"]) == 2

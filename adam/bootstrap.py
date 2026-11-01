@@ -17,6 +17,7 @@ from adam.application.proposal_review import ProposalReview
 from adam.application.proposals import ProposalSubmission
 from adam.application.reflection import ReflectionService
 from adam.application.review import ReviewService
+from adam.application.runtime_state import RuntimeStateReader
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.manager import SubagentManager
@@ -285,6 +286,15 @@ def build_application(
             mode_provider=modes.current,
             skills=skills.summaries() if skills else (),
             rules=rules,
+            state_reader=RuntimeStateReader(
+                store,
+                workspace,
+                config.agent.max_session_tokens,
+                modes.current,
+                executor.failure_state,
+                tokens=(lambda sid: manager.account(sid).snapshot()) if manager else None,
+                pending=manager.pending_agents if manager else None,
+            ),
         )
         if observe_conversation:
             observe_conversation(conversation)
@@ -405,26 +415,27 @@ def _open_child(
             registry = register_submission(registry, submission)
         registry = registry.with_mode(lambda: mode)
         registry, discovery = register_discovery(registry, config.tool_discovery, lambda: mode)
+        executor = ToolExecutor(
+            store,
+            registry,
+            lambda _: None,
+            cancel=cancel,
+            before_call=submission.bind_source if submission else None,
+            discovery=discovery,
+            no_progress=config.no_progress,
+            hooks=(
+                HookRunner(config.hooks, Path(agent.workspace), cancel)
+                if config.hooks.enabled
+                else None
+            ),
+            on_notice=lambda message: notify(f"子 Agent> {agent.agent_id} {message}"),
+            artifacts=artifacts,
+        )
         conversation = Conversation(
             store,
             client,
             "",
-            ToolExecutor(
-                store,
-                registry,
-                lambda _: None,
-                cancel=cancel,
-                before_call=submission.bind_source if submission else None,
-                discovery=discovery,
-                no_progress=config.no_progress,
-                hooks=(
-                    HookRunner(config.hooks, Path(agent.workspace), cancel)
-                    if config.hooks.enabled
-                    else None
-                ),
-                on_notice=lambda message: notify(f"子 Agent> {agent.agent_id} {message}"),
-                artifacts=artifacts,
-            ),
+            executor,
             config.agent,
             model=run.model,
             context_config=config.context,
@@ -435,6 +446,14 @@ def _open_child(
             mode_provider=lambda: mode,
             skills=skills.summaries() if skills else (),
             rules=rules,
+            state_reader=RuntimeStateReader(
+                store,
+                Path(agent.workspace),
+                config.agent.max_session_tokens,
+                lambda: mode,
+                executor.failure_state,
+                tokens=lambda _: account.snapshot(),
+            ),
         )
         conversation.resume(agent.agent_id)
         yield conversation

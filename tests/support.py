@@ -1,5 +1,6 @@
 """已有业务场景的依赖组装；保持场景输入和断言，生产 CLI 只接受应用接口。"""
 
+import json
 from pathlib import Path
 
 from adam.application.conversation import Conversation
@@ -17,6 +18,22 @@ from adam.config.settings import (
 )
 from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
+
+
+def conversation_messages(body):
+    """分离唯一的状态参考消息后核对聊天历史；不隐藏其他系统、用户或工具消息。"""
+    messages = body["messages"]
+    positions = [
+        index
+        for index, message in enumerate(messages)
+        if "程序状态快照：" in (message.get("content") or "")
+    ]
+    assert len(positions) == 1
+    index = positions[0]
+    message = messages[index]
+    assert message["role"] == "user"
+    assert json.loads(message["content"].rsplit("\n", 1)[1])["format"] == "runtime_state_v1"
+    return messages[:index] + messages[index + 1 :]
 
 
 def build_conversation(

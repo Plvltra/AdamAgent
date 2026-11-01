@@ -2,11 +2,33 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B04.1 不可变执行状态、物理请求与共享预留快照；18 项专项验收。
+本次核对范围：B04.2 主/子状态来源、动态输入与预算、日志和旧新重放；12 项新增专项验收。
 
-核对结论：contracts 新增 RuntimeState 等只读数据；RequestPolicy 与 SharedTokenBudget 提供快照，尚未注入聊天。原执行、预留与权限路径不变，依赖仍朝 contracts。新增接口的未知/计数/并发契约已审查，没有删除既有 Python 说明。
+核对结论：bootstrap 组装 RuntimeStateReader，Conversation 只提供循环计数；ContextBuilder 预算和排列，SessionLog 校验，录制冻结来源。工具层仅公开失败查询，CLI 提示基础预览范围。旧数据和权限路径保持；子执行器的构造移动时保留参数与说明，as_record 的旧阶段说明更新为当前记录契约。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+B04.2 全量回归核对：RuntimeStateReader 在组装时解析相对工作目录；架构依赖不变。聊天与记忆对照明确区分运行状态和有效历史，新旧录制各自验证最早差异及停止边界。
+
+## B04.2 状态进入上下文与记录
+
+~~~mermaid
+flowchart LR
+    RS_BOOT["bootstrap / 主子来源组装"] --> RS_READ["RuntimeStateReader / 窄查询"]
+    RS_ACCOUNT["SessionAccount.snapshot / 共享消费与预留"] --> RS_READ
+    RS_EXEC["ToolExecutor.failure_state / 本轮失败"] --> RS_READ
+    RS_MANAGER["SubagentManager.pending_agents / 未交付 ID"] --> RS_READ
+    RS_APP["Conversation / 实际请求和工具次数"] --> RS_READ
+    RS_READ --> RS_VALUE["RuntimeState / 来源数据与有界文本"]
+    RS_VALUE --> RS_CONTEXT["ContextBuilder / 运行资料预算与排列"]
+    RS_CONTEXT --> RS_LOG["request_started.context / SessionLog 校验"]
+    RS_CAPTURE["CaptureRuntime / context-state 观察"] --> RS_READ
+    RS_CAPTURE --> RS_REPLAY["state_reader 适配 / 冻结来源与次数比较"]
+    RS_REPLAY --> RS_VALUE
+    RS_CONTEXT --> RS_TERMINAL["terminal / 基础预览说明"]
+~~~
+
+[来源汇总](../adam/application/runtime_state.py) 不持有全局配置；[Conversation](../adam/application/conversation.py) 不理解执行器内部状态。[录制来源适配](../adam/recording/environment.py) 保存真实观察，旧录制没有状态版本时不创建查询。主/子额度检查、工具权限和终端按需用量保持，详见 [状态说明](runtime-state.md)。
 
 ## B04.1 只读执行状态
 
@@ -21,7 +43,7 @@ flowchart LR
     RS_STATE --> RS_RECORD["as_record / 独立 JSON 数据"]
 ~~~
 
-[状态契约](../adam/contracts/runtime.py) 不依赖执行实现；[请求计数](../adam/application/request_policy.py) 和 [共享预算](../adam/application/subagents/budget.py) 只增加读取接口。消费和预留在同一锁内取得，聚合其他来源时不保证全局原子性。当前聊天尚未使用该数据；后续动态注入属于 B04.2。边界和 API 验收见 [状态说明](runtime-state.md)。
+[状态契约](../adam/contracts/runtime.py) 不依赖执行实现；[请求计数](../adam/application/request_policy.py) 和 [共享预算](../adam/application/subagents/budget.py) 提供读取接口。消费和预留在同一锁内取得，聚合其他来源时不保证全局原子性。动态接入见上面的 B04.2 关系；边界和 API 验收见 [状态说明](runtime-state.md)。
 
 ## B03.3 显式缓存/耗时实验
 

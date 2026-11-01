@@ -28,7 +28,11 @@ def test_two_real_helpers_propose_then_parent_applies_without_overwriting(tmp_pa
     def child(request):
         body = json.loads(request.content)
         child_threads.add(threading.get_ident())
-        task = next(message["content"] for message in body["messages"] if message["role"] == "user")
+        task = next(
+            message["content"]
+            for message in reversed(body["messages"])
+            if message["role"] == "user"
+        )
         observed = outputs(body)
         if not observed:
             result = tool_response([call("read", "read_file", path=str(targets[task]))])

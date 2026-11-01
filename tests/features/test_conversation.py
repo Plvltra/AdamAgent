@@ -10,7 +10,7 @@ import pytest
 from adam.config.settings import LLMConfig
 from adam.llm.client import LLMClient
 from adam.session.storage import SessionStore
-from tests.support import run_chat
+from tests.support import conversation_messages, run_chat
 
 
 def chat(client, system_prompt, **kwargs):
@@ -51,15 +51,15 @@ def test_multiturn_failure_and_reset():
         system = request["messages"][0]
         assert system["role"] == "system" and system["content"].startswith("system\n\n")
         assert "当前执行模式：act。" in system["content"]
-    assert requests[0]["messages"][1:] == [
+    assert conversation_messages(requests[0])[1:] == [
         {"role": "user", "content": "one"},
     ]
-    assert requests[2]["messages"][1:] == [
+    assert conversation_messages(requests[2])[1:] == [
         {"role": "user", "content": "one"},
         {"role": "assistant", "content": "reply1"},
         {"role": "user", "content": "two"},
     ]
-    assert requests[3]["messages"][1:] == [
+    assert conversation_messages(requests[3])[1:] == [
         {"role": "user", "content": "three"},
     ]
     assert all(r["stream"] is False for r in requests)
@@ -105,9 +105,9 @@ def test_model_switch_preserves_history_and_rejects_unknown():
     with httpx.Client(transport=httpx.MockTransport(handler)) as http:
         chat(LLMClient(config, http), "system", read=lambda _: next(entries), write=output.append)
     assert [r["model"] for r in requests] == ["flash", "flash", "pro", "pro"]
-    assert requests[2]["messages"][:-1] == requests[3]["messages"][:-1]
-    assert requests[2]["messages"][1]["content"] == "one"
-    assert len(requests[2]["messages"]) == 6
+    assert conversation_messages(requests[2])[:-1] == conversation_messages(requests[3])[:-1]
+    assert conversation_messages(requests[2])[1]["content"] == "one"
+    assert len(conversation_messages(requests[2])) == 6
     assert config.model == "flash"
     assert any("Example V4 Flash" in line for line in output)
     assert any("未切换" in line for line in output)
@@ -157,7 +157,7 @@ def test_commands_do_not_reach_model_and_exit_stops_input():
         client = LLMClient(LLMConfig("https://example.test", "model", "secret", stream=False), http)
         chat(client, "", read=lambda _: next(entries), write=output.append)
     assert len(requests) == 1
-    assert requests[0]["messages"][1:] == [{"role": "user", "content": "hello"}]
+    assert conversation_messages(requests[0])[1:] == [{"role": "user", "content": "hello"}]
     assert requests[0]["messages"][0]["role"] == "system"
     assert "当前执行模式：act。" in requests[0]["messages"][0]["content"]
     assert "/unknown" not in json.dumps(requests[0]["messages"])

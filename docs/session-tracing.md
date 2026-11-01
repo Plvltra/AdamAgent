@@ -235,6 +235,10 @@ v4 明确拒绝旧 v1/v2/v3，不自动迁移或删除。旧文件留在当前�
 
 重启恢复对尚未开始的撤销增加 undo_ids 并标记 interrupted，已开始的 unknown 保持未知。统一副作用查询阻止未确认状态继续请求模型；失败输入仍可作为诊断保存。独立诊断在顶层列出 undos；数据位置、权限与详细契约见 [修改检查点](edit-checkpoints.md)。T7.3 已通过真实进程强杀、物理半行和恢复发布中断验收；目标文件即使已恢复，缺少 undo_finished 仍保持 unknown，不根据内容补造成功。
 
+## B04.2 程序状态
+
+B04.2 的聊天请求可包含 runtime_state，格式 runtime_state_v1。它保存输入构造时的完整只读状态，模型获得同一对象的有界表示；请求重试可复用该状态。解码验证字段、计数、派生余量、排列和执行模式，旧记录缺省时不补造；摘要和反思沿原协议。详见 [程序状态](runtime-state.md)。
+
 ## B03.2 消息排列版本
 
 聊天请求的 request_started.context 新增可选 layout_version=stable_prefix_v1，表示系统/模式与目录在前、历史后提供本轮资料，再保留完整当前工具链。缺省字段仍按旧选择记录校验；未知版本拒绝读取。它不同于 input_prefix.layout_version 的字节编码版本，也不改变 recent_turns_v1 的历史选择算法。

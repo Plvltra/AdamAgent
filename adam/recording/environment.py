@@ -9,9 +9,33 @@ from adam.contracts.execution import ExecutionMode
 from adam.contracts.memory import MemorySelection, decode_record, validate_selection
 from adam.contracts.ports import ReviewParticipant
 from adam.contracts.rules import ProjectRules, RuleDocument, RuleSelection, validate_rules
+from adam.contracts.runtime import CountState, RuntimeState, StateReader, decode_runtime_state
 from adam.contracts.skills import SkillListing, SkillSelection, validate_skill_selection
 
 Exchange = Callable[[str, str, dict[str, Any], Callable[[], Any]], Any]
+
+
+def state_reader(exchange: Exchange, live: StateReader | None = None) -> StateReader:
+    """冻结宿主状态来源；离线重放仍比较实际循环次数，不读取当前工作目录或线程。"""
+
+    def read(sid: str, tid: str, requests: CountState, tools: CountState) -> RuntimeState:
+        value = exchange(
+            "context",
+            "state",
+            {
+                "session_id": sid,
+                "turn_id": tid,
+                "requests": requests.as_record(),
+                "tools": tools.as_record(),
+            },
+            lambda: live(sid, tid, requests, tools).as_record() if live else None,
+        )
+        state = decode_runtime_state(value)
+        if state.requests != requests or state.tools != tools:
+            raise ValueError("观察状态与真实循环次数不符。")
+        return state
+
+    return read
 
 
 def decode_memory(value: dict[str, Any]) -> MemorySelection:

@@ -18,6 +18,7 @@ from adam.contracts.history import (
 from adam.contracts.memory import MemorySelection
 from adam.contracts.reflection import reflection_messages
 from adam.contracts.rules import RuleSelection
+from adam.contracts.runtime import RuntimeState
 from adam.contracts.skills import SkillSelection, catalog_messages, validate_skill_selection
 
 
@@ -77,6 +78,7 @@ class RequestContext:
     rules: RuleSelection | None = None
     execution_mode: ExecutionMode | None = None
     layout_version: str | None = CONTEXT_LAYOUT_VERSION
+    runtime_state: RuntimeState | None = None
 
     @property
     def candidate_input_tokens(self) -> int:
@@ -92,6 +94,7 @@ class RequestContext:
         return {
             "strategy": "recent_turns_v1",
             **({"layout_version": self.layout_version} if self.layout_version else {}),
+            **({"runtime_state": self.runtime_state.as_record()} if self.runtime_state else {}),
             **(
                 {"execution_mode": self.execution_mode.value}
                 if self.execution_mode is not None
@@ -160,6 +163,7 @@ class ContextBuilder:
         selected_skill: SkillSelection | None = None,
         rules: RuleSelection | None = None,
         execution_mode: ExecutionMode | None = None,
+        runtime_state: RuntimeState | None = None,
     ) -> RequestContext:
         """返回独立的输入副本及组成估算；保留顺序、工具配对和服务商推理字段。
 
@@ -173,9 +177,16 @@ class ContextBuilder:
         rules 为本次规则快照，整体计入受保护预算，不能截断或改写为摘要。
         execution_mode 为程序的实际模式，说明计入受保护系统预算，不复制进历史。
         runtime_instructions 是本轮运行提示和审查资料；新布局置于历史之后，不提升为系统指令。
+        runtime_state 为构造输入时的程序快照，采用有界表示、计入运行资料预算并独立留痕。
         系统与模式、Skill 目录位于历史之前；改变模式或目录会使相应前缀变化。
         预算覆盖完整工具 JSON Schema，不包含认证头、URL 或密钥。
         """
+        if runtime_state is not None:
+            if self.layout_version is None or runtime_state.mode != execution_mode:
+                raise ValueError("运行状态需使用当前布局，且模式必须与实际输入一致。")
+            runtime_instructions = "\n".join(
+                filter(None, (runtime_instructions, runtime_state.text()))
+            )
         rule_messages = rules.messages() if rules is not None else []
         rules_tokens = sum(estimate_json_tokens(m) for m in rule_messages)
         catalog = catalog_messages(skills)
@@ -326,6 +337,7 @@ class ContextBuilder:
             rules=rules,
             execution_mode=execution_mode,
             layout_version=self.layout_version,
+            runtime_state=runtime_state,
         )
 
 

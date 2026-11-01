@@ -17,6 +17,7 @@ from adam.config.settings import MemoryConfig, PermissionConfig
 from adam.context.builder import ContextBuilder
 from adam.contracts.errors import MemoryStoreError
 from adam.contracts.memory import MemoryCommand, MemorySelection, MemorySource
+from adam.contracts.runtime import decode_runtime_state
 from adam.llm.client import LLMClient
 from adam.memory.project import project_identity
 from adam.memory.store import MemoryStore
@@ -61,33 +62,45 @@ def test_all_injection_vs_relevant_selection_uses_identical_inputs(tmp_path):
         ]:
             app.new(query)
             preview = app.preview_context(query)
-            baseline = ContextBuilder(config.context, config.agent.max_output_tokens).build(
-                model=config.llm.model,
-                system_prompt=config.system_prompt,
-                history=[],
-                current_turn=[{"role": "user", "content": query}],
-                tools=preview.tools,
-                memory=MemorySelection(scoped, query, "selected"),
-                execution_mode=preview.execution_mode,
-            )
             app.send(query)
             actual = payloads[-1]
-            assert actual["messages"] == preview.messages and actual["tools"] == preview.tools
+            recorded = next(
+                event["payload"]["context"]["runtime_state"]
+                for event in store.load_events(app.session.session_id)
+                if event["type"] == "request_started"
+            )
+            # 基础预览不含执行快照；两种记忆选择必须使用同一真实状态才能公平比较。
+            shared = {
+                "model": config.llm.model,
+                "system_prompt": config.system_prompt,
+                "history": [],
+                "current_turn": [{"role": "user", "content": query}],
+                "tools": preview.tools,
+                "execution_mode": preview.execution_mode,
+                "runtime_state": decode_runtime_state(recorded),
+            }
+            builder = ContextBuilder(config.context, config.agent.max_output_tokens)
+            baseline = builder.build(
+                **shared,
+                memory=MemorySelection(scoped, query, "selected"),
+            )
+            selected = builder.build(**shared, memory=preview.memory)
+            assert actual["messages"] == selected.messages and actual["tools"] == selected.tools
             assert {r["memory_id"] for r in memory_records(actual)} == expected
             assert actual["messages"][0] == baseline.messages[0]
             assert actual["messages"][-1] == baseline.messages[-1]
-            assert baseline.estimate.memory_tokens > preview.estimate.memory_tokens
-            assert preview.estimate.memory_tokens <= config.memory.max_input_tokens
-            preview.ensure_within_budget()
+            assert baseline.estimate.memory_tokens > selected.estimate.memory_tokens
+            assert selected.estimate.memory_tokens <= config.memory.max_input_tokens
+            selected.ensure_within_budget()
             results.append(
                 {
                     "query": query,
                     "all_count": len(scoped),
                     "selected_contents": [r["content"] for r in memory_records(actual)],
                     "all_memory_tokens": baseline.estimate.memory_tokens,
-                    "selected_memory_tokens": preview.estimate.memory_tokens,
+                    "selected_memory_tokens": selected.estimate.memory_tokens,
                     "all_input_tokens": baseline.estimate.input_tokens,
-                    "selected_input_tokens": preview.estimate.input_tokens,
+                    "selected_input_tokens": selected.estimate.input_tokens,
                 }
             )
     report = json.dumps(results, ensure_ascii=False, indent=2)

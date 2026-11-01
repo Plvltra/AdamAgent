@@ -11,7 +11,7 @@ import pytest
 from adam.config.settings import AgentConfig
 from adam.contracts.errors import LLMError, RequestInterrupted, TurnSaveError
 from adam.recording.journal import read_recording
-from adam.recording.runtime import replay_turn
+from adam.recording.runtime import CaptureRuntime, replay_turn
 from adam.recordings import main
 from adam.session.storage import SessionStore
 from tests.features.test_memory_context import config_at
@@ -218,19 +218,34 @@ def test_valid_prefix_never_becomes_a_matched_replay_or_repeats_command(tmp_path
     assert original_log.read_bytes() == log_bytes
 
 
-def test_changed_request_count_stops_real_loop_and_keeps_first_difference(tmp_path, monkeypatch):
+@pytest.mark.parametrize("with_state", [True, False])
+def test_changed_request_count_keeps_first_difference_and_stops_before_actions(
+    tmp_path, monkeypatch, with_state
+):
+    if not with_state:
+        bind = CaptureRuntime.bind
+
+        def old_bind(self, conversation):
+            conversation.state_reader = None
+            bind(self, conversation)
+
+        monkeypatch.setattr(CaptureRuntime, "bind", old_bind)
     with captured_app(tmp_path, command_then_answer) as (app, recorder, _, source, _):
         recorder.run(lambda: app.send("task"))
     forbid_external_actions(monkeypatch)
     report = replay_turn(source, tmp_path / "offline", agent=AgentConfig(max_model_requests=1))
     assert report["status"] == "different", report
-    assert report["actual_error"]["code"] == "request_limit"
+    # 新状态观察更早发现最大次数不同；旧录制仍验证真实请求限额先于工具派发。
+    assert report["actual_error"]["code"] == ("agent_error" if with_state else "request_limit")
+    if with_state:
+        assert report["difference"]["path"] == "$.input.requests.maximum"
+        assert report["difference"]["expected"] == 8 and report["difference"]["actual"] == 1
     assert (tmp_path / "executions.txt").read_text() == "x"
     events = [
         json.loads(line)
         for line in next((tmp_path / "offline").glob("*/*/*/*.jsonl")).read_bytes().splitlines()
     ]
-    assert sum(item["type"] == "request_started" for item in events) == 1
+    assert sum(item["type"] == "request_started" for item in events) == (0 if with_state else 1)
     assert not any(
         item["type"] == "turn_completed" and item["payload"]["duration_ms"] is not None
         for item in events

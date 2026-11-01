@@ -104,6 +104,8 @@ def show_context(
         write("上下文> 指定问题的假设预览；未提交消息、未请求模型。")
     else:
         write("上下文> 下一次请求的基础预览；尚未包含下一条用户输入，不是最近请求快照。")
+    if context.runtime_state is None:
+        write("此基础预览未包含执行时的状态快照；实际发送会重新计算输入预算。")
     write(
         f"模型：{context.model}；消息 {len(context.messages)} 条；工具说明 {len(context.tools)} 项。"
     )

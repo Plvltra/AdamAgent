@@ -30,7 +30,9 @@ def test_executor_repairs_real_defect_and_review_can_also_add_no_benefit(tmp_pat
         if not results:
             return reviewer(request)
         path = json.loads(
-            next(m["content"] for m in body["messages"] if m["role"] == "user").split("\n", 1)[0]
+            next(m["content"] for m in reversed(body["messages"]) if m["role"] == "user").split(
+                "\n", 1
+            )[0]
         )["targets"][0]["path"]
         broken = any("a - b" in line["text"] for line in results[-1]["lines"])
         report = {
