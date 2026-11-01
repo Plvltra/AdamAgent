@@ -3,6 +3,7 @@
 import json
 import re
 from collections.abc import Collection, Mapping
+from hashlib import sha256
 from typing import Any
 
 from adam.contracts.errors import ToolError, ToolModeError
@@ -63,6 +64,13 @@ class ToolDirectory:
             except (TypeError, ValueError) as error:
                 raise ValueError("工具说明必须是可编码的有限 JSON。") from error
             self._schemas[name] = encoded
+        # 摘要包括完整 Schema、分组与能力；参数变化也不能继续使用旧目录索引。
+        fingerprint = sha256()
+        for name, entry in self._entries.items():
+            fingerprint.update(
+                json.dumps([self._schemas[name], entry.group, entry.capability.value]).encode()
+            )
+        self.version = fingerprint.hexdigest()
 
     def listings(self, mode: ExecutionMode) -> tuple[ToolListing, ...]:
         """按可信能力过滤目录；沿用执行器相同的模式规则，不检查具体参数的路径权限。"""

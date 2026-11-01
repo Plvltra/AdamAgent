@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B16.1 语义工具目录基础 | 22项真实目录权限/选择隔离、固定向量排序、缓存失效、坏批次/取消和配置；相关共136项，聊天接入待B16.2 | [test_semantic_tool_directory.py](test_semantic_tool_directory.py) |
 | B15.3.3 MCP 跨传输组合 | 10项真实认证JSON/SSE的三类媒体、原工具、坏正文/满缓存、取消/重启/零网络重放；与远程和stdio共62项 | [test_mcp_acceptance.py](test_mcp_acceptance.py) |
 | B15.3.2.2 MCP 媒体接入 | 23项真实SDK混合内容、来源/版本、整份拒绝与保存失败、主子保护、重启及离线重放；相关共167项 | [test_mcp_media_results.py](test_mcp_media_results.py) |
 | B15.3.2.1 二进制引用存储 | 23项真实保存/重启/来源、格式与额度、残留/损坏/写入故障和独立进程竞争；连同架构共45项，聊天接入待下一步 | [test_mcp_media_storage.py](test_mcp_media_storage.py) |

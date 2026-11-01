@@ -2,11 +2,26 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B15.3.3 真实 HTTP JSON/SSE、媒体故障和重启/重放验收；生产架构无变化。
+本次核对范围：B16.1 可信目录版本、独立语义候选排序和有界配置。
 
-核对结论：生产模块与下图保持。测试 HTTP 服务仅在媒体场景增加工具、资源和模板，真实认证 JSON/SSE 验证共享转换/存储路径，错误及满缓存保留旧字节，取消不声称远端停止。会话重开和离线重放经过原应用，后者禁止两套 HTTP 客户端及子进程。新增测试说明已核对，原协议/进程说明保留。
+核对结论：ToolDirectory 新增完整目录版本，SemanticToolRanker 在模式过滤后调用注入的 EmbeddingBackend，并在完整校验后更新单份内存缓存。配置区分说明加载和目录排序，既有发现与实际请求名单尚未改动；本步只新增独立 API。共享向量契约说明扩展到工具目录，原权限与不扩权注释保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B16.1 语义工具目录基础
+
+~~~mermaid
+flowchart LR
+    ST_REG["可信 ToolRegistry"] --> ST_DIR["ToolDirectory / 完整 Schema 与能力版本"]
+    ST_DIR --> ST_RANK["SemanticToolRanker / 先模式与分组过滤"]
+    ST_CFG["ToolDiscoveryConfig / 本地模型与数量阈值"] --> ST_RANK
+    ST_RANK --> ST_BACK["注入的 EmbeddingBackend / 仅名称与摘要"]
+    ST_BACK --> ST_CACHE["整批校验 / 有界单份内存向量"]
+    ST_CACHE --> ST_RESULT["ToolRanking / 候选、版本、分数或降级原因"]
+    ST_RANK --> ST_RESULT
+~~~
+
+此处尚无聊天工具连线；B16.2 才把候选查询接入原 ToolDiscovery，选择与执行授权保持分离。见 [语义工具发现](semantic-tool-discovery.md)。
 
 ## B15.3.2 MCP 二进制引用接入
 

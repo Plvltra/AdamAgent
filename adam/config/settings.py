@@ -386,13 +386,33 @@ class RulesConfig:
 
 @dataclass(frozen=True)
 class ToolDiscoveryConfig:
-    """工具说明默认按需加载；full 用于全量目录对照，不改变执行权限。"""
+    """说明加载与目录排序分开选择；full 对照和语义候选均不改变执行权限。"""
 
     mode: str = "on_demand"
+    ranking: str = "keyword"
+    embedding_model: str = "BAAI/bge-small-zh-v1.5"
+    max_index_tools: int = 256
+    semantic_min_score: float = 0.5
 
     def __post_init__(self) -> None:
         if self.mode not in ("on_demand", "full"):
             raise ConfigError("tool_discovery.mode 必须为 on_demand 或 full。")
+        if self.ranking not in ("keyword", "semantic"):
+            raise ConfigError("tool_discovery.ranking 必须为 keyword 或 semantic。")
+        if (
+            not isinstance(self.embedding_model, str)
+            or not 1 <= len(self.embedding_model) <= 200
+            or self.embedding_model != self.embedding_model.strip()
+            or any(ord(char) < 32 or ord(char) == 127 for char in self.embedding_model)
+        ):
+            raise ConfigError("tool_discovery.embedding_model 必须是1～200字符的本地模型名称。")
+        if type(self.max_index_tools) is not int or not 1 <= self.max_index_tools <= 1024:
+            raise ConfigError("tool_discovery.max_index_tools 必须为1～1024的整数。")
+        if (
+            type(self.semantic_min_score) not in {int, float}
+            or not 0 <= self.semantic_min_score <= 1
+        ):
+            raise ConfigError("tool_discovery.semantic_min_score 必须介于0与1之间。")
 
 
 @dataclass(frozen=True)

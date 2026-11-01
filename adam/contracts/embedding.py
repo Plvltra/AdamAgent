@@ -1,4 +1,4 @@
-"""文档与记忆共用的向量接口和数值边界；不加载模型或访问磁盘。"""
+"""文档、记忆与工具目录共用的向量接口和数值边界；不加载模型或访问磁盘。"""
 
 import math
 from typing import Protocol
@@ -9,7 +9,7 @@ class EmbeddingBackend(Protocol):
 
     @property
     def identity(self) -> str:
-        """标识模型及编码方式，变化后必须重新生成文档或记忆向量。"""
+        """标识模型及编码方式，变化后必须重新生成文档、记忆或目录向量。"""
         ...
 
     def passages(self, texts: list[str]) -> list[list[float]]:

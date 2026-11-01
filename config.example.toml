@@ -149,6 +149,11 @@ additional_write_dirs = []
 # Discovery requests and calls consume the existing agent budgets.
 [tool_discovery]
 mode = "on_demand"
+# B16.1 validates these options; runtime ranking is connected in B16.2.
+ranking = "keyword"
+embedding_model = "BAAI/bge-small-zh-v1.5"
+max_index_tools = 256
+semantic_min_score = 0.5
 
 # Opt in only with the fixed WSL/Bubblewrap backend installed; never falls back to host execution.
 # Shares agent tool/edit budgets. Kernel, RPC and mount limits stay fixed.
