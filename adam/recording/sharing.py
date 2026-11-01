@@ -12,8 +12,7 @@ from typing import Any
 from adam.recording.format import RecordingError, RecordingLimits
 from adam.recording.journal import DEFAULT_LIMITS, parse_recording
 from adam.recording.redaction import RULES_VERSION, LiteralRedaction, redact_json
-
-MAX_SHARE_BYTES = 64 * 1024 * 1024
+from adam.recording.share_format import MAX_SHARE_BYTES, SHARE_FORMAT, read_share
 
 
 def export_share(
@@ -46,7 +45,7 @@ def export_share(
             "replayable": False,
         }
         payload = {
-            "format": "adam_shared_recording_v1",
+            "format": SHARE_FORMAT,
             "purpose": "human_review_only",
             "created_at": datetime.now(UTC).isoformat(),
             "summary": summary,
@@ -82,3 +81,37 @@ def _create_output(path: Path, raw: bytes) -> None:
         os.link(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def inspect_share(path: Path, source: Path | None = None) -> dict[str, Any]:
+    """只显示分享摘要；可核对明确提供的原录制字节，不恢复原值或认可脱敏质量。
+
+    未提供 source 时摘要来源仅是文件声明。相同 SHA256 只绑定来源字节，不证明分享
+    正文未被第三方改写；不自动打开正文里的任何路径，也不读取模型配置。
+    """
+    shared = read_share(path)
+    binding = "not_checked"
+    if source is not None:
+        try:
+            with source.open("rb") as file:
+                raw = file.read(DEFAULT_LIMITS.max_bytes + 1)
+            if len(raw) > DEFAULT_LIMITS.max_bytes:
+                raise RecordingError("来源核对超过默认 32 MiB 限制。")
+            binding = (
+                "matches"
+                if (
+                    len(raw) == shared["summary"]["source_bytes"]
+                    and hashlib.sha256(raw).hexdigest() == shared["summary"]["source_sha256"]
+                )
+                else "different"
+            )
+        except OSError as error:
+            raise RecordingError("无法读取指定原录制进行来源核对。") from error
+    return {
+        "format": shared["format"],
+        "purpose": shared["purpose"],
+        "summary": shared["summary"],
+        "rules": shared["rules"],
+        "source_binding": binding,
+        "privacy_quality": "not_verified",
+    }

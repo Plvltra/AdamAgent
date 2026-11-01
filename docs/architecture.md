@@ -2,11 +2,25 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B13.1 单份字节录制解析、两遍本地规则脱敏和排他导出。
+本次核对范围：B13.2 分享 CLI、私有 TOML 规则、分享格式校验与来源字节核对。
 
-核对结论：recording.journal 提取 parse_recording，读取与导出复用原协议和残缺尾部规则；新增 redaction 与 sharing，仅处理本地数据。先识别敏感值再替换重复文本，报告不保存原文；同目录临时文件完成后排他发布，分享格式不当作录制格式。原注释及协议说明保持并补充同份字节来源约束。
+核对结论：recordings 的 share/inspect-share 在加载模型配置前分流；share_format 单独校验分享容器与私有规则，sharing.inspect_share 仅读取用户明确指定的来源。原重放保持只接收录制协议，拒绝分享副本后不创建重放目录。原 CLI 关于全新输出目录和非零退出码的注释保留并补充分享边界。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B13.2 分享命令与来源核对
+
+~~~mermaid
+flowchart LR
+    SC_CLI["recordings / share"] --> SC_RULES["share_format.load_redaction_rules / 私有 TOML"]
+    SC_RULES --> SC_EXPORT["sharing.export_share"]
+    SC_VIEW["recordings / inspect-share"] --> SC_READ["share_format.read_share / 有界格式与统计"]
+    SC_READ --> SC_CHECK["inspect_share / 显式来源字节核对"]
+    SC_CHECK --> SC_SUMMARY["摘要与未验证标记 / 无原敏感值"]
+    SC_REPLAY["recordings / replay"] --> SC_TRACE["read_recording / 原录制协议"]
+~~~
+
+分享事件不转换为 Recording。来源匹配仅证明提供的原字节与声明摘要相同，不证明分享正文真实性或脱敏充分。
 
 ## B13.1 脱敏分享副本
 
@@ -21,7 +35,7 @@ flowchart LR
     RS_SAVE --> RS_ART["human_review_only / replayable=false"]
 ~~~
 
-此阶段是宿主显式 API；不注册模型工具、不加载模型配置、不改变原录制。用户命令及来源核对由 B13.2 接入，规则边界见 [分享脱敏](recording-sharing.md)。
+宿主 API 与上方显式 CLI 均不注册模型工具、不加载模型配置、不改变原录制；规则边界见 [分享脱敏](recording-sharing.md)。
 
 ## B12.2.3 知识使用与目录保护
 

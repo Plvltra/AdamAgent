@@ -22,6 +22,8 @@ from adam.llm.http_transport import InterruptibleTransport
 from adam.recording.capture import RecordingModel, TurnRecorder
 from adam.recording.journal import RecordingWriter, read_recording
 from adam.recording.runtime import CaptureRuntime, replay_turn
+from adam.recording.share_format import load_redaction_rules
+from adam.recording.sharing import export_share, inspect_share
 from adam.recording.snapshot import capture_seed
 from adam.session.storage import SessionStore
 
@@ -94,7 +96,10 @@ def record_turn(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """独立开发入口；重放只需要录制及全新输出目录，差异/缺失分别使用非零退出码。"""
+    """独立开发入口；重放只需要录制及全新输出目录，差异/缺失使用非零退出码。
+
+    分享导出与查看也不读取模型配置，不将分享副本当作可重放录制。
+    """
     parser = argparse.ArgumentParser(description="显式单轮录制与离线重放")
     commands = parser.add_subparsers(dest="command", required=True)
     capture = commands.add_parser("record", help="执行真实一轮并录制，使用原权限与审批")
@@ -112,8 +117,25 @@ def main(argv: list[str] | None = None) -> int:
     replay.add_argument("--output", required=True, type=Path)
     inspect = commands.add_parser("inspect", help="只读显示录制完整性及调用数量")
     inspect.add_argument("recording", type=Path)
+    share = commands.add_parser("share", help="本地生成待人工审阅的脱敏副本，不可无损重放")
+    share.add_argument("recording", type=Path)
+    share.add_argument("--output", required=True, type=Path)
+    share.add_argument("--rules", type=Path, help="私有 TOML 字面替换规则；不上传或复制到报告")
+    inspect_shared = commands.add_parser("inspect-share", help="只读查看分享摘要和可选来源核对")
+    inspect_shared.add_argument("share", type=Path)
+    inspect_shared.add_argument("--source", type=Path)
     args = parser.parse_args(argv)
     try:
+        if args.command == "share":
+            report = export_share(
+                args.recording, args.output, literals=load_redaction_rules(args.rules)
+            )
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "inspect-share":
+            report = inspect_share(args.share, args.source)
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 1 if report["source_binding"] == "different" else 0
         if args.command == "replay":
             report = replay_turn(args.recording, args.output)
             print(json.dumps(report, ensure_ascii=False, indent=2))
