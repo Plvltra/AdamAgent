@@ -89,6 +89,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
         ("session", {"session", "contracts"}),
         ("memory", {"memory", "contracts"}),
         ("documents", {"documents", "config", "contracts"}),
+        ("web", {"web", "contracts"}),
         ("code_index", {"code_index", "contracts"}),
         ("skills", {"skills", "contracts"}),
         ("verification", {"verification", "contracts"}),
@@ -129,3 +130,13 @@ def test_package_dependency_direction(package, allowed):
             if module == "adam.bootstrap" and source != ROOT / "cli" / "main.py":
                 violations.append(f"{source.relative_to(ROOT)} cannot assemble dependencies")
     assert not violations, "\n".join(violations)
+
+
+def test_web_vendor_imports_stay_in_adapters():
+    """网页业务服务不认识 HTTP SDK；新文件也受同一约束。"""
+    for source in (ROOT / "web").rglob("*.py"):
+        if "adapters" not in source.parts:
+            assert not any(
+                module == "httpx" or module.startswith("httpx.")
+                for module in imported_modules(source)
+            ), source

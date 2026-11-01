@@ -1,6 +1,6 @@
-# C 系列能力模块设计（规划，尚未实现）
+# C 系列能力模块设计（按实际消费者逐项落地）
 
-最近核对：2026-11-01；基于主线 `f73a71a`。需求与小任务见 [C 系列练习规划](agent-capability-practice-plan.md)。本图是拟议边界，不代替 [已实现架构](architecture.md)。
+最近核对：2026-11-01；已同步主线 B05.2。C01.1 的 `web` 独立读取服务已实现，其余未勾选能力仍为规划。需求与小任务见 [C 系列练习规划](agent-capability-practice-plan.md)。本图是拟议边界，不代替 [已实现架构](architecture.md)。
 
 目标：增加观察和动作种类时，主要改动落在所属能力包及组装入口；Conversation 不随着工具数量增加而不断出现新的工具分支。低耦合不等于零公共依赖，也不要求一个文件对应一个类。
 
@@ -155,3 +155,7 @@ C11 是已有模型流与执行管线的优化，不为凑目录另建一个包�
 - 新增依赖有明确去向；没有 capability A 直接 import capability B 的内部实现形成循环，没有万能 Context/Manager 汇集所有状态。
 
 本轮文档验收：核对 14 类覆盖、60 个独立小任务编号、B/C 前置关系、已实现/规划边界和相对链接；Python 代码/注释未改动。功能实现时再新增业务测试与真实环境证据。
+
+## 当前已落地增量
+
+C01.1 在 `adam/web/` 实现值对象、网络策略、WebReader 与 HTTP 适配器；业务层只依赖本包及 contracts，HTTP SDK 仅在 adapters 导入。独立入口不创建模型/会话。ToolRegistry/bootstrap 的可选接入留给 C00.1，不把本规划图误当已实现架构。见 [网页读取](web-reading.md) 与 [当前架构](architecture.md)。

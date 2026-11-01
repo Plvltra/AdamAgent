@@ -326,7 +326,7 @@ flowchart LR
 ~~~
 
 读取工具与资料索引均已接入；PDF 页码是物理页，行号是页内提取位置，扫描提示不代表执行了 OCR；原文件授权、元数据校验和资源限制见 [PDF 感知](pdf-perception.md)。
-C 系列规划核对（2026-11-01）：主线 B06.2 的实现正文和图完整保留；拟议能力边界见 [能力模块设计](capability-module-design.md)，任务见 [C 系列规划](agent-capability-practice-plan.md)。C 能力尚未实现，本提交未改写 Python 代码或注释。
+C 系列最近核对（2026-11-01）：C01.1 独立网页抓取、网络策略与真实 HTTP 验收；已同步主线 B06.2。新增 web 服务和独立入口，应用主循环和模型/会话关系不变。原主线实现正文及图保留；新增说明已核对，没有删除既有 Python 设计注释。
 
 ## B16 语义工具目录与运行时接入
 
@@ -828,6 +828,21 @@ flowchart LR
 ~~~
 
 主体、时间消歧已由 B06.2 接入。模型准备、范围和降级契约见 [语义记忆](semantic-memory.md)。
+
+## C01.1 有来源网页读取
+
+~~~mermaid
+flowchart LR
+    WEB_CLI["python -m adam.web / 独立读取入口"] --> WEB_SERVICE["web.service.WebReader / 逐跳、期限与来源快照"]
+    WEB_SERVICE --> WEB_PORT["web.models.PageTransport / 可取消窄端口"]
+    WEB_SERVICE --> WEB_POLICY["web.policy.NetworkPolicy / URL 与地址策略"]
+    WEB_PORT --> WEB_HTTP["web.adapters.http / HTTPX、已验证 IP 与 TLS SNI"]
+    WEB_HTTP --> WEB_POLICY
+    WEB_HTTP --> WEB_SITE["真实 HTTP(S) 网站 / 有界实体"]
+    WEB_SERVICE --> WEB_PAGE["WebPage / 正文、标题、最终 URL、时间与摘要"]
+~~~
+
+[WebReader](../adam/web/service.py) 不导入 SDK 或应用内核；[网络策略](../adam/web/policy.py) 默认拒绝非公共地址。[HTTP 适配器](../adam/web/adapters/http.py) 拥有事件循环/连接，创建方负责 close；独立入口不创建模型和会话。此阶段未接入工具注册，C00.1 负责后续组装，不提前在图中画出规划关系。接口/限制及系统 DNS 清理边界见 [网页读取](web-reading.md)。
 
 ## B05.3 压缩对照入口
 
@@ -1610,6 +1625,7 @@ flowchart LR
 
 | 包 | 归入的文件 | 允许的其他项目依赖 |
 | --- | --- | --- |
+| web | service.py、models.py、policy.py、adapters/http.py | web、contracts；HTTP SDK 仅在 adapters |
 | cli | main.py、terminal.py、reply_output.py、memory_commands.py | application、context、config、contracts；仅 main 调用 bootstrap |
 | application | facade.py、conversation.py、request_policy.py、memories.py、experiences.py、planning.py、reflection.py、request_runner.py、subagents/manager.py、budget.py、account.py | context、session、memory、tool_calls、config、contracts |
 | config | loader.py、settings.py | contracts |

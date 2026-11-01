@@ -110,6 +110,7 @@
 | B06.3 召回组合验收 | 7 项固定题集/来源留证、不可用与降级、写入停止、主子版本继承；真实本地十题结果另存并保留失败 | [test_memory_retrieval_acceptance.py](test_memory_retrieval_acceptance.py)、[真实对照](../../docs/memory-retrieval-evaluation.md) |
 | B06.2 主体与事实时间 | 20 项同名/显式主体、有效期、原子替代、失败回滚、重启、错误来源及真实请求/重放；相关回归共 131 项 | [test_memory_identity.py](test_memory_identity.py) |
 | B06.1 本地语义记忆 | 12 项范围/版本/预算/降级/取消/请求/重放业务，17 项配置与来源边界；相关回归共 117 项，真实召回质量待验收 | [业务场景](test_semantic_memory.py)、[契约边界](../test_semantic_memory.py) |
+| C01.1 网页抓取 | 真实本地 HTTP 正文/来源版本、逐跳及 DNS 重绑定策略、字节/字符上限、错误分类、超时与取消、代理/cookie 隔离及独立 CLI；搜索/模型质量未验收 | [test_web_reading.py](test_web_reading.py)、[策略边界](../test_web_policy.py) |
 | B05.3 摘要对照与人工判读 | 28 项同历史双查询、JSON/SSE、预算与未知消费、故障停止、记录/评审来源校验及只读报告；真实效果待显式评估 | [test_compaction_evaluation.py](test_compaction_evaluation.py) |
 | B05.2 压缩保真样本 | 27 项四类判据、原文位置/覆盖范围、否定/矛盾/遗漏不自动判真、伪造资料/引用及只读 CLI；语义质量待评审 | [test_compaction_fidelity.py](test_compaction_fidelity.py) |
 | B05.1 任务导向摘要 | 9 项当前问题/真实工具前缀、原文与覆盖范围、失败/重启、预算、手动空任务、旧新重放及伪造来源拒绝场景；真实语义保真另行评估 | [test_task_compaction.py](test_task_compaction.py) |
