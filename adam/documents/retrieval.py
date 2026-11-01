@@ -2,22 +2,34 @@
 
 import math
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from adam.documents.models import Chunk, DocumentError, SearchHit
 from adam.documents.text import terms
 
 
-def keyword_search(chunks: Sequence[Chunk], query: str, limit: int = 5) -> list[SearchHit]:
+def keyword_search(
+    chunks: Sequence[Chunk],
+    query: str,
+    limit: int = 5,
+    *,
+    prefixes: Mapping[str, str] | None = None,
+) -> list[SearchHit]:
     """返回正得分片段，按得分和稳定来源排序；无匹配返回空列表。
 
     分词和 BM25 参数固定用于对照，不把得分当成答案存在的证明。
+    prefixes 只增强评分文本，返回的 Chunk 仍是逐字原文。
     """
     validate_query(query, limit)
     query_terms = set(terms(query))
     if not chunks or not query_terms:
         return []
-    counters = [Counter(terms(chunk.title + "\n" + chunk.text)) for chunk in chunks]
+    counters = [
+        Counter(
+            terms((prefixes or {}).get(chunk.chunk_id, "") + "\n" + chunk.title + "\n" + chunk.text)
+        )
+        for chunk in chunks
+    ]
     average = sum(map(lambda value: sum(value.values()), counters)) / len(counters) or 1
     frequency = Counter(word for counter in counters for word in counter)
     hits = []

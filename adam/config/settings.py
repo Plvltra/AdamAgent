@@ -280,6 +280,9 @@ class DocumentConfig:
     rerank_candidates: int = 20
     rerank_query_chars: int = 256
     rerank_passage_chars: int = 512
+    contextualize: bool = False
+    context_prefix_chars: int = 300
+    context_input_chars: int = 1200
 
     def __post_init__(self) -> None:
         """限制整个语料的资源消耗；目录配置本身不授予额外读取权限。"""
@@ -293,6 +296,8 @@ class DocumentConfig:
             raise ConfigError("documents.method 必须是 keyword、semantic 或 hybrid。")
         if type(self.rerank) is not bool or (self.rerank and self.method != "hybrid"):
             raise ConfigError("documents.rerank 必须是布尔值，且只能在 hybrid 方法启用。")
+        if type(self.contextualize) is not bool:
+            raise ConfigError("documents.contextualize 必须是布尔值。")
         if (
             not isinstance(self.reranker_model, str)
             or not self.reranker_model.strip()
@@ -325,6 +330,8 @@ class DocumentConfig:
             "rerank_candidates": (1, 20),
             "rerank_query_chars": (1, 1000),
             "rerank_passage_chars": (1, 4000),
+            "context_prefix_chars": (1, 1000),
+            "context_input_chars": (32, 8000),
         }
         for name, (low, high) in ranges.items():
             value = getattr(self, name)

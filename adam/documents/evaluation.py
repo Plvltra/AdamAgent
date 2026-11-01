@@ -75,6 +75,16 @@ def _case_result(
         "generation": result.generation,
         **({"fusion": asdict(result.fusion)} if result.fusion else {}),
         **({"reranking": asdict(result.reranking)} if result.reranking else {}),
+        **(
+            {"contextualization": asdict(result.contextualization)}
+            if result.contextualization
+            else {}
+        ),
+        **(
+            {"context_prefixes": [n.to_dict() for n in result.context_prefixes]}
+            if result.contextualization
+            else {}
+        ),
         "answerable": bool(sources),
         "hit": first is not None,
         "rank": first,

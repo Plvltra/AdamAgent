@@ -2,11 +2,24 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B10.1 独立语境说明、生成输入边界及与原文分离的缓存。
+本次核对范围：B10.2 可选语境评分、向量缓存身份、原文/说明输出和录制边界。
 
-核对结论：documents.contextualization 新增独立的说明生成与缓存接口，复用已授权 Corpus 和原子快照；DocumentSearch 尚未消费说明。原检索与引用契约保持，新增说明明确截断、来源、损坏及整批保存失败行为。
+核对结论：DocumentSearch 按配置准备说明并将前缀传给关键词/向量；VectorSearch 缓存键绑定前缀，返回的 Chunk 保持原文。工具与评估独立携带说明和版本，精排仍读原文，录制协议无需新分支。原关键说明保留并补充前缀缓存、引用与失败边界。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B10.2 语境进入评分
+
+~~~mermaid
+flowchart LR
+    CT_SEARCH["DocumentSearch / 显式开关"] --> CT_STORE["ContextPrefixStore / 当前源版本"]
+    CT_STORE --> CT_INDEX["有界前缀 + 原标题/正文"]
+    CT_INDEX --> CT_BM25["keyword_search / 增强评分"]
+    CT_INDEX --> CT_VECTOR["VectorSearch / 前缀绑定缓存键"]
+    CT_BM25 --> CT_HITS["原始 Chunk / 融合与原文精排"]
+    CT_VECTOR --> CT_HITS
+    CT_HITS --> CT_PACK["工具与评估 / 原文、说明分别保存"]
+~~~
 
 ## B10.1 独立分块语境
 
@@ -19,7 +32,7 @@ flowchart LR
     CP_NOTE --> CP_CACHE["独立原子缓存 / 全批成功才返回"]
 ~~~
 
-[contextualization.py](../adam/documents/contextualization.py) 不修改源文件或原索引，当前尚未加入搜索调用链；契约见 [语境前缀](contextual-retrieval.md)。
+[contextualization.py](../adam/documents/contextualization.py) 不修改源文件或原索引，搜索接入见上图；契约见 [语境前缀](contextual-retrieval.md)。
 
 ## B09.3 检索评估
 

@@ -34,6 +34,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rrf-constant", type=int, default=60)
     parser.add_argument("--rerank", action="store_true")
     parser.add_argument("--reranker-model", default=DocumentConfig().reranker_model)
+    parser.add_argument("--contextual", action="store_true")
+    parser.add_argument("--context-prefix-chars", type=int, default=300)
+    parser.add_argument("--context-input-chars", type=int, default=1200)
     parser.add_argument("--minimum", type=float, default=0.5)
     parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--output", type=Path)
@@ -57,6 +60,9 @@ def main(argv: list[str] | None = None) -> int:
             rrf_constant=args.rrf_constant,
             rerank=args.rerank,
             reranker_model=args.reranker_model,
+            contextualize=args.contextual,
+            context_prefix_chars=args.context_prefix_chars,
+            context_input_chars=args.context_input_chars,
         )
         if args.command == "prepare-reranker":
             FastEmbedReranker(
@@ -85,6 +91,7 @@ def main(argv: list[str] | None = None) -> int:
                         else None,
                         "semantic_min_score": config.semantic_min_score,
                         "chunk_chars": config.chunk_chars,
+                        "contextualize": config.contextualize,
                         **(
                             {"rerank": True, "reranker_model": config.reranker_model}
                             if args.rerank

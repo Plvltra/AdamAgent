@@ -22,6 +22,10 @@ reranker_model = "BAAI/bge-reranker-v2-m3-int8"
 rerank_candidates = 20
 rerank_query_chars = 256
 rerank_passage_chars = 512
+# 仅增强关键词/向量评分文本，工具仍返回独立的原文引用；默认关闭。
+contextualize = false
+context_prefix_chars = 300
+context_input_chars = 1200
 embedding_model = "BAAI/bge-small-zh-v1.5"
 semantic_min_score = 0.5
 chunk_chars = 400

@@ -1,18 +1,18 @@
 """小语料向量缓存和余弦检索；不需要独立向量数据库服务。"""
 
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from filelock import FileLock, Timeout
 
 from adam.documents.embedding import EmbeddingBackend, unit_vector
 from adam.documents.models import Chunk, DocumentError, SearchHit
-from adam.documents.snapshots import load_snapshot, save_snapshot
+from adam.documents.snapshots import digest, load_snapshot, save_snapshot
 
 
 class VectorSearch:
-    """按片段 ID 复用向量；源版本或模型变化会生成新向量，删除的片段不参与检索。"""
+    """按片段及索引前缀复用向量；源版本或模型变化会重建，删除的片段不参与检索。"""
 
     def __init__(
         self,
@@ -24,9 +24,18 @@ class VectorSearch:
         self.lock = FileLock(str(path.with_suffix(".lock")), timeout=5)
 
     def search(
-        self, chunks: Sequence[Chunk], query: str, limit: int, minimum: float
+        self,
+        chunks: Sequence[Chunk],
+        query: str,
+        limit: int,
+        minimum: float,
+        *,
+        prefixes: Mapping[str, str] | None = None,
     ) -> list[SearchHit]:
-        """刷新向量后返回达到余弦阈值的候选；阈值不保证证据充分。"""
+        """刷新向量后返回达到余弦阈值的候选；阈值不保证证据充分。
+
+        可选语境前缀只用于编码，缓存键同时绑定前缀；命中仍返回原始分块。
+        """
         self.check_cancel()
         if not chunks:
             return []
@@ -37,15 +46,20 @@ class VectorSearch:
                 identity = self.backend.identity
                 previous = self._load(identity)
                 vectors: dict[str, list[float]] = {}
+                keys: dict[str, str] = {}
                 for chunk in chunks:
                     self.check_cancel()
-                    if chunk.chunk_id in previous:
-                        vectors[chunk.chunk_id] = previous[chunk.chunk_id]
+                    prefix = (prefixes or {}).get(chunk.chunk_id, "")
+                    key = digest([chunk.chunk_id, prefix])[:16] if prefix else chunk.chunk_id
+                    keys[chunk.chunk_id] = key
+                    if key in previous:
+                        vectors[key] = previous[key]
                     else:
-                        rows = self.backend.passages([chunk.title + "\n" + chunk.text])
+                        text = chunk.title + "\n" + chunk.text
+                        rows = self.backend.passages([prefix + "\n" + text if prefix else text])
                         if len(rows) != 1:
                             raise ValueError("passage count")
-                        vectors[chunk.chunk_id] = unit_vector(rows[0])
+                        vectors[key] = unit_vector(rows[0])
                 self.check_cancel()
                 needle = unit_vector(self.backend.query(query))
                 if any(len(row) != len(needle) for row in vectors.values()):
@@ -55,7 +69,8 @@ class VectorSearch:
                     save_snapshot(self.path, {"backend": identity, "vectors": vectors})
             hits = [
                 SearchHit(
-                    chunk, sum(a * b for a, b in zip(needle, vectors[chunk.chunk_id], strict=True))
+                    chunk,
+                    sum(a * b for a, b in zip(needle, vectors[keys[chunk.chunk_id]], strict=True)),
                 )
                 for chunk in chunks
             ]
@@ -84,7 +99,7 @@ class VectorSearch:
         vectors = {}
         for key, row in value["vectors"].items():
             if not isinstance(key, str) or len(key) != 16:
-                raise ValueError("chunk id")
+                raise ValueError("index text identity")
             unit_vector(row)
             if not math.isclose(math.hypot(*row), 1, rel_tol=1e-6):
                 raise ValueError("non-normalized cached vector")

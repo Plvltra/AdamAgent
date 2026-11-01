@@ -64,6 +64,17 @@ class ContextBuilder(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class ContextReport:
+    """本次增强输入的身份与限额；说明来源可审计，不代表其含义已经验证。"""
+
+    generator: str
+    prefix_chars: int
+    input_chars: int
+    notes_version: str
+    note_count: int
+
+
 class ExtractiveContextBuilder:
     """本地确定性基线，仅标注文档、标题及相邻原文，不声称解析了指代或缩写。"""
 
@@ -82,7 +93,7 @@ class ContextPrefixStore:
     """持锁生成或复用同版本说明；全部生成成功才原子替换缓存并返回。
 
     缓存仅减少重复生成，调用者必须传入已经授权、成功刷新的 Corpus。
-    本阶段提供独立 API，不会自动将说明加入关键词、向量或聊天上下文。
+    本接口只生成独立资料；是否用于检索由调用者决定，引用原文始终保留。
     """
 
     def __init__(
