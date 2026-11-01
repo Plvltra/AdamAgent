@@ -2,11 +2,26 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B15.2 MCP 模板配置、目录与参数校验、文本来源及工具映射。
+本次核对范围：B15.3.1 MCP 本地/HTTP 传输、认证读取、固定目的地及可选资源说明。
 
-核对结论：新增 mcp.prompts 校验模板声明、字符串参数和文本结果；tool_calls.mcp_prompts 经原注册/执行流程调用 MCPConnection。模板与工具、资源配置独立，仍共用连接、无重试和清理契约；外部角色仅保存在工具结果，未新增真实对话权限。原关键注释保留，配置与注册说明按新增能力更新。
+核对结论：新增 mcp.transport 管理 SDK stdio/HTTP 生命周期；MCPConnection 保留业务协议，传输负责精确端点、TLS 和临时认证头。配置与记录仅含认证变量名，未把凭据传入应用层。stdio 进程回收契约迁入传输，远程关闭不等于服务停止；可选空资源说明已兼容。架构与关键注释已同步。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B15.3.1 MCP 传输与认证
+
+~~~mermaid
+flowchart LR
+    MT_CFG["MCPServerConfig / command 或 url、token_env"] --> MT_CONN["MCPConnection / 目录与业务请求"]
+    MT_CONN --> MT_PORTAL["AnyIO / 同一异步任务进出"]
+    MT_PORTAL --> MT_TRANS["mcp.transport.open_client / 资源生命周期"]
+    MT_TRANS --> MT_LOCAL["SDK stdio / 本地进程"]
+    MT_TRANS --> MT_HTTP["httpx2 + SDK Streamable HTTP / 固定端点与TLS"]
+    MT_ENV["环境变量 / 连接时读取"] --> MT_HTTP
+    MT_HTTP --> MT_REMOTE["显式远程服务 / 不由宿主管理进程"]
+~~~
+
+tools、resources 与 prompts 共用此连接。失败不重发业务请求，认证头不进入模型资料或记录。实际边界与验收见 [MCP](mcp.md)。
 
 ## B15.2 MCP 提示模板
 
@@ -28,7 +43,7 @@ flowchart LR
 flowchart LR
     MR_CFG["MCPServerConfig.resources / 显式 URI"] --> MR_REG["register_mcp / 组装与资源栈"]
     MR_REG --> MR_CONN["MCPConnection / 共用总等待与清理"]
-    MR_CONN --> MR_SDK["ClientSession / stdio 服务"]
+    MR_CONN --> MR_SDK["ClientSession / 配置选择的服务"]
     MR_CONN --> MR_DATA["mcp.resources / 目录、正文与内容版本"]
     MR_REG --> MR_TOOLS["mcp_resources / list 与 read"]
     MR_TOOLS --> MR_CONN
@@ -1090,11 +1105,13 @@ flowchart LR
     TOOL --> CLIENT["mcp/client.py"]
     CONF["config/mcp.py"] --> CLIENT
     CLIENT --> PORTAL["AnyIO BlockingPortal"]
-    PORTAL --> SDK["官方 mcp.Client"]
+    PORTAL --> TRANSPORT["mcp/transport.py / 认证与连接生命周期"]
+    TRANSPORT --> SDK["官方 mcp.Client"]
     SDK -->|stdio| SERVER["本地服务进程"]
+    SDK -->|Streamable HTTP| ENDPOINT["显式配置端点 / TLS 与目的地校验"]
 ~~~
 
-默认关闭，程序和工具允许列表由配置指定；模型不接触进程参数。失败/取消后不复用连接，重启应用才能重新连接。
+默认关闭，本地程序或远程端点及能力允许列表由配置指定；模型不接触进程参数或认证头。失败/取消后不复用连接，重启应用才能重新连接。
 
 ## E6.1～E6.2 Skill 目录与按需加载
 

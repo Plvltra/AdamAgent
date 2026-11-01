@@ -1,4 +1,4 @@
-# 本地 MCP：工具、资源与提示模板
+# MCP：工具、资源、提示模板与传输
 
 Adam 是客户端：发现工具、发送参数、读取结果。服务端负责实现查询并约束路径。
 tools 是可调用操作；resources 是 URI 标识的资料；prompts 是可复用提示模板。E7 映射 tools，B15.1 已接入固定 URI 的文本 resources，B15.2 已接入有来源的文本 prompts。
@@ -96,7 +96,7 @@ timeout_seconds = 10
 
 成功结果保留 server、原 uri、mime_type、文本和 size_bytes。version 是宿主对规范化的 URI/类型/文本列表计算的 SHA-256，version_source 明确为 content_sha256；它不是服务端发布版本，也不证明资料正确。expected_version 只保证这次实际读取匹配指定内容，不能保证来源此后不变。正文和资源描述不提升为系统指令；较长结果仍遵循原输出/附件规则。
 
-低层 ClientSession 读取避免高层缓存及自动再次请求。目录页请求共享总等待窗口，读取超时、断开、格式错误、版本不符或取消后关闭并回收连接，不自动重试。模型不能选择服务程序、修改 URI 允许列表或借 URI 直接访问宿主。本阶段仍只向主 Agent 注册 MCP，原子任务范围保持。远程传输、非文本引用留在 B15.3。
+低层 ClientSession 读取避免高层缓存及自动再次请求。目录页请求共享总等待窗口，读取超时、断开、格式错误、版本不符或取消后关闭并回收连接，不自动重试。模型不能选择服务程序、修改 URI 允许列表或借 URI 直接访问宿主。本阶段仍只向主 Agent 注册 MCP，原子任务范围保持。B15.3.1 已提供下方显式 HTTP 传输，非文本引用留在 B15.3.2。
 
 [26 项业务场景](../tests/features/test_mcp_resources.py) 使用真实 SDK stdio 服务、文件、分页与取消；模型 HTTP 使用 MockTransport。覆盖目录过滤、版本变化、字节/条数限额、未授权 URI、无效配置、损坏分页、二进制拒绝、超时/断开无重试、真实进程回收、教学示例及完整聊天/离线重放。与原 MCP 工具、架构及重放共 72 项通过；教学文件的 Windows 换行预期已修正并单独复验。Ruff、Pyright 和链接检查完成，主线提交门禁运行全量 pytest；没有调用付费模型。
 
@@ -125,3 +125,36 @@ prompts = ["review_text"]
 目录刷新和获取共用原连接、总等待、取消与进程回收；低层 ClientSession 每次只发送对应请求，不自动重发或跟进 input_required。参数错误在请求服务前返回，可修正后继续；协议、内容、超时、断开或在途取消导致连接关闭。边界检查在 SDK 接收响应后进行，不能声称限制了恶意服务的总内存。只配置可信本地程序；MCP 不是 OS 沙箱。
 
 [31 项业务场景](../tests/features/test_mcp_prompts.py) 使用真实 SDK stdio 服务及进程检查，覆盖目录/参数、来源与内容摘要、外部角色拒绝和隔离、超限、取消/断开无重试、名称冲突、默认关闭、教学服务及模型工具循环/零服务重放。与资源、原 MCP 工具、重放和架构检查共103项通过（92.94秒）。首轮录制夹具输入不一致已修正，整组重新通过；模型仅为 MockTransport，没有付费请求。Ruff、Pyright、链接和注释审查分别核对；主线提交门禁执行全量 pytest。
+
+
+## B15.3.1 显式 HTTP 传输与认证
+
+同一 MCPConnection 可连接本地 stdio 或用户配置的 Streamable HTTP；工具/资源/模板仍走原目录、参数、额度、日志和重放。使用 SDK 2.3.0 的 streamable_http_client 与 httpx2，未自行实现协议。依据：[官方传输说明](https://py.sdk.modelcontextprotocol.io/client/transports/)。
+
+将服务的 command/args 替换为 url，token_env 可选，仅填环境变量名。以下域名是占位示例，须替换为你选择的真实服务及其工具名；程序不会自动寻找或连接该地址。
+
+```toml
+[mcp]
+enabled = true
+
+[[mcp.servers]]
+alias = "remote"
+url = "https://mcp.example.com/mcp"
+token_env = "ADAM_MCP_TOKEN"
+tools = ["ping"]
+timeout_seconds = 10
+```
+
+配置端点必须是 HTTPS；为本地练习，仅数值回环 127.0.0.1 或 ::1 可以使用 HTTP，不将 localhost 或一般内网地址自动视为例外。端点不得包含用户名、密码、查询参数、片段、空白或控制字符。模型不能更改端点、程序或认证。URL 与 command/args 二选一；默认 enabled=false 时不连接网络，也不读取认证环境变量。
+
+HTTP 客户端验证服务器证书，不提供关闭校验的用户配置，不继承环境代理。每次发送核对规范化后的精确端点，并在收到重定向时拒绝；不仅设置 follow_redirects=False，因为 SDK 有自己的重定向处理。TLS 不受信或握手失败时不降级明文、不连接其他端点。
+
+token_env 的值仅在连接期间读入 Authorization: Bearer 头，不写回配置、不加入模型资料、会话 JSONL 或录制。未设置、空值、非 ASCII 或非法 Bearer 格式会在 HTTP 请求前失败；错误不回显值。认证不从模型参数或通用 headers 表传入。本阶段未提供 OAuth、自动刷新凭据或多账号管理。测试使用虚构令牌，不读取真实账户密钥。
+
+一次业务调用只发起对应的 POST；超时、HTTP 错误、协议错误或取消后关闭连接，不自动重发工具动作。SDK 的后台 GET/SSE 可能按其协议重连，受等待窗口约束；这与重发业务 POST 不同。HTTP 关闭不能证明远端任务已停止，也不会杀死远程服务；本地 stdio 服务仍按原方式回收进程。SSE 单事件采用 SDK 的1 MiB上限，JSON 响应仍在接收后做业务检查，不把它称为总内存硬限制。
+
+本机测试服务位于 [mcp_http_service.py](../tests/fixtures/mcp_http_service.py)。它在随机回环端口启动真正的 SDK 服务，提供 ping、docs://hello 和 review；由测试拥有并清理进程。普通模式返回 JSON，sse 模式返回流。错误、认证和 TLS 模式仅供验收，不用于生产部署。资源的可选空说明已兼容 SDK 的合法输出，必填名称和 URI 仍不可为空。
+
+验收：远程及原 MCP/架构/重放先合计131项通过（103.74秒）；增加真实自签名 TLS 拒绝及环境代理隔离后，29项远程场景重新全部通过（22.01秒）。共覆盖132个不同场景。实际经过 TCP、SDK 和真实子进程；仅 LLM HTTP 使用 MockTransport。认证材料在捕获的模型请求、会话、录制和本地日志中均未出现；离线重放不连接服务。没有调用付费模型或外部 MCP 服务。
+
+httpx2、uvicorn、cryptography 原已在锁文件中，本次分别声明生产/测试直接依赖，未更新包版本或下载包。默认 uv 缓存不可访问，使用工作区缓存执行 uv lock --check --offline，71包锁定一致。后续仍由主线提交钩子执行静态检查与全量 pytest。

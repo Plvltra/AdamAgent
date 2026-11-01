@@ -22,7 +22,7 @@ def register_mcp(
     workspace: Path,
     resources: ExitStack,
 ) -> ToolRegistry:
-    """启动可信服务并隔离名称；工具须白名单和只读声明，资源和模板须独立允许列表。"""
+    """连接可信服务并隔离名称；工具须白名单和只读声明，资源和模板须独立允许列表。"""
     if not config.enabled:
         return registry
     for server in config.servers:

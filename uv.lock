@@ -17,6 +17,7 @@ dependencies = [
     { name = "colorama" },
     { name = "filelock" },
     { name = "httpx" },
+    { name = "httpx2" },
     { name = "jsonschema" },
     { name = "mcp" },
     { name = "pyyaml" },
@@ -29,10 +30,12 @@ documents = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "cryptography" },
     { name = "pre-commit" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata]
@@ -42,6 +45,7 @@ requires-dist = [
     { name = "fastembed", marker = "extra == 'documents'", specifier = ">=0.9.1,<0.10" },
     { name = "filelock", specifier = ">=3.16,<4" },
     { name = "httpx", specifier = ">=0.28,<0.29" },
+    { name = "httpx2", specifier = ">=2.16,<3" },
     { name = "jsonschema", specifier = ">=4.25,<5" },
     { name = "mcp", specifier = ">=2.3,<3" },
     { name = "pyyaml", specifier = ">=6.0.3,<7" },
@@ -50,10 +54,12 @@ provides-extras = ["documents"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "cryptography", specifier = ">=50,<51" },
     { name = "pre-commit", specifier = ">=4.7,<5" },
     { name = "pyright", specifier = ">=1.1.414" },
     { name = "pytest", specifier = ">=8,<10" },
     { name = "ruff", specifier = ">=0.17.1" },
+    { name = "uvicorn", specifier = ">=0.54,<0.55" },
 ]
 
 [[package]]

@@ -117,7 +117,8 @@ max_input_bytes = 65536
 max_output_bytes = 8192
 
 [mcp]
-# Explicitly enable only trusted local servers. See docs/mcp.md.
+# Explicitly enable only trusted local programs or configured HTTP endpoints. See docs/mcp.md.
+# Remote entries use url instead of command/args; token_env names a Bearer-token environment variable.
 # Server entries may allow read-only tools, exact resources URIs and named prompts.
 # All three allowlists default to empty; at least one entry is required per server.
 enabled = false

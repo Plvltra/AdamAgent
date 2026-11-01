@@ -1,4 +1,4 @@
-"""复用一个 stdio 连接；异步上下文由同一 AnyIO 任务进入和退出。"""
+"""复用配置选择的 MCP 连接；异步上下文由同一 AnyIO 任务进入和退出。"""
 
 from collections.abc import Callable, Coroutine
 from concurrent.futures import Future
@@ -9,7 +9,7 @@ from time import monotonic
 from typing import Any
 
 from anyio.from_thread import BlockingPortal, start_blocking_portal
-from mcp import Client, StdioServerParameters
+from mcp import Client
 from mcp.types import GetPromptResult, PaginatedRequestParams, ReadResourceResult
 
 from adam.config.mcp import MCPServerConfig
@@ -17,10 +17,11 @@ from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ToolError
 from adam.mcp import prompts
 from adam.mcp.resources import MAX_RESOURCE_BYTES, catalog, text_result, validate_read
+from adam.mcp.transport import open_client
 
 
 class MCPConnection:
-    """显式 open/close 管理进程；调用失败不自动重发，不把服务器声明当沙箱。"""
+    """显式 open/close 管理连接及本地进程；调用失败不重发，不把服务器声明当沙箱。"""
 
     def __init__(self, config: MCPServerConfig, workspace: Path) -> None:
         self.config, self.workspace = config, workspace
@@ -32,21 +33,15 @@ class MCPConnection:
         self._prompts: list[dict[str, Any]] = []
 
     def open(self) -> "MCPConnection":
-        """启动可信程序并完成握手与目录发现；任何失败都会回收已创建资源。"""
+        """连接显式配置的可信服务并发现目录；任何失败都会回收已创建的本地资源。"""
         if self._stack is not None:
             raise ToolError("MCP 连接已经打开。")
         stack = ExitStack()
         try:
             self._portal = stack.enter_context(start_blocking_portal())
-            client = Client(
-                StdioServerParameters(
-                    command=self.config.command,
-                    args=list(self.config.args),
-                    cwd=str(self.workspace),
-                ),
-                read_timeout_seconds=float(self.config.timeout_seconds),
+            self._client = stack.enter_context(
+                self._portal.wrap_async_context_manager(open_client(self.config, self.workspace))
             )
-            self._client = stack.enter_context(self._portal.wrap_async_context_manager(client))
             if self.config.tools:
                 result = self._portal.call(self._client.list_tools)
                 if result.next_cursor is not None or len(result.tools) > 64:
@@ -80,7 +75,7 @@ class MCPConnection:
         arguments: dict[str, Any],
         cancel: CancellationToken | None = None,
     ) -> dict[str, Any]:
-        """一次本地执行对应一次协议调用；取消只停止等待，随后关闭连接回收进程。"""
+        """一次执行对应一次协议调用；取消后关闭连接，本地服务回收进程，远程不保证停止。"""
         return self._run(lambda: self._call(name, arguments), cancel)
 
     def list_resources(self, cancel: CancellationToken | None = None) -> dict[str, Any]:
@@ -129,7 +124,7 @@ class MCPConnection:
         return self._run(lambda: self._get_prompt(name, checked), cancel)
 
     def close(self) -> None:
-        """回收连接、服务进程与事件线程；可重复调用，不创建新连接。"""
+        """回收连接、本地进程与事件线程；可重复调用且不新建连接，不管理远程服务进程。"""
         stack, self._stack = self._stack, None
         self._client = self._portal = None
         if stack:

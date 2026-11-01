@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B15.3.1 MCP HTTP | 29项真实回环JSON/SSE、认证不落盘、固定端点、TLS/代理、故障/取消和零网络重放；原103项相关回归通过 | [test_mcp_remote.py](test_mcp_remote.py) |
 | B15.2 MCP 提示模板 | 31项真实SDK目录/参数、角色与来源、限额、取消/断开、冲突、教学服务及零服务重放；相关共103项 | [test_mcp_prompts.py](test_mcp_prompts.py) |
 | B15.1 MCP 资源 | 26 项真实 SDK 分页、URI、版本、限额、取消/故障与教学示例；模型工具循环及零服务重放，相关共 72 项 | [test_mcp_resources.py](test_mcp_resources.py) |
 | B14.3 编排故障与清理 | 8 项真实管道成功/失败/取消与回调异常，相关共 112 项；六类真实 WSL 故障与强杀报告另存 | [宿主清理](test_orchestration_cleanup.py)、[真实故障入口](../../scripts/orchestration_fault_acceptance.py) |

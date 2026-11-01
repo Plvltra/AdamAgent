@@ -98,6 +98,6 @@ def text_result(value: dict[str, Any], uri: str, expected_version: str | None) -
 def _text(value: object, limit: int, *, optional: bool = False) -> str | None:
     if value is None and optional:
         return None
-    if not isinstance(value, str) or not value.strip() or len(value) > limit:
+    if not isinstance(value, str) or len(value) > limit or (not optional and not value.strip()):
         raise ToolError("MCP 资源元信息缺失或超过上限。")
     return value
