@@ -7,6 +7,7 @@ from typing import TypeVar
 
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import BudgetError, FailureCode, RequestNotSentError
+from adam.contracts.runtime import CountState
 
 _Result = TypeVar("_Result")
 
@@ -19,6 +20,10 @@ class RequestPolicy:
     notify: Callable[[str], None]
     used: int = 0
     cancel: CancellationToken | None = None
+
+    def snapshot(self) -> CountState:
+        """复制当前物理请求计数；连接重试也占次数，读取不提前消费下一次。"""
+        return CountState(self.maximum, self.used)
 
     def run(
         self, operation: Callable[[], _Result], *, keep_requests: int = 0, max_attempts: int = 3

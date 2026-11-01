@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B04.1 只读执行状态 API | 7 项业务场景：真实请求重试、共享预留与未知、旧快照无授权、失败重置与不可变汇总；11 项契约边界；聊天接入见 B04.2 | [业务状态](test_runtime_state.py)、[数据边界](../test_runtime_state.py) |
 | B03.3 缓存/耗时对照 | 26项JSON/SSE、两布局、实际用量/价格/未知、失败/取消/保存故障、预算停止及只读报告；真实效果待显式运行 | [test_cache_evaluation.py](test_cache_evaluation.py) |
 | B03.2 上下文布局 | 12 项固定材料/预算/消息块和5项计划/审查/旧新重放/损坏版本验收；相关回归共150项；字节前缀不等于缓存命中 | [业务布局](test_context_layout.py)、[布局对照](../test_context_layout.py) |
 | B03.1 缓存与输入观测 | 29 项基础、14 项业务：JSON/SSE、真实工具、缓存与总量分离、前缀、摘要/主子、故障/保存失败、日志校验及旧新重放；相关回归共156项 | [test_cache_observation.py](test_cache_observation.py)、[基础契约](../test_model_observation.py) |

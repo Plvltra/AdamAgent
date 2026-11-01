@@ -2,11 +2,26 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B03.3 独立缓存/耗时评估、可选单价与只读报告；26项离线工程验收。
+本次核对范围：B04.1 不可变执行状态、物理请求与共享预留快照；18 项专项验收。
 
-核对结论：生产Agent模块结构无变化；新增scripts独立实验入口，复用上下文构造、模型适配及观测契约，不接入用户聊天或工具执行。数据写入复用既有评估写入器；report不加载连接配置或创建客户端。新增接口的注释和未知/故障契约已审查，没有删除既有Python说明。
+核对结论：contracts 新增 RuntimeState 等只读数据；RequestPolicy 与 SharedTokenBudget 提供快照，尚未注入聊天。原执行、预留与权限路径不变，依赖仍朝 contracts。新增接口的未知/计数/并发契约已审查，没有删除既有 Python 说明。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B04.1 只读执行状态
+
+~~~mermaid
+flowchart LR
+    RS_REQUEST["RequestPolicy.snapshot / 物理次数"] --> RS_COUNT["CountState"]
+    RS_BUDGET["SharedTokenBudget.snapshot / 锁内消费和预留"] --> RS_TOKEN["TokenState"]
+    RS_COUNT --> RS_STATE["RuntimeState / 不可变汇总"]
+    RS_TOKEN --> RS_STATE
+    RS_FAILURE["FailureState / 宿主失败计数和指纹"] --> RS_STATE
+    RS_HOST["宿主目录、模式、待收集 ID"] --> RS_STATE
+    RS_STATE --> RS_RECORD["as_record / 独立 JSON 数据"]
+~~~
+
+[状态契约](../adam/contracts/runtime.py) 不依赖执行实现；[请求计数](../adam/application/request_policy.py) 和 [共享预算](../adam/application/subagents/budget.py) 只增加读取接口。消费和预留在同一锁内取得，聚合其他来源时不保证全局原子性。当前聊天尚未使用该数据；后续动态注入属于 B04.2。边界和 API 验收见 [状态说明](runtime-state.md)。
 
 ## B03.3 显式缓存/耗时实验
 

@@ -6,6 +6,7 @@ from threading import RLock
 from typing import Any
 
 from adam.contracts.errors import BudgetError, FailureCode
+from adam.contracts.runtime import TokenState
 
 
 class SharedTokenBudget:
@@ -41,6 +42,12 @@ class SharedTokenBudget:
                 sum(tokens for tokens, _ in self._totals.values()),
                 any(unknown for _, unknown in self._totals.values()),
             )
+
+    def snapshot(self) -> TokenState:
+        """在同一锁内读取整组消费与预留，不预留额度，也不读取其他线程的日志。"""
+        with self._lock:
+            tokens, unknown = self.usage()
+            return TokenState(self.maximum, tokens, unknown, self._reserved)
 
     def check(self, *, observe: Callable[[dict[str, Any]], None] | None = None) -> None:
         """额度耗尽或曾有未知消费时拒绝新增请求，保留所有已知消费。"""
