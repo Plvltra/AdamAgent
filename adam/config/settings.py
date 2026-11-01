@@ -591,6 +591,29 @@ class BrowserConfig:
 
 
 @dataclass(frozen=True)
+class VisionConfig:
+    """可选本地图片解码；只增加输入能力，不升级模型或扩大读取授权。"""
+
+    enabled: bool = False
+    max_bytes: int = 10485760
+    max_pixels: int = 16000000
+    max_dimension: int = 8192
+
+    def __post_init__(self) -> None:
+        """TOML 与直接构造共用上限；像素额度不是解码进程的内存硬限制。"""
+        if type(self.enabled) is not bool:
+            raise ConfigError("vision.enabled 必须是布尔值。")
+        for name, maximum in (
+            ("max_bytes", 10485760),
+            ("max_pixels", 64000000),
+            ("max_dimension", 16384),
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or not 1 <= value <= maximum:
+                raise ConfigError(f"vision.{name} 超出允许范围。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
@@ -622,3 +645,4 @@ class AppConfig:
     command_isolation: CommandIsolationConfig = field(default_factory=CommandIsolationConfig)
     web: WebConfig = field(default_factory=WebConfig)
     browser: BrowserConfig = field(default_factory=BrowserConfig)
+    vision: VisionConfig = field(default_factory=VisionConfig)

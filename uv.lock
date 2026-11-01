@@ -31,6 +31,9 @@ browser = [
 documents = [
     { name = "fastembed" },
 ]
+vision = [
+    { name = "pillow" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -53,10 +56,11 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.25,<5" },
     { name = "mcp", specifier = ">=2.3,<3" },
     { name = "pypdf", specifier = ">=6.21.4,<7" },
+    { name = "pillow", marker = "extra == 'vision'", specifier = ">=13.0,<14" },
     { name = "playwright", marker = "extra == 'browser'", specifier = ">=1.58,<2" },
     { name = "pyyaml", specifier = ">=6.0.3,<7" },
 ]
-provides-extras = ["documents", "browser"]
+provides-extras = ["documents", "vision", "browser"]
 
 [package.metadata.requires-dev]
 dev = [

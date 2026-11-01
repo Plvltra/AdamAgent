@@ -33,6 +33,7 @@ from adam.config.settings import (
     SubagentConfig,
     ToolDiscoveryConfig,
     ToolLimits,
+    VisionConfig,
     WebConfig,
 )
 from adam.contracts.errors import ConfigError
@@ -166,6 +167,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "command_isolation",
             "web",
             "browser",
+            "vision",
         },
         "主配置",
     )
@@ -377,6 +379,11 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
                 data.get("artifacts", {}),
                 {item.name for item in fields(ArtifactConfig)},
                 "artifacts",
+            )
+        ),
+        vision=VisionConfig(
+            **checked_section(
+                data.get("vision", {}), {item.name for item in fields(VisionConfig)}, "vision"
             )
         ),
         browser=BrowserConfig(

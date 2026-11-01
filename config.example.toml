@@ -226,3 +226,11 @@ max_tabs = 8
 max_contexts = 4
 # 完整下载交付/保存上限，不是 SDK 缓冲或流量硬限制。
 max_download_bytes = 10485760
+
+[vision]
+# Optional local single-frame PNG/JPEG/WebP input; uv sync --locked --extra vision.
+# Loading does not imply model vision support. See docs/image-input.md.
+enabled = false
+max_bytes = 10485760
+max_pixels = 16000000
+max_dimension = 8192

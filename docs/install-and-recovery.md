@@ -1,6 +1,6 @@
 # Windows 安装、运行与恢复
 
-核对日期：2026-10-30。交付为 Python CLI 源码，不制作 exe。真实服务商效果与物理键盘体验另列人工清单。
+核对日期：2026-11-01。交付为 Python CLI 源码，不制作 exe。真实服务商效果与物理键盘体验另列人工清单。
 
 ## 从干净环境启动
 
@@ -22,6 +22,10 @@ $env:DEEPSEEK_API_KEY = "填入自己的密钥"
 
 ADAM_HOME 可以切换整套配置/数据根目录。--config、--llm-config 指定具体文件，--workspace 指定工具工作目录。模型连接、存储位置、权限和预算分别由 TOML 对应表负责；改变工作目录不会隐式移动会话。
 
+## 可选图片输入
+
+C04.1 默认关闭。显式 `uv sync --locked --extra vision` 后在 [vision] 设置 enabled=true，可用 load_image 保存单帧 PNG/JPEG/WebP 的原始版本、尺寸与 EXIF 方向。关闭时不要求 Pillow；加载并不升级默认模型或隐式附图，见 [图片输入](image-input.md)。备份时原图片证据仍随整个 _media 与会话来源日志保留，不能仅复制工具结果。
+
 ## 本地回归
 
 ```powershell
@@ -30,6 +34,8 @@ ADAM_HOME 可以切换整套配置/数据根目录。--config、--llm-config 指
 .\.venv\Scripts\python.exe -m pyright
 .\.venv\Scripts\python.exe -m pytest -q
 ```
+
+运行图片用例须先安装 vision 可选依赖（`uv sync --locked --extra vision`）；浏览器及文档可选套件仍按各自说明准备，不使用共享环境补依赖。
 
 这些测试使用临时配置、假模型 HTTP、本地 TCP 服务和真实本地子进程，不调用付费模型。测试成功不能证明真实模型选工具或修复代码的效果。
 

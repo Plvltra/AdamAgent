@@ -92,6 +92,7 @@ from adam.tool_calls.skill_tools import register_skills
 from adam.tool_calls.terminal_sessions import TerminalSessions
 from adam.tool_calls.terminal_tools import TerminalTools
 from adam.tool_calls.trigger_tools import TriggerTools
+from adam.tool_calls.vision_tools import register_vision
 from adam.tool_calls.web_tools import register_web
 
 ChildClientFactory = Callable[[CancellationToken], AbstractContextManager[ModelClient]]
@@ -135,6 +136,7 @@ def build_application(
     主子媒体预检各自只借用所属 SessionMedia，默认模型无视觉声明时明确拒绝。
     网页工具按次创建/关闭独立连接；禁用时不加载其后端。
     浏览器按会话延迟创建，逐次确认确切动作；子任务不注册浏览器、不继承主审批。
+    图片加载沿原主子读取范围，完整解码后发布各自媒体引用；不隐式发送给模型。
     启用子任务、MCP 或浏览器的调用方须在释放主会话锁前调用 application.close；
     组装失败会回收已创建资源，主模型与主存储仍由调用方持有。
     """
@@ -288,6 +290,12 @@ def build_application(
                 store, MediaStore(media_dir, max_bytes=config.browser.max_download_bytes)
             ),
         )
+        registry, images = register_vision(
+            registry,
+            config.vision,
+            PathPolicy(workspace, config.permissions, protected_dirs=protected_dirs),
+            SessionMedia(store, MediaStore(media_dir, max_bytes=config.vision.max_bytes)),
+        )
         if artifacts:
             registry = artifacts.register(registry)
         if config.session_search.enabled:
@@ -438,6 +446,8 @@ def build_application(
                 trigger_tools.bind_source(link)
             if browser:
                 browser.bind_source(link)
+            if images:
+                images.bind_source(link)
             if manager:
                 manager.bind_source(link)
             if planner:
@@ -613,6 +623,7 @@ def _open_child(
     知识仅经当前授权来源的查询接口读取；子任务不能保存候选、审查或发布。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     网页读取继承可信开关与网络策略，每次工具调用独占并关闭连接。
+    图片加载继承子任务读取授权，媒体保存在子任务独立命名空间，不共享主图片引用。
     Hooks 继承用户配置，使用子任务取消令牌；后置故障提示带子任务 ID。
     普通辅助任务可保存读取提案但不能应用；宿主私有副本任务仅可直接编辑副本，命令仍禁止。
     """
@@ -674,6 +685,30 @@ def _open_child(
             allow_knowledge_proposals=False,
         )
         registry = register_web(registry, config.web, store=store)
+        registry, images = register_vision(
+            registry,
+            config.vision,
+            PathPolicy(
+                Path(agent.workspace),
+                PermissionConfig(
+                    additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)
+                ),
+                protected_dirs=(
+                    memories_dir,
+                    documents_dir,
+                    checkpoints_dir,
+                    artifacts_dir,
+                    media_dir,
+                    knowledge_dir,
+                ),
+            ),
+            SessionMedia(
+                store,
+                MediaStore(
+                    media_dir / "children" / root.parent.name, max_bytes=config.vision.max_bytes
+                ),
+            ),
+        )
         registry, skills = register_skills(
             registry,
             Path(agent.workspace),
@@ -773,12 +808,20 @@ def _open_child(
             if config.tool_discovery.ranking == "semantic"
             else None,
         )
+
+        def bind_source(link: dict[str, str]) -> None:
+            """保持子提案来源绑定，并向图片输入传递同一个真实执行来源。"""
+            if submission:
+                submission.bind_source(link)
+            if images:
+                images.bind_source(link)
+
         executor = ToolExecutor(
             store,
             registry,
             lambda _: None,
             cancel=cancel,
-            before_call=submission.bind_source if submission else None,
+            before_call=bind_source,
             discovery=discovery,
             no_progress=config.no_progress,
             hooks=(

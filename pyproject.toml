@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 documents = ["fastembed>=0.9.1,<0.10"]
+vision = ["pillow>=13.0,<14"]
 browser = [
     "playwright>=1.58,<2",
 ]

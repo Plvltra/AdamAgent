@@ -91,6 +91,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
         ("documents", {"documents", "config", "contracts"}),
         ("web", {"web", "contracts"}),
         ("browser", {"browser", "contracts"}),
+        ("vision", {"vision", "contracts"}),
         ("code_index", {"code_index", "contracts"}),
         ("skills", {"skills", "contracts"}),
         ("verification", {"verification", "contracts"}),
@@ -110,6 +111,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
                 "documents",
                 "web",
                 "browser",
+                "vision",
                 "skills",
                 "mcp",
                 "config",
@@ -152,4 +154,13 @@ def test_browser_vendor_imports_stay_in_adapters():
             assert not any(
                 module == "playwright" or module.startswith("playwright.")
                 for module in imported_modules(source)
+            ), source
+
+
+def test_vision_vendor_imports_stay_in_adapters():
+    """图片服务不认识 Pillow；禁用时基础启动路径也不能导入该 SDK。"""
+    for source in (ROOT / "vision").rglob("*.py"):
+        if "adapters" not in source.parts:
+            assert not any(
+                module == "PIL" or module.startswith("PIL.") for module in imported_modules(source)
             ), source

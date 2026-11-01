@@ -70,6 +70,7 @@
 | B17.2.2 PDF 页级索引 | 21项新增；两组相关143与227项通过，涵盖来源/扫描提示/版本/权限/故障/重放；主线门禁全量验证 | [test_pdf_indexing.py](test_pdf_indexing.py) |
 | B17.2.1 PDF 读取工具 | 15项权限/变化/页码/额度/取消/配置/重放；两组相关162和111项通过，新增TOML后62项 | [test_pdf_tools.py](test_pdf_tools.py) |
 | B17.1 PDF 提取基础 | 15项真实页码/版本/图像标记/截断/加密/解码限额/取消/配置隔离；架构合计37项，真实中文书稿三页另存统计 | [test_pdf_extraction.py](test_pdf_extraction.py) |
+| C04.1 本地图片输入 | 29 项业务、36 项解码及 13 项配置/独立进程导入：真实 PNG/JPEG/WebP、尺寸/EXIF 方向、原字节与版本、显式附图/无能力拒绝、发现/规则/Hook/预算、取消/保存失败、重启/父子隔离及零解码事实重放；视觉质量待 C04.2～4 | [test_image_input.py](test_image_input.py)、[解码](../test_image_decoding.py)、[配置](../test_vision_config.py) |
 | B16.3 二十工具对照 | 7项报告、错误与权限验收；相关共115项；真实本地命中9/10，多余候选与失败原样归档 | [test_tool_discovery_evaluation.py](test_tool_discovery_evaluation.py) |
 | B16.2 语义发现接入 | 8项真实发现/请求名单/文件调用、同批与路径拒绝、降级/分页、变更目录、主子隔离及重启重放；相关共108项 | [test_semantic_tool_flow.py](test_semantic_tool_flow.py) |
 | B16.1 语义工具目录基础 | 22项真实目录权限/选择隔离、固定向量排序、缓存失效、坏批次/取消和配置；相关共136项，聊天接入待B16.2 | [test_semantic_tool_directory.py](test_semantic_tool_directory.py) |
@@ -114,7 +115,7 @@
 | C01.3 网页研究与片段引用 | 17 项真实 HTTP/主子/重启业务、28 项引用边界与 6 项新增配置：搜索→正文→逐字引用、原模式/批准、保存/取消/来源故障、隔离与零网络重放；模型语义质量待 C01.4 | [test_web_research.py](test_web_research.py)、[引用边界](../test_web_evidence.py)、[配置](../test_web_config.py) |
 | C01.2 独立百科搜索 | 27 项真实本地 HTTP 业务、69 项协议/工厂边界：有界候选/空结果、来源版本、限流/配置/取消、整批校验、无重试/重定向/代理/cookies；真实百科后端两次留证，不证明通用搜索或模型质量 | [test_web_search.py](test_web_search.py)、[边界](../test_web_search.py)、[真实记录](../../docs/evaluations/c01-search-backend.json) |
 | C02.3 浏览器生命周期 | 33 项真实本地业务与 17 项边界：标签/弹窗/对话框、批准关闭/下载、完整身份分页、来源/配额/提交故障、cookies 不入日志、取消、真实 POST 后终止/崩溃及重启不重提、零动作引用重放；真实模型质量待 C02.4 | [test_browser_lifecycle.py](test_browser_lifecycle.py)、[边界](../test_browser_lifecycle.py) |
-| C00.2 二进制媒体证据 | 19 项业务、51 项低层边界：有效 PNG/WAV 完整读写、引用来源/所有者、JSONL 无正文、缺失/损坏/超限、跨会话、真实写入/提交故障、并发、备份与主子目录保护；多模态模型输入待 C00.3 | [test_media_evidence.py](test_media_evidence.py)、[边界](../test_media_evidence.py) |
+| C00.2 二进制媒体证据 | 19 项业务、51 项低层边界：有效 PNG/WAV 完整读写、引用来源/所有者、JSONL 无正文、缺失/损坏/超限、跨会话、真实写入/提交故障、并发、备份与主子目录保护；多模态输入已由 C00.3 接入，真实解码见 C04.1 | [test_media_evidence.py](test_media_evidence.py)、[边界](../test_media_evidence.py) |
 | C02.2 逐次批准浏览器动作 | 25 项主应用业务场景、40 项协议/配置/CLI 边界；真实填表/选择/滚动/POST/303 回执、原预检拒绝、引用/会话/批准期间替换、拒绝/取消、日志/SDK/OS/观察故障、重定向、零动作重放与主子隔离；真实模型质量未验收 | [test_browser_actions.py](test_browser_actions.py)、[边界](../test_browser_actions.py) |
 | C02.1 DOM 浏览器观察 | 真实 Chromium/动态本地页、版本与控件时效、同名替代/属性变化、截断、逐跳站点拒绝、自动 POST/WebSocket 零请求、cookies 隔离、超时/取消/资源故障与 CLI；模型动作见 C02.2 | [test_browser_observation.py](test_browser_observation.py)、[配置/导入边界](../test_browser_policy.py) |
 | C00.1 可选能力与资源 | 默认禁用/无后端导入、主子发现读取、真实 HTTP 独立关闭、预算/Hook 拒绝、取消与创建/清理失败、完整来源限长、零网络离线重放；21 个原网页场景迁移无变化 | [test_optional_web.py](test_optional_web.py)、[配置边界](../test_web_config.py) |
