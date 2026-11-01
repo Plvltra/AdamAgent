@@ -1,0 +1,47 @@
+{
+  "checked_at": "2026-11-01T09:43:51.891560+00:00",
+  "real_backend": true,
+  "coordinator_thread_preserved": true,
+  "results": {
+    "pipeline": {
+      "result": {
+        "size": 20,
+        "selected": [
+          "gamma"
+        ]
+      },
+      "has_result": true,
+      "exit_code": 0,
+      "reason": "exited",
+      "calls": 2,
+      "stderr": ""
+    },
+    "unexposed_tool": {
+      "result": {
+        "ok": false,
+        "error": "该工具未向本次编排开放。"
+      },
+      "has_result": true,
+      "exit_code": 0,
+      "reason": "exited",
+      "calls": 1,
+      "stderr": ""
+    },
+    "direct_access": {
+      "result": {
+        "host_visible": false,
+        "network_denied": true
+      },
+      "has_result": true,
+      "exit_code": 0,
+      "reason": "exited",
+      "calls": 0,
+      "stderr": ""
+    }
+  },
+  "backpressure": {
+    "stopped": true,
+    "calls": 2,
+    "elapsed_seconds": 60.25
+  }
+}

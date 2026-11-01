@@ -52,7 +52,7 @@ DENIED = (
 )
 
 # 在隔离已建立后降下不可提高的硬限额，再执行完整 Python 代码。
-BOOTSTRAP = """
+BOOTSTRAP_GUARD = """
 import ctypes, errno, resource, sys
 for kind, value in ((resource.RLIMIT_AS, 268435456), (resource.RLIMIT_CPU, 2),
                     (resource.RLIMIT_FSIZE, 0), (resource.RLIMIT_NOFILE, 32),
@@ -80,11 +80,17 @@ try:
         raise RuntimeError('exec_guard_load_failed')
 finally:
     library.seccomp_release(context)
+"""
+
+BOOTSTRAP = (
+    BOOTSTRAP_GUARD
+    + """
 code = sys.stdin.buffer.read(65537)
 if len(code) > 65536:
     raise ValueError('code limit exceeded')
 exec(compile(code, '<isolated>', 'exec'), {'__name__': '__main__'})
 """
+)
 
 PROBE = """
 import errno, json, os, pathlib, resource, socket
@@ -157,8 +163,11 @@ def seccomp_filter(output_fd: int) -> None:
         library.seccomp_release(context)
 
 
-def command(filter_fd: int) -> list[str]:
-    """固定运行时挂载；不绑定工作目录、用户目录、Windows 盘符或宿主 socket。"""
+def command(filter_fd: int, *, bootstrap: str = BOOTSTRAP) -> list[str]:
+    """固定运行时挂载；不绑定工作目录、用户目录、Windows 盘符或宿主 socket。
+
+    bootstrap 只能由可信宿主选择固定程序，不接受用户覆盖隔离启动步骤。
+    """
     args = [
         "/usr/bin/bwrap",
         "--unshare-user",
@@ -194,7 +203,7 @@ def command(filter_fd: int) -> list[str]:
             "-I",
             "-B",
             "-c",
-            BOOTSTRAP,
+            bootstrap,
         )
     )
     return args

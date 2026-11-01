@@ -2,11 +2,28 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B19.1 WSL/Bubblewrap 隔离包、可信启动器、资源看守及真实验收。
+本次核对范围：B14.1 隔离 RPC、宿主协调回调、协议与注册工具桥。
 
-核对结论：新增独立 isolation 包，宿主固定 argv 调用 Linux 启动器，再建立 OS 边界后执行代码；未接入原命令工具。新增契约说明区分 OS 过滤和 Python 语言、两阶段 exec 限制、协议替身与真实验收；既有说明保留。
+核对结论：isolation 内新增有界协议、宿主 RPC 和 Linux 转发器；tool_calls.code_bridge 复用原注册表，尚未连接主聊天。原隔离策略与挂载说明保留，可信启动步骤拆为可复用常量；新增说明明确线程、限额、未知结果及 B14.2 的预算/日志接入责任；回复采用非阻塞管道，worker 拒绝读取时看守仍能停止。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B14.1 窄 RPC 与注册工具桥
+
+~~~mermaid
+flowchart LR
+    RPC_HOST["显式 API / IsolatedOrchestrator"] --> RPC_WSL["linux_rpc / 可信转发与看守"]
+    RPC_WSL --> RPC_WORKER["固定 OS 隔离 / Python call_tool 与 result"]
+    RPC_WORKER --> RPC_FRAME["rpc_protocol / 有界一问一答"]
+    RPC_FRAME --> RPC_HOST
+    RPC_HOST --> RPC_CALLBACK["当前协调线程 / 宿主 invoke"]
+    RPC_CALLBACK --> RPC_BRIDGE["RegisteredToolBridge / 显式允许名称"]
+    RPC_BRIDGE --> RPC_REG["原 ToolRegistry / 参数、模式、路径"]
+    RPC_REG --> RPC_RESPONSE["原工具结果 / 回到 worker 聚合"]
+    RPC_RESPONSE --> RPC_WSL
+~~~
+
+尚无聊天调用和嵌套会话事件；B14.2 接入原预算、完整 Hook、日志与录制，不能直接把独立工具桥当作生产调用链。见 [边界与验收](code-orchestration.md)。
 
 ## B19.1 隔离前置
 
