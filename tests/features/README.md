@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B15.3.2.2 MCP 媒体接入 | 23项真实SDK混合内容、来源/版本、整份拒绝与保存失败、主子保护、重启及离线重放；相关共167项 | [test_mcp_media_results.py](test_mcp_media_results.py) |
 | B15.3.2.1 二进制引用存储 | 23项真实保存/重启/来源、格式与额度、残留/损坏/写入故障和独立进程竞争；连同架构共45项，聊天接入待下一步 | [test_mcp_media_storage.py](test_mcp_media_storage.py) |
 | B15.3.1 MCP HTTP | 29项真实回环JSON/SSE、认证不落盘、固定端点、TLS/代理、故障/取消和零网络重放；原103项相关回归通过 | [test_mcp_remote.py](test_mcp_remote.py) |
 | B15.2 MCP 提示模板 | 31项真实SDK目录/参数、角色与来源、限额、取消/断开、冲突、教学服务及零服务重放；相关共103项 | [test_mcp_prompts.py](test_mcp_prompts.py) |

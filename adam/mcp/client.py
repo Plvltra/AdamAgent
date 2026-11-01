@@ -16,15 +16,20 @@ from adam.config.mcp import MCPServerConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ToolError
 from adam.mcp import prompts
-from adam.mcp.resources import MAX_RESOURCE_BYTES, catalog, text_result, validate_read
+from adam.mcp.content import ResultContent
+from adam.mcp.media_store import MAX_MEDIA_BYTES, MCPMediaStore
+from adam.mcp.resources import MAX_RESOURCE_BYTES, catalog, resource_result, validate_read
 from adam.mcp.transport import open_client
 
 
 class MCPConnection:
     """显式 open/close 管理连接及本地进程；调用失败不重发，不把服务器声明当沙箱。"""
 
-    def __init__(self, config: MCPServerConfig, workspace: Path) -> None:
+    def __init__(
+        self, config: MCPServerConfig, workspace: Path, *, media_store: MCPMediaStore | None = None
+    ) -> None:
         self.config, self.workspace = config, workspace
+        self.media_store = media_store
         self._stack: ExitStack | None = None
         self._portal: BlockingPortal | None = None
         self._client: Client | None = None
@@ -94,12 +99,15 @@ class MCPConnection:
         expected_version: str | None = None,
         cancel: CancellationToken | None = None,
     ) -> dict[str, Any]:
-        """读取允许 URI 的完整有界文本；可要求与上次内容版本一致，变化时不返回新正文。"""
+        """读取允许 URI 的有界正文或实际字节引用；版本变化时不返回或发布新内容。"""
         validate_read(uri, expected_version, self.config.resources)
         item = next((item for item in self._resources if item["uri"] == uri), None)
-        if item is None or (
-            item["declared_size"] is not None and item["declared_size"] > MAX_RESOURCE_BYTES
-        ):
+        limit = (
+            MAX_RESOURCE_BYTES
+            if item and (item["mime_type"] or "").startswith("text/")
+            else MAX_MEDIA_BYTES
+        )
+        if item is None or (item["declared_size"] is not None and item["declared_size"] > limit):
             raise ToolError("MCP 资源未确认在目录中或声明大小超过限制。")
         return self._run(lambda: self._read_resource(uri, expected_version), cancel)
 
@@ -119,7 +127,7 @@ class MCPConnection:
         arguments: dict[str, str],
         cancel: CancellationToken | None = None,
     ) -> dict[str, Any]:
-        """校验参数后读取完整模板；结果只含带来源的资料，消息角色不会提升权限。"""
+        """校验参数后读取完整模板资料；非文本仅返回来源和实际引用，角色不会提升权限。"""
         checked = prompts.validate_arguments(name, arguments, self.config.prompts, self._prompts)
         return self._run(lambda: self._get_prompt(name, checked), cancel)
 
@@ -186,10 +194,12 @@ class MCPConnection:
             result = await self._client.session.read_resource(uri)
             if not isinstance(result, ReadResourceResult):
                 raise ToolError("MCP 资源未返回完整内容。")
-            return {
-                **text_result(result.model_dump(mode="json"), uri, expected_version),
-                "server": self.config.alias,
-            }
+            content = ResultContent(self.config, self.media_store, "resource", uri)
+            value = resource_result(
+                result.model_dump(mode="json"), uri, expected_version, content.binary
+            )
+            content.publish()
+            return {**value, "server": self.config.alias}
         except ToolError:
             raise
         except Exception as error:
@@ -204,15 +214,10 @@ class MCPConnection:
                 arguments,
                 read_timeout_seconds=float(self.config.timeout_seconds),
             )
-            text = [item.text for item in result.content if item.type == "text"]
-            if len(text) != len(result.content):
-                raise ToolError("本版 MCP 仅接收文本工具结果。")
-            return {
-                "ok": not result.is_error,
-                "content": text,
-                "structured_content": result.structured_content,
-                **({"error": "MCP 服务报告工具失败。"} if result.is_error else {}),
-            }
+            content = ResultContent(self.config, self.media_store, "tool", name)
+            value = content.tool_result(result.model_dump(mode="json"))
+            content.publish()
+            return value
         except ToolError:
             raise
         except Exception as error:
@@ -249,16 +254,16 @@ class MCPConnection:
             raise ToolError("MCP 提示目录读取失败；未重试。") from error
 
     async def _get_prompt(self, name: str, arguments: dict[str, str]) -> dict[str, Any]:
-        """一次获取对应一次低层请求；拒绝交互续传、非文本或协议错误，不拼接角色消息。"""
+        """一次获取对应一次低层请求；拒绝交互续传或协议错误，非文本转引用，不拼接角色。"""
         assert self._client is not None
         try:
             result = await self._client.session.get_prompt(name, arguments)
             if not isinstance(result, GetPromptResult):
                 raise ToolError("MCP 提示未返回完整内容。")
-            return {
-                **prompts.text_result(result.model_dump(mode="json"), name),
-                "server": self.config.alias,
-            }
+            content = ResultContent(self.config, self.media_store, "prompt", name)
+            value = prompts.prompt_result(result.model_dump(mode="json"), name, content)
+            content.publish()
+            return {**value, "server": self.config.alias}
         except ToolError:
             raise
         except Exception as error:

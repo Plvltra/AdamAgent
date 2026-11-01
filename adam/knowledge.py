@@ -72,6 +72,7 @@ def _service(config: AppConfig, workspace: Path) -> tuple[KnowledgeAccess, PathP
         config.memories_dir or config.sessions_dir / "_memories",
         config.sessions_dir / "_checkpoints",
         config.sessions_dir / "_artifacts",
+        config.sessions_dir / "_mcp_media",
     )
     if not config.documents.roots:
         raise DocumentError("请先在 documents.roots 配置资料目录；不会自动扫描其他目录。")

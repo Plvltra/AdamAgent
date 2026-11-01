@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+from collections.abc import Callable
 from typing import Any
 
 from adam.contracts.errors import ToolError
@@ -48,8 +49,13 @@ def validate_read(uri: object, expected_version: object, allowed: tuple[str, ...
         raise ToolError("MCP 资源 expected_version 必须是内容 SHA-256。")
 
 
-def text_result(value: dict[str, Any], uri: str, expected_version: str | None) -> dict[str, Any]:
-    """保留原 URI、类型和有界文本；拒绝二进制、跨 URI 内容及版本变化，不返回残缺成功。"""
+def resource_result(
+    value: dict[str, Any],
+    uri: str,
+    expected_version: str | None,
+    binary: Callable[[str, str | None, int], dict[str, Any]],
+) -> dict[str, Any]:
+    """保留原 URI、类型与有界正文或字节引用；跨 URI、混合正文或版本变化均拒绝。"""
     items = value.get("contents")
     if (
         value.get("result_type", "complete") != "complete"
@@ -59,17 +65,36 @@ def text_result(value: dict[str, Any], uri: str, expected_version: str | None) -
         raise ToolError("MCP 资源结果不是完整的1～8项内容。")
     contents = []
     size = 0
-    for item in items:
-        if not isinstance(item, dict) or item.get("uri") != uri or "blob" in item:
-            raise ToolError("本版 MCP 资源只接收所请求 URI 的文本内容。")
+    text_size = 0
+    for index, item in enumerate(items):
+        if (
+            not isinstance(item, dict)
+            or item.get("uri") != uri
+            or ("text" in item) == ("blob" in item)
+        ):
+            raise ToolError("MCP 资源只接收所请求 URI 且正文类型唯一的内容。")
+        if "blob" in item:
+            reference = binary(item["blob"], item.get("mime_type"), index)
+            size += reference["size_bytes"]
+            contents.append(
+                {
+                    "uri": uri,
+                    "mime_type": reference["mime_type"],
+                    "binary_reference": reference,
+                    "content_interpreted": False,
+                }
+            )
+            continue
         text = item.get("text")
         if not isinstance(text, str):
             raise ToolError("MCP 资源文本格式无效。")
         try:
-            size += len(text.encode("utf-8"))
+            encoded_size = len(text.encode("utf-8"))
+            size += encoded_size
+            text_size += encoded_size
         except UnicodeError as error:
             raise ToolError("MCP 资源文本无法编码。") from error
-        if size > MAX_RESOURCE_BYTES:
+        if text_size > MAX_RESOURCE_BYTES:
             raise ToolError("MCP 资源文本超过64 KiB，未截断返回。")
         contents.append(
             {

@@ -10,6 +10,7 @@ from adam.contracts.errors import ToolError
 from adam.contracts.execution import ToolCapability
 from adam.contracts.models import ExecutionRecorder
 from adam.mcp.client import MCPConnection
+from adam.mcp.media_store import MCPMediaStore
 from adam.mcp.schema import validator_for
 from adam.tool_calls.mcp_prompts import register_prompts
 from adam.tool_calls.mcp_resources import register_resources
@@ -21,12 +22,17 @@ def register_mcp(
     config: MCPConfig,
     workspace: Path,
     resources: ExitStack,
+    *,
+    media_store: MCPMediaStore | None = None,
 ) -> ToolRegistry:
-    """连接可信服务并隔离名称；工具须白名单和只读声明，资源和模板须独立允许列表。"""
+    """连接可信服务并隔离名称；工具须白名单和只读声明，资源和模板须独立允许列表。
+
+    media_store 由宿主提供受保护目录；缺省时仅接收文本和未读取的来源链接。
+    """
     if not config.enabled:
         return registry
     for server in config.servers:
-        connection = MCPConnection(server, workspace).open()
+        connection = MCPConnection(server, workspace, media_store=media_store).open()
         resources.callback(connection.close)
         available = connection.definitions()
         names = [tool["name"] for tool in available]

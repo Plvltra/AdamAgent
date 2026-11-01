@@ -2,13 +2,29 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B15.3.2.1 独立二进制引用存储、来源与内容摘要、整批配额和原子发布。
+本次核对范围：B15.3.2.2 MCP 内容转换、主应用存储注入、先校验后发布和主子目录保护。
 
-核对结论：新增 mcp.media_store 的宿主 API，PreparedMedia 在 IO 前完成解码与摘要，MCPMediaStore 预检配额并发布可校验字节文件。当前尚未从 MCPConnection 或 bootstrap 调用，不把存储基础标为聊天已支持媒体。原 stdio/HTTP 和文本附件契约未改变，新接口已说明失败、来源与残留行为。
+核对结论：bootstrap 注入 MCPMediaStore 并保护保留目录；MCPConnection 经 ResultContent 转换媒体和来源链接，资源/提示保留版本和角色边界，验证全部内容后发布字节。结果沿原工具与 JSONL/重放路径流转，不新增模型角色或自动媒体读取。原文本限制迁入共享转换器，协议错误与不重试说明保留，相关注释已同步审查。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-## B15.3.2.1 二进制引用存储基础
+## B15.3.2 MCP 二进制引用接入
+
+~~~mermaid
+flowchart LR
+    MC_BOOT["bootstrap / 受保护的 _mcp_media"] --> MC_STORE["MCPMediaStore"]
+    MC_BOOT --> MC_CONN["MCPConnection / 原 stdio 或 HTTP"]
+    MC_CONN --> MC_CONVERT["content.ResultContent / 来源、混合文本与二进制准备"]
+    MC_CONN --> MC_PROTO["resources / prompts / URI、角色、版本"]
+    MC_PROTO --> MC_CONVERT
+    MC_CONVERT -->|"全部验证后 publish"| MC_STORE
+    MC_STORE --> MC_BYTES["固定 ID.bin / 有界实际字节"]
+    MC_CONVERT --> MC_RESULT["文本、未读取链接和媒体引用"]
+    MC_RESULT --> MC_TOOL["原工具执行 / JSONL / 录制与重放"]
+    MC_BOOT --> MC_POLICY["主子 PathPolicy / 资料加载与审查保护"]
+~~~
+
+二进制不会自动变为模型可见图片；外部模板角色和资料链接只作为结果数据。存储细节：
 
 ~~~mermaid
 flowchart LR
@@ -20,7 +36,7 @@ flowchart LR
     MS_STORE --> MS_REF["MediaReference / 无路径、无 base64"]
 ~~~
 
-此图仅表示独立 API，尚无聊天或 MCP 响应转换连线；下一小任务接入。详见 [MCP 引用](mcp.md)。
+MCPConnection 负责来源及整份结果校验，MCPMediaStore 负责字节与配额。只有宿主显式 read 接口能从完整引用恢复字节；会话重放不重启服务，亦不自动复制媒体目录。详见 [MCP 引用](mcp.md)。
 
 ## B15.3.1 MCP 传输与认证
 

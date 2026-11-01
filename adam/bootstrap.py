@@ -38,6 +38,7 @@ from adam.isolation.backend import WslBubblewrap
 from adam.isolation.rpc import IsolatedOrchestrator
 from adam.llm.client import LLMClient
 from adam.llm.http_transport import InterruptibleTransport
+from adam.mcp.media_store import MCPMediaStore
 from adam.memory.semantic import SemanticMemoryRanker
 from adam.memory.store import MemoryStore
 from adam.rules.catalog import RuleCatalog
@@ -100,7 +101,14 @@ def build_application(
         knowledge_dir = config.knowledge_dir or store.root / "_knowledge"
         checkpoints_dir = store.root / "_checkpoints"
         artifacts_dir = store.root / "_artifacts"
-        protected_dirs = (documents_dir, checkpoints_dir, artifacts_dir, knowledge_dir)
+        mcp_media_dir = store.root / "_mcp_media"
+        protected_dirs = (
+            documents_dir,
+            checkpoints_dir,
+            artifacts_dir,
+            knowledge_dir,
+            mcp_media_dir,
+        )
         artifacts = _artifact_tools(
             config.artifacts, store, artifacts_dir, config.tool_limits.max_result_chars
         )
@@ -126,7 +134,7 @@ def build_application(
             document_config,
             documents_dir,
             config.permissions,
-            (checkpoints_dir, artifacts_dir),
+            (checkpoints_dir, artifacts_dir, mcp_media_dir),
             knowledge_dir=knowledge_dir,
         )
         registry, skills = register_skills(
@@ -137,7 +145,9 @@ def build_application(
             user_dir=config.skills.user_dir,
             protected_dirs=protected_dirs,
         )
-        registry = register_mcp(registry, config.mcp, workspace, resources)
+        registry = register_mcp(
+            registry, config.mcp, workspace, resources, media_store=MCPMediaStore(mcp_media_dir)
+        )
         if artifacts:
             registry = artifacts.register(registry)
         if config.session_search.enabled:
@@ -165,6 +175,7 @@ def build_application(
                     checkpoints_dir,
                     artifacts_dir,
                     knowledge_dir,
+                    mcp_media_dir,
                     on_notice or (lambda _: None),
                 ),
                 on_notice or (lambda _: None),
@@ -363,6 +374,7 @@ def _open_child(
     checkpoints_dir: Path,
     artifacts_dir: Path,
     knowledge_dir: Path,
+    mcp_media_dir: Path,
     notify: Callable[[str], None],
     root: Path,
     agent: ChildAgent,
@@ -374,7 +386,7 @@ def _open_child(
 ) -> Iterator[Conversation]:
     """在子线程中管理独立资源，继承派发时的模式与主轮次记忆快照。
 
-    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存、知识记录、检查点和附件。
+    不传主会话锁、HTTP 或审批回调；工具禁止直接读取记忆、文档缓存、知识记录、检查点和附件（含 MCP 媒体）。
     知识仅经当前授权来源的查询接口读取；子任务不能保存候选、审查或发布。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     Hooks 继承用户配置，使用子任务取消令牌；后置故障提示带子任务 ID。
@@ -402,6 +414,7 @@ def _open_child(
                 checkpoints_dir,
                 artifacts_dir,
                 knowledge_dir,
+                mcp_media_dir,
             ),
         )
         registry = register_documents(
@@ -410,7 +423,7 @@ def _open_child(
             document_config,
             documents_dir,
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
-            (memories_dir, checkpoints_dir, artifacts_dir),
+            (memories_dir, checkpoints_dir, artifacts_dir, mcp_media_dir),
             check_cancel=cancel.check,
             knowledge_dir=knowledge_dir,
             allow_knowledge_proposals=False,
@@ -427,6 +440,7 @@ def _open_child(
                 checkpoints_dir,
                 artifacts_dir,
                 knowledge_dir,
+                mcp_media_dir,
             ),
         )
         rules = (
@@ -435,7 +449,14 @@ def _open_child(
                 PermissionConfig(
                     additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)
                 ),
-                (memories_dir, documents_dir, checkpoints_dir, artifacts_dir, knowledge_dir),
+                (
+                    memories_dir,
+                    documents_dir,
+                    checkpoints_dir,
+                    artifacts_dir,
+                    knowledge_dir,
+                    mcp_media_dir,
+                ),
             )
             if config.rules.enabled
             else None
@@ -454,7 +475,14 @@ def _open_child(
                     PermissionConfig(
                         additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)
                     ),
-                    protected_dirs=(memories_dir, documents_dir, checkpoints_dir, artifacts_dir),
+                    protected_dirs=(
+                        memories_dir,
+                        documents_dir,
+                        checkpoints_dir,
+                        artifacts_dir,
+                        knowledge_dir,
+                        mcp_media_dir,
+                    ),
                 ),
                 config.tool_limits,
                 cancel,

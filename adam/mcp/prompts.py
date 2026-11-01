@@ -1,4 +1,4 @@
-"""MCP 提示模板的有限目录、字符串参数和文本结果；外部角色标签只作为资料。"""
+"""MCP 提示模板的有限目录、字符串参数和资料结果；外部角色标签只作为资料。"""
 
 import hashlib
 import json
@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from adam.contracts.errors import ToolError
+from adam.mcp.content import ResultContent
 
 
 def catalog(items: list[dict[str, Any]], allowed: tuple[str, ...]) -> list[dict[str, Any]]:
@@ -67,8 +68,12 @@ def validate_arguments(
     return dict(arguments)
 
 
-def text_result(value: dict[str, Any], name: str) -> dict[str, Any]:
-    """只返回1～16条有界文本及内容摘要；外部消息不是已授权指令或实际历史。"""
+def prompt_result(
+    value: dict[str, Any],
+    name: str,
+    converter: ResultContent,
+) -> dict[str, Any]:
+    """返回1～16条有界资料及内容摘要；非文本只保留引用，外部角色不是实际历史。"""
     items = value.get("messages")
     if (
         value.get("result_type", "complete") != "complete"
@@ -77,22 +82,16 @@ def text_result(value: dict[str, Any], name: str) -> dict[str, Any]:
     ):
         raise ToolError("MCP 提示结果不是完整的1～16条消息。")
     messages = []
-    size = 0
-    for item in items:
+    for index, item in enumerate(items):
         if not isinstance(item, dict) or item.get("role") not in {"user", "assistant"}:
             raise ToolError("MCP 提示结果角色无效。")
         content = item.get("content")
-        if not isinstance(content, dict) or content.get("type") != "text":
-            raise ToolError("本版 MCP 提示只接收文本，不读取嵌入资源或媒体。")
-        text = content.get("text")
-        if not isinstance(text, str):
-            raise ToolError("MCP 提示文本格式无效。")
-        try:
-            size += len(text.encode("utf-8"))
-        except UnicodeError as error:
-            raise ToolError("MCP 提示文本无法编码。") from error
-        if size > 65536:
-            raise ToolError("MCP 提示文本超过64 KiB，未截断返回。")
+        if not isinstance(content, dict):
+            raise ToolError("MCP 提示内容格式无效。")
+        if content.get("type") != "text":
+            messages.append({"role": item["role"], "content": converter.nontext(content, index)})
+            continue
+        text = converter.text(content.get("text"))
         messages.append({"role": item["role"], "text": text})
     version = hashlib.sha256(
         json.dumps(messages, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
@@ -102,7 +101,7 @@ def text_result(value: dict[str, Any], name: str) -> dict[str, Any]:
         "name": name,
         "description": _description(value.get("description"), 2000),
         "messages": messages,
-        "size_bytes": size,
+        "size_bytes": converter.size_bytes,
         "version": version,
         "version_source": "content_sha256",
         "usage": "reference_only",
