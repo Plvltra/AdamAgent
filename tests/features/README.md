@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B09.1 文档混合召回 | 16 项候选池/排名/去重、独立单路、来源更新/删除、模型/缓存/取消故障、工具输出/重放、配置/CLI；相关共 128 项 | [test_hybrid_retrieval.py](test_hybrid_retrieval.py) |
 | B08.3 来源变化组合验收 | 8 项同轮编辑/删除/损坏/拒读、真实追加竞争、压缩重启、诊断状态、撤销授权及实际目录链接；相关共 92 项 | [test_session_search_acceptance.py](test_session_search_acceptance.py) |
 | B08.2 历史工具接入 | 压缩前原文/按需发现/续读、授权/诊断/切换、限额/关闭/plan/工具次数、真实 Hook/子任务隔离及离线重放 | [test_session_search_tools.py](test_session_search_tools.py) |
 | B08.1 旧对话索引 | 15 项授权、精确来源、追加/编辑、失效缓存、诊断隔离、资源限额、分页、越界和只读 CLI | [test_session_search.py](test_session_search.py) |

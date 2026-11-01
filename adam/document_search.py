@@ -24,7 +24,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allow-read-dir", type=Path, action="append", default=[])
     parser.add_argument("--cache-dir", type=Path, default=adam_home() / "documents")
     parser.add_argument("--model", default=DocumentConfig().embedding_model)
-    parser.add_argument("--semantic", action="store_true")
+    method = parser.add_mutually_exclusive_group()
+    method.add_argument("--semantic", action="store_true")
+    method.add_argument("--hybrid", action="store_true")
+    parser.add_argument("--hybrid-candidates", type=int, default=20)
+    parser.add_argument("--rrf-constant", type=int, default=60)
     parser.add_argument("--minimum", type=float, default=0.5)
     parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--output", type=Path)
@@ -33,16 +37,18 @@ def main(argv: list[str] | None = None) -> int:
     search = commands.add_parser("search", help="查询指定文档并返回可核查片段")
     search.add_argument("query")
     evaluation = commands.add_parser(
-        "evaluate", help="运行固定题集；--semantic 同时比较关键词和向量"
+        "evaluate", help="固定题集；--semantic 比较两路，--hybrid 同时比较两路与融合"
     )
     evaluation.add_argument("questions", type=Path)
     args = parser.parse_args(argv)
     try:
         config = DocumentConfig(
             roots=tuple(args.root or [Path("docs")]),
-            method="semantic" if args.semantic else "keyword",
+            method="hybrid" if args.hybrid else "semantic" if args.semantic else "keyword",
             embedding_model=args.model,
             semantic_min_score=args.minimum,
+            hybrid_candidates=args.hybrid_candidates,
+            rrf_constant=args.rrf_constant,
         )
         if args.command == "prepare-model":
             FastEmbedBackend(
@@ -61,18 +67,35 @@ def main(argv: list[str] | None = None) -> int:
                 cases = json.loads(args.questions.read_text(encoding="utf-8-sig"))
                 result = {
                     "metadata": {
-                        "embedding_model": config.embedding_model if args.semantic else None,
+                        "embedding_model": config.embedding_model
+                        if args.semantic or args.hybrid
+                        else None,
                         "semantic_min_score": config.semantic_min_score,
                         "chunk_chars": config.chunk_chars,
-                        "encoding": "window256-mean-v1" if args.semantic else None,
+                        "encoding": "window256-mean-v1" if args.semantic or args.hybrid else None,
+                        **(
+                            {
+                                "hybrid_candidates": config.hybrid_candidates,
+                                "rrf_constant": config.rrf_constant,
+                            }
+                            if args.hybrid
+                            else {}
+                        ),
                     }
                 }
-                for method in ["keyword", "semantic"] if args.semantic else ["keyword"]:
-                    selected = replace(config, method=method)
+                methods = (
+                    ["keyword", "semantic", "hybrid"]
+                    if args.hybrid
+                    else ["keyword", "semantic"]
+                    if args.semantic
+                    else ["keyword"]
+                )
+                for name in methods:
+                    selected = replace(config, method=name)
                     engine = DocumentSearch(
                         DocumentIndex(args.cache_dir, args.workspace, selected, policy.resolve)
                     )
-                    result[method] = evaluate(engine.search, cases, args.limit)
+                    result[name] = evaluate(engine.search, cases, args.limit)
         encoded = json.dumps(result, ensure_ascii=False, indent=2)
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)

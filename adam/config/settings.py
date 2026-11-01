@@ -273,6 +273,8 @@ class DocumentConfig:
     method: str = "keyword"
     embedding_model: str = "BAAI/bge-small-zh-v1.5"
     semantic_min_score: float = 0.5
+    hybrid_candidates: int = 20
+    rrf_constant: int = 60
 
     def __post_init__(self) -> None:
         """限制整个语料的资源消耗；目录配置本身不授予额外读取权限。"""
@@ -282,8 +284,8 @@ class DocumentConfig:
             or any(not isinstance(p, Path) or "\0" in str(p) for p in self.roots)
         ):
             raise ConfigError("documents.roots 必须是不超过 32 项、不含空字符的路径元组。")
-        if not isinstance(self.method, str) or self.method not in {"keyword", "semantic"}:
-            raise ConfigError("documents.method 必须是 keyword 或 semantic。")
+        if not isinstance(self.method, str) or self.method not in {"keyword", "semantic", "hybrid"}:
+            raise ConfigError("documents.method 必须是 keyword、semantic 或 hybrid。")
         if (
             not isinstance(self.embedding_model, str)
             or not self.embedding_model.strip()
@@ -305,6 +307,8 @@ class DocumentConfig:
             "max_chunks": (1, 50000),
             "scan_timeout_seconds": (1, 300),
             "top_k": (1, 20),
+            "hybrid_candidates": (1, 20),
+            "rrf_constant": (1, 1000),
         }
         for name, (low, high) in ranges.items():
             value = getattr(self, name)

@@ -2,11 +2,27 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B08.3 多来源变化、读取竞争、压缩后重启与实际目录链接验收。
+本次核对范围：B09.1 文档混合召回、RRF 融合、来源证据及独立 CLI。
 
-核对结论：本次只补业务验收和边界说明，架构无变化。实际执行验证 SessionSearchIndex 淘汰无效缓存并报告读取竞争；SessionTools 不恢复旧日志，恢复仍由 SessionStore 持锁完成。原文索引与诊断状态关系沿用下图，原有关键说明保留。
+核对结论：DocumentSearch 对同一语料执行 BM25 与 VectorSearch，documents.fusion 按身份去重并融合排名；DocumentTools 保留各路依据及整体输出预算。单路、取消与失败不返回旧资料的契约保留，原说明按混合路径更新，无主循环分支。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B09.1 混合检索
+
+~~~mermaid
+flowchart LR
+    HY_ENTRY["文档工具 / 独立 CLI"] --> HY_SEARCH["DocumentSearch / 当前配置"]
+    HY_SEARCH --> HY_INDEX["DocumentIndex / 同一有效语料"]
+    HY_INDEX --> HY_BM25["keyword_search / BM25"]
+    HY_INDEX --> HY_VECTOR["VectorSearch / 余弦阈值"]
+    HY_BM25 --> HY_RRF["documents.fusion / ID 去重与 RRF"]
+    HY_VECTOR --> HY_RRF
+    HY_RRF --> HY_HIT["SearchHit / 原文、版本、各路排名"]
+    HY_HIT --> HY_PACK["pack_results / 整条片段与输出上限"]
+~~~
+
+图示为 hybrid 路径，keyword / semantic 保留独立运行；限额、失败和分数含义见 [混合检索](hybrid-retrieval.md)。
 
 ## B08.2 历史工具接入
 
@@ -741,6 +757,8 @@ flowchart LR
     CLI["document_search.py<br/>独立查询/模型准备/评估"] --> SEARCH
     SEARCH --> RANK
     SEARCH --> VECTOR["documents/vectors.py<br/>VectorSearch"]
+    SEARCH --> FUSION["documents/fusion.py<br/>RRF 与各路排名"]
+    FUSION --> VALUES
     VECTOR --> EMBED["documents/embedding.py<br/>FastEmbedBackend / EmbeddingBackend"]
     VECTOR --> SNAP["documents/snapshots.py<br/>有界校验与原子保存"]
     CANCEL["子任务 CancellationToken.check"] -.-> SOURCE

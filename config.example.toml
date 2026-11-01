@@ -13,6 +13,9 @@ roots = []
 top_k = 5
 # semantic 需要 uv sync --extra documents 及显式 prepare-model；不会自动联网。
 method = "keyword"
+# hybrid 合并 BM25 与本地向量，仍需预先准备 embedding；keyword / semantic 可单独对照。
+hybrid_candidates = 20
+rrf_constant = 60
 embedding_model = "BAAI/bge-small-zh-v1.5"
 semantic_min_score = 0.5
 chunk_chars = 400

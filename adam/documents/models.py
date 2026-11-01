@@ -27,8 +27,28 @@ class Chunk:
 
 
 @dataclass(frozen=True)
+class RetrievalRank:
+    """片段在一个召回列表的排名和原得分；不同检索方法的分数不能直接相加。"""
+
+    method: str
+    rank: int
+    score: float
+
+
+@dataclass(frozen=True)
+class FusionReport:
+    """本次融合使用的常量和各路候选数；候选上限不是答案正确性的阈值。"""
+
+    rrf_constant: int
+    candidate_limit: int
+    keyword_candidates: int
+    semantic_candidates: int
+
+
+@dataclass(frozen=True)
 class SearchHit:
     """相关性得分只用于排序，不代表答案正确率或事实置信度。"""
 
     chunk: Chunk
     score: float
+    retrieval_ranks: tuple[RetrievalRank, ...] = ()
