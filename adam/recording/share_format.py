@@ -32,7 +32,7 @@ _SUMMARY = {
     "replayable": {"const": False},
 }
 _RULES = {
-    "version": {"const": RULES_VERSION},
+    "version": {"enum": ["local-redaction-v1", RULES_VERSION]},
     "literal_count": {"type": "integer", "minimum": 0, "maximum": 128},
     "coverage": {"const": "bounded_patterns_and_explicit_literals_not_all_secrets"},
 }
@@ -40,7 +40,7 @@ _FINDING = {
     "location": {
         "type": "string",
         "maxLength": 2048,
-        "pattern": r"^\$(?:\[\d+\]|\.(?:key|value)\[\d+\])*$",
+        "pattern": r"^\$(?:\[\d+\]|\.(?:key|value)\[\d+\]|\.json)*$",
     },
     "category": {"enum": sorted(CATEGORIES)},
     "replacement": {

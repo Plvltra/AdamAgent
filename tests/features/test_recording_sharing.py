@@ -54,7 +54,9 @@ def test_export_real_tool_and_reply_removes_synthetic_secrets_without_reexecutin
     assert report["source_sha256"] == hashlib.sha256(original).hexdigest()
     assert report["source_bytes"] == len(original) and report["source_complete"]
     assert report["event_count"] == len(read_recording(source).events)
-    assert set(report["counts"]) == {"email", "credential", "address"}
+    # 显式地址命中 JSON 字符串时，整体隐藏该字符串；类别统计只反映实际替换。
+    assert "address" in report["counts"]
+    assert set(report["counts"]) <= {"email", "credential", "address"}
     assert report["replacement_count"] == len(shared["findings"])
     assert all(value not in encoded for value in sensitive.values())
     assert source.read_bytes() == original and target.read_text(encoding="utf-8") == content

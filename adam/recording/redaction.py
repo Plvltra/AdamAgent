@@ -9,7 +9,7 @@ from typing import Any
 
 from adam.recording.format import RecordingError
 
-RULES_VERSION = "local-redaction-v1"
+RULES_VERSION = "local-redaction-v2"
 CATEGORIES = frozenset({"email", "credential", "address", "identifier", "text"})
 SECRET_KEYS = frozenset(
     {"password", "passwd", "secret", "apikey", "accesstoken", "refreshtoken", "authorization"}
@@ -17,13 +17,13 @@ SECRET_KEYS = frozenset(
 ADDRESS_KEYS = frozenset({"address", "homeaddress", "postaladdress", "地址", "住址"})
 PATTERNS = (
     ("email", re.compile(r"(?<![\w.+-])[\w.+-]{1,128}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}\b")),
-    ("credential", re.compile(r"\bsk-[A-Za-z0-9_-]{16,200}\b")),
-    ("credential", re.compile(r"(?i)\bBearer\s+([A-Za-z0-9._~+/=-]{4,4096})")),
+    ("credential", re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b")),
+    ("credential", re.compile(r"(?i)\bBearer\s+([A-Za-z0-9._~+/=-]{4,})")),
     (
         "credential",
         re.compile(
             r"(?i)\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret)"
-            r"[\"']?\s*[:=]\s*[\"']?([^\s\"',;<>}{\[\]\\]{1,4096})"
+            r"[\"']?\s*[:=]\s*(?:\"((?:\\.|[^\"\\])+)\"|'((?:\\.|[^'\\])+)'|([^\s\"',;<>}{\[\]\\]+))"
         ),
     ),
 )
@@ -52,6 +52,7 @@ def redact_json(
     """返回脱敏副本和位置报告；不修改输入，不读取配置、请求模型或保证识别所有秘密。
 
     自动识别邮箱、常见凭据文本及敏感字段，地址可通过字段或字面规则指定。
+    完整 JSON 对象/数组字符串按有限嵌套结构扫描；其他编码和任意自然语言仍需人工审阅。
     同一文本在本次导出中使用同一占位符；报告仅含序号位置、类别和占位符。
     任一深度、节点、规则或替换数量超限均失败，不返回部分脱敏结果。
     """
@@ -76,11 +77,14 @@ class _Redactor:
         if len(literals) > 128 or any(not isinstance(r, LiteralRedaction) for r in literals):
             raise RecordingError("脱敏字面规则最多 128 条，且必须使用 LiteralRedaction。")
         self.values: dict[str, str] = {}
+        self.literals = literals
         self.tokens: dict[tuple[str, str], str] = {}
         self.findings: list[dict[str, Any]] = []
         self.prefix = "<ADAM_REDACTED_" + secrets.token_hex(8) + "_"
         self.nodes = 0
         self.matcher: re.Pattern[str] | None = None
+        self.embedded: dict[str, Any] = {}
+        self.embedded_bytes = 0
         for rule in literals:
             self._remember(rule.value, rule.category)
 
@@ -88,11 +92,21 @@ class _Redactor:
         """发现已知敏感值；字段和值都扫描，不将用户字典键复制到位置报告。"""
         self._bounded(depth)
         if isinstance(value, str):
+            try:
+                value.encode("utf-8")
+            except UnicodeError as error:
+                raise RecordingError("脱敏文本不能编码为 UTF-8，未导出。") from error
             if self.prefix in value:
                 raise RecordingError("脱敏占位符与输入碰撞，请重新导出。")
+            nested = self._embedded(value)
+            if nested is not None:
+                self.collect(nested, depth + 1)
             for category, pattern in PATTERNS:
                 for match in pattern.finditer(value):
-                    self._remember(match.group(1) if match.lastindex else match.group(), category)
+                    matched = next(
+                        (part for part in match.groups() if part is not None), match.group()
+                    )
+                    self._remember(matched, category)
         elif isinstance(value, list):
             for child in value:
                 self.collect(child, depth + 1)
@@ -122,7 +136,7 @@ class _Redactor:
     def _walk(self, value: object, location: str, depth: int) -> object:
         self._bounded(depth)
         if isinstance(value, str):
-            return self._text(value, location)
+            return self._text(value, location, depth)
         if isinstance(value, list):
             return [
                 self._walk(child, f"{location}[{i}]", depth + 1) for i, child in enumerate(value)
@@ -132,7 +146,7 @@ class _Redactor:
             for i, (key, child) in enumerate(value.items()):
                 # 仅使用原容器序号定位；报告路径本身不能再泄漏敏感键。
                 field = f"{location}.value[{i}]"
-                name = self._text(key, f"{location}.key[{i}]")
+                name = self._text(key, f"{location}.key[{i}]", depth + 1)
                 if name in result:
                     raise RecordingError("脱敏后出现重复字段，未导出。")
                 category = _field_category(key)
@@ -144,7 +158,19 @@ class _Redactor:
             return result
         return value
 
-    def _text(self, value: str, location: str) -> str:
+    def _text(self, value: str, location: str, depth: int) -> str:
+        if value in self.values:
+            return self._replacement(value, self.values[value], location)
+        nested = self.embedded.get(value)
+        if nested is not None:
+            # 显式规则可能跨过 JSON 语法或命中数字；整体隐藏避免重新编码后漏掉该规则。
+            for rule in self.literals:
+                if rule.value in value:
+                    return self._replacement(value, rule.category, location)
+            transformed = self._walk(nested, location + ".json", depth + 1)
+            if transformed != nested:
+                return json.dumps(transformed, ensure_ascii=False, allow_nan=False)
+            return value
         if self.matcher is None:
             return value
 
@@ -153,6 +179,41 @@ class _Redactor:
             return self._replacement(original, self.values[original], location)
 
         return self.matcher.sub(replace, value)
+
+    def _embedded(self, value: str) -> object:
+        """识别完整 JSON 字符串，缓存至多 256 份/8 MiB；不解释代码或任意编码。
+
+        非 JSON 文本仍用普通规则扫描；合法 JSON 的重复字段、非有限数及资源超限拒绝，
+        避免解析时丢字段或只处理部分秘密。每份最多 1 MiB，嵌套另受遍历深度约束。
+        """
+        if value in self.embedded:
+            return self.embedded[value]
+        if not value.lstrip().startswith(("{", "[")):
+            return None
+        size = len(value.encode("utf-8"))
+        if size > 1024 * 1024:
+            raise RecordingError("嵌套 JSON 文本超过 1 MiB，未导出。")
+
+        def pairs(items: list[tuple[str, Any]]) -> dict[str, Any]:
+            result = dict(items)
+            if len(result) != len(items):
+                raise RecordingError("嵌套 JSON 含重复字段，未忽略字段或导出。")
+            return result
+
+        def constant(_: str) -> None:
+            raise RecordingError("嵌套 JSON 含非有限数，未导出。")
+
+        try:
+            nested = json.loads(value, object_pairs_hook=pairs, parse_constant=constant)
+        except json.JSONDecodeError:
+            return None
+        except RecursionError as error:
+            raise RecordingError("嵌套 JSON 过深，未导出。") from error
+        if len(self.embedded) >= 256 or self.embedded_bytes + size > 8 * 1024 * 1024:
+            raise RecordingError("嵌套 JSON 总量超过限制，未导出。")
+        self.embedded[value] = nested
+        self.embedded_bytes += size
+        return nested
 
     def _replacement(self, value: object, category: str, location: str) -> str:
         if len(self.findings) >= MAX_FINDINGS:

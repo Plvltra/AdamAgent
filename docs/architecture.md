@@ -2,9 +2,9 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B13.2 分享 CLI、私有 TOML 规则、分享格式校验与来源字节核对。
+本次核对范围：B13.3 有界嵌套 JSON 脱敏、完整凭据、规则版本及组合验收。
 
-核对结论：recordings 的 share/inspect-share 在加载模型配置前分流；share_format 单独校验分享容器与私有规则，sharing.inspect_share 仅读取用户明确指定的来源。原重放保持只接收录制协议，拒绝分享副本后不创建重放目录。原 CLI 关于全新输出目录和非零退出码的注释保留并补充分享边界。
+核对结论：模块边界保持；redaction 增加完整 JSON 字符串的有界解析，变更后才重新编码；显式文字命中这类字符串时保守隐藏整体。规则升至 v2，share_format 接受 v1/v2 与 .json 位置标记。原注释保留并增加复杂度、拒绝部分处理及显式规则优先的理由；无模型或重放依赖新增。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -28,6 +28,9 @@ flowchart LR
 flowchart LR
     RS_SOURCE["原录制 / 一次有界读取"] --> RS_PARSE["journal.parse_recording / 原协议校验"]
     RS_PARSE --> RS_COLLECT["redaction / 规则与显式字面值"]
+    RS_COLLECT --> RS_NESTED["完整 JSON 字符串 / 有界解析与字段扫描"]
+    RS_NESTED --> RS_COPY
+    RS_NESTED --> RS_REJECT["重复字段、超限或非有限数 / 整次拒绝"]
     RS_COLLECT --> RS_COPY["脱敏副本 + 无原文位置报告"]
     RS_COPY --> RS_SAVE["sharing.export_share / 排他发布"]
     RS_SOURCE --> RS_HASH["同份字节 SHA256 与完整性标记"]

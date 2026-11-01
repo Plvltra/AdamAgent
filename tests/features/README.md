@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B13.3 分享组合验收 | 17 项真实工具/回复与转义 JSON、完整长凭据、重复/非有限/深度/大小、无标签和编码漏报、技术字段误报、显式规则及旧版读取；相关共 55 项 | [test_sharing_acceptance.py](test_sharing_acceptance.py) |
 | B13.2 分享命令与来源 | 22 项离线 CLI/私有规则、来源匹配与变化、不可重放、格式/元数据/复杂度、错误不回显原文；相关共 70 项 | [test_sharing_commands.py](test_sharing_commands.py) |
 | B13.1 分享脱敏 API | 16 项真实读取/回复录制、重复秘密、位置报告、指定地址、同名/硬链接拒绝、写入失败、残缺前缀和资源限制；相关共 70 项 | [test_recording_sharing.py](test_recording_sharing.py) |
 | B12.3 知识故障验收 | 15 项：独立进程竞争 4 项、请求/审查/发布/撤回/来源失效强杀 10 个边界、冲突知识独立决定；重启零自动请求 | [test_knowledge_recovery.py](test_knowledge_recovery.py)、[进程入口](support/knowledge_worker.py) |
