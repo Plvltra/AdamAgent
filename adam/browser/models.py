@@ -1,5 +1,6 @@
 """浏览器观察快照、资源上限与窄后端端口。"""
 
+import re
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -40,6 +41,44 @@ class ElementReference:
     tab_id: str
     observation_id: str
     element_id: str
+
+
+@dataclass(frozen=True)
+class BrowserAction:
+    """一个引用上的有限动作；不接受脚本或任意宿主执行代码。"""
+
+    operation: str
+    reference: ElementReference
+    value: str | None = None
+    scroll_y: int | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.operation, str) or self.operation not in {
+            "click",
+            "fill",
+            "select",
+            "scroll",
+        }:
+            raise BrowserError("invalid_action", "浏览器只允许 click、fill、select、scroll。")
+        if not isinstance(self.reference, ElementReference) or any(
+            not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{32}", value) is None
+            for value in vars(self.reference).values()
+        ):
+            raise BrowserError("invalid_reference", "浏览器引用必须使用观察返回的四个身份字段。")
+        if self.operation in {"fill", "select"}:
+            if not isinstance(self.value, str) or len(self.value) > 4000:
+                raise BrowserError("invalid_action", "输入或选择值必须是最多 4000 字符的字符串。")
+            try:
+                self.value.encode("utf-8", errors="strict")
+            except UnicodeError:
+                raise BrowserError("invalid_action", "输入值包含非法 Unicode。") from None
+        elif self.value is not None:
+            raise BrowserError("invalid_action", "本次动作不接受 value。")
+        if self.operation == "scroll":
+            if type(self.scroll_y) is not int or not 0 < abs(self.scroll_y) <= 2000:
+                raise BrowserError("invalid_action", "scroll_y 必须是 -2000 到 2000 的非零整数。")
+        elif self.scroll_y is not None:
+            raise BrowserError("invalid_action", "本次动作不接受 scroll_y。")
 
 
 @dataclass(frozen=True)
@@ -101,6 +140,10 @@ class BrowserDriver(Protocol):
 
     def is_current(self, snapshot: DomSnapshot, element_id: str, cancel: CancellationToken) -> bool:
         """检查文档、DOM 版本及原始控件身份，不按选择器匹配替代元素。"""
+        ...
+
+    def act(self, snapshot: DomSnapshot, action: BrowserAction, cancel: CancellationToken) -> bool:
+        """再次核对原节点后派发一个动作；引用失效返回 False，SDK 故障不保证无副作用。"""
         ...
 
     def close(self) -> None:

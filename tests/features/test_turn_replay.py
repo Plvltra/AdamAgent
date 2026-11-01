@@ -24,7 +24,9 @@ from tests.features.test_tool_loop import answer, tool_response
 
 
 @contextmanager
-def captured_app(root, respond, *, config=None, child_handler=None, history=None):
+def captured_app(
+    root, respond, *, config=None, child_handler=None, history=None, confirm_browser=None
+):
     """保留真实主/子应用组装，远端仅替换 HTTP 传输，所有本地副作用实际发生。"""
     config = config or config_at(root)
     bodies = []
@@ -58,6 +60,7 @@ def captured_app(root, respond, *, config=None, child_handler=None, history=None
                 root,
                 confirm_command=lambda _: True,
                 confirm_edit=lambda _: True,
+                confirm_browser=confirm_browser,
                 decorate_tools=runtime.tools,
                 observe_conversation=runtime.bind,
                 child_client_factory=child_client if child_handler is not None else None,

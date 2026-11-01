@@ -20,7 +20,7 @@ def open_browser(
     """在当前线程独占临时浏览器；创建失败/取消均清理，保留原始业务故障。
 
     channel 由可信宿主选择已安装的 chrome/ msedge，省略则使用 Playwright Chromium。
-    此入口尚不注册模型工具，不提供任意 JavaScript、点击或上传能力。
+    此入口只管理资源；动作须由可信调用方逐次批准，不提供任意 JavaScript 或上传。
     """
     if cancel is not None:
         cancel.check()

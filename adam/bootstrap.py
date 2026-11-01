@@ -33,6 +33,7 @@ from adam.application.undo import UndoService
 from adam.config.loader import load_config
 from adam.config.roles import RoleProfile
 from adam.config.settings import AppConfig, ArtifactConfig, DocumentConfig, PermissionConfig
+from adam.contracts.browser import BrowserApproval
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.execution import ExecutionMode, ToolCapability
@@ -62,6 +63,7 @@ from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.background_jobs import BackgroundJobs
 from adam.tool_calls.background_tools import BackgroundTools
 from adam.tool_calls.command_tools import CommandTools
+from adam.tool_calls.browser_tools import register_browser
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers, register_progress
 from adam.tool_calls.diagnostic_files import DiagnosticFiles
@@ -101,6 +103,7 @@ def build_application(
     confirm_command: Callable[[CommandRequest], bool] | None = None,
     confirm_edit: Callable[[FileChangePlan], bool] | None = None,
     confirm_terminal: Callable[[TerminalRequest], bool] | None = None,
+    confirm_browser: Callable[[BrowserApproval], bool] | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,
@@ -127,7 +130,8 @@ def build_application(
     role仅由可信配置加载；固定同一连接配置的模型并收窄请求数和工具，不替换路径权限。
     live_input显式启用运行中输入；cancel须与主HTTP适配器共享，默认聊天保持原路径。
     网页工具按次创建/关闭独立连接；禁用时不加载其后端。
-    启用子任务或 MCP 的调用方须在释放主会话锁前调用 application.close；
+    浏览器按会话延迟创建，逐次确认确切动作；子任务不注册浏览器、不继承主审批。
+    启用子任务、MCP 或浏览器的调用方须在释放主会话锁前调用 application.close；
     组装失败会回收已创建资源，主模型与主存储仍由调用方持有。
     """
     if role:
@@ -267,6 +271,9 @@ def build_application(
             registry, config.mcp, workspace, resources, media_store=MCPMediaStore(mcp_media_dir)
         )
         registry = register_web(registry, config.web)
+        registry = register_browser(
+            registry, config.browser, lambda: store.active_session_id, resources, confirm_browser
+        )
         if artifacts:
             registry = artifacts.register(registry)
         if config.session_search.enabled:
@@ -860,12 +867,13 @@ def open_application(
     confirm_command: Callable[[CommandRequest], bool] | None = None,
     confirm_edit: Callable[[FileChangePlan], bool] | None = None,
     confirm_terminal: Callable[[TerminalRequest], bool] | None = None,
+    confirm_browser: Callable[[BrowserApproval], bool] | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,
     live_input: bool = False,
 ) -> Iterator[AgentApplication]:
-    """从配置打开应用；配置错误不会创建 HTTP 客户端或会话目录。
+    """从配置打开应用；配置文件解析失败时不创建 HTTP 客户端或会话目录。
 
     yield 期间拥有存储与 HTTP 资源；启动失败、退出、取消或界面异常都释放它们。
     先停止并回收子任务与 MCP 服务，再释放主会话锁；已知业务错误按 AgentError 契约传播，
@@ -892,6 +900,7 @@ def open_application(
             confirm_command=confirm_command,
             confirm_edit=confirm_edit,
             confirm_terminal=confirm_terminal,
+            confirm_browser=confirm_browser,
             on_tool=on_tool,
             on_notice=on_notice,
             on_plan=on_plan,

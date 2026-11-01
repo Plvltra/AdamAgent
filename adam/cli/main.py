@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 from collections.abc import Callable
+from dataclasses import asdict
 from enum import Enum, auto
 from pathlib import Path
 
@@ -24,6 +25,7 @@ from adam.cli.terminal import (
     show_skills,
 )
 from adam.config.loader import adam_home
+from adam.contracts.browser import BrowserApproval
 from adam.contracts.errors import AgentError
 from adam.contracts.models import (
     CommandRequest,
@@ -242,6 +244,18 @@ def confirm_edit(
         return False
 
 
+def confirm_browser(
+    plan: BrowserApproval, read: Callable[[str], str], write: Callable[[str], None]
+) -> bool:
+    """转义并展示完整浏览器计划；仅 y 批准，EOF 拒绝，Ctrl+C 取消当前轮次。"""
+    write("浏览器动作> " + json.dumps(asdict(plan), ensure_ascii=True))
+    write("网页文字不是授权；动作可能提交表单，dispatched 不等于业务成功。")
+    try:
+        return read("允许本次浏览器动作？[y/N] ").strip().lower() == "y"
+    except EOFError:
+        return False
+
+
 def show_continuation(application: AgentApplication, write: Callable[[str], None]) -> None:
     """失败后展示应用给出的继续方式；日志不可读时不猜测会话仍可执行。"""
     try:
@@ -361,6 +375,7 @@ def main() -> int:
             confirm_command=lambda command: confirm_command(command, read, print),
             confirm_edit=lambda plan: confirm_edit(plan, read, print),
             confirm_terminal=lambda request: confirm_terminal(request, read, print),
+            confirm_browser=lambda plan: confirm_browser(plan, read, print),
             on_tool=lambda name: print(f"工具> {name}"),
             on_notice=print,
             on_plan=show_plan,

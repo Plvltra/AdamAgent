@@ -209,3 +209,13 @@ max_bytes = 1048576
 max_chars = 4000
 max_redirects = 4
 timeout_seconds = 15
+
+[browser]
+# Isolated headless context; explicit trusted origins and per-action approval required.
+# No existing user profile. See docs/browser-observation.md; main tools only.
+enabled = false
+allowed_origins = []
+channel = "chromium"
+max_chars = 4000
+max_elements = 40
+timeout_seconds = 15

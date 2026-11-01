@@ -22,7 +22,7 @@ from playwright.async_api import (
 )
 
 from adam.browser.adapters.dom import SNAPSHOT_SCRIPT
-from adam.browser.models import BrowserError, DomSnapshot, ObservationLimits
+from adam.browser.models import BrowserAction, BrowserError, DomSnapshot, ObservationLimits
 from adam.browser.policy import BrowserPolicy
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import RequestInterrupted
@@ -51,6 +51,7 @@ class ChromiumDriver:
         self._blocked_requests = 0
         self._blocked_navigation = False
         self._navigating = False
+        self._acting = False
         self._route_timeout = False
         self._redirect: str | None = None
         self._key = "__adam_" + uuid4().hex
@@ -80,6 +81,10 @@ class ChromiumDriver:
     def is_current(self, snapshot: DomSnapshot, element_id: str, cancel: CancellationToken) -> bool:
         """验证原节点及观察版本；被替换的同名控件不会获得旧引用。"""
         return self._run(self._is_current(snapshot, element_id), cancel)
+
+    def act(self, snapshot: DomSnapshot, action: BrowserAction, cancel: CancellationToken) -> bool:
+        """仅执行固定的原生控件操作；执行前再次核对原节点。"""
+        return self._run(self._act(snapshot, action), cancel)
 
     def close(self) -> None:
         """依次关闭上下文、浏览器与 SDK，失败仍尝试剩余清理；重复调用无副作用。"""
@@ -152,7 +157,7 @@ class ChromiumDriver:
         self._page.set_default_navigation_timeout(self._limits.timeout_seconds * 1000)
 
     async def _route(self, route: Route) -> None:
-        """逐请求校验；主页面重定向交还 navigate，其他重定向不自动跟随。
+        """逐请求校验；主页面重定向交还 navigate/动作入口，其他重定向不自动跟随。
 
         Playwright 只路由链首请求，故不能把 3xx 交给浏览器自动跟随。
         """
@@ -164,16 +169,26 @@ class ChromiumDriver:
         response = None
         try:
             self._policy.check(route.request.url)
-            if route.request.method not in {"GET", "HEAD"}:
-                raise BrowserError("network_denied", "观察入口不允许提交请求。")
+            if route.request.method not in {"GET", "HEAD"} and not (
+                self._acting and route.request.method == "POST"
+            ):
+                raise BrowserError("network_denied", "未批准的观察入口不允许提交请求。")
             response = await route.fetch(
                 max_redirects=0, max_retries=0, timeout=self._limits.timeout_seconds * 1000
             )
             if 300 <= response.status < 400:
                 target = urljoin(route.request.url, response.headers.get("location", ""))
                 self._policy.check(target)
-                if not main or not self._navigating or not response.headers.get("location"):
+                if (
+                    not main
+                    or not (self._navigating or self._acting)
+                    or not response.headers.get("location")
+                ):
                     raise BrowserError("network_denied", "子资源或非显式打开的重定向已拒绝。")
+                if self._acting and response.status not in {301, 302, 303}:
+                    raise BrowserError(
+                        "network_denied", "不自动重提表单或跟随保留方法的动作重定向。"
+                    )
                 self._redirect = target
                 await route.abort("aborted")
             else:
@@ -266,6 +281,57 @@ class ChromiumDriver:
                 },
             )
         )
+
+    async def _act(self, snapshot: DomSnapshot, action: BrowserAction) -> bool:
+        """通过固定程序取得原节点句柄，不按选择器重找；动作后只跟随 GET 结果页。"""
+        assert self._page is not None
+        handle = await self._page.evaluate_handle(
+            SNAPSHOT_SCRIPT,
+            {
+                "key": self._key,
+                "mode": "handle",
+                "expected": {
+                    "documentId": snapshot.document_id,
+                    "revision": snapshot.revision,
+                    "elementId": action.reference.element_id,
+                },
+            },
+        )
+        element = handle.as_element()
+        try:
+            if element is None:
+                return False
+            self._redirect = None
+            self._blocked_navigation = False
+            self._acting = True
+            try:
+                if action.operation == "click":
+                    await element.click()
+                elif action.operation == "fill":
+                    assert action.value is not None
+                    await element.fill(action.value)
+                elif action.operation == "select":
+                    assert action.value is not None
+                    await element.select_option(value=action.value)
+                else:
+                    await element.evaluate(
+                        "(element, delta) => element.scrollBy(0, delta)", action.scroll_y
+                    )
+            except Error:
+                if self._redirect is None:
+                    raise
+            if self._blocked_navigation:
+                raise BrowserError(
+                    "network_denied", "动作导航被站点策略拒绝；实际副作用可能已发生。"
+                )
+            if self._redirect is not None:
+                await self._navigate(self._redirect)
+            return True
+        finally:
+            self._acting = False
+            self._redirect = None
+            with suppress(Error, TimeoutError):
+                await asyncio.wait_for(handle.dispose(), timeout=1)
 
     async def _close(self) -> None:
         """资源关闭不依赖页面存活；清理故障不会阻止 SDK 驱动停止。"""

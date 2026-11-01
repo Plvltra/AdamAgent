@@ -15,6 +15,7 @@ from adam.config.settings import (
     AgentConfig,
     AppConfig,
     ArtifactConfig,
+    BrowserConfig,
     CommandIsolationConfig,
     ContextConfig,
     DocumentConfig,
@@ -164,6 +165,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "orchestration",
             "command_isolation",
             "web",
+            "browser",
         },
         "主配置",
     )
@@ -375,6 +377,11 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
                 data.get("artifacts", {}),
                 {item.name for item in fields(ArtifactConfig)},
                 "artifacts",
+            )
+        ),
+        browser=BrowserConfig(
+            **checked_section(
+                data.get("browser", {}), {item.name for item in fields(BrowserConfig)}, "browser"
             )
         ),
         web=WebConfig(

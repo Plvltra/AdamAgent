@@ -50,6 +50,7 @@ class ToolCapability(StrEnum):
     DELEGATE = "delegate"
     EDIT_FILE = "edit_file"
     RUN_PROCESS = "run_process"
+    EXTERNAL_ACTION = "external_action"
     UNKNOWN = "unknown"
 
 

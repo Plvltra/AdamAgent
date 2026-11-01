@@ -16,6 +16,9 @@ from adam.tool_calls.file_evidence import FileResult, FileStateError
 
 ToolHandler = Callable[[dict[str, Any], ExecutionRecorder | None], dict[str, Any]]
 ParallelHandler = Callable[[dict[str, Any], CancellationToken], dict[str, Any]]
+InterruptibleHandler = Callable[
+    [dict[str, Any], ExecutionRecorder | None, CancellationToken], dict[str, Any]
+]
 PreparedAction = Callable[[CancellationToken], dict[str, Any]]
 ResultEncoder = Callable[[dict[str, Any]], str]
 ArgumentValidator = Callable[[object], None]
@@ -40,6 +43,7 @@ class ToolRegistry:
         capabilities: dict[str, ToolCapability] | None = None,
         mode_provider: Callable[[], ExecutionMode] | None = None,
         parallel_handlers: dict[str, ParallelHandler] | None = None,
+        interruptible_handlers: dict[str, InterruptibleHandler] | None = None,
         groups: dict[str, str] | None = None,
     ) -> None:
         """说明与实现必须一一对应；可注册编码器、校验器和可信能力声明。
@@ -47,7 +51,13 @@ class ToolRegistry:
         未声明能力按 UNKNOWN 处理；模式提供者只由组装方注入，不接受模型控制。
         groups 仅供发现目录分组，省略时归入 extensions；分组不改变执行能力或权限。
         parallel_handlers 只接收参数和取消令牌，不接收日志回调；必须是可协作取消的无状态读取。
+        interruptible_handlers 接收日志与取消信号，但仍串行，不授予并发或批准权限。
         """
+        if (interruptible_handlers or {}).keys() - specs.keys() or any(
+            not callable(handler) or name in (parallel_handlers or {})
+            for name, handler in (interruptible_handlers or {}).items()
+        ):
+            raise ValueError("可取消串行处理函数必须属于当前工具，且不能同时声明并发。")
         validate_groups(groups or {}, specs)
         if (
             specs.keys() != handlers.keys()
@@ -75,6 +85,7 @@ class ToolRegistry:
         self._groups = dict(groups or {})
         self._mode_provider = mode_provider
         self._parallel_handlers = dict(parallel_handlers or {})
+        self._interruptible_handlers = dict(interruptible_handlers or {})
 
     def extended(
         self,
@@ -86,9 +97,15 @@ class ToolRegistry:
         path_selectors: dict[str, PathSelector] | None = None,
         capabilities: dict[str, ToolCapability] | None = None,
         parallel_handlers: dict[str, ParallelHandler] | None = None,
+        interruptible_handlers: dict[str, InterruptibleHandler] | None = None,
         groups: dict[str, str] | None = None,
     ) -> "ToolRegistry":
         """返回扩展后的独立目录；不覆盖同名工具，也不改变已有目录和分组。"""
+        if (interruptible_handlers or {}).keys() - specs.keys() or any(
+            not callable(handler) or name in (parallel_handlers or {})
+            for name, handler in (interruptible_handlers or {}).items()
+        ):
+            raise ValueError("可取消串行处理函数必须属于当前工具，且不能同时声明并发。")
         validate_groups(groups or {}, specs)
         if (capabilities or {}).keys() - specs.keys() or (
             parallel_handlers or {}
@@ -107,6 +124,10 @@ class ToolRegistry:
             capabilities={**self._capabilities, **(capabilities or {})},
             mode_provider=self._mode_provider,
             parallel_handlers={**self._parallel_handlers, **(parallel_handlers or {})},
+            interruptible_handlers={
+                **self._interruptible_handlers,
+                **(interruptible_handlers or {}),
+            },
             groups={**self._groups, **(groups or {})},
         )
 
@@ -154,6 +175,7 @@ class ToolRegistry:
             capabilities=self._capabilities,
             mode_provider=self._mode_provider,
             parallel_handlers=self._parallel_handlers,
+            interruptible_handlers=self._interruptible_handlers,
             groups=self._groups,
         )
 
@@ -172,6 +194,7 @@ class ToolRegistry:
             capabilities=self._capabilities,
             mode_provider=provider,
             parallel_handlers=self._parallel_handlers,
+            interruptible_handlers=self._interruptible_handlers,
             groups=self._groups,
         )
 
@@ -248,6 +271,11 @@ class ToolRegistry:
         parallel = self._parallel_handlers.get(name)
         if parallel is not None:
             return lambda cancel: self._invoke(lambda: parallel(args, cancel))
+        interruptible = self._interruptible_handlers.get(name)
+        if interruptible is not None:
+            return lambda cancel: self._invoke(
+                lambda: interruptible(args, record_execution, cancel)
+            )
         handler = self._handlers[name]
         return lambda _cancel: self._invoke(lambda: handler(args, record_execution))
 

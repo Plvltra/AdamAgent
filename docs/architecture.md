@@ -8,6 +8,8 @@
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
+C 系列最近核对（2026-11-01）：C02.2 新增主应用有限动作与逐次批准；bootstrap 组装 browser_tools，会话来源由宿主注入，资源由应用 ExitStack 持有。CLI 仅依赖不可变批准契约；原发现/模式/Hook/预算/日志保持。ToolRegistry 增加串行取消端口，不授予并发资格；BrowserObserver 负责当前性与未知结果停止，适配器执行原节点原生动作。C02.3～4 尚未验收，主线文首与 B 正文保留。
+
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
 [B23.3对照入口](../scripts/span_edit_eval.py)只生成独立教学样本，经同一工具工厂真实编辑并保存参数/文件版本；[实际结果](span-editing.md)不代表聊天质量或token成本。
@@ -75,233 +77,6 @@ flowchart LR
 
 规划接口本身不批准或执行，生产replace_span随后复用原execute_plan。具体范围及书稿取舍见 [首尾编辑](span-editing.md)。
 
-## B22.3.1 生产创建工具
-
-~~~mermaid
-flowchart LR
-    FC_MODEL["原工具发现 / create_file说明"] --> FC_REG["factory / editing与EDIT_FILE"]
-    FC_REG --> FC_GATE["原参数、模式、路径、前置Hook"]
-    FC_GATE --> FC_CREATE["EditTools.create_file / 固定创建计划"]
-    FC_CREATE --> FC_EXEC["原execute_plan / 批准、日志和发布"]
-    FC_EXEC --> FC_AFTER["原后置Hook / 版本化诊断"]
-    FC_AFTER --> FC_DIAG["match_edit / FILE_EDIT_TOOLS与来源核对"]
-    FC_REG --> FC_CHILD["子Agent / approval_required"]
-~~~
-
-模型读取实际版本后可继续替换，用户通过原undo恢复原内容再撤销创建；离线重放不重建或修改源文件。三个仓库Hook示例纳入创建，用户自己的脚本不会自动修改。见 [创建边界与验收](file-creation.md)。
-
-## B22.2.3.2 撤销创建
-
-~~~mermaid
-flowchart LR
-    FC_UNDO["UndoService / 最近成功编辑"] --> FC_UNDO_CP["SessionStore / 核对创建检查点"]
-    FC_UNDO --> FC_RESTORE_PLAN["EditTools.prepare_restore / 当前权限与版本"]
-    FC_RESTORE_PLAN --> FC_DELETE["DeletePlan / 缺失目标与完整删除diff"]
-    FC_UNDO --> FC_DELETE_APPROVE["CLI / 明确删除批准"]
-    FC_UNDO --> FC_RESTORE["apply_restore / 复核后unlink或原apply"]
-    FC_UNDO --> FC_UNDO_LOG["原undo_* / 保存失败保持unknown"]
-~~~
-
-没有模型通用删除工具；版本检查与unlink并非跨进程比较删除事务。见 [撤销边界](file-creation.md)。
-
-## B22.2.3.1 创建记录接入
-
-~~~mermaid
-flowchart LR
-    FC_EXEC["EditTools.execute_plan / CreatePlan"] --> FC_CONFIRM["confirm_create / 原批准回调"]
-    FC_EXEC --> FC_ACTION["ToolInvocation / 原动作记录回调"]
-    FC_ACTION --> FC_SESSION_STORE["SessionStore / 父工具、操作与版本"]
-    FC_SESSION_STORE --> FC_CHECKPOINT_STORE["CheckpointStore / create缺失状态"]
-    FC_EXEC --> FC_APPLY["apply_create / 原子发布"]
-~~~
-
-创建由生产工具工厂注册，执行和留痕复用原链路；成功创建可通过原UndoService批准撤销。
-
-## B22.2.2 新文件原子发布
-
-~~~mermaid
-flowchart LR
-    FC_APPLY["EditTools.apply_create / 已批准候选"] --> FC_RECHECK["PathPolicy.resolve_create / 前后复核"]
-    FC_APPLY --> FC_TEMP["同目录临时文件 / 写完整、flush、fsync"]
-    FC_TEMP --> FC_LINK["os.link / 已有目标失败"]
-    FC_LINK --> FC_UNLINK["只清理临时名字 / 不改共享属性"]
-~~~
-
-apply_create由原execute_plan在批准与开始记录后调用，调用方仍负责批准与执行日志。实际文件系统支持和边界见 [文件创建](file-creation.md)。
-
-## B22.2.1 缺失状态检查点
-
-~~~mermaid
-flowchart LR
-    FC_SNAPSHOT["EditCheckpoint / create与null原状态"] --> FC_STORE["CheckpointStore / v2创建与v1替换"]
-    FC_LEDGER["EditLog / 创建纯事件投影"] --> FC_UNKNOWN["无结束仍unknown / 快照不证明成功"]
-    FC_SESSION["SessionLog / 父工具类型校验"] --> FC_LEDGER
-~~~
-
-创建计划已经接入SessionStore写入链；plan_restore将缺失快照转换为DeletePlan，避免将原缺失错误恢复为空文件。
-
-## B22.1 新文件规划与批准
-
-~~~mermaid
-flowchart LR
-    FC_PREP["EditTools.prepare_create / 仅规划"] --> FC_PATH["PathPolicy.resolve_create / 写权限、父目录、缺失检查"]
-    FC_PREP --> FC_PLAN["plan_create / UTF-8与完整diff"]
-    FC_PLAN --> FC_CONTRACT["CreatePlan / 缺失状态与不可变候选"]
-    FC_CONFIRM["EditTools.confirm_create"] --> FC_PATH
-    FC_CONFIRM --> FC_UI["FileChangePlan回调 / CLI完整diff确认"]
-    FC_CONTRACT --> FC_CONFIRM
-~~~
-
-创建批准已连接生产工具与发布；批准不锁定路径，不能代替发布时的不覆盖保证。见 [创建契约](file-creation.md)。
-
-## B21.2 显式正则搜索
-
-~~~mermaid
-flowchart LR
-    RX_QUERY["FileQueries / 显式regex与剩余期限"] --> RX_API["match_lines / 校验、取消、期限与结果复核"]
-    RX_API --> RX_FILES["有界临时请求/结果文件"]
-    RX_API --> RX_PROCESS["独立 Python -I -S / regex_worker"]
-    RX_PROCESS --> RX_FILES
-~~~
-
-原search_text入口已接入显式mode，字面方式仍在原进程处理；固定脚本只接收授权文件快照，不读取项目路径、不执行模型代码。见 [资源及验收边界](file-search.md)。
-
-## B21.1 文件查询与分页
-
-~~~mermaid
-flowchart LR
-    FQ_TOOLS["FileTools / 原三类查询入口"] --> FQ_QUERY["FileQueries / 扫描、页面与版本复核"]
-    FQ_QUERY --> FQ_SCAN["capture_inventory / 受限稳定扫描"]
-    FQ_QUERY --> FQ_TEXT["read_snapshot / 有界字节与SHA-256"]
-    FQ_SCAN --> FQ_POLICY["PathPolicy / 每次路径授权"]
-    FQ_SCAN --> FQ_INVENTORY["QueryInventory / 元数据版本"]
-    FQ_INVENTORY --> FQ_CONTRACT["contracts.file_query / 摘要与游标"]
-~~~
-
-原工具注册与并发适配器仍调用 FileTools，页面保留结构交给原日志/模型/录制路径。新max_scan_bytes约束总读取，旧AST查询不变。见 [查询范围与验收](file-search.md)。
-
-## B20.2.2 诊断进入请求
-
-~~~mermaid
-flowchart LR
-    DQ_BOOT["bootstrap / 主与子各自权限和存储"] --> DQ_READER["DiagnosticContextReader"]
-    DQ_CHAT["Conversation / 实际普通请求"] --> DQ_READER
-    DQ_CHAT --> DQ_BUILD["ContextBuilder / 独立消息及预算"]
-    DQ_BUILD --> DQ_REQUEST["RequestRunner / 原请求记录与调用"]
-    DQ_REQUEST --> DQ_LOG["SessionLog / 诊断来源核对"]
-    DQ_READER --> DQ_CONTRACT["DiagnosticSelection / 观察与原报告"]
-    DQ_CAPTURE["CaptureRuntime / context diagnostics"] --> DQ_READER
-    DQ_REPLAY["离线 DiagnosticReader / 原观察"] --> DQ_CHAT
-~~~
-
-真实查询按轮次重新观察文件版本，重放只用原记录；旧轨迹缺少版本标记就不新增观察。子任务不能借查询获得编辑权。见 [完整调用与失败语义](edit-diagnostics.md)。
-
-## B20.2.1 诊断选择与版本观察
-
-~~~mermaid
-flowchart LR
-    DG_READER["application.diagnostics / DiagnosticContextReader"] --> DG_STORE["SessionStore.load_hooks / 本会话事实"]
-    DG_READER --> DG_SELECTION["contracts.diagnostic_context / 有界选择及来源"]
-    DG_READER --> DG_CHECK["注入 VersionCheck"]
-    DG_CHECK --> DG_FILES["tool_calls.diagnostic_files / DiagnosticFiles"]
-    DG_FILES --> DG_POLICY["原 PathPolicy 与 read_snapshot"]
-~~~
-
-查询本身不运行检查器、不改日志、不请求模型；B20.2.2 在真实请求构造时调用。消息只显示当前版本问题，完整证据保留原报告。见 [诊断范围与验证](edit-diagnostics.md)。
-
-## B20.1 修改后诊断
-
-~~~mermaid
-flowchart LR
-    DG_EDIT["原专用编辑 / applied 与 after_version"] --> DG_TOOL["ToolInvocation / tool_finished 已保存"]
-    DG_TOOL --> DG_HOOK["原 ToolHooks / 后置检查"]
-    DG_HOOK --> DG_RUN["HookRunner / 原有界进程"]
-    DG_RUN --> DG_EX["显式用户检查器 / 新 Python 语法示例"]
-    DG_RUN --> DG_PARSE["contracts.hooks.parse_response / v1 或 v2"]
-    DG_PARSE --> DG_DATA["contracts.diagnostics / 报告及编辑来源校验"]
-    DG_HOOK --> DG_LOG["HookLog / 绑定原工具结果与来源"]
-    DG_LOG --> DG_DATA
-~~~
-
-检查状态不改写编辑事实；B20.2 在上层加入独立模型观察。契约与验证见 [修改后诊断](edit-diagnostics.md)。
-
-## B19.2.3 隔离命令工具
-
-~~~mermaid
-flowchart LR
-    ICT_CFG["command_isolation / 默认关闭"] --> ICT_BOOT["bootstrap / 只向主 Agent 注入"]
-    ICT_BOOT --> ICT_TOOL["tool_calls.isolated_commands / 原 ToolRegistry、模式、Hook、预算"]
-    ICT_BOOT --> ICT_BACK["isolation.commands / IsolatedCommands"]
-    ICT_TOOL --> ICT_INPUT["原 PathPolicy / capture_inputs 与批准后 verify"]
-    ICT_TOOL --> ICT_CLI["CommandRequest / CLI 环境、argv、来源与版本批准"]
-    ICT_TOOL --> ICT_PORT["contracts.command_execution / CommandRunner"]
-    ICT_BACK -.实现.-> ICT_PORT
-    ICT_TOOL --> ICT_LOG["原 ToolInvocation / command_started、finished、denied"]
-    ICT_LOG --> ICT_CHECK["session.command_log / 环境与来源不可改写"]
-    ICT_CHECK --> ICT_FACT["执行报告、计划证据、反思 / 真实状态与退出码"]
-    ICT_TOOL --> ICT_RESULT["原附件与重复失败预览 / 保留环境、原因与引用"]
-~~~
-
-B19.3.1 补充 invalid_utf8 解码事实：后端 → 结果契约 → 隔离工具 → 原附件完整性与命令日志；不新增执行权限。与下图真实后端通过窄契约连接；原宿主命令明确显示执行环境，失败不自动改走另一条路径。说明见 [隔离命令](runtime-isolation.md)。
-
-## B19.2.1 原生命令隔离 API
-
-~~~mermaid
-flowchart LR
-    IC_SELECT["显式虚拟名到源路径映射"] --> IC_CAPTURE["tool_calls.command_inputs / 原 PathPolicy 与有界读取"]
-    IC_CAPTURE --> IC_FILES["contracts.command_inputs / 不可变字节与 SHA"]
-    IC_CAPTURE --> IC_SOURCE["CapturedInputs.sources / 宿主来源及批准后 verify"]
-    IC_FILES --> IC_API
-    IC_CALL["显式 API 调用者 / 有界 argv"] --> IC_API["isolation.commands / IsolatedCommands"]
-    IC_API --> IC_WIRE["command_protocol / 固定策略、请求与结果"]
-    IC_WIRE --> IC_WSL["指定 WSL / linux_command 外部看守"]
-    IC_WSL --> IC_TMP["全部数据校验 / 私有临时快照"]
-    IC_TMP --> IC_BWRAP["原 Bubblewrap / 只读快照、namespace、seccomp"]
-    IC_BWRAP --> IC_GUARD["linux_command_guard / 资源硬限额与 Landlock"]
-    IC_GUARD --> IC_ELF["选定原生 ELF / 单进程、无网络"]
-    IC_ELF --> IC_WSL
-    IC_WSL --> IC_RESULT["有界双流、真实退出与停止原因"]
-    IC_RESULT --> IC_API
-~~~
-
-B19.2.3 已通过上图接入主 Agent 工具与批准；原 CommandTools 宿主路径仍明确独立。见 [隔离策略与实测](runtime-isolation.md)。
-
-## B18 命令输出
-
-~~~mermaid
-flowchart LR
-    CMD_RUN["CommandTools / 原确认与进程启动"] --> CMD_PIPES["stdout 与 stderr / 各自排空线程"]
-    CMD_PIPES --> CMD_BUFFER["command_output.OutputCapture / 固定头部与滚动尾部"]
-    CMD_BUFFER --> CMD_SNAPSHOT["CapturedOutput / 一致计数、EOF、UTF-8与头尾"]
-    CMD_SNAPSHOT --> CMD_RESULT["原命令结果与有界 command_finished"]
-    CMD_RESULT --> CMD_ART["ToolArtifacts / 原附件先保存"]
-    CMD_RUN --> CMD_CANCEL["取消 / 原进程树清理 / 捕获快照"]
-    CMD_CANCEL --> CMD_INTERRUPTED["command_finished 留证后抛出原中断"]
-    CMD_RESULT --> CMD_PREVIEW["result_preview / 实际 JSON 预算与两端文本"]
-    CMD_ART --> CMD_PREVIEW
-    CMD_PROGRESS["progress_output / 原结果文本与宿主重复失败观察"] --> CMD_PREVIEW
-    CMD_PREVIEW --> CMD_FINAL["同一最终工具消息 / JSONL 与模型输入"]
-~~~
-
-宿主 CommandTools 的源头和最终预览保留头尾；极小额度可省略全部正文并明确计数。字符省略与原字节省略分开，附件完整性保持原义；见 [输出契约](command-output.md)。
-
-## B17.3.1 图片分析扩展契约
-
-~~~mermaid
-flowchart LR
-    IMAGE_CALL["调用者已授权读取的有限字节与问题"] --> IMAGE_API["documents.image_analysis / inspect_image"]
-    IMAGE_API --> IMAGE_SOURCE["原字节 SHA、问题摘要、输入与输出上限"]
-    IMAGE_API --> IMAGE_NONE["未注入后端 / unavailable"]
-    IMAGE_API -. 显式注入 .-> IMAGE_PORT["contracts.perception / ImageAnalyzer"]
-    IMAGE_PORT --> IMAGE_REPLY["ImageReply / 模型身份、文本及真实或未知用量"]
-    IMAGE_REPLY --> IMAGE_CHECK["格式/限额/取消校验 / 不自动重试"]
-    IMAGE_CHECK --> IMAGE_RESULT["ImageInspection / independently_verified=false"]
-    IMAGE_SOURCE --> IMAGE_RESULT
-~~~
-
-此图是已实现的扩展 API；生产没有视觉模型后端或图片聊天工具。实际后端集成还需接原请求日志、共享预算与未知用量处理，见 [PDF/图片能力范围](pdf-perception.md)。
-
-C 系列最近核对（2026-11-01）：C02.1 新增独立单标签 DOM 观察、版本化引用及 Chromium SDK 隔离；C00.1/C01.1 可选网页工具关系保持，主线文首与正文保留。browser.service 借用窄后端，runtime 延迟创建并关闭无头临时资源，policy 固定可信站点，adapters 负责逐请求/重定向边界和控件当前性；没有注册动作工具或改变 Conversation。新增代码契约覆盖失效、取消与清理边界，现有说明保留。
 
 ## B17 PDF 读取与提取
 
@@ -830,10 +605,15 @@ flowchart LR
 
 主体、时间消歧已由 B06.2 接入。模型准备、范围和降级契约见 [语义记忆](semantic-memory.md)。
 
-## C02.1 独立 DOM 浏览器观察
+## C02.1 / C02.2 DOM 浏览器观察与动作
 
 ~~~mermaid
 flowchart LR
+    BR_BOOT["bootstrap / BrowserConfig 与宿主当前会话"] --> BR_TOOLS["browser_tools / 主会话独立资源与批准"]
+    BR_TOOLS --> BR_REGISTRY["ToolRegistry / 发现、模式、Hook、预算与串行取消"]
+    BR_TOOLS --> BR_RUNTIME
+    BR_TOOLS --> BR_APPROVAL["contracts.browser / BrowserApproval"]
+    BR_APPROVAL --> BR_UI["cli.main.confirm_browser / 转义展示与明确 y"]
     BR_CLI["python -m adam.browser / 显式站点入口"] --> BR_RUNTIME["browser.runtime.open_browser / 临时资源所有权"]
     BR_RUNTIME --> BR_SERVICE["browser.service.BrowserObserver / 观察与引用校验"]
     BR_SERVICE --> BR_PORT["browser.models.BrowserDriver / 窄后端"]
@@ -845,7 +625,9 @@ flowchart LR
     BR_ADAPTER --> BR_SITE["真实 Chromium 与 HTTP 测试网站"]
 ~~~
 
-[观察服务](../adam/browser/service.py) 不导入 SDK、应用内核或会话存储。[资源入口](../adam/browser/runtime.py) 只在实际调用时导入适配器，主/子聊天默认不加载浏览器。每次观察替换引用表；[固定 DOM 程序](../adam/browser/adapters/dom.py) 验证原节点、文档、revision 和属性状态。同名替换不可沿用旧引用。主页面显式逐跳打开，子资源重定向/自动 POST/WebSocket 拒绝；origin 白名单不是 DNS 固定或系统沙箱。C02.2～4 的动作批准、会话标签/弹窗/下载及整体验收尚未实现；不因本项具有基本关闭就提前勾选。接口、真实测试与限制见 [浏览器观察](browser-observation.md)。
+[观察服务](../adam/browser/service.py) 不导入 SDK、应用内核或会话存储。[资源入口](../adam/browser/runtime.py) 只在实际调用时导入适配器，主/子聊天默认不创建浏览器资源。每次观察替换引用表；[固定 DOM 程序](../adam/browser/adapters/dom.py) 验证原节点、文档、revision 和属性状态。同名替换不可沿用旧引用。主页面显式逐跳打开，观察阶段子资源重定向/自动 POST/WebSocket 拒绝；origin 白名单不是 DNS 固定或系统沙箱。C02.3～4 的会话标签/弹窗/下载及整体验收尚未实现；不因基本关闭和单表单闭环就提前勾选。接口、真实测试与限制见 [浏览器观察](browser-observation.md)。
+
+C02.2：BrowserAction 校验四类有限动作与引用；BrowserObserver 形成 BrowserApproval 并在批准后复检。BrowserTools 仅在 approved open 时延迟创建隔离上下文，所有浏览器工具声明 EXTERNAL_ACTION 且不并行，子任务不注册。ChromiumDriver 使用原节点句柄，不执行调用者脚本；动作期间允许白名单 POST，主页面只按 GET 跟随 301/302/303，拒绝保留方法的 307/308。SDK/OS 动作故障按 BrowserActionUnknownError 停止；动作后观察失败保留 dispatched，不能当成业务成功或要求重做。取消/未知结果丢弃当前资源，应用关闭回收所有资源。真实本地表单、JSONL 与故障验收见浏览器文档。
 
 ## C00.1 / C01.1 可选网页读取
 
@@ -1649,6 +1431,7 @@ flowchart LR
 | 包 | 归入的文件 | 允许的其他项目依赖 |
 | --- | --- | --- |
 | web | service.py、models.py、policy.py、adapters/http.py | web、contracts；HTTP SDK 仅在 adapters |
+| browser | service.py、models.py、policy.py、runtime.py、adapters/chromium.py、adapters/dom.py | browser、contracts；Playwright 仅在 adapters |
 | cli | main.py、terminal.py、reply_output.py、memory_commands.py | application、context、config、contracts；仅 main 调用 bootstrap |
 | application | facade.py、conversation.py、request_policy.py、memories.py、experiences.py、planning.py、reflection.py、request_runner.py、subagents/manager.py、budget.py、account.py | context、session、memory、tool_calls、config、contracts |
 | config | loader.py、settings.py | contracts |
@@ -1657,7 +1440,7 @@ flowchart LR
 | session | storage.py、log.py、compaction_log.py、edit_log.py、plan_log.py、plan_evidence.py、feedback_log.py、reflection_log.py、review_log.py、outcome.py、execution_report.py、diagnostics.py、delegation.py | contracts |
 | documents | 分块、来源、文本/向量检索、快照、embedding 与 evaluation | config、contracts |
 | memory | store.py、project.py、retrieval.py、semantic.py、subjects.py、organization.py、organization_change.py | contracts |
-| tool_calls | 工厂、注册表、执行器、权限、document_tools.py、planning_tools.py 和具体工具 | documents、session、config、contracts |
+| tool_calls | 工厂、注册表、执行器、权限、browser_tools.py 和具体工具 | documents、web、browser、code_index、skills、mcp、session、config、contracts |
 | contracts | models.py、history.py、errors.py、ports.py、protocol.py、delegation.py、cancellation.py、memory.py、memory_organization.py、embedding.py、planning.py、reflection.py、review.py | 无 |
 
 包内使用绝对路径显式导入所属实现；类型和错误直接从定义位置导入，避免经过其他业务模块转手。新包的 `__init__.py` 仅说明职责，不批量加载实现。contracts 只承载现有跨模块契约，不作为任意辅助函数目录。
@@ -1858,6 +1641,9 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [code_index/index.py](../adam/code_index/index.py) | `CodeIndex` | 注入授权、有界读取、SHA-256 增量刷新及内存缓存 |
 | [code_index/bindings.py](../adam/code_index/bindings.py) | `BindingCollector` | 收集名字使用、作用域及不能静态确定的绑定 |
 | [code_index/query.py](../adam/code_index/query.py) | `ReferenceIndex` | 快照内静态引用解析、导入链及未知原因 |
+| [browser/](../adam/browser/) | BrowserObserver、BrowserAction、open_browser | 版本化 DOM、有限动作与原节点复检；隔离可选 Chromium 后端 |
+| [tool_calls/browser_tools.py](../adam/tool_calls/browser_tools.py) | register_browser、BrowserTools | 主会话资源、逐次批准、固定动作参数与有界结果，原调度接入 |
+| [contracts/browser.py](../adam/contracts/browser.py) | BrowserApproval、BrowserActionUnknownError | 纯批准数据与未知副作用停止契约 |
 | [tool_calls/code_tools.py](../adam/tool_calls/code_tools.py) | `CodeTools`、`pack_page` | 三个只读查询、共享查询截止时间、完整来源分页 |
 | [recording/snapshot.py](../adam/recording/snapshot.py) | `capture_seed`、`validate_seed` | 选定轮次的历史与非凭据配置白名单 |
 | [recording/capture.py](../adam/recording/capture.py) | `TurnRecorder`、`RecordingModel`、`RecordingTools` | 装饰原调用，采集输入/结果/流式/实际日志，不替换动作 |
@@ -1900,7 +1686,7 @@ ToolInvocation 在开始记录写入后返回动作，在结果落盘后交付�
 | [tool_calls/invocation.py](../adam/tool_calls/invocation.py) | `ToolInvocation` | 单次调用预检、开始/结束及副作用日志、前后 Hook；仅协调线程访问 |
 | [tool_calls/scheduler.py](../adam/tool_calls/scheduler.py) | `ToolScheduler`、`ToolTask`、`ToolResult` | 有限只读并发、串行屏障、取消、清理与有序交付 |
 | [tool_calls/processes.py](../adam/tool_calls/processes.py) | `terminate_process` | 通用命令与固定 Git 查询共用进程清理 |
-| [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，在协调线程预检及编码，返回可独立执行的动作，保留可信并发声明 |
+| [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，在协调线程预检及编码，返回可独立执行的动作，保留可信并发及串行取消声明 |
 | [tool_calls/text_file.py](../adam/tool_calls/text_file.py) | `TextSnapshot`、`read_snapshot` | 同一次读取的完整字节、UTF-8 文本和版本 |
 | [tool_calls/edit_tools.py](../adam/tool_calls/edit_tools.py) | `EditTools` | 规划前检查写入权限，批准后复查版本，以同目录临时文件替换；不提供跨程序事务 |
 | [tool_calls/edit_plan.py](../adam/tool_calls/edit_plan.py) | `EditPlan`、`plan_edit` | 校验版本与唯一匹配，保留编码形式，生成候选内容和 diff；不写文件 |

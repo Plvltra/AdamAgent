@@ -540,6 +540,42 @@ class WebConfig:
 
 
 @dataclass(frozen=True)
+class BrowserConfig:
+    """可选浏览器主工具；站点由可信配置固定，启用不代替逐次批准。"""
+
+    enabled: bool = False
+    allowed_origins: tuple[str, ...] = ()
+    channel: str = "chromium"
+    max_chars: int = 4000
+    max_elements: int = 40
+    timeout_seconds: float = 15
+
+    def __post_init__(self) -> None:
+        if type(self.enabled) is not bool:
+            raise ConfigError("browser.enabled 必须是布尔值。")
+        if not isinstance(self.allowed_origins, (list, tuple)) or any(
+            not isinstance(origin, str) or not origin or len(origin) > 8192
+            for origin in self.allowed_origins
+        ):
+            raise ConfigError("browser.allowed_origins 必须是非空站点字符串数组。")
+        if self.enabled and not self.allowed_origins:
+            raise ConfigError("启用浏览器必须显式指定 allowed_origins。")
+        object.__setattr__(self, "allowed_origins", tuple(self.allowed_origins))
+        if not isinstance(self.channel, str) or self.channel not in {
+            "chromium",
+            "chrome",
+            "msedge",
+        }:
+            raise ConfigError("browser.channel 只支持 chromium、chrome 或 msedge。")
+        for name, maximum in (("max_chars", 100000), ("max_elements", 500)):
+            value = getattr(self, name)
+            if type(value) is not int or not 1 <= value <= maximum:
+                raise ConfigError(f"browser.{name} 超出允许范围。")
+        if type(self.timeout_seconds) not in (int, float) or not 0 < self.timeout_seconds <= 120:
+            raise ConfigError("browser.timeout_seconds 必须大于 0 且不超过 120。")
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """组装应用所需的完整配置；组装时只向各组件传递其需要的部分。"""
 
@@ -570,3 +606,4 @@ class AppConfig:
     orchestration: OrchestrationConfig = field(default_factory=OrchestrationConfig)
     command_isolation: CommandIsolationConfig = field(default_factory=CommandIsolationConfig)
     web: WebConfig = field(default_factory=WebConfig)
+    browser: BrowserConfig = field(default_factory=BrowserConfig)
