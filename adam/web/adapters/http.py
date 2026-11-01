@@ -16,7 +16,32 @@ from adam.web.policy import NetworkPolicy
 class HttpPageTransport:
     """在所属调用线程拥有事件循环与连接资源，不跨线程共享。"""
 
-    def __init__(self, policy: NetworkPolicy, limits: FetchLimits) -> None:
+    def __init__(
+        self,
+        policy: NetworkPolicy,
+        limits: FetchLimits,
+        *,
+        content_types: frozenset[str] = frozenset(
+            {"text/html", "text/plain", "application/xhtml+xml"}
+        ),
+        user_agent: str = "Adam-Web/1",
+    ) -> None:
+        """固定响应类型和客户端标识；默认仍只接受网页，JSON 须由可信宿主显式注入。"""
+        if not content_types or not content_types <= {
+            "text/html",
+            "text/plain",
+            "application/xhtml+xml",
+            "application/json",
+        }:
+            raise ValueError("HTTP 响应类型配置无效。")
+        if (
+            not user_agent
+            or len(user_agent) > 200
+            or any(ord(char) < 32 or ord(char) > 126 for char in user_agent)
+        ):
+            raise ValueError("HTTP 客户端标识无效。")
+        self._content_types = content_types
+        self._user_agent = user_agent
         self._policy = policy
         self._limits = limits
         self._runner = asyncio.Runner()
@@ -90,8 +115,8 @@ class HttpPageTransport:
                     headers={
                         "Host": parts.netloc,
                         "Accept-Encoding": "identity",
-                        "User-Agent": "Adam-Web/1",
-                        "Accept": "text/html, text/plain, application/xhtml+xml",
+                        "User-Agent": self._user_agent,
+                        "Accept": ", ".join(sorted(self._content_types)),
                     },
                     extensions={"sni_hostname": host},
                     timeout=seconds,
@@ -102,12 +127,8 @@ class HttpPageTransport:
                             response.status_code, location=response.headers.get("location")
                         )
                     kind = response.headers.get("content-type", "")
-                    if kind.split(";", 1)[0].strip().lower() not in {
-                        "text/html",
-                        "text/plain",
-                        "application/xhtml+xml",
-                    }:
-                        raise WebError("unsupported_type", "网页不是支持的 HTML 或纯文本。")
+                    if kind.split(";", 1)[0].strip().lower() not in self._content_types:
+                        raise WebError("unsupported_type", "远端实体类型不在允许范围内。")
                     if response.headers.get("content-encoding", "identity").lower() != "identity":
                         raise WebError("unsupported_encoding", "网页未遵守无压缩读取约束。")
                     body = bytearray()

@@ -4,8 +4,10 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 from adam.web.adapters.http import HttpPageTransport
-from adam.web.models import FetchLimits
+from adam.web.adapters.wikipedia import WikipediaSearch
+from adam.web.models import FetchLimits, WebError
 from adam.web.policy import NetworkPolicy
+from adam.web.search_models import SearchBackend, SearchLimits
 from adam.web.service import WebReader
 
 
@@ -20,6 +22,33 @@ def open_reader(limits: FetchLimits, policy: NetworkPolicy) -> Iterator[WebReade
             transport.close()
         except Exception:
             error.add_note("网页资源清理失败；原始错误保留，未自动重发请求。")
+        raise
+    else:
+        transport.close()
+
+
+@contextmanager
+def open_search(
+    backend: str | None, limits: SearchLimits, policy: NetworkPolicy
+) -> Iterator[SearchBackend]:
+    """显式选择搜索后端；未配置不创建资源，取消/失败清理且不重试。"""
+    if backend is None:
+        raise WebError("not_configured", "搜索后端未配置；请显式选择 wikipedia。")
+    if backend != "wikipedia":
+        raise WebError("unsupported_backend", "搜索后端不受支持。")
+    transport = HttpPageTransport(
+        policy,
+        FetchLimits(max_bytes=limits.max_bytes, timeout_seconds=limits.timeout_seconds),
+        content_types=frozenset({"application/json"}),
+        user_agent="AdamAgentPractice/0.0.1 (read-only encyclopedia search)",
+    )
+    try:
+        yield WikipediaSearch(transport, policy, limits)
+    except BaseException as error:
+        try:
+            transport.close()
+        except Exception:
+            error.add_note("搜索资源清理失败；原始错误保留，未自动重发请求。")
         raise
     else:
         transport.close()

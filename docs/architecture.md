@@ -8,7 +8,7 @@
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-C 系列最近核对（2026-11-01）：C02.3 扩展每会话标签/弹窗/对话框及显式附件下载；浏览器保持窄端口，SDK 仅由适配器持有。bootstrap 把原执行来源和 SessionMedia 注入主浏览器工具，并向 facade 注入主轮次中断清理；字节经 C00.2 发布并提交来源后才交付引用，录制重放仅导入媒体事实、不重做动作。弹窗事件窗口从点击完成后计时，原标签丢失不自动创建重定向替代页；原逐次批准、_media 保护、文本附件与主线 B 关系保持，C00.3/C02.4 仍待验收。主线文首与正文保留。
+C 系列最近核对（2026-11-01）：C01.2 新增独立 SearchBackend/SearchResult、WikipediaSearch 及搜索 CLI；open_search 按次创建 JSON 专用 HTTP 资源，复用原 DNS 固定/TLS/取消边界，候选与网页正文版本分开，未接入模型搜索工具或改变日志协议。C02.3 扩展每会话标签/弹窗/对话框及显式附件下载；浏览器保持窄端口，SDK 仅由适配器持有。bootstrap 把原执行来源和 SessionMedia 注入主浏览器工具，并向 facade 注入主轮次中断清理；字节经 C00.2 发布并提交来源后才交付引用，录制重放仅导入媒体事实、不重做动作。弹窗事件窗口从点击完成后计时，原标签丢失不自动创建重定向替代页；原逐次批准、_media 保护、文本附件与主线 B 关系保持，C00.3/C02.4 仍待验收。主线文首与正文保留。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
@@ -660,9 +660,24 @@ flowchart LR
     BR_ADAPTER --> BR_SITE["真实 Chromium 与 HTTP 测试网站"]
 ~~~
 
-[观察服务](../adam/browser/service.py) 不导入 SDK、应用内核或会话存储。[资源入口](../adam/browser/runtime.py) 只在实际调用时导入适配器，主/子聊天默认不创建浏览器资源。每次观察替换引用表；[固定 DOM 程序](../adam/browser/adapters/dom.py) 验证原节点、文档、revision 和属性状态。同名替换不可沿用旧引用。主页面显式逐跳打开，观察阶段子资源重定向/自动 POST/WebSocket 拒绝；origin 白名单不是 DNS 固定或系统沙箱。C02.3～4 的会话标签/弹窗/下载及整体验收尚未实现；不因基本关闭和单表单闭环就提前勾选。接口、真实测试与限制见 [浏览器观察](browser-observation.md)。
+[观察服务](../adam/browser/service.py) 不导入 SDK、应用内核或会话存储。[资源入口](../adam/browser/runtime.py) 只在实际调用时导入适配器，主/子聊天默认不创建浏览器资源。每次观察替换引用表；[固定 DOM 程序](../adam/browser/adapters/dom.py) 验证原节点、文档、revision 和属性状态。同名替换不可沿用旧引用。主页面显式逐跳打开，观察阶段子资源重定向/自动 POST/WebSocket 拒绝；origin 白名单不是 DNS 固定或系统沙箱。C02.3 的会话标签/弹窗/下载已在上节实现；C02.4 固定任务及真实模型完整验收仍待完成，不因资源和单表单闭环就提前勾选。接口、真实测试与限制见 [浏览器观察](browser-observation.md)。
 
 C02.2：BrowserAction 校验四类有限动作与引用；BrowserObserver 形成 BrowserApproval 并在批准后复检。BrowserTools 仅在 approved open 时延迟创建隔离上下文，所有浏览器工具声明 EXTERNAL_ACTION 且不并行，子任务不注册。ChromiumDriver 使用原节点句柄，不执行调用者脚本；动作期间允许白名单 POST，主页面只按 GET 跟随 301/302/303，拒绝保留方法的 307/308。SDK/OS 动作故障按 BrowserActionUnknownError 停止；动作后观察失败保留 dispatched，不能当成业务成功或要求重做。取消/未知结果丢弃当前资源，应用关闭回收所有资源。真实本地表单、JSONL 与故障验收见浏览器文档。
+
+## C01.2 独立百科搜索
+
+~~~mermaid
+flowchart LR
+    WS_CLI["python -m adam.web.search / 显式后端"] --> WS_RUNTIME["web.runtime.open_search / 按次资源"]
+    WS_RUNTIME --> WS_PORT["search_models.SearchBackend / 有界候选契约"]
+    WS_PORT --> WS_ADAPTER["adapters.wikipedia.WikipediaSearch / 查询、严格 JSON 与整批校验"]
+    WS_ADAPTER --> WS_HTTP["PageTransport / JSON 专用 HttpPageTransport"]
+    WS_HTTP --> WS_POLICY["NetworkPolicy / 全 DNS 校验、固定 IP 与 TLS"]
+    WS_HTTP --> WS_API["官方 MediaWiki Search API / English Wikipedia"]
+    WS_ADAPTER --> WS_RESULT["SearchResult / API 响应版本、候选、摘要与范围"]
+~~~
+
+[搜索契约](../adam/web/search_models.py) 不包含 SDK 或会话；[百科适配器](../adam/web/adapters/wikipedia.py) 借用窄网络端口，只从默认官方端点或可信本地验收端点构造候选。未配置后端先失败、不创建资源；API 重定向拒绝、无自动重试。标题/摘要/条数/响应字节有界，非法整批不作为空结果。`search_snippets` 的响应摘要不代表候选网页版本，不经过模型请求或 JSONL；C01.3 再接入原工具/来源片段闭环。原 WebReader 类型、主子可选读取、权限/批准及 B 系列关系保持。接口、限制、真实 HTTP 与真实百科后端验证见 [网页与搜索](web-reading.md)。
 
 ## C00.1 / C01.1 可选网页读取
 

@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "task": "C01.2",
+  "recorded_at": "2026-11-01T09:20:59.601106+00:00",
+  "validation_kind": "real_read_only_backend_no_model",
+  "python_version": "3.12.14",
+  "documentation": "https://www.mediawiki.org/wiki/API:Search",
+  "source_sha256": {
+    "adam/web/search.py": "2e2e917f5d7c318f4770bf2f4dda0dc9bb82d60352ac1068ce029545af911086",
+    "adam/web/search_models.py": "29febbb8b2ddb4c649d3a3b4663f5f49ac016d865b772804c3bf375e05928c14",
+    "adam/web/adapters/wikipedia.py": "2988d55802a1b5c3f801412f041f3e05033c5fc9de1b3b4c7d4160069ad023f2",
+    "adam/web/adapters/http.py": "5d16fc0a950893df554044d03a794c0997f55f594f46323e312856141d89559a",
+    "adam/web/runtime.py": "e0466f67819d51826b64f971d9cedc8313370250555dc5c5dab5fbea04b5428a"
+  },
+  "scope": "English Wikipedia encyclopedia only; not general web search",
+  "verified": [
+    "actual JSON API connectivity with default public-address policy and TLS verification",
+    "bounded title/URL/snippet candidates",
+    "legitimate empty results distinct from backend failure"
+  ],
+  "not_verified": [
+    "general web coverage",
+    "page body evidence or answer citation quality",
+    "real model tool selection",
+    "service availability beyond these two requests"
+  ],
+  "records": [
+    {
+      "command": [
+        "python",
+        "-m",
+        "adam.web.search",
+        "Nelson Mandela",
+        "--backend",
+        "wikipedia",
+        "--limit",
+        "2"
+      ],
+      "elapsed_seconds": 1.062,
+      "exit_code": 0,
+      "output": {
+        "ok": true,
+        "provider": "wikipedia",
+        "scope": "English Wikipedia encyclopedia; not general web search",
+        "query": "Nelson Mandela",
+        "searched_at": "2026-11-01T09:20:58.689491+00:00",
+        "endpoint": "https://en.wikipedia.org/w/api.php",
+        "response_sha256": "d9fb6a3b274ae1678eb34328b08f75dc02ba7839ab824d24e22a273ad0f58f73",
+        "response_byte_size": 753,
+        "candidates": [
+          {
+            "title": "Nelson Mandela",
+            "url": "https://en.wikipedia.org/w/index.php?curid=21492751",
+            "snippet": "Nelson Rolihlahla Mandela (18 July 1918 – 5 December 2013) was a South African anti-apartheid revolutionary, politician, and philanthropist, who served",
+            "title_truncated": false,
+            "snippet_truncated": false
+          },
+          {
+            "title": "Free Nelson Mandela",
+            "url": "https://en.wikipedia.org/w/index.php?curid=7585993",
+            "snippet": "\"Nelson Mandela\" (known in some versions as \"Free Nelson Mandela\") is a song written by British musician Jerry Dammers, and performed by the band the",
+            "title_truncated": false,
+            "snippet_truncated": false
+          }
+        ],
+        "has_more": true,
+        "evidence_kind": "search_snippets",
+        "schema_version": 1
+      }
+    },
+    {
+      "command": [
+        "python",
+        "-m",
+        "adam.web.search",
+        "zzadamqvxyznoentry20261101zz",
+        "--backend",
+        "wikipedia",
+        "--limit",
+        "2"
+      ],
+      "elapsed_seconds": 0.86,
+      "exit_code": 0,
+      "output": {
+        "ok": true,
+        "provider": "wikipedia",
+        "scope": "English Wikipedia encyclopedia; not general web search",
+        "query": "zzadamqvxyznoentry20261101zz",
+        "searched_at": "2026-11-01T09:20:59.560949+00:00",
+        "endpoint": "https://en.wikipedia.org/w/api.php",
+        "response_sha256": "f4c8d270ac583a3a29ae12673f241e015caf5b189a6b5e4026453be1231503ed",
+        "response_byte_size": 44,
+        "candidates": [],
+        "has_more": false,
+        "evidence_kind": "search_snippets",
+        "schema_version": 1
+      }
+    }
+  ]
+}
