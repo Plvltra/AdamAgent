@@ -2,11 +2,25 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B12.2.1 独立审查接口、用户发布与撤回、状态历史及当前知识筛选。
+本次核对范围：B12.2.2 单次独立模型审查、请求记录及用量和故障边界。
 
-核对结论：新增 documents.knowledge_lifecycle 与 knowledge_states，将候选、独立审查意见及用户决定分开。网络/界面回调不占文件锁，落盘前复核来源与修订。当前是宿主 API，模型适配及用户入口仍属 B12.2.2。原冻结证据与不宣称语义正确的说明保留。
+核对结论：新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用。当前仍为宿主 API，配置及使用入口留在 B12.2.3。原状态、批准与语义边界保持。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B12.2.2 独立模型审查
+
+~~~mermaid
+flowchart LR
+    KM_HOST["宿主显式组装"] --> KM["KnowledgeModelReviewer / 单次实例"]
+    KM --> KM_INTENT["reviews/请求ID.json / 先写 intent"]
+    KM_INTENT --> KM_CLIENT["contracts.ModelClient / 无 tools"]
+    KM_CLIENT --> KM_CHECK["有界意见、可靠用量与证据 ID 校验"]
+    KM_CHECK --> KM_SAVE["保存响应或失败 / 不重试"]
+    KM_SAVE --> KM_LIFE["KnowledgeLifecycle / 重新核对来源和修订"]
+~~~
+
+请求记录与发布状态分开；异常不保存远端异常正文，启动中断保持未知消费而不自动重发。见 [知识审查](knowledge-proposals.md)。
 
 ## B12.2.1 发布状态与当前知识
 
