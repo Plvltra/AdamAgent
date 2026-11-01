@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B05.2 压缩保真样本 | 27 项四类判据、原文位置/覆盖范围、否定/矛盾/遗漏不自动判真、伪造资料/引用及只读 CLI；语义质量待评审 | [test_compaction_fidelity.py](test_compaction_fidelity.py) |
 | B05.1 任务导向摘要 | 9 项当前问题/真实工具前缀、原文与覆盖范围、失败/重启、预算、手动空任务、旧新重放及伪造来源拒绝场景；真实语义保真另行评估 | [test_task_compaction.py](test_task_compaction.py) |
 | B04.3 状态组合验收 | 7 项真实主子在途预留/收集、父子输入与各自日志、失败隔离、伪造状态、硬限额、未知消费及禁用观测场景 | [test_runtime_state_acceptance.py](test_runtime_state_acceptance.py) |
 | B04.2 模型状态输入 | 5 项业务、7 项数据边界：重试/工具后状态与日志、旧新重放、预览、读取失败、损坏与有界表示；相关回归共 208 项，后续全量回归修复相关 61 项；原权限和执行预算保持 | [请求场景](test_runtime_context.py)、[数据边界](../test_runtime_state.py) |

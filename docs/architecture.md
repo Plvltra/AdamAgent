@@ -2,13 +2,15 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B05.1 当前任务进入摘要输入、预算和来源记录，完整工具前缀校验及旧新录制重放。
+本次核对范围：B05.2 合成长历史与八个查询、严格样本加载和只读引用审计；生产压缩关系保持 B05.1。
 
-核对结论：沿用 Conversation → CompactionService → SessionStore，不新增压缩服务；SessionLog 提取共用工具来源校验，CaptureRuntime 记录摘要协议版本。摘要提交、未知消费和重启边界保持，来源快照不变成成功历史。原有失败与预算说明保留，移动的校验职责已补充简短契约。
+核对结论：生产架构无变化；新增 scripts.compaction_cases 作为离线评估入口，复用 HistoryTurn 和协议校验，读取固定 JSON 数据，不进入工具调用或摘要提交链路。引用解析和语义评审分开；本次新增接口说明已核对，没有移除生产代码注释。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 ## B05.1 任务导向摘要
+
+B05.2 的独立评估关系为 `examples/compaction-evaluation/cases-v1.json → scripts.compaction_cases → 原文定位与待评审报告`。它复用 HistoryTurn/validate_turn，只读取指定资料，没有模型客户端、工具执行器或会话写入依赖。详见 [压缩保真评估](compaction-evaluation.md)；以下生产关系保持。
 
 ~~~mermaid
 flowchart LR
