@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import base64
 import json
 import socket
 from datetime import UTC, datetime, timedelta
@@ -14,7 +15,16 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 from mcp.server import MCPServer
-from mcp.types import ToolAnnotations
+from mcp.types import (
+    AudioContent,
+    BlobResourceContents,
+    CallToolResult,
+    EmbeddedResource,
+    ImageContent,
+    ResourceLink,
+    TextContent,
+    ToolAnnotations,
+)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--root", type=Path, required=True)
@@ -39,6 +49,50 @@ def hello():
 @server.prompt()
 def review(text: str):
     return "Review: " + text
+
+
+if args.scenario.startswith("media_"):
+    # 沿用同一真实 HTTP 服务，只在媒体验收场景增加目录，原协议测试目录保持。
+    @server.tool(annotations=ToolAnnotations(read_only_hint=True))
+    async def media() -> CallToolResult:
+        """返回固定测试字节；故障在已接收业务请求后发生，不使用真实媒体或凭据。"""
+        if "slow" in args.scenario:
+            await asyncio.sleep(30)
+        data = base64.b64encode(b"HTTP media fixture\x00\xff\x80").decode()
+        return CallToolResult(
+            content=[
+                TextContent(type="text", text="media reference"),
+                ImageContent(type="image", data=data, mime_type="image/png"),
+                AudioContent(
+                    type="audio",
+                    data="%%%" if "bad" in args.scenario else data,
+                    mime_type="audio/wav",
+                ),
+                EmbeddedResource(
+                    type="resource",
+                    resource=BlobResourceContents(
+                        uri="docs://embedded", blob=data, mime_type="application/octet-stream"
+                    ),
+                ),
+                ResourceLink(
+                    type="resource_link", uri="https://example.test/never-fetch", name="link"
+                ),
+            ]
+        )
+
+    @server.resource("docs://binary", mime_type="application/octet-stream")
+    def binary():
+        return b"HTTP media fixture\x00\xff\x80"
+
+    @server.prompt()
+    def visual():
+        return [
+            ImageContent(
+                type="image",
+                data=base64.b64encode(b"HTTP media fixture\x00\xff\x80").decode(),
+                mime_type="image/png",
+            )
+        ]
 
 
 class Gate:
@@ -74,7 +128,7 @@ class Gate:
                 )
                 + "\n"
             )
-        if args.scenario == "auth" and not authorized:
+        if (args.scenario == "auth" or args.scenario.startswith("media_")) and not authorized:
             return await self.respond(send, 401, b"authentication required")
         if args.scenario in {"redirect", "cross_redirect"}:
             location = (
@@ -144,5 +198,5 @@ if __name__ == "__main__":
     tls = tls_files() if args.scenario == "tls" else {}
     scheme = "https" if tls else "http"
     (args.root / "url.txt").write_text(f"{scheme}://127.0.0.1:{port}/mcp", encoding="utf-8")
-    application = server.streamable_http_app(json_response=args.scenario != "sse")
+    application = server.streamable_http_app(json_response=not args.scenario.endswith("sse"))
     uvicorn.Server(uvicorn.Config(Gate(application), log_level="error", **tls)).run(sockets=[sock])
