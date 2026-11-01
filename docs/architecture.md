@@ -2,11 +2,27 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B10.2 可选语境评分、向量缓存身份、原文/说明输出和录制边界。
+本次核对范围：B10.3 语境对照、显式模型生成、消费与捕获边界、语境版本一致性。
 
-核对结论：DocumentSearch 按配置准备说明并将前缀传给关键词/向量；VectorSearch 缓存键绑定前缀，返回的 Chunk 保持原文。工具与评估独立携带说明和版本，精排仍读原文，录制协议无需新分支。原关键说明保留并补充前缀缓存、引用与失败边界。
+核对结论：生产聊天默认路径无变化；独立脚本可显式注入 ModelContextBuilder，使用生产 LLMClient，不提供工具执行。固定资料、输入/响应与失败证据单独保存；documents.evaluation 增加语境版本一致性检查。原指标与引用解释保留，新增说明区分意图、已知未发送、未知消费及真实效果。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B10.3 独立语境实验
+
+~~~mermaid
+flowchart LR
+    CX_ENTRY["scripts.context_eval / 新目录与显式开关"] --> CX_DATA["合成资料 / 固定金标准"]
+    CX_ENTRY --> CX_BASE["原文检索基线"]
+    CX_ENTRY --> CX_MODEL["scripts.context_generation / 有界请求与证据"]
+    CX_MODEL --> CX_HTTP["生产 LLMClient / 无工具、无重试"]
+    CX_MODEL --> CX_STORE["ContextPrefixStore / 全批有效说明"]
+    CX_STORE --> CX_SEARCH["DocumentSearch / 增强检索"]
+    CX_BASE --> CX_COMPARE["相同来源 / 逐题指标与人工判读"]
+    CX_SEARCH --> CX_COMPARE
+~~~
+
+本地入口不使用 CX_MODEL 分支；真实模型只在用户显式开启实验时运行。详见 [语境对照](contextual-retrieval.md)。
 
 ## B10.2 语境进入评分
 

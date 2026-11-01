@@ -1,0 +1,784 @@
+{
+  "run_date": "2026-11-01",
+  "kind": "deterministic_local_not_llm",
+  "manifest": {
+    "format": "context_evaluation_v1",
+    "mode": "extractive",
+    "cases": [
+      {
+        "id": "pronoun-negative",
+        "kind": "paraphrase",
+        "query": "ORION 关闭后会自动重启吗",
+        "relevant": [
+          {
+            "path": "docs/orion.md",
+            "version": "624d1a4d4f06e7a65cec4680efeb6a9aa0bd9b11b70aa4942df0d77e35d333b6",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "它关闭后不会自动重启。"
+          }
+        ]
+      },
+      {
+        "id": "pronoun-positive",
+        "kind": "paraphrase",
+        "query": "NOVA 关闭后是否自行重启",
+        "relevant": [
+          {
+            "path": "docs/nova.md",
+            "version": "072243328ca9c7ee02765c0e4d9d5351815e0911791ca60fe7e18be597b0313d",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "它关闭后会自动重启。"
+          }
+        ]
+      },
+      {
+        "id": "abbreviation-rpo",
+        "kind": "paraphrase",
+        "query": "RPO 允许丢失多久的数据",
+        "relevant": [
+          {
+            "path": "docs/rpo.md",
+            "version": "c624cff8ec0cebd08bee75891188bdf94d6515d1fd2ebd009d52336fd0b0a348",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "本项目把它设为十五分钟。"
+          }
+        ]
+      },
+      {
+        "id": "abbreviation-rto",
+        "kind": "paraphrase",
+        "query": "RTO 允许停服多久",
+        "relevant": [
+          {
+            "path": "docs/rto.md",
+            "version": "f4840c9e54cf050a72e6af46b992606679dec4c8104107dec065d8f4e2aa73c8",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": "本项目把它设为两小时。"
+          }
+        ]
+      },
+      {
+        "id": "literal-control",
+        "kind": "exact",
+        "query": "过期条目立即丢弃",
+        "relevant": [
+          {
+            "path": "docs/orion.md",
+            "version": "624d1a4d4f06e7a65cec4680efeb6a9aa0bd9b11b70aa4942df0d77e35d333b6",
+            "start_line": 5,
+            "end_line": 5,
+            "evidence": "过期条目会被立即丢弃。"
+          }
+        ]
+      },
+      {
+        "id": "unknown",
+        "kind": "no_answer",
+        "query": "火星基地氧气配给",
+        "relevant": []
+      }
+    ],
+    "corpus_generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+    "documents": {
+      "orion.md": "ORION 是负责图片缓存的后台服务。\n\n它关闭后不会自动重启。\n\n过期条目会被立即丢弃。\n",
+      "nova.md": "NOVA 是负责模型下载的后台服务。\n\n它关闭后会自动重启。\n",
+      "rpo.md": "RPO 是允许丢失的数据时间窗口。\n\n本项目把它设为十五分钟。\n",
+      "rto.md": "RTO 是允许中断服务的最长时长。\n\n本项目把它设为两小时。\n"
+    },
+    "prompt_and_sources_are_data": true,
+    "max_known_tokens": 50000,
+    "k": 1,
+    "source_version": "3a295b2fdd335a5d2989102b52eeaec23e74d5a1971fc4ac5bebdc615d0b7dae"
+  },
+  "report": {
+    "format": "context_evaluation_v1",
+    "mode": "extractive",
+    "baseline": {
+      "format_version": 2,
+      "cases_sha256": "a541be6d920b1e62ac4c31aa27626d9acdad6355aaeebcea88add6d6b7ffa25f",
+      "source_generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+      "context_generation": null,
+      "k": 1,
+      "answerable": 5,
+      "hits": 2,
+      "hit_at_k": 0.4,
+      "mrr_at_k": 0.4,
+      "macro_recall_at_k": 0.4,
+      "micro_recall_at_k": 0.4,
+      "relevant_count": 5,
+      "recalled_count": 2,
+      "no_answer": 1,
+      "no_answer_empty": 1,
+      "no_answer_false_positive_at_k": 0.0,
+      "query_time_ms": 126.028,
+      "returned_chars": 65,
+      "by_kind": {
+        "exact": {
+          "answerable": 1,
+          "hits": 1,
+          "hit_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "macro_recall_at_k": 1.0,
+          "micro_recall_at_k": 1.0,
+          "relevant_count": 1,
+          "recalled_count": 1,
+          "no_answer": 0,
+          "no_answer_empty": 0,
+          "no_answer_false_positive_at_k": null,
+          "query_time_ms": 21.188,
+          "returned_chars": 11
+        },
+        "no_answer": {
+          "answerable": 0,
+          "hits": 0,
+          "hit_at_k": null,
+          "mrr_at_k": null,
+          "macro_recall_at_k": null,
+          "micro_recall_at_k": null,
+          "relevant_count": 0,
+          "recalled_count": 0,
+          "no_answer": 1,
+          "no_answer_empty": 1,
+          "no_answer_false_positive_at_k": 0.0,
+          "query_time_ms": 20.439,
+          "returned_chars": 0
+        },
+        "paraphrase": {
+          "answerable": 4,
+          "hits": 1,
+          "hit_at_k": 0.25,
+          "mrr_at_k": 0.25,
+          "macro_recall_at_k": 0.25,
+          "micro_recall_at_k": 0.25,
+          "relevant_count": 4,
+          "recalled_count": 1,
+          "no_answer": 0,
+          "no_answer_empty": 0,
+          "no_answer_false_positive_at_k": null,
+          "query_time_ms": 84.401,
+          "returned_chars": 54
+        }
+      },
+      "rows": [
+        {
+          "id": "pronoun-negative",
+          "kind": "paraphrase",
+          "query": "ORION 关闭后会自动重启吗",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "answerable": true,
+          "hit": false,
+          "rank": null,
+          "reciprocal_rank": 0.0,
+          "relevant_count": 1,
+          "recalled_count": 0,
+          "recall_at_k": 0.0,
+          "expected": [
+            {
+              "path": "docs/orion.md",
+              "version": "624d1a4d4f06e7a65cec4680efeb6a9aa0bd9b11b70aa4942df0d77e35d333b6",
+              "start_line": 3,
+              "end_line": 3,
+              "evidence": "它关闭后不会自动重启。",
+              "retrieved_rank": null
+            }
+          ],
+          "empty": false,
+          "elapsed_ms": 22.877,
+          "returned_chars": 10,
+          "retrieved": [
+            {
+              "path": "G:/Agent/tmp/b103/local-comparison-v2/docs/nova.md",
+              "start_line": 3,
+              "end_line": 3,
+              "text": "它关闭后会自动重启。",
+              "score": 11.254527,
+              "chunk_id": "a74086e0c95428ba",
+              "version": "072243328ca9c7ee02765c0e4d9d5351815e0911791ca60fe7e18be597b0313d",
+              "retrieval_ranks": []
+            }
+          ]
+        },
+        {
+          "id": "pronoun-positive",
+          "kind": "paraphrase",
+          "query": "NOVA 关闭后是否自行重启",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "answerable": true,
+          "hit": true,
+          "rank": 1,
+          "reciprocal_rank": 1.0,
+          "relevant_count": 1,
+          "recalled_count": 1,
+          "recall_at_k": 1.0,
+          "expected": [
+            {
+              "path": "docs/nova.md",
+              "version": "072243328ca9c7ee02765c0e4d9d5351815e0911791ca60fe7e18be597b0313d",
+              "start_line": 3,
+              "end_line": 3,
+              "evidence": "它关闭后会自动重启。",
+              "retrieved_rank": 1
+            }
+          ],
+          "empty": false,
+          "elapsed_ms": 20.804,
+          "returned_chars": 10,
+          "retrieved": [
+            {
+              "path": "G:/Agent/tmp/b103/local-comparison-v2/docs/nova.md",
+              "start_line": 3,
+              "end_line": 3,
+              "text": "它关闭后会自动重启。",
+              "score": 4.582162,
+              "chunk_id": "a74086e0c95428ba",
+              "version": "072243328ca9c7ee02765c0e4d9d5351815e0911791ca60fe7e18be597b0313d",
+              "retrieval_ranks": []
+            }
+          ]
+        },
+        {
+          "id": "abbreviation-rpo",
+          "kind": "paraphrase",
+          "query": "RPO 允许丢失多久的数据",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "answerable": true,
+          "hit": false,
+          "rank": null,
+          "reciprocal_rank": 0.0,
+          "relevant_count": 1,
+          "recalled_count": 0,
+          "recall_at_k": 0.0,
+          "expected": [
+            {
+              "path": "docs/rpo.md",
+              "version": "c624cff8ec0cebd08bee75891188bdf94d6515d1fd2ebd009d52336fd0b0a348",
+              "start_line": 3,
+              "end_line": 3,
+              "evidence": "本项目把它设为十五分钟。",
+              "retrieved_rank": null
+            }
+          ],
+          "empty": false,
+          "elapsed_ms": 20.747,
+          "returned_chars": 17,
+          "retrieved": [
+            {
+              "path": "G:/Agent/tmp/b103/local-comparison-v2/docs/rpo.md",
+              "start_line": 1,
+              "end_line": 1,
+              "text": "RPO 是允许丢失的数据时间窗口。",
+              "score": 10.198943,
+              "chunk_id": "9216136ee4a0f7e1",
+              "version": "c624cff8ec0cebd08bee75891188bdf94d6515d1fd2ebd009d52336fd0b0a348",
+              "retrieval_ranks": []
+            }
+          ]
+        },
+        {
+          "id": "abbreviation-rto",
+          "kind": "paraphrase",
+          "query": "RTO 允许停服多久",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "answerable": true,
+          "hit": false,
+          "rank": null,
+          "reciprocal_rank": 0.0,
+          "relevant_count": 1,
+          "recalled_count": 0,
+          "recall_at_k": 0.0,
+          "expected": [
+            {
+              "path": "docs/rto.md",
+              "version": "f4840c9e54cf050a72e6af46b992606679dec4c8104107dec065d8f4e2aa73c8",
+              "start_line": 3,
+              "end_line": 3,
+              "evidence": "本项目把它设为两小时。",
+              "retrieved_rank": null
+            }
+          ],
+          "empty": false,
+          "elapsed_ms": 19.973,
+          "returned_chars": 17,
+          "retrieved": [
+            {
+              "path": "G:/Agent/tmp/b103/local-comparison-v2/docs/rto.md",
+              "start_line": 1,
+              "end_line": 1,
+              "text": "RTO 是允许中断服务的最长时长。",
+              "score": 3.080177,
+              "chunk_id": "d1a953e125dad435",
+              "version": "f4840c9e54cf050a72e6af46b992606679dec4c8104107dec065d8f4e2aa73c8",
+              "retrieval_ranks": []
+            }
+          ]
+        },
+        {
+          "id": "literal-control",
+          "kind": "exact",
+          "query": "过期条目立即丢弃",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "answerable": true,
+          "hit": true,
+          "rank": 1,
+          "reciprocal_rank": 1.0,
+          "relevant_count": 1,
+          "recalled_count": 1,
+          "recall_at_k": 1.0,
+          "expected": [
+            {
+              "path": "docs/orion.md",
+              "version": "624d1a4d4f06e7a65cec4680efeb6a9aa0bd9b11b70aa4942df0d77e35d333b6",
+              "start_line": 5,
+              "end_line": 5,
+              "evidence": "过期条目会被立即丢弃。",
+              "retrieved_rank": 1
+            }
+          ],
+          "empty": false,
+          "elapsed_ms": 21.188,
+          "returned_chars": 11,
+          "retrieved": [
+            {
+              "path": "G:/Agent/tmp/b103/local-comparison-v2/docs/orion.md",
+              "start_line": 5,
+              "end_line": 5,
+              "text": "过期条目会被立即丢弃。",
+              "score": 12.017051,
+              "chunk_id": "5b6023e227da8497",
+              "version": "624d1a4d4f06e7a65cec4680efeb6a9aa0bd9b11b70aa4942df0d77e35d333b6",
+              "retrieval_ranks": []
+            }
+          ]
+        },
+        {
+          "id": "unknown",
+          "kind": "no_answer",
+          "query": "火星基地氧气配给",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "answerable": false,
+          "hit": false,
+          "rank": null,
+          "reciprocal_rank": 0.0,
+          "relevant_count": 0,
+          "recalled_count": 0,
+          "recall_at_k": null,
+          "expected": [],
+          "empty": true,
+          "elapsed_ms": 20.439,
+          "returned_chars": 0,
+          "retrieved": []
+        }
+      ]
+    },
+    "contextual": {
+      "format_version": 2,
+      "cases_sha256": "a541be6d920b1e62ac4c31aa27626d9acdad6355aaeebcea88add6d6b7ffa25f",
+      "source_generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+      "context_generation": "3a7d7c4cd3a4134821c518f83db99ee1ed5600edbdd3d48a2bf1885d25f37f49",
+      "k": 1,
+      "answerable": 5,
+      "hits": 1,
+      "hit_at_k": 0.2,
+      "mrr_at_k": 0.2,
+      "macro_recall_at_k": 0.2,
+      "micro_recall_at_k": 0.2,
+      "relevant_count": 5,
+      "recalled_count": 1,
+      "no_answer": 1,
+      "no_answer_empty": 1,
+      "no_answer_false_positive_at_k": 0.0,
+      "query_time_ms": 200.619,
+      "returned_chars": 81,
+      "by_kind": {
+        "exact": {
+          "answerable": 1,
+          "hits": 1,
+          "hit_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "macro_recall_at_k": 1.0,
+          "micro_recall_at_k": 1.0,
+          "relevant_count": 1,
+          "recalled_count": 1,
+          "no_answer": 0,
+          "no_answer_empty": 0,
+          "no_answer_false_positive_at_k": null,
+          "query_time_ms": 33.729,
+          "returned_chars": 11
+        },
+        "no_answer": {
+          "answerable": 0,
+          "hits": 0,
+          "hit_at_k": null,
+          "mrr_at_k": null,
+          "macro_recall_at_k": null,
+          "micro_recall_at_k": null,
+          "relevant_count": 0,
+          "recalled_count": 0,
+          "no_answer": 1,
+          "no_answer_empty": 1,
+          "no_answer_false_positive_at_k": 0.0,
+          "query_time_ms": 33.995,
+          "returned_chars": 0
+        },
+        "paraphrase": {
+          "answerable": 4,
+          "hits": 0,
+          "hit_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "macro_recall_at_k": 0.0,
+          "micro_recall_at_k": 0.0,
+          "relevant_count": 4,
+          "recalled_count": 0,
+          "no_answer": 0,
+          "no_answer_empty": 0,
+          "no_answer_false_positive_at_k": null,
+          "query_time_ms": 132.895,
+          "returned_chars": 70
+        }
+      },
+      "rows": [
+        {
+          "id": "pronoun-negative",
+          "kind": "paraphrase",
+          "query": "ORION 关闭后会自动重启吗",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "contextualization": {
+            "generator": "extractive-context-v1",
+            "prefix_chars": 300,
+            "input_chars": 1200,
+            "notes_version": "3a7d7c4cd3a4134821c518f83db99ee1ed5600edbdd3d48a2bf1885d25f37f49",
+            "note_count": 9
+          },
+          "context_prefixes": [
+            {
+              "chunk_id": "1dccc15cbd3e307e",
+              "path": "G:\\Agent\\tmp\\b103\\local-comparison-v2\\docs\\nova.md",
+              "source_version": "072243328ca9c7ee02765c0e4d9d5351815e0911791ca60fe7e18be597b0313d",
+              "input_sha256": "11f16070cc14d12347c4a38f968a26434b7a917741723a6777267c1ae9f31669",
+              "generator": "extractive-context-v1",
+              "text": "文档：nova.md；章节：无标题。相邻原文（仅供理解语境）：它关闭后会自动重启。",
+              "prefix_sha256": "b7e945738bef33cbb524072a5c7bd71d6361cde6310f7800d072a41f9020aa4a",
+              "basis": [
+                "a74086e0c95428ba"
+              ]
+            }
+          ],
+          "answerable": true,
+          "hit": false,
+          "rank": null,
+          "reciprocal_rank": 0.0,
+          "relevant_count": 1,
+          "recalled_count": 0,
+          "recall_at_k": 0.0,
+          "expected": [
+            {
+              "path": "docs/orion.md",
+              "version": "624d1a4d4f06e7a65cec4680efeb6a9aa0bd9b11b70aa4942df0d77e35d333b6",
+              "start_line": 3,
+              "end_line": 3,
+              "evidence": "它关闭后不会自动重启。",
+              "retrieved_rank": null
+            }
+          ],
+          "empty": false,
+          "elapsed_ms": 26.575,
+          "returned_chars": 18,
+          "retrieved": [
+            {
+              "path": "G:/Agent/tmp/b103/local-comparison-v2/docs/nova.md",
+              "start_line": 1,
+              "end_line": 1,
+              "text": "NOVA 是负责模型下载的后台服务。",
+              "score": 5.012752,
+              "chunk_id": "1dccc15cbd3e307e",
+              "version": "072243328ca9c7ee02765c0e4d9d5351815e0911791ca60fe7e18be597b0313d",
+              "retrieval_ranks": []
+            }
+          ]
+        },
+        {
+          "id": "pronoun-positive",
+          "kind": "paraphrase",
+          "query": "NOVA 关闭后是否自行重启",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "contextualization": {
+            "generator": "extractive-context-v1",
+            "prefix_chars": 300,
+            "input_chars": 1200,
+            "notes_version": "3a7d7c4cd3a4134821c518f83db99ee1ed5600edbdd3d48a2bf1885d25f37f49",
+            "note_count": 9
+          },
+          "context_prefixes": [
+            {
+              "chunk_id": "1dccc15cbd3e307e",
+              "path": "G:\\Agent\\tmp\\b103\\local-comparison-v2\\docs\\nova.md",
+              "source_version": "072243328ca9c7ee02765c0e4d9d5351815e0911791ca60fe7e18be597b0313d",
+              "input_sha256": "11f16070cc14d12347c4a38f968a26434b7a917741723a6777267c1ae9f31669",
+              "generator": "extractive-context-v1",
+              "text": "文档：nova.md；章节：无标题。相邻原文（仅供理解语境）：它关闭后会自动重启。",
+              "prefix_sha256": "b7e945738bef33cbb524072a5c7bd71d6361cde6310f7800d072a41f9020aa4a",
+              "basis": [
+                "a74086e0c95428ba"
+              ]
+            }
+          ],
+          "answerable": true,
+          "hit": false,
+          "rank": null,
+          "reciprocal_rank": 0.0,
+          "relevant_count": 1,
+          "recalled_count": 0,
+          "recall_at_k": 0.0,
+          "expected": [
+            {
+              "path": "docs/nova.md",
+              "version": "072243328ca9c7ee02765c0e4d9d5351815e0911791ca60fe7e18be597b0313d",
+              "start_line": 3,
+              "end_line": 3,
+              "evidence": "它关闭后会自动重启。",
+              "retrieved_rank": null
+            }
+          ],
+          "empty": false,
+          "elapsed_ms": 35.061,
+          "returned_chars": 18,
+          "retrieved": [
+            {
+              "path": "G:/Agent/tmp/b103/local-comparison-v2/docs/nova.md",
+              "start_line": 1,
+              "end_line": 1,
+              "text": "NOVA 是负责模型下载的后台服务。",
+              "score": 3.724253,
+              "chunk_id": "1dccc15cbd3e307e",
+              "version": "072243328ca9c7ee02765c0e4d9d5351815e0911791ca60fe7e18be597b0313d",
+              "retrieval_ranks": []
+            }
+          ]
+        },
+        {
+          "id": "abbreviation-rpo",
+          "kind": "paraphrase",
+          "query": "RPO 允许丢失多久的数据",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "contextualization": {
+            "generator": "extractive-context-v1",
+            "prefix_chars": 300,
+            "input_chars": 1200,
+            "notes_version": "3a7d7c4cd3a4134821c518f83db99ee1ed5600edbdd3d48a2bf1885d25f37f49",
+            "note_count": 9
+          },
+          "context_prefixes": [
+            {
+              "chunk_id": "9216136ee4a0f7e1",
+              "path": "G:\\Agent\\tmp\\b103\\local-comparison-v2\\docs\\rpo.md",
+              "source_version": "c624cff8ec0cebd08bee75891188bdf94d6515d1fd2ebd009d52336fd0b0a348",
+              "input_sha256": "3aa60e90f9d2359302413be919beb2907fd0c69fa84ad4749da1f9dac9096941",
+              "generator": "extractive-context-v1",
+              "text": "文档：rpo.md；章节：无标题。相邻原文（仅供理解语境）：本项目把它设为十五分钟。",
+              "prefix_sha256": "7233fdb55e55f8f70a8f1d1afb7413a2ae5f1d94e1d8b92080302012f001d800",
+              "basis": [
+                "7e22a37bc992523d"
+              ]
+            }
+          ],
+          "answerable": true,
+          "hit": false,
+          "rank": null,
+          "reciprocal_rank": 0.0,
+          "relevant_count": 1,
+          "recalled_count": 0,
+          "recall_at_k": 0.0,
+          "expected": [
+            {
+              "path": "docs/rpo.md",
+              "version": "c624cff8ec0cebd08bee75891188bdf94d6515d1fd2ebd009d52336fd0b0a348",
+              "start_line": 3,
+              "end_line": 3,
+              "evidence": "本项目把它设为十五分钟。",
+              "retrieved_rank": null
+            }
+          ],
+          "empty": false,
+          "elapsed_ms": 37.128,
+          "returned_chars": 17,
+          "retrieved": [
+            {
+              "path": "G:/Agent/tmp/b103/local-comparison-v2/docs/rpo.md",
+              "start_line": 1,
+              "end_line": 1,
+              "text": "RPO 是允许丢失的数据时间窗口。",
+              "score": 8.131174,
+              "chunk_id": "9216136ee4a0f7e1",
+              "version": "c624cff8ec0cebd08bee75891188bdf94d6515d1fd2ebd009d52336fd0b0a348",
+              "retrieval_ranks": []
+            }
+          ]
+        },
+        {
+          "id": "abbreviation-rto",
+          "kind": "paraphrase",
+          "query": "RTO 允许停服多久",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "contextualization": {
+            "generator": "extractive-context-v1",
+            "prefix_chars": 300,
+            "input_chars": 1200,
+            "notes_version": "3a7d7c4cd3a4134821c518f83db99ee1ed5600edbdd3d48a2bf1885d25f37f49",
+            "note_count": 9
+          },
+          "context_prefixes": [
+            {
+              "chunk_id": "d1a953e125dad435",
+              "path": "G:\\Agent\\tmp\\b103\\local-comparison-v2\\docs\\rto.md",
+              "source_version": "f4840c9e54cf050a72e6af46b992606679dec4c8104107dec065d8f4e2aa73c8",
+              "input_sha256": "467b6ca84bd484ce538ecc30c451b58a64a6c3216edf0471ea9956936a0f5f40",
+              "generator": "extractive-context-v1",
+              "text": "文档：rto.md；章节：无标题。相邻原文（仅供理解语境）：本项目把它设为两小时。",
+              "prefix_sha256": "9d24d5e68f3652ce0b03fa585a3a8a58b84c61927581dc5a7f981eb2b38e72d9",
+              "basis": [
+                "ee4e510130e3e495"
+              ]
+            }
+          ],
+          "answerable": true,
+          "hit": false,
+          "rank": null,
+          "reciprocal_rank": 0.0,
+          "relevant_count": 1,
+          "recalled_count": 0,
+          "recall_at_k": 0.0,
+          "expected": [
+            {
+              "path": "docs/rto.md",
+              "version": "f4840c9e54cf050a72e6af46b992606679dec4c8104107dec065d8f4e2aa73c8",
+              "start_line": 3,
+              "end_line": 3,
+              "evidence": "本项目把它设为两小时。",
+              "retrieved_rank": null
+            }
+          ],
+          "empty": false,
+          "elapsed_ms": 34.131,
+          "returned_chars": 17,
+          "retrieved": [
+            {
+              "path": "G:/Agent/tmp/b103/local-comparison-v2/docs/rto.md",
+              "start_line": 1,
+              "end_line": 1,
+              "text": "RTO 是允许中断服务的最长时长。",
+              "score": 2.696393,
+              "chunk_id": "d1a953e125dad435",
+              "version": "f4840c9e54cf050a72e6af46b992606679dec4c8104107dec065d8f4e2aa73c8",
+              "retrieval_ranks": []
+            }
+          ]
+        },
+        {
+          "id": "literal-control",
+          "kind": "exact",
+          "query": "过期条目立即丢弃",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "contextualization": {
+            "generator": "extractive-context-v1",
+            "prefix_chars": 300,
+            "input_chars": 1200,
+            "notes_version": "3a7d7c4cd3a4134821c518f83db99ee1ed5600edbdd3d48a2bf1885d25f37f49",
+            "note_count": 9
+          },
+          "context_prefixes": [
+            {
+              "chunk_id": "5b6023e227da8497",
+              "path": "G:\\Agent\\tmp\\b103\\local-comparison-v2\\docs\\orion.md",
+              "source_version": "624d1a4d4f06e7a65cec4680efeb6a9aa0bd9b11b70aa4942df0d77e35d333b6",
+              "input_sha256": "c71d3aa3850938ae7822d32b9a71bc5d3b4e9f3b76270c08f1c8b5499f3d1f87",
+              "generator": "extractive-context-v1",
+              "text": "文档：orion.md；章节：无标题。相邻原文（仅供理解语境）：它关闭后不会自动重启。",
+              "prefix_sha256": "ef673445aa58e778d5cafaf9d1afd63c3b70c5c61f39051abf96decd577af595",
+              "basis": [
+                "d45743886401f782"
+              ]
+            }
+          ],
+          "answerable": true,
+          "hit": true,
+          "rank": 1,
+          "reciprocal_rank": 1.0,
+          "relevant_count": 1,
+          "recalled_count": 1,
+          "recall_at_k": 1.0,
+          "expected": [
+            {
+              "path": "docs/orion.md",
+              "version": "624d1a4d4f06e7a65cec4680efeb6a9aa0bd9b11b70aa4942df0d77e35d333b6",
+              "start_line": 5,
+              "end_line": 5,
+              "evidence": "过期条目会被立即丢弃。",
+              "retrieved_rank": 1
+            }
+          ],
+          "empty": false,
+          "elapsed_ms": 33.729,
+          "returned_chars": 11,
+          "retrieved": [
+            {
+              "path": "G:/Agent/tmp/b103/local-comparison-v2/docs/orion.md",
+              "start_line": 5,
+              "end_line": 5,
+              "text": "过期条目会被立即丢弃。",
+              "score": 11.752556,
+              "chunk_id": "5b6023e227da8497",
+              "version": "624d1a4d4f06e7a65cec4680efeb6a9aa0bd9b11b70aa4942df0d77e35d333b6",
+              "retrieval_ranks": []
+            }
+          ]
+        },
+        {
+          "id": "unknown",
+          "kind": "no_answer",
+          "query": "火星基地氧气配给",
+          "method": "keyword",
+          "generation": "af90593add7212dd95608707b79761f8c81d3cfcb5f2b667807950ec83d63a92",
+          "contextualization": {
+            "generator": "extractive-context-v1",
+            "prefix_chars": 300,
+            "input_chars": 1200,
+            "notes_version": "3a7d7c4cd3a4134821c518f83db99ee1ed5600edbdd3d48a2bf1885d25f37f49",
+            "note_count": 9
+          },
+          "context_prefixes": [],
+          "answerable": false,
+          "hit": false,
+          "rank": null,
+          "reciprocal_rank": 0.0,
+          "relevant_count": 0,
+          "recalled_count": 0,
+          "recall_at_k": null,
+          "expected": [],
+          "empty": true,
+          "elapsed_ms": 33.995,
+          "returned_chars": 0,
+          "retrieved": []
+        }
+      ]
+    },
+    "generation_requests": 0,
+    "known_generation_tokens": 0,
+    "unknown_usage": false,
+    "quality_notice": "检索指标不证明说明正确；必须核对否定、对象、缩写与原文。"
+  }
+}

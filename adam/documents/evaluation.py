@@ -27,6 +27,7 @@ def evaluate(
     validated = _validate_cases(cases)
     rows = []
     generation = None
+    context_generation = None
     for case in validated:
         started = time.perf_counter()
         result = search(case["query"], limit)
@@ -34,6 +35,12 @@ def evaluate(
         if generation is not None and result.generation != generation:
             raise DocumentError("评估期间语料发生变化；请固定资料后重新运行，未生成混合版本报告。")
         generation = result.generation
+        current_context = (
+            result.contextualization.notes_version if result.contextualization else None
+        )
+        if rows and current_context != context_generation:
+            raise DocumentError("评估期间语境说明发生变化；未生成混合说明版本报告。")
+        context_generation = current_context
         rows.append(_case_result(case, result, limit, elapsed))
     return {
         "format_version": 2,
@@ -41,6 +48,7 @@ def evaluate(
             json.dumps(cases, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest(),
         "source_generation": generation,
+        "context_generation": context_generation,
         "k": limit,
         **_aggregate(rows),
         "by_kind": {
