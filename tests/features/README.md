@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B12.2.1 知识发布与撤回 | 27 项明确确认、锁外回调、过时审查/确认拒绝、有效期、源变化/撤权、原子保存故障及损坏历史；相关共 66 项 | [test_knowledge_publication.py](test_knowledge_publication.py) |
 | B12.1 知识候选 | 18 项真实冲突来源、时间/引用、冻结重启、范围隔离、保存/撤权/取消、ID 碰撞与伪造发布；相关共 60 项 | [test_knowledge_candidates.py](test_knowledge_candidates.py) |
 | B11.3 总结与原文依据 | 21 项来源审计/缺失过时错绑/撤权/先行校验、固定对照、两路模型工具闭环与归档；相关共 76 项 | [test_knowledge_acceptance.py](test_knowledge_acceptance.py) |
 | B11.2 概览与原文查询 | 16 项分页与跨文件、来源变化/撤权/取消、输出边界、CLI、工具闭环和重放；相关共 55 项 | [test_knowledge_queries.py](test_knowledge_queries.py) |

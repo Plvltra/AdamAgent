@@ -2,11 +2,27 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B12.1 知识候选、共享引用格式校验、冻结来源与原子保存。
+本次核对范围：B12.2.1 独立审查接口、用户发布与撤回、状态历史及当前知识筛选。
 
-核对结论：新增 documents.knowledge_proposals，复用来源审计、文件锁和原子快照；evidence_audit 的格式校验公开供候选复用。当前为独立候选 API，不接发布或聊天记忆。原来源语义说明保留，新增冻结候选、当前核对和损坏记录保留契约。
+核对结论：新增 documents.knowledge_lifecycle 与 knowledge_states，将候选、独立审查意见及用户决定分开。网络/界面回调不占文件锁，落盘前复核来源与修订。当前是宿主 API，模型适配及用户入口仍属 B12.2.2。原冻结证据与不宣称语义正确的说明保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B12.2.1 发布状态与当前知识
+
+~~~mermaid
+flowchart LR
+    KL_HOST["宿主"] --> KL["KnowledgeLifecycle"]
+    KL --> KP["KnowledgeProposals / 冻结候选"]
+    KL --> KR["KnowledgeReviewer / 锁外审查意见"]
+    KL --> KC["宿主 confirm / 锁外用户确认"]
+    KL --> KA["evidence_audit / 前后核对原文"]
+    KL --> KS["knowledge_states / 修订与转换校验"]
+    KS --> KJ["states.json / 共用锁与原子历史"]
+    KL --> KQ["current / 已发布、来源当前且在有效期"]
+~~~
+
+审查意见只允许建议，用户发布决定由宿主回调提供；来源变化后停止复用，旧候选保持冻结。当前不新增聊天自动请求或模型发布权限。详见 [知识发布](knowledge-proposals.md)。
 
 ## B12.1 待审知识候选
 
@@ -19,7 +35,7 @@ flowchart LR
     KP_PENDING --> KP_READ["read / 保留当时原文，不替换证据"]
 ~~~
 
-本阶段没有发布路径或模型输入注入；接口、示例和下一步边界见 [知识候选](knowledge-proposals.md)。
+候选记录本身没有批准字段；发布决定由上方独立状态模块保存。当前没有自动模型输入注入。接口及下一步边界见 [知识候选](knowledge-proposals.md)。
 
 ## B11.3 总结来源与对照
 
