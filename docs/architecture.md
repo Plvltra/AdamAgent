@@ -2,11 +2,28 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B03.2 稳定前缀与运行资料分离、独立预算分类、排列版本及旧新重放；17 项专项验收。
+本次核对范围：B03.3 独立缓存/耗时评估、可选单价与只读报告；26项离线工程验收。
 
-核对结论：Conversation 分别传入稳定约束与运行提示；ContextBuilder 负责排列和预算，CLI 只展示，录制通过应用参数恢复原布局。模块依赖方向无新增跨层边。旧拼接保留供回放，工具配对和原注释约束保留；子任务提示及构造入口的说明按新位置更新。
+核对结论：生产Agent模块结构无变化；新增scripts独立实验入口，复用上下文构造、模型适配及观测契约，不接入用户聊天或工具执行。数据写入复用既有评估写入器；report不加载连接配置或创建客户端。新增接口的注释和未知/故障契约已审查，没有删除既有Python说明。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B03.3 显式缓存/耗时实验
+
+~~~mermaid
+flowchart LR
+    CE_CLI["scripts.cache_eval / 显式 run"] --> CE_LAYOUT["ContextBuilder / 固定历史、两种排列"]
+    CE_LAYOUT --> CE_MODEL["LLMClient / JSON或SSE"]
+    CE_MODEL --> CE_HTTP["显式LLM配置 / 真实HTTP或测试传输"]
+    CE_MODEL --> CE_ROW["开始和结果文件 / 可选缓存与前缀"]
+    CE_CLI --> CE_WRITE["injection_capture.write_record / 刷盘"]
+    CE_WRITE --> CE_ROW
+    CE_ROW --> CE_REPORT["report_suite / 只读校验"]
+    CE_REPORT --> CE_PRICE["Decimal用户单价 / 未知保持未知"]
+    CE_REPORT --> CE_STATS["按组状态、延时、已知缓存与未知数量"]
+~~~
+
+[独立入口](../scripts/cache_eval.py) 串行交错调用两个模型客户端，各自比较前缀，共享HTTP连接。失败、未知用量和消费停止线阻止后续请求；report只读取证据，不调用模型。原始运行错误不会被伴随的诊断写入错误替换。它不替代会话日志或V3压缩，也不证明真实收益。使用和边界见 [缓存对照](cache-evaluation.md)。
 
 ## B03.2 稳定前缀与运行资料
 
