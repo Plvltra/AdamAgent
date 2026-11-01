@@ -2,11 +2,27 @@
 
 最近核对：2026-11-01
 
-本次核对范围：B13.3 有界嵌套 JSON 脱敏、完整凭据、规则版本及组合验收。
+本次核对范围：B19.1 WSL/Bubblewrap 隔离包、可信启动器、资源看守及真实验收。
 
-核对结论：模块边界保持；redaction 增加完整 JSON 字符串的有界解析，变更后才重新编码；显式文字命中这类字符串时保守隐藏整体。规则升至 v2，share_format 接受 v1/v2 与 .json 位置标记。原注释保留并增加复杂度、拒绝部分处理及显式规则优先的理由；无模型或重放依赖新增。
+核对结论：新增独立 isolation 包，宿主固定 argv 调用 Linux 启动器，再建立 OS 边界后执行代码；未接入原命令工具。新增契约说明区分 OS 过滤和 Python 语言、两阶段 exec 限制、协议替身与真实验收；既有说明保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B19.1 隔离前置
+
+~~~mermaid
+flowchart LR
+    IS_HOST["显式宿主 API / WslBubblewrap"] --> IS_WSL["选定 WSL 发行版 / 固定 argv"]
+    IS_WSL --> IS_LINUX["linux_worker / 可信启动器"]
+    IS_LINUX --> IS_BWRAP["Bubblewrap / 命名空间与只读挂载"]
+    IS_BWRAP --> IS_FILTER["seccomp 两阶段 + 资源硬限额"]
+    IS_FILTER --> IS_CODE["单进程 Python 代码"]
+    IS_LINUX --> IS_WATCH["墙钟、双流限额和回收"]
+    IS_WATCH --> IS_RESULT["退出事实 / 有界 JSON"]
+    IS_RESULT --> IS_HOST
+~~~
+
+无主聊天或 run_command 连接；B14 后续通过宿主窄 RPC 调用原工具，B19.2 再接命令。详见 [固定策略与真实证据](runtime-isolation.md)。
 
 ## B13.2 分享命令与来源核对
 

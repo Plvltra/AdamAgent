@@ -95,6 +95,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
         ("rules", {"rules", "contracts"}),
         ("mcp", {"mcp", "config", "contracts"}),
         ("hooks", {"hooks", "config", "contracts"}),
+        ("isolation", {"isolation", "contracts"}),
         ("llm", {"llm", "config", "contracts"}),
         ("context", {"context", "session", "config", "contracts"}),
         (

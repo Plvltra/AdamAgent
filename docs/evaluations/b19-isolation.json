@@ -1,0 +1,91 @@
+{
+  "policy": "bubblewrap-single-process-v1",
+  "distribution": "Ubuntu",
+  "checked_at": "2026-11-01T09:22:54.218175+00:00",
+  "real_backend": true,
+  "capability": {
+    "available": true,
+    "reason": "verified",
+    "checks": [
+      "cpu_limit",
+      "exec_denied",
+      "execveat_denied",
+      "fork_denied",
+      "home_hidden",
+      "host_mount_hidden",
+      "memory_limit",
+      "network_denied",
+      "no_new_privileges",
+      "root_read_only",
+      "seccomp_filter",
+      "uid_non_root"
+    ],
+    "policy": "bubblewrap-single-process-v1"
+  },
+  "results": {
+    "normal": {
+      "exit_code": 0,
+      "reason": "exited",
+      "stdout": "45\n3.8.10\n",
+      "stderr": "",
+      "duration_ms": 22,
+      "policy": "bubblewrap-single-process-v1"
+    },
+    "memory": {
+      "exit_code": 0,
+      "reason": "exited",
+      "stdout": "memory denied\n",
+      "stderr": "",
+      "duration_ms": 18,
+      "policy": "bubblewrap-single-process-v1"
+    },
+    "cpu": {
+      "exit_code": 137,
+      "reason": "exited",
+      "stdout": "",
+      "stderr": "",
+      "duration_ms": 2004,
+      "policy": "bubblewrap-single-process-v1"
+    },
+    "wall": {
+      "exit_code": -9,
+      "reason": "wall_limit",
+      "stdout": "",
+      "stderr": "",
+      "duration_ms": 5018,
+      "policy": "bubblewrap-single-process-v1"
+    },
+    "closed_output": {
+      "exit_code": -9,
+      "reason": "wall_limit",
+      "stdout": "",
+      "stderr": "",
+      "duration_ms": 5019,
+      "policy": "bubblewrap-single-process-v1"
+    },
+    "output": {
+      "exit_code": -9,
+      "reason": "output_limit",
+      "stdout": "[65536 bytes]",
+      "stderr": "",
+      "duration_ms": 20,
+      "policy": "bubblewrap-single-process-v1"
+    },
+    "nonzero": {
+      "exit_code": 7,
+      "reason": "exited",
+      "stdout": "",
+      "stderr": "",
+      "duration_ms": 21,
+      "policy": "bubblewrap-single-process-v1"
+    },
+    "environment": {
+      "exit_code": 0,
+      "reason": "exited",
+      "stdout": "['HOME', 'LANG', 'PATH', 'PWD']\nFalse\n",
+      "stderr": "",
+      "duration_ms": 19,
+      "policy": "bubblewrap-single-process-v1"
+    }
+  }
+}
