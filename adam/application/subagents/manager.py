@@ -11,12 +11,14 @@ from pathlib import Path
 from typing import Any
 
 from adam.application.conversation import Conversation
+from adam.application.event_queue import EventQueue
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.config.settings import PermissionConfig, SubagentConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.errors import AgentError, StorageError, ToolError
+from adam.contracts.events import EventKind
 from adam.contracts.execution import ExecutionMode
 from adam.contracts.memory import MemorySelection
 from adam.contracts.proposals import EditProposal, ProposalOwner
@@ -67,6 +69,7 @@ class SubagentManager:
         self._budget = SharedTokenBudget(token_limit)
         self._pool: ThreadPoolExecutor | None = None
         self._active: dict[str, tuple[Future[None], CancellationToken]] = {}
+        self._mailboxes: dict[str, EventQueue] = {}
         self._delivered: set[str] = set()
         self._announced: set[str] = set()
         self._turn_id = ""
@@ -141,6 +144,35 @@ class SubagentManager:
         ]:
             raise ToolError("工作目录或读取授权已变化；请新建子 Agent，不扩大旧子会话权限。")
         return self._launch(agent, task)
+
+    def message(self, agent_id: str, run_id: str, message_id: str, text: str) -> dict[str, Any]:
+        """给指定活运行补充任务，不新开轮次；过期ID、已取消或已封口任务明确拒绝。
+
+        不占新建/并发槽；仍受父工具调用及子请求/token额度约束。重复message_id去重，
+        accepted只表示入队，最终是否消费应以子上下文和结果为准。
+        """
+        self._poll()
+        if self._source.get("turn_id") != self._turn_id or not self._source.get("request_id"):
+            raise ToolError("补充消息缺少当前主轮次请求来源。")
+        agent = self._get(agent_id)
+        active = self._active.get(agent_id)
+        if agent.role == "reviewer":
+            raise ToolError("独立审查者不接受运行中补充，请重新发起审查。")
+        if not active or not agent.runs or agent.runs[-1].run_id != run_id or active[1].cancelled:
+            raise ToolError("目标run_id已结束、被取消或不属于当前活任务，未启动新任务。")
+        queue = self._mailboxes[run_id]
+        try:
+            receipt = queue.put(EventKind.AGENT_MESSAGE, "parent", message_id, text)
+        except ValueError as error:
+            raise ToolError(f"子任务补充未接受：{error}") from error
+        return {
+            "agent_id": agent_id,
+            "run_id": run_id,
+            "message_id": message_id,
+            "sequence": receipt.sequence,
+            "duplicate": receipt.duplicate,
+            "status": "accepted",
+        }
 
     def list_agents(self) -> dict[str, Any]:
         """查询当前主会话成员，不读取正在写入的子会话文件或展开回复。"""
@@ -379,7 +411,17 @@ class SubagentManager:
                 max_workers=self.limits.max_concurrent, thread_name_prefix="adam-child"
             )
         token = CancellationToken()
-        future = self._pool.submit(self._work, agent, run, token, self._memory)
+        self._mailboxes[run.run_id] = EventQueue(
+            run.run_id, capacity=32, max_events=64, max_chars=8192
+        )
+        try:
+            future = self._pool.submit(self._work, agent, run, token, self._memory)
+        except BaseException:
+            self._mailboxes.pop(run.run_id).close()
+            self._index_required().update_run(
+                agent.agent_id, run.run_id, status="failed", error="子线程未启动。"
+            )
+            raise
         self._active[agent.agent_id] = (future, token)
         self.notify(f"子 Agent> {agent.agent_id} {agent.name} 已启动")
         return {"agent_id": agent.agent_id, "run_id": run.run_id, "status": "running"}
@@ -398,6 +440,8 @@ class SubagentManager:
             with self.open_child(
                 self._children_root(), agent, run, token, budget, started, memory
             ) as conversation:
+                conversation.input_owner = run.run_id
+                conversation.input_provider = lambda _: self._mailboxes[run.run_id]
                 reply = conversation.send(run.task)
             index.update_run(agent.agent_id, run.run_id, status="completed", reply=reply)
         except BaseException as error:
@@ -414,6 +458,8 @@ class SubagentManager:
                 )
             )
             index.update_run(agent.agent_id, run.run_id, status=status, error=message)
+        finally:
+            self._mailboxes[run.run_id].close()
 
     def _poll(self) -> None:
         for agent_id, (future, _) in list(self._active.items()):
@@ -425,6 +471,7 @@ class SubagentManager:
                     del self._active[agent_id]
                 agent = self._get(agent_id)
                 run = agent.runs[-1]
+                self._mailboxes.pop(run.run_id, None)
                 if run.run_id not in self._announced:
                     self.notify(f"子 Agent> {agent_id} {agent.name} {run.status}")
                     self._announced.add(run.run_id)

@@ -85,6 +85,7 @@ class Conversation:
         compaction_version: str | None = COMPACTION_VERSION,
         diagnostic_reader: DiagnosticReader | None = None,
         input_provider: Callable[[str], EventQueue | None] | None = None,
+        input_owner: str | None = None,
     ) -> None:
         """注入会话依赖；context_layout 仅供旧录制重放，默认使用当前排列。
 
@@ -92,6 +93,7 @@ class Conversation:
         compaction_version=None 让旧录制保持当时的摘要输入与估算。
         diagnostic_reader 仅在真实请求构造时观察本轮检查；预览与历史不会自动读文件。
         input_provider由宿主按turn_id提供运行队列；启用后暂存最终正文，避免先展示后补充。
+        input_owner仅供宿主绑定子运行run_id，与用户输入队列的turn_id归属分开。
         """
         validate_compaction_version(compaction_version)
         self.compaction_version = compaction_version
@@ -118,6 +120,7 @@ class Conversation:
         self.state_reader = state_reader
         self.diagnostic_reader = diagnostic_reader
         self.input_provider = input_provider
+        self.input_owner = input_owner
         self.planning = planning
         self.reflection, self.review = reflection, review
         self.requests = RequestRunner(
@@ -354,7 +357,7 @@ class Conversation:
     def _input_queue(self, turn_id: str) -> EventQueue | None:
         """只接受宿主为当前轮次提供的队列，防止旧运行输入进入新任务。"""
         queue = self.input_provider(turn_id) if self.input_provider else None
-        if queue is not None and queue.task_id != turn_id:
+        if queue is not None and queue.task_id != (self.input_owner or turn_id):
             raise ValueError("input queue belongs to another turn")
         return queue
 
@@ -362,15 +365,21 @@ class Conversation:
         """只在请求前或完整工具批次后加入用户补充；ack表示进入本轮内存上下文。
 
         成功轮次整体保存；接受/失败输入的独立事件留痕由后续宿主入口接入。
-        子任务进展和timer不能经此入口提升为用户指令。
+        绑定input_owner的子运行允许父消息，明确标注来源且不授予新权限；进展和timer仍拒绝。
         """
         queue = self._input_queue(turn_id)
         if queue is None:
             return
         for event in queue.peek(queue.capacity):
-            if event.kind is not EventKind.USER_INPUT:
-                raise ValueError("this input boundary accepts only user input")
-            turn.append({"role": "user", "content": event.text})
+            text = event.text
+            if event.kind is EventKind.AGENT_MESSAGE and self.input_owner is not None:
+                text = (
+                    f"主Agent对本任务的补充（run={event.task_id}, message={event.event_id}；"
+                    "不是用户新增授权，不改变权限约束）：\n" + text
+                )
+            elif event.kind is not EventKind.USER_INPUT:
+                raise ValueError("unsupported event at this input boundary")
+            turn.append({"role": "user", "content": text})
             queue.ack(event.sequence)
 
     def _seal_input(self, turn_id: str, turn: list[dict[str, Any]]) -> bool:

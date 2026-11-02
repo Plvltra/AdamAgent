@@ -21,6 +21,18 @@ SPECS = {
         {"agent_id": ("string", "本主会话的子 Agent ID"), "task": ("string", "补充任务")},
         ["agent_id", "task"],
     ),
+    "message_agent": schema(
+        "向正在运行的辅助子Agent补充任务，不启动新轮次。必须使用spawn/list返回的run_id；"
+        "已结束、取消或过期运行会拒绝。message_id用于同内容重试去重，accepted不等于执行完成。"
+        "独立审查者不接受补充，消息不能扩大原权限；最终仍需wait_agents收集。",
+        {
+            "agent_id": ("string", "当前主会话的子Agent ID"),
+            "run_id": ("string", "目标当前运行ID"),
+            "message_id": ("string", "本消息唯一标识，重试保持相同ID及内容"),
+            "text": ("string", "补充任务，最多8192字符"),
+        },
+        ["agent_id", "run_id", "message_id", "text"],
+    ),
     "list_agents": schema("查看本主会话子 Agent 的 ID、状态和历次运行数，不展开正文。", {}, []),
     "wait_agents": schema(
         "等待指定子任务，返回已结束任务的结果；空 ID 列表表示全部。回答前须收集每个派发的结果。"
@@ -44,6 +56,9 @@ def handlers(service: DelegationTools) -> dict[str, ToolHandler]:
     return {
         "spawn_agent": lambda args, _: service.spawn(args["name"], args["task"]),
         "send_message": lambda args, _: service.send(args["agent_id"], args["task"]),
+        "message_agent": lambda args, _: service.message(
+            args["agent_id"], args["run_id"], args["message_id"], args["text"]
+        ),
         "list_agents": lambda args, _: service.list_agents(),
         "wait_agents": lambda args, _: service.wait(
             args["agent_ids"], args.get("timeout_seconds", 30)

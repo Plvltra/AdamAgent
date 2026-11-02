@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B27.3 输入重启恢复与实际故障验收。
+本次核对范围：B28.1 父到子运行邮箱与安全点。
 
-核对结论：bootstrap在主会话锁取得后协调附属恢复，recover_inputs依据已提交轮次更新独立输入状态，不重建队列或重发；原原子写入函数提取复用，准确的保存约束保留。47项局部回归通过。
+核对结论：主模型message_agent经DelegationTools协议进入SubagentManager，按run_id路由EventQueue；子Conversation由宿主绑定input_owner，在安全点消费来源明确的AGENT_MESSAGE。原send_message续聊保持，工具层仍不导入应用实现。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -1994,3 +1994,15 @@ flowchart LR
 ```
 
 恢复器校验身份、顺序、容量和记录状态，原子替换更新；不创建输入队列，不调用模型。失败恢复保留主会话已选中的事实并明确报错。
+## B28.1 父到子运行邮箱
+
+```mermaid
+flowchart LR
+    P[主模型message_agent] --> D[DelegationTools协议]
+    D --> M[SubagentManager / 校验agent与run]
+    M --> Q[EventQueue / run_id专属]
+    C[子Conversation / 安全点] --> Q
+    C --> H[成功子历史 / 来源标记正文]
+```
+
+父工具轨迹保存消息参数与回执；子运行未消费的邮箱独立持久状态待B28.2，当前不绘制未实现存储关系。权限不因父消息扩大，reviewer不接受运行中补充。[功能范围](subagent-messages.md)。
