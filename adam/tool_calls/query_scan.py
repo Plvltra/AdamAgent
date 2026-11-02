@@ -58,7 +58,8 @@ def capture_inventory(
     """按实际授权扫描并排序；每项调用check响应取消/期限，扫描不完整就失败。
 
     max_entries 限制每次扫描触及的目录项（包括跳过项）；root本身单独保留。
-    symlink/junction 不递归。再次调用可检测目录变化，仍不替代文件字节版本或文件锁。
+    symlink/junction 不递归，避免循环和边界逃逸。再次调用可检测目录变化，
+    仍不替代文件字节版本或文件锁；异常退出也会关闭 scandir。
     """
     if type(max_entries) is not int or not 1 <= max_entries <= 1_000_000:
         raise ToolError("目录扫描上限必须是1～1000000的整数。")

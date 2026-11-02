@@ -32,8 +32,11 @@ class QueryCursor:
         return f"{_VERSION}.{self.query}.{self.generation}.{self.offset}"
 
 
-def decode_cursor(value: object, query: str, generation: str) -> QueryCursor:
-    """严格核对参数与来源；变化时拒绝续接，不能将两次扫描悄悄合并为一个结果集。"""
+def decode_cursor(value: object, query: str, generation: str | None = None) -> QueryCursor:
+    """严格核对参数与来源；省略generation时只解析，调用者须在实际扫描后复核版本。
+
+    来源变化时拒绝续接，不能将两次扫描悄悄合并为一个结果集。
+    """
     if not isinstance(value, str) or len(value) > 144:
         raise ValueError("文件查询游标格式无效。")
     matched = _CURSOR.fullmatch(value)
@@ -44,7 +47,7 @@ def decode_cursor(value: object, query: str, generation: str) -> QueryCursor:
         raise ValueError("文件查询游标不是规范格式。")
     if result.query != query:
         raise ValueError("游标不属于当前路径、查询或匹配方式，请从第一页重新查询。")
-    if result.generation != generation:
+    if generation is not None and result.generation != generation:
         raise ValueError("查询来源已变化，旧游标失效，请从第一页重新查询。")
     return result
 

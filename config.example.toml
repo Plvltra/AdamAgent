@@ -177,6 +177,8 @@ max_read_lines = 200
 max_result_chars = 8000
 max_scan_entries = 5000
 max_text_file_bytes = 1048576
+# 一次文本查询的总读取字节；每次翻页重新受此限制。
+max_scan_bytes = 33554432
 # PDF 原字节上限与单次请求页数；解码和总页数仍受独立解析边界限制。
 max_pdf_file_bytes = 8388608
 max_pdf_read_pages = 20

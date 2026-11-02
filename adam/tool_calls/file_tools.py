@@ -1,9 +1,5 @@
 """文件查询工具；接收已授权路径，返回尚未序列化的工具结果。"""
 
-import fnmatch
-import os
-import time
-from collections.abc import Iterator
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -11,10 +7,9 @@ from typing import Any
 from adam.config.settings import ToolLimits
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import ToolError
+from adam.tool_calls.file_queries import FileQueries
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.text_file import read_snapshot
-
-IGNORED = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}
 
 
 class FileTools:
@@ -25,6 +20,7 @@ class FileTools:
         self.policy = policy
         self.limits = limits
         self._cancel = cancel
+        self._queries = FileQueries(policy, limits, cancel)
 
     def file_info(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
         """返回文件类型、大小与修改时间。"""
@@ -38,23 +34,8 @@ class FileTools:
         }
 
     def list_directory(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
-        """按 offset 返回排序后的目录项及下一页位置。"""
-        self._check_cancel()
-        offset = args.get("offset", 0)
-        if offset < 0 or not path.is_dir():
-            raise ToolError("offset必须非负，path必须是目录。")
-        entries = []
-        with os.scandir(path) as scan:
-            for entry in scan:
-                self._check_cancel()
-                if len(entries) >= self.limits.max_scan_entries:
-                    raise ToolError("目录过大，请使用更小的目录。")
-                entries.append(entry.name)
-        entries.sort()
-        return {
-            "entries": entries[offset : offset + 200],
-            "next_offset": offset + 200 if len(entries) > offset + 200 else None,
-        }
+        """稳定列出授权直接子项；优先使用绑定版本的cursor，旧offset仅保留兼容。"""
+        return self._queries.run("list_directory", path, args)
 
     def read_file(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
         """按行展示同一读取快照，保留实际路径、完整文件版本、行号、截断与续读位置。
@@ -88,78 +69,14 @@ class FileTools:
         }
 
     def find_files(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
-        """返回匹配 glob 的相对文件路径，最多 200 项。"""
-        results = []
-        for _file, relative in self._matching_files(path, args["pattern"]):
-            results.append(relative)
-            if len(results) >= 200:
-                return {"results": results, "truncated": True}
-        return {"results": results, "truncated": False}
+        """按glob稳定查询授权文件；返回完整页面和来源游标，可继续读取后续结果。"""
+        return self._queries.run("find_files", path, args)
 
     def search_text(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
-        """搜索字面文本；跳过不可读文件，返回最多 50 个带行号的匹配项。"""
-        query = args["query"]
-        if not query:
-            raise ToolError("搜索文本不能为空。")
-        results = []
-        for file, relative in self._matching_files(path, args.get("pattern", "*")):
-            try:
-                for number, line in self._lines(file):
-                    if query in line:
-                        results.append({"path": relative, "line": number, "text": line[:500]})
-                        if len(results) >= 50:
-                            return {"results": results, "truncated": True}
-            except (UnicodeError, ToolError, OSError):
-                continue
-        return {"results": results, "truncated": False}
+        """字面查询带版本与行号的文本；跳过不可读文件计数，超限/取消不返回部分页。"""
+        return self._queries.run("search_text", path, args)
 
     def _check_cancel(self) -> None:
         """在扫描与文本处理边界响应取消，不把取消当作跳过文件的普通错误。"""
         if self._cancel:
             self._cancel.check()
-
-    def _matching_files(self, path: Path, pattern: str) -> Iterator[tuple[Path, str]]:
-        base = path if path.is_dir() else path.parent
-        for file in self._walk(path):
-            relative = file.relative_to(base).as_posix()
-            if fnmatch.fnmatch(relative, pattern) or file.match(pattern):
-                yield file, relative
-
-    def _walk(self, root: Path) -> Iterator[Path]:
-        """遍历有限目录项；每项检查取消，异常退出仍关闭 scandir。"""
-        self._check_cancel()
-        if root.is_file():
-            yield root
-            return
-        deadline = time.monotonic() + self.limits.scan_timeout_seconds
-        stack = [root]
-        scanned = 0
-        while stack:
-            self._check_cancel()
-            directory = stack.pop()
-            with os.scandir(directory) as entries:
-                for entry in entries:
-                    self._check_cancel()
-                    scanned += 1
-                    if scanned > self.limits.max_scan_entries or time.monotonic() > deadline:
-                        raise ToolError("扫描达到数量或时间上限，请缩小搜索目录。")
-                    if entry.name in IGNORED or entry.is_symlink():
-                        continue
-                    try:
-                        path = self.policy.resolve(entry.path)
-                    except ToolError:
-                        continue
-                    # Windows junction也不递归，避免循环和边界逃逸。
-                    if path != Path(entry.path).absolute():
-                        continue
-                    if path.is_dir():
-                        stack.append(path)
-                    elif path.is_file():
-                        yield path
-
-    def _lines(self, path: Path) -> Iterator[tuple[int, str]]:
-        """从有界快照逐行搜索，防止扫描期间文件增长或超长行形成无限读取。"""
-        snapshot = read_snapshot(path, self.limits.max_text_file_bytes, self._cancel)
-        for number, line in enumerate(StringIO(snapshot.text, newline=None), 1):
-            self._check_cancel()
-            yield number, line.rstrip("\r\n")

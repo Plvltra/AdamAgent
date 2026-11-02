@@ -24,6 +24,10 @@ PAGING = {
     "offset": ("integer", "从0开始；翻页前核对 generation 是否变化"),
     "limit": ("integer", "最多返回完整条目数，1～100，默认20"),
 }
+FILE_PAGING = {
+    "cursor": ("string", "继续上一结果的next_cursor；保持路径/查询相同，来源变化须从头查询"),
+    "limit": ("integer", "最多返回完整条目数，至少1；搜索最多50，其余最多200，受结果长度限制"),
+}
 SPECS = {
     "read_pdf": schema(
         "按物理页读取已授权PDF文字，返回path、完整原文件version、页码及截断/OCR状态。"
@@ -94,13 +98,17 @@ SPECS = {
         },
     },
     "list_directory": schema(
-        "列出直接子项，默认200项；offset可翻页。",
-        {"path": PATH, "offset": ("integer", "从0开始")},
+        "列出授权直接子项，稳定排序，使用next_cursor续读；旧offset不保证来源版本。",
+        {
+            "path": PATH,
+            "offset": ("integer", "旧接口，从0开始，不能与cursor同时使用"),
+            **FILE_PAGING,
+        },
         ["path"],
     ),
     "find_files": schema(
-        "递归按glob查找文件，跳过依赖、缓存、.git；结果最多200条。",
-        {"path": PATH, "pattern": ("string", "如 **/*.py")},
+        "递归按glob查文件，跳过依赖、缓存、.git；稳定分页，next_cursor可继续。",
+        {"path": PATH, "pattern": ("string", "如 **/*.py，1～1024字符"), **FILE_PAGING},
         ["path", "pattern"],
     ),
     "read_file": schema(
@@ -113,11 +121,13 @@ SPECS = {
         ["path"],
     ),
     "search_text": schema(
-        "递归搜索字面文本，返回路径、行号和匹配行，最多50条。",
+        "递归搜索字面文本，按路径/行号稳定分页，next_cursor可继续；来源变化须重查。"
+        "返回实际文件version，skipped_files表示未搜索文件数，不能据此声称整个目录没有匹配。",
         {
             "path": PATH,
-            "query": ("string", "非空字面文本"),
-            "pattern": ("string", "文件glob，默认*"),
+            "query": ("string", "字面文本，1～4096字符"),
+            "pattern": ("string", "文件glob，默认*，1～1024字符"),
+            **FILE_PAGING,
         },
         ["path", "query"],
     ),

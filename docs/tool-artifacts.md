@@ -90,7 +90,7 @@ offset 从 0 开始，单位为 Python Unicode 字符，不是 UTF-8 字节或�
 - [格式边界](../tests/test_artifacts.py)：来源、非法范围、14 种损坏输入、无效文本/ID 与不可变引用。
 - T8.1 新增45项与19项架构约束共64项定向检查通过；Ruff、Pyright 与完整回归已通过，提交 9edbd4e。链接重定向测试模拟真实路径解析结果，不声称测试了 Windows 创建链接的权限。
 
-T8.2 新增34项验收：实际命令长日志及尾部读取、通用目录结果、计划模式和重启读取、正文/来源保存失败不重跑、篡改/丢失/旧版本拒绝、转义分页、捕获与配额不完整、开关及非法参数、真实主/子隔离。入口见 [工具附件](../tests/features/test_tool_artifacts.py)、[主子边界](../tests/features/test_artifact_subagents.py)、[参数及关闭](../tests/features/test_artifact_arguments.py)、[配置与来源](../tests/test_artifact_integration.py)。
+T8.2 新增34项验收：实际命令长日志及尾部读取、通用长结果、计划模式和重启读取、正文/来源保存失败不重跑、篡改/丢失/旧版本拒绝、转义分页、捕获与配额不完整、开关及非法参数、真实主/子隔离。入口见 [工具附件](../tests/features/test_tool_artifacts.py)、[主子边界](../tests/features/test_artifact_subagents.py)、[参数及关闭](../tests/features/test_artifact_arguments.py)、[配置与来源](../tests/test_artifact_integration.py)。
 
 首轮业务测试的预期忽略 Windows 文本 stdout 的换行转换，长重复字符串差异比较耗时；命令改用显式 UTF-8 字节输出，先核对长度再比较内容，未放宽产品行为或断言。已有存储、架构、命令、子任务91项回归通过；完整 Ruff 格式/lint、Pyright 和 pytest 已通过，T8.2 提交为 5ff9049。
 
@@ -116,3 +116,5 @@ T8.2 新增34项验收：实际命令长日志及尾部读取、通用目录结�
 重新启动全新进程后验证：成功历史与12个已知消费 token 保持；请求已成功、命令退出0，整轮为中断；恢复前日志备份逐字节保留，正文不改变，不请求模型或重跑命令。只有完整来源已保存的两种情况可在随后显式新轮读取，孤立正文仍被拒绝。工具结束记录是否存在单独判断，不能据此把整轮升级为成功。
 
 这些测试不代替真实模型效果评估；完整 Ruff 格式/lint、Pyright 与 pytest 随本项独立提交执行。后续进入 T9 调用录制与离线重放。
+
+B21.1.2 后目录工具原生分页，不再生成超长目录结果。原通用附件测试改用真实UTF-8文件的转义长输出，保留来源、跨会话、篡改、非法参数与主子隔离断言；没有伪造附件或跳过旧业务场景。

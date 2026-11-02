@@ -21,7 +21,7 @@ def test_model_cannot_expand_page_or_select_another_session(tmp_path, change):
 
     def respond(body, phase):
         if phase == 1:
-            return tool_response([call("listing", "list_directory", path=".")])
+            return tool_response([call("source", "read_file", path="artifact-source.txt")])
         if phase == 2:
             return tool_response([read_call(outputs(body)[-1]["artifact"], **change)])
         assert outputs(body)[-1]["ok"] is False

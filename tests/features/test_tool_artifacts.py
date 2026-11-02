@@ -1,4 +1,4 @@
-"""T8.2：假模型驱动真实命令、目录和附件；检查回传、来源、隔离与失败边界。"""
+"""T8.2：假模型驱动真实命令、文本和附件；检查回传、来源、隔离与失败边界。"""
 
 import json
 import sys
@@ -50,9 +50,11 @@ def application(root, respond, *, config=None, approvals=None):
 
 
 def populate(root):
-    """生成真实长目录结果，避免用宿主伪造成功工具或附件来源。"""
-    for index in range(70):
-        (root / (f"entry-{index:03d}-" + "x" * 60)).write_text("data", encoding="utf-8")
+    """生成转义后超长的真实读取结果，不伪造工具成功或附件来源。
+
+    目录现在原生分页，不再借目录溢出触发附件；保持原隔离、来源和失败验收。
+    """
+    (root / "artifact-source.txt").write_text(('"' * 256 + "\n") * 4, encoding="utf-8")
 
 
 def reference_from(store, sid):
@@ -127,7 +129,7 @@ def test_generic_long_result_reopens_and_current_session_cannot_claim_other_refe
 
     def first(body, phase):
         if phase == 1:
-            return tool_response([call("listing", "list_directory", path=".")])
+            return tool_response([call("source", "read_file", path="artifact-source.txt")])
         returned.update(outputs(body)[-1]["artifact"])
         return answer()
 
@@ -135,7 +137,7 @@ def test_generic_long_result_reopens_and_current_session_cannot_claim_other_refe
         app.send("list")
         original = app.session.session_id
         reference = reference_from(store, original)
-        assert reference.source.tool_name == "list_directory"
+        assert reference.source.tool_name == "read_file"
 
     def later(body, phase):
         if phase in {1, 3}:
@@ -205,7 +207,7 @@ def test_reader_rejects_lost_changed_and_stale_artifact(tmp_path, change):
 
     def respond(body, phase):
         if phase == 1:
-            return tool_response([call("listing", "list_directory", path=".")])
+            return tool_response([call("source", "read_file", path="artifact-source.txt")])
         if phase == 2:
             reference = outputs(body)[-1]["artifact"]
             path = next((tmp_path / "sessions" / "_artifacts").glob("*/*.json"))
@@ -231,7 +233,7 @@ def test_attachment_directory_is_not_an_ordinary_readable_path(tmp_path):
 
     def respond(body, phase):
         if phase == 1:
-            return tool_response([call("listing", "list_directory", path=".")])
+            return tool_response([call("source", "read_file", path="artifact-source.txt")])
         if phase == 2:
             path = next((tmp_path / "sessions" / "_artifacts").glob("*/*.json"))
             return tool_response([call("bypass", "read_file", path=str(path))])

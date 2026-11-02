@@ -24,7 +24,7 @@ def test_parent_and_child_use_own_artifacts_without_cross_session_access(tmp_pat
         phase = len(child_requests)
         if phase == 1:
             batch = [
-                call("listing", "list_directory", path="."),
+                call("source", "read_file", path="artifact-source.txt"),
                 read_call(parent_reference),
             ]
         elif phase == 2:
@@ -50,7 +50,7 @@ def test_parent_and_child_use_own_artifacts_without_cross_session_access(tmp_pat
         parent_requests.append(body)
         phase = len(parent_requests)
         if phase == 1:
-            batch = [call("listing", "list_directory", path=".")]
+            batch = [call("source", "read_file", path="artifact-source.txt")]
         elif phase == 2:
             parent_reference.update(outputs(body)[-1]["artifact"])
             paths["parent"] = next((tmp_path / "sessions" / "_artifacts").glob("*/*.json"))
@@ -59,7 +59,7 @@ def test_parent_and_child_use_own_artifacts_without_cross_session_access(tmp_pat
                     "spawn",
                     "spawn_agent",
                     name="reader",
-                    task="Inspect directory and own attachment",
+                    task="Read text and own attachment",
                 )
             ]
         elif phase == 3:
