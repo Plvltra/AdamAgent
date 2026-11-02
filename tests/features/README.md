@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B28.3 消息故障验收 | 双子任务隔离、取消后拒绝补充、两个真实强杀边界恢复不重发 | [消息验收](test_subagent_message_acceptance.py) |
 | B28.2 双向持久消息 | 子进展报告/父收集、入站来源、持久状态、保存失败及恢复不重发 | [双向消息](test_subagent_progress.py) |
 | B28.1 运行中父子消息 | 请求中补充、message_id去重、旧run拒绝及原续聊 | [父子消息](test_subagent_live_messages.py) |
 | B27.3 输入重启恢复 | 三个真实强杀边界、成功历史判定、不重发、工具补充及乱序拒绝 | [恢复验收](test_running_input_recovery.py) |
