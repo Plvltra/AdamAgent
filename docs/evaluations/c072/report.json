@@ -1,0 +1,276 @@
+{
+  "models": [
+    {
+      "repo": "stabilityai/sd-turbo",
+      "revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
+      "path": "G:\\Myself\\Adam2\\.cache\\local-generation\\sd-turbo"
+    },
+    {
+      "repo": "facebook/musicgen-small",
+      "revision": "4c8334b02c6ec4e8664a91979669a501ec497792",
+      "path": "G:\\Myself\\Adam2\\.cache\\local-generation\\musicgen-small"
+    }
+  ],
+  "jobs": [
+    {
+      "job_id": "c072-sd-turbo-seed42",
+      "spec": {
+        "kind": "image",
+        "prompt": "A single red ceramic teapot on a plain white table, studio photograph, soft lighting, no text.",
+        "parameters": [
+          [
+            "width",
+            512
+          ],
+          [
+            "height",
+            512
+          ],
+          [
+            "steps",
+            1
+          ]
+        ],
+        "seed": 42
+      },
+      "elapsed_seconds": 16.930448799997976,
+      "job": {
+        "job_id": "c072-sd-turbo-seed42",
+        "backend": "local-sd-turbo",
+        "spec": {
+          "kind": "image",
+          "prompt": "A single red ceramic teapot on a plain white table, studio photograph, soft lighting, no text.",
+          "parameters": [
+            [
+              "width",
+              512
+            ],
+            [
+              "height",
+              512
+            ],
+            [
+              "steps",
+              1
+            ]
+          ],
+          "seed": 42
+        },
+        "source": {
+          "session_id": "90cc0367",
+          "turn_id": "faab6a32d9fdbd7e14f16bcbc072fb18",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "plan": {
+          "reservation": {
+            "input_tokens": 77,
+            "output_tokens": 0,
+            "images": 1,
+            "audio_ms": 0,
+            "calls": 1
+          },
+          "purpose": "image_generation",
+          "price": null
+        },
+        "state": "succeeded",
+        "usage": {
+          "input_tokens": 22,
+          "output_tokens": 0,
+          "images": 1,
+          "audio_ms": 0,
+          "calls": 1
+        },
+        "media": {
+          "media_id": "2dc323f8b84e5301e071db78fad4637c",
+          "source": {
+            "session_id": "90cc0367",
+            "turn_id": "faab6a32d9fdbd7e14f16bcbc072fb18",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 366633,
+          "version": "c0958036f49221b48cf04cde6822edfaefc6bd7b1003b2c94370c666ba3098f6",
+          "created_at": "2026-11-02T23:37:17.245419+08:00",
+          "schema_version": 1
+        },
+        "seed_used": 42,
+        "cancel_requested": false,
+        "error": null
+      },
+      "charge": {
+        "status": "unpriced",
+        "currency": null,
+        "cost": null,
+        "known_cost": null
+      },
+      "path": "G:\\Myself\\Adam2\\.cache\\c072-generation\\teapot.png",
+      "sha256": "c0958036f49221b48cf04cde6822edfaefc6bd7b1003b2c94370c666ba3098f6",
+      "read_via_original_media_ref": true
+    },
+    {
+      "job_id": "c072-musicgen-seed42",
+      "spec": {
+        "kind": "audio",
+        "prompt": "A short bright piano melody with soft bell accents, instrumental music, no vocals.",
+        "parameters": [
+          [
+            "duration_ms",
+            3000
+          ]
+        ],
+        "seed": 42
+      },
+      "elapsed_seconds": 18.746659500000533,
+      "job": {
+        "job_id": "c072-musicgen-seed42",
+        "backend": "local-musicgen-small",
+        "spec": {
+          "kind": "audio",
+          "prompt": "A short bright piano melody with soft bell accents, instrumental music, no vocals.",
+          "parameters": [
+            [
+              "duration_ms",
+              3000
+            ]
+          ],
+          "seed": 42
+        },
+        "source": {
+          "session_id": "90cc0367",
+          "turn_id": "faab6a32d9fdbd7e14f16bcbc072fb18",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "plan": {
+          "reservation": {
+            "input_tokens": 256,
+            "output_tokens": 0,
+            "images": 0,
+            "audio_ms": 3000,
+            "calls": 1
+          },
+          "purpose": "audio_generation",
+          "price": null
+        },
+        "state": "succeeded",
+        "usage": {
+          "input_tokens": 19,
+          "output_tokens": 0,
+          "images": 0,
+          "audio_ms": 3000,
+          "calls": 1
+        },
+        "media": {
+          "media_id": "19e815f12be714b29f667013d63765ca",
+          "source": {
+            "session_id": "90cc0367",
+            "turn_id": "faab6a32d9fdbd7e14f16bcbc072fb18",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "audio/wav",
+          "size_bytes": 192044,
+          "version": "62ba412fd064226cf2fdeab6a8810f23d46ba6fbd507704efbf9cb0031d244a4",
+          "created_at": "2026-11-02T23:37:36.009149+08:00",
+          "schema_version": 1
+        },
+        "seed_used": 42,
+        "cancel_requested": false,
+        "error": null
+      },
+      "charge": {
+        "status": "unpriced",
+        "currency": null,
+        "cost": null,
+        "known_cost": null
+      },
+      "path": "G:\\Myself\\Adam2\\.cache\\c072-generation\\melody.wav",
+      "sha256": "62ba412fd064226cf2fdeab6a8810f23d46ba6fbd507704efbf9cb0031d244a4",
+      "read_via_original_media_ref": true,
+      "decoded_audio": {
+        "frames": 96000,
+        "sample_rate": 32000,
+        "channels": 1,
+        "sample_width": 2,
+        "duration_seconds": 3.0,
+        "peak_pcm": 5431,
+        "rms_pcm": 884.4261864515603
+      }
+    }
+  ],
+  "host_pid": 51292,
+  "audio_listening": "未人工听感验收；数值不证明钢琴、铃声或无歌声语义。",
+  "image_visual_review": {
+    "result": "partially_matches",
+    "findings": "独立查看原PNG：单个红色釉面陶瓷茶壶置于浅白桌面，柔光摄影，无文字。左下额外出现红色杯子和杯托，桌面有纹理、背景灰褐；单一主体/纯白简洁场景仅部分符合，未重试。",
+    "evidence": "G:\\Myself\\Adam2\\.cache\\c072-generation\\teapot.png"
+  },
+  "worker_parameters": {
+    "image_dtype": "float16",
+    "image_guidance_scale": 0.0,
+    "audio_dtype": "float32",
+    "audio_guidance_scale": 3.0,
+    "audio_do_sample": true,
+    "device": "cuda"
+  },
+  "python": "G:\\Myself\\Adam2\\.cache\\c-venv\\Scripts\\python.exe",
+  "worker_python": "G:\\Myself\\Adam2\\.cache\\generation-venv\\Scripts\\python.exe",
+  "source": {
+    "session_id": "90cc0367",
+    "turn_id": "faab6a32d9fdbd7e14f16bcbc072fb18",
+    "kind": "input",
+    "request_id": null,
+    "tool_call_id": null,
+    "tool_name": null
+  },
+  "budget": {
+    "members": [
+      {
+        "owner": "generation:90cc0367:local-sd-turbo:c072-sd-turbo-seed42",
+        "known": {
+          "input_tokens": 22,
+          "output_tokens": 0,
+          "images": 1,
+          "audio_ms": 0,
+          "calls": 1
+        },
+        "unknown_units": []
+      },
+      {
+        "owner": "generation:90cc0367:local-musicgen-small:c072-musicgen-seed42",
+        "known": {
+          "input_tokens": 19,
+          "output_tokens": 0,
+          "images": 0,
+          "audio_ms": 3000,
+          "calls": 1
+        },
+        "unknown_units": []
+      }
+    ],
+    "reserved": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "images": 0,
+      "audio_ms": 0,
+      "calls": 0
+    }
+  },
+  "session_closed": true,
+  "process_cleanup": {
+    "host_exit_code": 0,
+    "remaining_generation_workers": [],
+    "verified_at": "2026-11-02T23:38:26.5322891+08:00",
+    "evidence": "Win32_Process exact module command match; host process handle exited 0"
+  }
+}

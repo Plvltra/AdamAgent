@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C07.1 generation.models/service显式宿主作业契约；复用原取消、UnitBudget和媒体发布，后端与快照存储通过注入端口连接，普通聊天尚未注册生成工具。
+本次核对范围：C07.2独立SD-Turbo与MusicGen适配器、固定离线worker及准备脚本；沿用GenerationJobs、原媒体发布和C00单位计量，普通模型工具闭环仍待C07.3。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2762,3 +2762,23 @@ flowchart LR
 ~~~
 
 generation仅依赖自身与contracts；UnitBudget和SessionMedia通过宿主注入，不反向导入应用或存储。图中的后端/快照为显式端口，真实生成适配器留C07.2、普通工具与持久化组装留C07.3。9项真实本地存储/额度业务与1项包边界通过（2.13秒），不把WAV fixture当作生成能力；Ruff和定向Pyright通过，新增说明已核对。见 [作业边界](generation.md)。
+
+## C07.2 本地双模态生成
+
+~~~mermaid
+flowchart LR
+    GB_SPEC["原GenerationJobs / 有界GenerationSpec"] --> GB_IMAGE["adapters.sd_turbo / SDTurboBackend"]
+    GB_SPEC --> GB_AUDIO["adapters.musicgen / MusicGenBackend"]
+    GB_IMAGE --> GB_RUN["LocalRuntime / 固定JSON、期限、进程回收"]
+    GB_AUDIO --> GB_RUN
+    GB_RUN --> GB_WORKER["generation.worker / 独立离线CUDA进程"]
+    GB_WORKER --> GB_SD["本地SD-Turbo / PNG"]
+    GB_WORKER --> GB_MUSIC["本地MusicGen / PCM WAV"]
+    GB_SD --> GB_VERIFY["对应适配器完整解码、尺寸/帧数核对"]
+    GB_MUSIC --> GB_VERIFY
+    GB_VERIFY --> GB_RESULT["GeneratedMedia / 原C00实际单位"]
+    GB_SETUP["显式setup_generation_models / 固定公开快照"] --> GB_WEIGHTS["本地safetensors与配置"]
+    GB_WEIGHTS --> GB_WORKER
+~~~
+
+下载脚本与生成入口分离，普通聊天未获得任意Python或模型目录参数。独立推理环境不加入主安装依赖，主generation额外依赖只含Pillow；worker只通过固定JSON与字节产物返回，取消/超时回收自己的进程。对应边界见 [本地生成](generation.md#c072-本地图片与音乐后端)。

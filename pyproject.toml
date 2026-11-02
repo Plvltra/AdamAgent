@@ -16,6 +16,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+generation = ["pillow>=13.0,<14"]
 video = ["av==16.0.1", "pillow>=13.0,<14"]
 desktop = ["pywinauto>=0.6.9,<0.7; sys_platform == 'win32'", "pillow>=13.0,<14"]
 documents = ["fastembed>=0.9.1,<0.10"]

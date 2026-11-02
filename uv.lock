@@ -35,6 +35,9 @@ desktop = [
 documents = [
     { name = "fastembed" },
 ]
+generation = [
+    { name = "pillow" },
+]
 ocr = [
     { name = "onnxruntime" },
     { name = "pillow" },
@@ -72,6 +75,7 @@ requires-dist = [
     { name = "mcp", specifier = ">=2.3,<3" },
     { name = "onnxruntime", marker = "extra == 'ocr'", specifier = ">=1.31.1,<2" },
     { name = "pillow", marker = "extra == 'desktop'", specifier = ">=13.0,<14" },
+    { name = "pillow", marker = "extra == 'generation'", specifier = ">=13.0,<14" },
     { name = "pillow", marker = "extra == 'ocr'", specifier = ">=13.0,<14" },
     { name = "pillow", marker = "extra == 'video'", specifier = ">=13.0,<14" },
     { name = "pillow", marker = "extra == 'vision'", specifier = ">=13.0,<14" },
@@ -82,7 +86,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3,<7" },
     { name = "rapidocr", marker = "extra == 'ocr'", specifier = "==3.9.2" },
 ]
-provides-extras = ["video", "desktop", "documents", "vision", "ocr", "browser"]
+provides-extras = ["generation", "video", "desktop", "documents", "vision", "ocr", "browser"]
 
 [package.metadata.requires-dev]
 dev = [
