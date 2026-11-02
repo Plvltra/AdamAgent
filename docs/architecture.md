@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B22.3.1 create_file生产注册、原模式/路径/批准及Hook诊断来源。
+本次核对范围：B22.3.2 独立宿主发布竞争和创建/撤销强杀恢复。
 
-核对结论：factory将create_file注册为editing/EDIT_FILE，经原发现、参数、模式、路径、Hook及批准进入EditTools；子任务仍交回主任务。诊断匹配复用FILE_EDIT_TOOLS，三个独立示例同步支持创建。原检查点/撤销/录制不另造链路；注释说明已同步，模型仍没有通用删除入口。
+核对结论：架构无变化，独立测试宿主复用真实build_application、EditTools、SessionStore及UndoService，仅暂停实际文件/记录边界并由父进程强杀。原图保留；恢复仍由原JSONL投影处理，已知消费不因文件未知而丢失，不新增自动重跑或清理机制。新增测试说明区分屏障与伪造日志，原源码注释未改。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
