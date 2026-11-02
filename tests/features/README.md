@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B29.1 本地定时 | 到期/取消、独占、恢复只读及保存失败 | [定时验收](test_local_timers.py) |
 | B28.3 消息故障验收 | 双子任务隔离、取消后拒绝补充、两个真实强杀边界恢复不重发 | [消息验收](test_subagent_message_acceptance.py) |
 | B28.2 双向持久消息 | 子进展报告/父收集、入站来源、持久状态、保存失败及恢复不重发 | [双向消息](test_subagent_progress.py) |
 | B28.1 运行中父子消息 | 请求中补充、message_id去重、旧run拒绝及原续聊 | [父子消息](test_subagent_live_messages.py) |
