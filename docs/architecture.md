@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：固定评估输入 locking.txt 保留历史 CRLF 原始字节，修正 Git 归档一致性；生产及评估模块架构无变化。
+本次核对范围：B33.2 新增独立 rubric_calibration 的小金标统计与可注入双向判据；复用 rubric 报告，生产聊天架构无变化。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 

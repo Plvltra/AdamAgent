@@ -383,3 +383,5 @@ B32.2：test_prefix_regression.py 验收决策前文件恢复、替代动作集�
 B32.3：test_prefix_modes.py 验收旧响应/新决策区别、响应串用/变化以及外部副作用拒绝；B32三个文件共6 passed（1.18秒），未调用付费模型。
 
 B33.1：test_rubric.py 通过真实修复验证器和缺失/矛盾证据验收四维评分；2 passed（25.32秒），不调用模型。
+
+B33.2：test_rubric_calibration.py覆盖六样本金标、误报/漏报/缺失及顺序偏差；2 passed（0.09秒），不调用模型。
