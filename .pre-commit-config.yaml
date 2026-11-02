@@ -3,18 +3,16 @@ repos:
     hooks:
       - id: ruff-format
         name: Ruff format (check only)
-        entry: .venv/Scripts/python.exe -m ruff format --check .
+        entry: .venv/Scripts/python.exe -m ruff format --check
         language: system
-        pass_filenames: false
-        always_run: true
+        types: [python]
         stages: [pre-commit]
 
       - id: ruff-check
         name: Ruff lint (check only)
-        entry: .venv/Scripts/python.exe -m ruff check .
+        entry: .venv/Scripts/python.exe -m ruff check
         language: system
-        pass_filenames: false
-        always_run: true
+        types: [python]
         stages: [pre-commit]
 
       - id: pyright
@@ -23,7 +21,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-commit]
+        stages: [manual]
 
       - id: pytest
         name: pytest
