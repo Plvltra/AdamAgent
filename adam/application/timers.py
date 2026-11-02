@@ -21,6 +21,8 @@ class Timer:
     due_at: float
     text: str
     status: str = "pending"
+    condition: str = "timer"
+    job_id: str = ""
 
 
 class LocalTimers:
@@ -55,12 +57,16 @@ class LocalTimers:
             self._lock.release()
             raise
 
-    def schedule(self, task_id: str, due_at: float, text: str) -> Timer:
+    def schedule(
+        self, task_id: str, due_at: float, text: str, *, condition: str = "timer", job_id: str = ""
+    ) -> Timer:
         """保存一次性提醒后返回；到期时间允许在过去，下一次due即可查询。"""
         self._check_open()
         if len(self._items) >= 128:
             raise ValueError("timer capacity exhausted")
-        timer = Timer(secrets.token_hex(8), task_id, due_at, text)
+        timer = Timer(
+            secrets.token_hex(8), task_id, due_at, text, condition=condition, job_id=job_id
+        )
         self._validate(timer)
         self._store({**self._items, timer.timer_id: timer})
         return timer
@@ -149,3 +155,10 @@ class LocalTimers:
             raise ValueError("invalid timer message")
         if timer.status not in {"pending", "delivered", "cancelled", "expired"}:
             raise ValueError("invalid timer status")
+
+        if timer.condition not in {"timer", "output", "completed"}:
+            raise ValueError("invalid trigger condition")
+        if not isinstance(timer.job_id, str) or len(timer.job_id) > 128:
+            raise ValueError("invalid background task")
+        if (timer.condition == "timer") != (timer.job_id == ""):
+            raise ValueError("background condition requires task ID")

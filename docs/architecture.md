@@ -2,7 +2,7 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B29.1 独立LocalTimers API，尚未接入聊天；原父子消息架构不变。
+本次核对范围：B29.2.1 LocalTriggers条件协调API；聊天接入尚未完成。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2023,3 +2023,14 @@ flowchart LR
 ## B29.1 一次性本地定时记录
 
 宿主协调线程 → LocalTimers（application/timers.py）→ timers.json；FileLock独占目录。schedule保存pending，due仅只读查询，finish/cancel保存终态，close释放锁。该API不发模型请求、不启动常驻线程，恢复不自动执行；B27投递及B26条件接入待B29.2。见[范围与验收](local-triggers.md)。
+
+## B29.2.1 本地条件协调
+
+~~~mermaid
+flowchart LR
+  Triggers[application.LocalTriggers] --> Timers[application.LocalTimers / 每会话持久状态]
+  Triggers --> Query[B26 query_background 回调]
+  Triggers --> Queue[B27 EventQueue / 固定原轮次]
+~~~
+
+LocalTriggers自身不执行模型、命令或常驻监听；只观察快照并投递带来源事件。满队列保持pending，跨轮次过期，delivered不等同于处理成功。宿主聊天安全点的调用尚未接入。
