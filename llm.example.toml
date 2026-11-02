@@ -1,4 +1,6 @@
 [llm]
+protocol = "chat_completions"
+# Messages首版：protocol="messages"，stream=false，base_url="https://api.deepseek.com/anthropic"。
 base_url = "https://api.deepseek.com"
 model = "deepseek-flash"
 timeout_seconds = 120

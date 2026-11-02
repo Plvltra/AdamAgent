@@ -19,6 +19,14 @@ class LLMConfig:
     api_key: str = field(repr=False)
     timeout_seconds: float = 120
     stream: bool = True
+    protocol: str = "chat_completions"
+
+    def __post_init__(self) -> None:
+        """协议在启动时确定；Messages首版要求显式关闭流式。"""
+        if self.protocol not in ("chat_completions", "messages"):
+            raise ConfigError("llm.protocol 必须是 chat_completions 或 messages。")
+        if self.protocol == "messages" and self.stream:
+            raise ConfigError("Messages首版需要 llm.stream=false。")
 
 
 @dataclass(frozen=True)

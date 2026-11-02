@@ -1,4 +1,4 @@
-"""Chat Completions 传输适配器；支持完整 JSON 与有界 SSE 增量解析。"""
+"""模型协议入口；Chat Completions支持JSON/SSE，Messages使用独立非流式适配器。"""
 
 from collections.abc import Callable
 from dataclasses import replace
@@ -11,6 +11,7 @@ from adam.contracts.errors import FailureCode, LLMError, RequestInterrupted, Req
 from adam.contracts.models import Completion, ModelOutput
 from adam.contracts.protocol import validate_assistant
 from adam.llm.input_observation import PrefixTracker
+from adam.llm.messages_client import complete_messages
 from adam.llm.streaming import StreamReply, sse_events
 from adam.llm.usage import parse_cache_usage, parse_usage
 
@@ -22,6 +23,9 @@ class LLMClient:
         self.prefixes = PrefixTracker()
 
     def list_models(self) -> dict[str, str | None]:
+        if self.config.protocol == "messages":
+            # 首版只声明用户配置的模型，不假装读取了远端模型目录。
+            return {self.config.model: None}
         try:
             response = self.client.get(
                 self.config.base_url + "/models",
@@ -80,6 +84,7 @@ class LLMClient:
             KeyboardInterrupt: 非流式原生中断保持原对象传播，没有已解析统计时不补造观测。
 
         协议参考：https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/
+        Messages由llm.protocol显式选择，仅支持非流式文本/工具，不迁移私有推理字段。
         """
         body: dict[str, Any] = {
             "model": model or self.config.model,
@@ -91,7 +96,9 @@ class LLMClient:
             body["tools"] = tools
         prefix = self.prefixes.observe(body["model"], messages, tools)
         try:
-            if self.config.stream:
+            if self.config.protocol == "messages":
+                result = complete_messages(self.config, self.client, body)
+            elif self.config.stream:
                 body["stream_options"] = {"include_usage": True}
                 result = self._stream(body, on_output)
             else:

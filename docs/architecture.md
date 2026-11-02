@@ -2,15 +2,27 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B24.1公共协议视图与最小实现范围。
+本次核对范围：B24.2配置选择、Messages非流式适配与原工具循环。
 
-核对结论：contracts新增model_history，提取正文和工具身份并保留原始字典、扩展字段；不改写存储，不改变运行中的模型客户端。新增接口说明转换责任，未删除原生产注释。
+核对结论：LLMClient按LLMConfig.protocol分派，Messages模块负责转换、HTTP和用量，应用仍只依赖ModelClient。原JSONL及工具实现不变，未删除原complete契约。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
 [B23.3对照入口](../scripts/span_edit_eval.py)只生成独立教学样本，经同一工具工厂真实编辑并保存参数/文件版本；[实际结果](span-editing.md)不代表聊天质量或token成本。
+
+## B24.2 双协议入口
+
+```mermaid
+flowchart LR
+    MA_CFG[llm.toml / LLMConfig.protocol] --> MA_CLIENT[LLMClient.complete]
+    MA_CLIENT --> MA_CHAT[原Chat Completions JSON/SSE]
+    MA_CLIENT --> MA_MESSAGES[messages_client / 非流式HTTP]
+    MA_MESSAGES --> MA_PROTOCOL[messages_protocol / 公共身份转换]
+    MA_MESSAGES --> MA_USAGE[messages_usage / 总输入计量]
+    MA_MESSAGES --> MA_RESULT[原Completion / 工具循环 / JSONL]
+```
 
 ## B24.1 公共消息视图
 
@@ -21,7 +33,7 @@ flowchart LR
     MH_VIEW --> MH_EXT[原字段与协议扩展独立副本]
 ```
 
-本阶段只有转换基础，实际双协议连接见后续B24.2；[能力边界](model-adapters.md)。
+公共视图由B24.2的Messages适配使用，原Chat传输保留；[能力边界](model-adapters.md)。
 
 ## B23.2 正式首尾工具
 

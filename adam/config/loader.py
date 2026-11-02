@@ -59,7 +59,15 @@ def load_llm_config(path: Path) -> LLMConfig:
     if not isinstance(section, dict):
         raise ConfigError("配置缺少 [llm] 表。")
 
-    allowed = {"base_url", "model", "api_key", "api_key_env", "timeout_seconds", "stream"}
+    allowed = {
+        "base_url",
+        "model",
+        "api_key",
+        "api_key_env",
+        "timeout_seconds",
+        "stream",
+        "protocol",
+    }
     checked_section(section, allowed, "llm")
 
     def required_text(name: str) -> str:
@@ -114,6 +122,7 @@ def load_llm_config(path: Path) -> LLMConfig:
         api_key=key,
         timeout_seconds=float(timeout),
         stream=stream,
+        protocol=section.get("protocol", "chat_completions"),
     )
 
 
