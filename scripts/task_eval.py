@@ -21,6 +21,7 @@ from adam.llm.client import LLMClient
 from adam.session.diagnostics import read_report
 from adam.session.storage import SessionStore
 from scripts.injection_capture import write_record
+from scripts.phase_timing import PhaseTiming
 from scripts.task_eval_assets import CASES, PreparedTask, prepare_task, verify_task
 from scripts.task_eval_report import ablation_configs
 
@@ -166,9 +167,12 @@ def _run_trial(
     started, reply, tools, identity = time.monotonic(), "", [], None
     error, task = None, None
     memory_selections: list[dict[str, Any]] = []
+    timing = PhaseTiming()
 
     def observe(conversation: Conversation) -> None:
         """只记录生产选择器实际返回的身份，不推断模型是否采用这些记忆。"""
+        executor = conversation.tool_executor
+        executor.execute = timing.wrap("tool", executor.execute)
         provider = conversation.memory_provider
         if provider is None:
             return
@@ -210,13 +214,17 @@ def _run_trial(
         if transport_factory is not None and not isinstance(transport, httpx.MockTransport):
             raise ValueError("offline evaluation requires MockTransport")
         with SessionStore(task.sessions) as store, httpx.Client(transport=transport) as http:
+            timing.bind_store(store)
+            client = LLMClient(config.llm, http)
+            timing.bind_model(client)
             app = build_application(
                 config,
                 store,
-                LLMClient(config.llm, http),
+                client,
                 task.workspace,
-                confirm_edit=lambda plan: plan.path.resolve().is_relative_to(
-                    task.workspace.resolve()
+                confirm_edit=timing.wrap(
+                    "approval",
+                    lambda plan: plan.path.resolve().is_relative_to(task.workspace.resolve()),
                 ),
                 on_tool=tools.append,
                 observe_conversation=observe,
@@ -263,6 +271,7 @@ def _run_trial(
         "error": error,
         "verification": check,
         "memory_selections": memory_selections,
+        "phase_timing": timing.snapshot(),
         "reply": reply,
         "tools": tools,
         "session_id": identity,

@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B33.3 rubric.model_suggestions 固定模型证据等级并由宿主绑定来源；score 保持独立证据优先，生产聊天架构无变化。
+本次核对范围：B34.1 task_eval 为每个主试验安装 PhaseTiming 实例包装，观察 ModelClient、ToolRunner、审批和 SessionStore 持久化入口；阶段记录进入试验JSON，生产聊天默认架构无变化。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
