@@ -9,3 +9,7 @@ B35.1：scripts/failure_tasks.py 的 generate(root) 在全新目录实际构造�
 B35.2：failure_suite.load_provider(dataset_path, split)校验源轨迹SHA256和已知蓝图生成结果。operator_repair/preserve_correct整族属于derive，source_lookup整族属于holdout；同族变体不跨集。B31 run_suite新增可选task_provider，缺省仍用原固定题集；每次prepare建立全新独立workspace/session/memory目录，原目录存在即拒绝。manifest保存split、任务族分配、数据集及来源哈希；真值/验证器不写workspace。
 
 定向2 passed（3.77秒），包括两题两次实际应用/模拟HTTP、整族隔离、真实文件重置、来源链及默认入口兼容；Ruff/Pyright通过。仅验证本地工程，不把模拟回答视为真实模型能力。B35.3泄漏/无效变体验收待完成。
+
+B35.3：拒绝将错误初始文件当作预期答案、越界变体编号、重复任务和变化的来源字节；真实read_file无法越出workspace读取宿主dataset.json。相同修复任务先失败再实际修复后通过，验证器不是恒定返回失败。来源哈希用于一致性而非作者认证；当前只接受已知生成器的蓝图，不从模型任意代码生成验证器。
+
+B35章末及直接受影响B31入口共6 passed（9.49秒），Ruff通过；工程范围完成，不训练模型。来源仍是本地构造的教学失败，真实模型迁移效果未验证。

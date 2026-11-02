@@ -397,3 +397,5 @@ B34.3：test_phase_comparison.py覆盖两组重复、实际缓存日志、缺失
 B35.1：test_failure_tasks.py覆盖三条构造失败来源、六个变体实际文件验证及额外产物拒绝；1 passed（31.77秒）。
 
 B35.2：test_failure_suite.py验证整族隔离、新目录重置及B31实际应用；含默认入口兼容共2 passed（3.77秒）。
+
+B35.3：test_failure_task_boundaries.py覆盖错误判据、无效/重复变体、变化来源和宿主答案越界读取；本章及B31入口共6 passed（9.49秒）。
