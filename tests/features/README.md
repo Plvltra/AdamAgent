@@ -10,6 +10,7 @@
 | --- | --- | --- |
 | B32.1 首错报告 | 真实工具失败定位、成功后不误归因、工具成功但答案错误 | [首错验收](test_first_error.py) |
 | B31.3 消融报告 | 真实记忆选择开关、正常反例、缺失分母与配对 | [对照验收](test_task_eval_report.py) |
+| C01.4 真实五题评估器 | 新增 9 项：实际本地重定向/来源、两组普通问题零网络、未知用量停止、HTTP 失败不重试、固定批次/端点拒绝及引用范围不冒充语义；真实两组严格完整通过 0/5、2/5，各 1 项部分通过 | [test_web_evaluation.py](test_web_evaluation.py)、[真实记录](../../docs/evaluations/c01-web-comparison.json)、[限制](../../docs/web-reading.md#固定五题真实对照c014) |
 | B31.2 评估矩阵 | 独立多配置/重复、错误答案分母、未知用量停止、显式live | [矩阵验收](test_task_eval_runner.py) |
 | B31.1 固定任务 | 独立重置、实际文件终态、记忆来源、普通问题不调用工具 | [资产验收](test_task_eval_assets.py) |
 | B30.3 真实shell与强杀 | 连续cwd/env、双shell隔离、非零退出、输入未知不重发 | [真实验收](test_terminal_acceptance.py) |
@@ -115,7 +116,7 @@
 | B06.2 主体与事实时间 | 20 项同名/显式主体、有效期、原子替代、失败回滚、重启、错误来源及真实请求/重放；相关回归共 131 项 | [test_memory_identity.py](test_memory_identity.py) |
 | B06.1 本地语义记忆 | 12 项范围/版本/预算/降级/取消/请求/重放业务，17 项配置与来源边界；相关回归共 117 项，真实召回质量待验收 | [业务场景](test_semantic_memory.py)、[契约边界](../test_semantic_memory.py) |
 | C00.3 多模态消息与冻结回放 | 35 项业务和 53 项契约/归档，含 B13.1 仅解析/人工分享不得回放：实际 PNG 编码/工具推理/SSE/持久化、无能力/来源/限额/预算/保存/取消、摘要反思/真实子任务隔离、完整字节副本与原会话删除后零外部动作重放；真实视觉质量待 C04 | [test_multimodal_input.py](test_multimodal_input.py)、[公共边界](../test_model_input.py)、[归档边界](../test_media_archive.py) |
-| C01.3 网页研究与片段引用 | 17 项真实 HTTP/主子/重启业务、28 项引用边界与 6 项新增配置：搜索→正文→逐字引用、原模式/批准、保存/取消/来源故障、隔离与零网络重放；模型语义质量待 C01.4 | [test_web_research.py](test_web_research.py)、[引用边界](../test_web_evidence.py)、[配置](../test_web_config.py) |
+| C01.3 网页研究与片段引用 | 17 项真实 HTTP/主子/重启业务、28 项引用边界与 6 项新增配置：搜索→正文→逐字引用、原模式/批准、保存/取消/来源故障、隔离与零网络重放；真实模型有限对照已由 C01.4 单列，不能据此宣称可靠搜索 | [test_web_research.py](test_web_research.py)、[引用边界](../test_web_evidence.py)、[配置](../test_web_config.py) |
 | C01.2 独立百科搜索 | 27 项真实本地 HTTP 业务、69 项协议/工厂边界：有界候选/空结果、来源版本、限流/配置/取消、整批校验、无重试/重定向/代理/cookies；真实百科后端两次留证，不证明通用搜索或模型质量 | [test_web_search.py](test_web_search.py)、[边界](../test_web_search.py)、[真实记录](../../docs/evaluations/c01-search-backend.json) |
 | C02.3 浏览器生命周期 | 33 项真实本地业务与 17 项边界：标签/弹窗/对话框、批准关闭/下载、完整身份分页、来源/配额/提交故障、cookies 不入日志、取消、真实 POST 后终止/崩溃及重启不重提、零动作引用重放；真实模型质量待 C02.4 | [test_browser_lifecycle.py](test_browser_lifecycle.py)、[边界](../test_browser_lifecycle.py) |
 | C00.2 二进制媒体证据 | 19 项业务、51 项低层边界：有效 PNG/WAV 完整读写、引用来源/所有者、JSONL 无正文、缺失/损坏/超限、跨会话、真实写入/提交故障、并发、备份与主子目录保护；多模态输入已由 C00.3 接入，真实解码见 C04.1 | [test_media_evidence.py](test_media_evidence.py)、[边界](../test_media_evidence.py) |
