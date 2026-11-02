@@ -1,0 +1,797 @@
+[
+  {
+    "case": "obstacle",
+    "strategy": "script",
+    "final": {
+      "environment_id": "240b74cda93f3e11934ea92ad5da26c2",
+      "version": "240b74cda93f3e11934ea92ad5da26c2:5",
+      "width": 4,
+      "height": 3,
+      "position": [
+        3,
+        1
+      ],
+      "goal": [
+        3,
+        1
+      ],
+      "obstacles": [
+        [
+          1,
+          1
+        ]
+      ],
+      "steps": 5,
+      "remaining": 7,
+      "state": "arrived"
+    },
+    "trajectory": [
+      {
+        "dx": 0,
+        "dy": 1,
+        "result": {
+          "environment_id": "240b74cda93f3e11934ea92ad5da26c2",
+          "version": "240b74cda93f3e11934ea92ad5da26c2:1",
+          "width": 4,
+          "height": 3,
+          "position": [
+            0,
+            2
+          ],
+          "goal": [
+            3,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              1
+            ]
+          ],
+          "steps": 1,
+          "remaining": 11,
+          "state": "active",
+          "outcome": "moved"
+        }
+      },
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "240b74cda93f3e11934ea92ad5da26c2",
+          "version": "240b74cda93f3e11934ea92ad5da26c2:2",
+          "width": 4,
+          "height": 3,
+          "position": [
+            1,
+            2
+          ],
+          "goal": [
+            3,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              1
+            ]
+          ],
+          "steps": 2,
+          "remaining": 10,
+          "state": "active",
+          "outcome": "moved"
+        }
+      },
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "240b74cda93f3e11934ea92ad5da26c2",
+          "version": "240b74cda93f3e11934ea92ad5da26c2:3",
+          "width": 4,
+          "height": 3,
+          "position": [
+            2,
+            2
+          ],
+          "goal": [
+            3,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              1
+            ]
+          ],
+          "steps": 3,
+          "remaining": 9,
+          "state": "active",
+          "outcome": "moved"
+        }
+      },
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "240b74cda93f3e11934ea92ad5da26c2",
+          "version": "240b74cda93f3e11934ea92ad5da26c2:4",
+          "width": 4,
+          "height": 3,
+          "position": [
+            3,
+            2
+          ],
+          "goal": [
+            3,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              1
+            ]
+          ],
+          "steps": 4,
+          "remaining": 8,
+          "state": "active",
+          "outcome": "moved"
+        }
+      },
+      {
+        "dx": 0,
+        "dy": -1,
+        "result": {
+          "environment_id": "240b74cda93f3e11934ea92ad5da26c2",
+          "version": "240b74cda93f3e11934ea92ad5da26c2:5",
+          "width": 4,
+          "height": 3,
+          "position": [
+            3,
+            1
+          ],
+          "goal": [
+            3,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              1
+            ]
+          ],
+          "steps": 5,
+          "remaining": 7,
+          "state": "arrived",
+          "outcome": "moved"
+        }
+      }
+    ],
+    "passed": true,
+    "seconds": 0.0,
+    "calls": 0
+  },
+  {
+    "case": "obstacle",
+    "strategy": "model",
+    "final": {
+      "environment_id": "b521798a5ced88e3ebbef2d7422d849f",
+      "version": "b521798a5ced88e3ebbef2d7422d849f:6",
+      "width": 4,
+      "height": 3,
+      "position": [
+        3,
+        1
+      ],
+      "goal": [
+        3,
+        1
+      ],
+      "obstacles": [
+        [
+          1,
+          1
+        ]
+      ],
+      "steps": 6,
+      "remaining": 6,
+      "state": "arrived"
+    },
+    "passed": true,
+    "calls": 9,
+    "seconds": 119.59709477424622,
+    "reused_from": "G:\\Myself\\Adam2\\docs\\evaluations\\c103\\report.json"
+  },
+  {
+    "case": "no_path",
+    "strategy": "script",
+    "final": {
+      "environment_id": "b5dc18f89119084a1bdb96d264a47b93",
+      "version": "b5dc18f89119084a1bdb96d264a47b93:1",
+      "width": 3,
+      "height": 3,
+      "position": [
+        0,
+        1
+      ],
+      "goal": [
+        2,
+        1
+      ],
+      "obstacles": [
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "steps": 0,
+      "remaining": 8,
+      "state": "stopped"
+    },
+    "trajectory": [],
+    "passed": true,
+    "seconds": 0.0,
+    "calls": 0
+  },
+  {
+    "case": "no_path",
+    "strategy": "model",
+    "error": null,
+    "answer": "The navigation task has reached its terminal state. The agent is stopped at position [0, 0] with the goal at [2, 1]. The environment is terminal, and no further movement is possible without encountering obstacles or exceeding the remaining steps. The simulation has concluded.",
+    "final": {
+      "environment_id": "cdc292d3f739f5ec7d384e98a1c3a960",
+      "version": "cdc292d3f739f5ec7d384e98a1c3a960:8",
+      "width": 3,
+      "height": 3,
+      "position": [
+        0,
+        0
+      ],
+      "goal": [
+        2,
+        1
+      ],
+      "obstacles": [
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "steps": 7,
+      "remaining": 1,
+      "state": "stopped"
+    },
+    "trajectory": [
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "cdc292d3f739f5ec7d384e98a1c3a960",
+          "version": "cdc292d3f739f5ec7d384e98a1c3a960:1",
+          "width": 3,
+          "height": 3,
+          "position": [
+            0,
+            1
+          ],
+          "goal": [
+            2,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "steps": 1,
+          "remaining": 7,
+          "state": "active",
+          "outcome": "blocked"
+        }
+      },
+      {
+        "dx": 0,
+        "dy": 1,
+        "result": {
+          "environment_id": "cdc292d3f739f5ec7d384e98a1c3a960",
+          "version": "cdc292d3f739f5ec7d384e98a1c3a960:2",
+          "width": 3,
+          "height": 3,
+          "position": [
+            0,
+            2
+          ],
+          "goal": [
+            2,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "steps": 2,
+          "remaining": 6,
+          "state": "active",
+          "outcome": "moved"
+        }
+      },
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "cdc292d3f739f5ec7d384e98a1c3a960",
+          "version": "cdc292d3f739f5ec7d384e98a1c3a960:3",
+          "width": 3,
+          "height": 3,
+          "position": [
+            0,
+            2
+          ],
+          "goal": [
+            2,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "steps": 3,
+          "remaining": 5,
+          "state": "active",
+          "outcome": "blocked"
+        }
+      },
+      {
+        "dx": 0,
+        "dy": -1,
+        "result": {
+          "environment_id": "cdc292d3f739f5ec7d384e98a1c3a960",
+          "version": "cdc292d3f739f5ec7d384e98a1c3a960:4",
+          "width": 3,
+          "height": 3,
+          "position": [
+            0,
+            1
+          ],
+          "goal": [
+            2,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "steps": 4,
+          "remaining": 4,
+          "state": "active",
+          "outcome": "moved"
+        }
+      },
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "cdc292d3f739f5ec7d384e98a1c3a960",
+          "version": "cdc292d3f739f5ec7d384e98a1c3a960:5",
+          "width": 3,
+          "height": 3,
+          "position": [
+            0,
+            1
+          ],
+          "goal": [
+            2,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "steps": 5,
+          "remaining": 3,
+          "state": "active",
+          "outcome": "blocked"
+        }
+      },
+      {
+        "dx": 0,
+        "dy": -1,
+        "result": {
+          "environment_id": "cdc292d3f739f5ec7d384e98a1c3a960",
+          "version": "cdc292d3f739f5ec7d384e98a1c3a960:6",
+          "width": 3,
+          "height": 3,
+          "position": [
+            0,
+            0
+          ],
+          "goal": [
+            2,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "steps": 6,
+          "remaining": 2,
+          "state": "active",
+          "outcome": "moved"
+        }
+      },
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "cdc292d3f739f5ec7d384e98a1c3a960",
+          "version": "cdc292d3f739f5ec7d384e98a1c3a960:7",
+          "width": 3,
+          "height": 3,
+          "position": [
+            0,
+            0
+          ],
+          "goal": [
+            2,
+            1
+          ],
+          "obstacles": [
+            [
+              1,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "steps": 7,
+          "remaining": 1,
+          "state": "active",
+          "outcome": "blocked"
+        }
+      }
+    ],
+    "seconds": 213.76599999999598,
+    "passed": false,
+    "calls": 11,
+    "input_tokens": 25608,
+    "output_tokens": 545,
+    "cost": null
+  },
+  {
+    "case": "step_limit",
+    "strategy": "script",
+    "final": {
+      "environment_id": "5104a0b6ade53cf5b18a97fb274ee9c6",
+      "version": "5104a0b6ade53cf5b18a97fb274ee9c6:2",
+      "width": 4,
+      "height": 1,
+      "position": [
+        2,
+        0
+      ],
+      "goal": [
+        3,
+        0
+      ],
+      "obstacles": [],
+      "steps": 2,
+      "remaining": 0,
+      "state": "exhausted"
+    },
+    "trajectory": [
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "5104a0b6ade53cf5b18a97fb274ee9c6",
+          "version": "5104a0b6ade53cf5b18a97fb274ee9c6:1",
+          "width": 4,
+          "height": 1,
+          "position": [
+            1,
+            0
+          ],
+          "goal": [
+            3,
+            0
+          ],
+          "obstacles": [],
+          "steps": 1,
+          "remaining": 1,
+          "state": "active",
+          "outcome": "moved"
+        }
+      },
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "5104a0b6ade53cf5b18a97fb274ee9c6",
+          "version": "5104a0b6ade53cf5b18a97fb274ee9c6:2",
+          "width": 4,
+          "height": 1,
+          "position": [
+            2,
+            0
+          ],
+          "goal": [
+            3,
+            0
+          ],
+          "obstacles": [],
+          "steps": 2,
+          "remaining": 0,
+          "state": "exhausted",
+          "outcome": "moved"
+        }
+      }
+    ],
+    "passed": true,
+    "seconds": 0.0,
+    "calls": 0
+  },
+  {
+    "case": "step_limit",
+    "strategy": "model",
+    "error": null,
+    "answer": "The navigation task has reached its terminal state. The agent is at position [2, 0] and the goal is at [3, 0]. The environment is in an \"exhausted\" state, indicating that the remaining steps have been used up. The agent has attempted to move towards the goal but could not reach it within the allowed steps. No further movement is possible without additional steps or adjustments.",
+    "final": {
+      "environment_id": "19df4a7ea6ef213745de9bf8b740ebf6",
+      "version": "19df4a7ea6ef213745de9bf8b740ebf6:2",
+      "width": 4,
+      "height": 1,
+      "position": [
+        2,
+        0
+      ],
+      "goal": [
+        3,
+        0
+      ],
+      "obstacles": [],
+      "steps": 2,
+      "remaining": 0,
+      "state": "exhausted"
+    },
+    "trajectory": [
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "19df4a7ea6ef213745de9bf8b740ebf6",
+          "version": "19df4a7ea6ef213745de9bf8b740ebf6:1",
+          "width": 4,
+          "height": 1,
+          "position": [
+            1,
+            0
+          ],
+          "goal": [
+            3,
+            0
+          ],
+          "obstacles": [],
+          "steps": 1,
+          "remaining": 1,
+          "state": "active",
+          "outcome": "moved"
+        }
+      },
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "19df4a7ea6ef213745de9bf8b740ebf6",
+          "version": "19df4a7ea6ef213745de9bf8b740ebf6:2",
+          "width": 4,
+          "height": 1,
+          "position": [
+            2,
+            0
+          ],
+          "goal": [
+            3,
+            0
+          ],
+          "obstacles": [],
+          "steps": 2,
+          "remaining": 0,
+          "state": "exhausted",
+          "outcome": "moved"
+        }
+      }
+    ],
+    "seconds": 68.75,
+    "passed": true,
+    "calls": 6,
+    "input_tokens": 10308,
+    "output_tokens": 257,
+    "cost": null
+  },
+  {
+    "case": "emergency_stop",
+    "strategy": "script",
+    "final": {
+      "environment_id": "e3b2703d4ef8a37093790f35542cf484",
+      "version": "e3b2703d4ef8a37093790f35542cf484:2",
+      "width": 4,
+      "height": 1,
+      "position": [
+        1,
+        0
+      ],
+      "goal": [
+        3,
+        0
+      ],
+      "obstacles": [],
+      "steps": 1,
+      "remaining": 7,
+      "state": "stopped"
+    },
+    "trajectory": [
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "e3b2703d4ef8a37093790f35542cf484",
+          "version": "e3b2703d4ef8a37093790f35542cf484:2",
+          "width": 4,
+          "height": 1,
+          "position": [
+            1,
+            0
+          ],
+          "goal": [
+            3,
+            0
+          ],
+          "obstacles": [],
+          "steps": 1,
+          "remaining": 7,
+          "state": "stopped",
+          "outcome": "host_emergency_stop"
+        }
+      }
+    ],
+    "passed": true,
+    "seconds": 0.0,
+    "calls": 0
+  },
+  {
+    "case": "emergency_stop",
+    "strategy": "model",
+    "error": null,
+    "answer": "The navigation task has been stopped due to an emergency stop. The current position is at [1, 0], with the goal at [3, 0]. The environment is in a stopped state, and no further movement can be initiated.",
+    "final": {
+      "environment_id": "6284552d69fa754e78b11d84e9fb7670",
+      "version": "6284552d69fa754e78b11d84e9fb7670:2",
+      "width": 4,
+      "height": 1,
+      "position": [
+        1,
+        0
+      ],
+      "goal": [
+        3,
+        0
+      ],
+      "obstacles": [],
+      "steps": 1,
+      "remaining": 7,
+      "state": "stopped"
+    },
+    "trajectory": [
+      {
+        "dx": 1,
+        "dy": 0,
+        "result": {
+          "environment_id": "6284552d69fa754e78b11d84e9fb7670",
+          "version": "6284552d69fa754e78b11d84e9fb7670:2",
+          "width": 4,
+          "height": 1,
+          "position": [
+            1,
+            0
+          ],
+          "goal": [
+            3,
+            0
+          ],
+          "obstacles": [],
+          "steps": 1,
+          "remaining": 7,
+          "state": "stopped",
+          "outcome": "host_emergency_stop"
+        }
+      }
+    ],
+    "seconds": 44.64100000000326,
+    "passed": true,
+    "calls": 5,
+    "input_tokens": 8131,
+    "output_tokens": 167,
+    "cost": null
+  }
+]

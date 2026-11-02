@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C10.4 导航对照评分 | 6项四场景实际基线、错误证据拒绝与清理前评分；C10收尾63项通过14.08秒，实际导航脚本4/4模型3/4、Android脚本1/1模型0/1 | [业务场景](test_navigation_acceptance.py)、[对照入口](../../scripts/navigation_acceptance.py) |
 | C10.3 二维导航 | 5项实际转移/障碍/版本/耗尽/急停/模式，与35项架构共40项通过5.07秒；真实Qwen6步到达含1次blocked | [业务场景](test_navigation.py)、[真实结果](../../docs/navigation.md) |
 | C10.2 Android动作 | 10项四操作、原批准/模式、一次性引用、断连及未知停止；7项观察回归通过，实机另留证 | [业务场景](test_mobile_actions.py)、[范围](../../docs/mobile.md#c102-原工具授权动作) |
 | C10.1 Android观察 | 7项原媒体/版本、断连/重连/旋转、取消与设备互斥；2.17秒通过，另1项包边界 | [业务场景](test_mobile_observation.py)、[测试应用与范围](../../docs/mobile.md) |

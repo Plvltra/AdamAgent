@@ -39,3 +39,12 @@ build_application显式注入mobile_observer和confirm_mobile才注册mobile_obs
 重复原版本保存返回Stale mobile observation，批准数仍7，未重复保存。另建验收会话先取得fresh观察，再真实停止自己的模拟器；devices列表确认serial消失，用fresh版本点击保存返回emulator disconnected or unauthorized，0批准/0派发，见[断连证据](evaluations/c102/disconnect.json)。不是用已失效版本或仅停止ADB服务冒充断连。
 
 独立看最终正式API截图确认两字段及Saved JSON一致，SHA256为77da7d380d097266a81730b18fa74a40b3a4824c75a1668fe2ad2b8e05d18035，证据.cache/c102-visual/final.png。初始辅助脚本导入浏览器测试helper因本地缺playwright而退出，未派发动作；改为直接组装原应用，未安装依赖或改生产逻辑。滑动自动边界已验，综合前后台/旋转/取消及模型策略对照留C10.4。
+## C10.4 综合边界与策略对照
+
+独立视觉验收通过原应用/工具管线完成：前台观察后Home进入后台，原动作拒绝且0批准/0派发，回到前台重新观察成功；旋转后旧版本拒绝且0批准/0派发，稳定横屏重新观察成功；批准回调取消共享令牌为1批准/0派发、抛RequestInterrupted，后续轮次用取消前引用仍被stale拒绝。各项原工具来源/日志在.cache/c104-android，见[完整结果](evaluations/c104/android-results.json)。
+
+固定脚本复用C10.2的1/1成功；真实Qwen3-4B-Q4_K_M单次自选策略为0/1：先discover mobile并observe，第三次HTTP直接输出将继续的计划，没有mobile_action，0批准/0派发/0保存。独立文件查询返回不存在，独立最终看图为两字段空、No saved record。3请求，5728输入/242输出token，99.5秒；未人为追加“继续”或重跑到成功。模型使用原on_demand、act与批准接口，文本模型读取UI层级，截图为来源证据而非直接视觉输入。
+
+两策略各一个同应用同任务样本，随机文本不同，只报告本次成功比例，不外推泛化。模型未进入动作阶段，不能声称已验证它的多步批准/保存能力；该能力的程序边界由确定性实机用例验证。详见[独立文字报告](evaluations/c104/android-report.md)，截图SHA与来源、HTTP正文、实际日志均保留缓存。恢复竖屏并清理自有模拟器/ADB/模型服务，[清理证据](evaluations/c104/android-cleanup.json)保留。
+
+C10收尾相关63项通过（14.08秒），Ruff/定向Pyright通过，注释审查与架构核对完成。C10.4验收已完成，失败质量结论保留；不把模拟器或内存导航结果宣传为真实机器人安全。
