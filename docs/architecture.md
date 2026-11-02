@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B39.1 增加宿主探索任务组与文件定位证据验收；尚未接入自动取消调度。
+本次核对范围：B39.2 SubagentManager 接入探索组，复用原取消、结果收集和预算路径。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2145,11 +2145,13 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    Host[持有主会话锁的宿主] --> Group[ExplorationGroup]
+    Host[持有主会话锁的宿主] --> Manager[SubagentManager]
+    Manager --> Group[ExplorationGroup]
+    Manager --> Cancel[既有 CancellationToken / wait / 真实终态]
     Group --> Contract[TaskVerifier 协议]
     Citation[CitationVerifier] -. 实现 .-> Contract
     Citation --> Files[明确允许的文件 / 行内容 / SHA256]
     Group --> Snapshot[原子 JSON 快照 / 唯一 winner]
 ```
 
-任务组成员固定为已派发的 agent_id/run_id。宿主提交真实已完成回复，独立判据通过且快照保存成功才发布 winner；恢复只读取记录，不重发任务。一个成员只验收一次，失败不阻断其他成员。此基础接口不负责线程取消或 token 记账，B39.2 再接现有调度器。文件匹配只证明当时定位有效，不代表任意语义任务成功，也不保证未来文件保持不变。
+任务组成员固定为已派发的 agent_id/run_id。宿主提交真实已完成回复，独立判据通过且快照保存成功才发布 winner；恢复只读取记录，不重发任务。一个成员只验收一次，失败不阻断其他成员。宿主用 create_exploration 绑定本轮运行及可信判据，wait_exploration 收集；SubagentManager._poll 验收后取消同组兄弟，原工作线程清理后才记录 completed/interrupted/failed，取消信号本身不算结束。预算仍由原共享账户结算。模型没有注册或替换判据的工具入口。文件匹配只证明当时定位有效，不代表任意语义任务成功，也不保证未来文件保持不变。

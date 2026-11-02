@@ -419,3 +419,5 @@ B38.2：test_completion_verification.py实际工具批准修正及同轮验收�
 B38.3：test_completion_verification_faults.py验证正确初稿、取消、两类保存失败及请求额度；本章功能与依赖32 passed（5.69秒）。
 
 B39.1：test_exploration_group.py 覆盖错误先到、真实证据胜出、重复/重启读取及保存失败不发布 winner；2 passed（0.32秒）。
+
+B39.2：test_exploration_dispatch.py 经模拟HTTP、真实子线程和取消令牌核验 winner 与 interrupted 状态；连同组基础3 passed（25.84秒）。

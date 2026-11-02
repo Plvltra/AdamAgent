@@ -31,10 +31,13 @@ class ExplorationGroup:
             "members": [list(member) for member in members],
             "winner": None,
             "checks": [],
+            "states": {},
         }
         try:
             if path.exists():
                 saved = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(saved, dict):
+                    saved.setdefault("states", {})
                 if (
                     not isinstance(saved, dict)
                     or set(saved) != set(self._state)
@@ -76,6 +79,16 @@ class ExplorationGroup:
             self._save(changed)
             self._state = changed
             return self.snapshot()
+
+    def record_states(self, states: dict[str, str]) -> None:
+        """保存宿主观察到的运行终态；发出取消信号不等于已经中断。"""
+        with self._lock:
+            if states == self._state["states"]:
+                return
+            changed = self.snapshot()
+            changed["states"] = dict(states)
+            self._save(changed)
+            self._state = changed
 
     def _save(self, state: dict[str, Any]) -> None:
         """先落盘再替换快照；不把部分写入或替换失败当成 winner 已提交。"""

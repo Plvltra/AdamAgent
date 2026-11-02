@@ -13,6 +13,7 @@ from typing import Any
 from adam.application.conversation import Conversation
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
+from adam.application.subagents.exploration import ExplorationGroup
 from adam.application.subagents.mailbox import RunMailbox
 from adam.config.settings import PermissionConfig, SubagentConfig
 from adam.contracts.cancellation import CancellationToken
@@ -21,6 +22,7 @@ from adam.contracts.errors import AgentError, StorageError, ToolError
 from adam.contracts.execution import ExecutionMode
 from adam.contracts.memory import MemorySelection
 from adam.contracts.proposals import EditProposal, ProposalOwner
+from adam.contracts.verification import TaskVerifier
 from adam.session.delegation import DelegationStore
 from adam.session.storage import SessionStore
 
@@ -77,6 +79,7 @@ class SubagentManager:
         self._source: dict[str, str] = {}
         self._created = 0
         self._memory = MemorySelection()
+        self._groups: dict[str, ExplorationGroup] = {}
 
     def begin(self, session_id: str, turn_id: str, model: str) -> None:
         """绑定已持锁的主会话；新轮次重置新建数量，保留可续聊的子会话。"""
@@ -205,6 +208,39 @@ class SubagentManager:
                 break
             time.sleep(0.05)
         return self._results(ids)
+
+    def create_exploration(
+        self, members: tuple[tuple[str, str], ...], verifier: TaskVerifier
+    ) -> str:
+        """宿主把本轮已派发运行组成探索组；可信验收器不从模型参数构建。
+
+        同一个运行只属于一个组，禁止旧轮或已被续聊替换的运行加入。
+        """
+        for agent_id, run_id in members:
+            agent = self._get(agent_id)
+            if (
+                not agent.runs
+                or agent.runs[-1].run_id != run_id
+                or agent.runs[-1].parent_turn_id != self._turn_id
+            ):
+                raise ToolError("探索成员必须是本轮最新派发的运行。")
+            if any(
+                [agent_id, run_id] in group.snapshot()["members"] for group in self._groups.values()
+            ):
+                raise ToolError("该运行已经属于另一个探索组。")
+        group_id = secrets.token_hex(8)
+        path = self._index_required().root / "groups" / f"{group_id}.json"
+        self._groups[group_id] = ExplorationGroup(path, members, verifier)
+        return group_id
+
+    def wait_exploration(self, group_id: str, timeout_seconds: int = 30) -> dict[str, Any]:
+        """收集指定组的真实结果；超时仍返回运行中，不把取消请求伪装为完成。"""
+        if group_id not in self._groups:
+            raise ToolError("探索组不属于当前会话。")
+        group = self._groups[group_id]
+        ids = [member[0] for member in group.snapshot()["members"]]
+        results = self.wait(ids, timeout_seconds)
+        return {"group_id": group_id, **group.snapshot(), "results": results}
 
     def interrupt(self, agent_id: str) -> dict[str, Any]:
         """请求停止指定子任务；等待清理可另用 wait_agents，不删除历史。"""
@@ -349,6 +385,7 @@ class SubagentManager:
                         RunMailbox(
                             index.root / "mailboxes", agent.agent_id, run.run_id, create=False
                         ).finish(run.status)
+        self._groups.clear()
         self._index, self._budget, self._session_id = index, budget, session_id
         self._delivered = set()
         self._announced = {run.run_id for agent in index.agents() for run in agent.runs}
@@ -487,6 +524,30 @@ class SubagentManager:
                 if run.run_id not in self._announced:
                     self.notify(f"子 Agent> {agent_id} {agent.name} {run.status}")
                     self._announced.add(run.run_id)
+
+        self._poll_groups()
+
+    def _poll_groups(self) -> None:
+        """只用线程完成后的原始回复验收；复用既有取消与预算收尾路径。"""
+        for group in self._groups.values():
+            state = group.snapshot()
+            states = {}
+            for agent_id, run_id in state["members"]:
+                agent = self._get(agent_id)
+                run = next(item for item in agent.runs if item.run_id == run_id)
+                active = self._active.get(agent_id) if agent.runs[-1].run_id == run_id else None
+                states[run_id] = "running" if active else run.status
+                if not active and run.status == "completed":
+                    state = group.submit(agent_id, run_id, run.reply)
+            if state["winner"] is not None:
+                for agent_id, run_id in state["members"]:
+                    if [agent_id, run_id] == state["winner"]:
+                        continue
+                    agent = self._get(agent_id)
+                    active = self._active.get(agent_id)
+                    if active and agent.runs[-1].run_id == run_id:
+                        active[1].cancel()
+            group.record_states(states)
 
     def _pending(self) -> list[str]:
         if self._index is None:
