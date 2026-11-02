@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C09.1 独立文本 Agent | 8项真实双进程能力发现/文本计算、业务失败和范围拒绝；与架构共38项通过 | [业务场景](test_interop_text.py)、[独立宿主](support/interop_worker.py)、[协议子集](../../docs/interop.md) |
 | C03.3 输入租约与停止（实机恢复待验） | 10项跨进程互斥/异常释放/引用恢复/中断清理/会话状态，真实锁屏拒绝另留证据 | [自动场景](test_desktop_stopping.py)、[真实锁状态](../../docs/evaluations/c033-session-lock.json) |
 | C03.2 桌面动作（实机待验） | 8项主工具批准/模式/版本/未知停止；与架构共37项通过，真实窗口前台失败未派发 | [自动场景](test_desktop_actions.py)、[实际限制](../../docs/desktop-observation.md#c032-有界动作) |
 | C03.1 Windows 观察 | 4项真实媒体/版本/坐标/取消；独立测试窗移动、切换和1.25倍控件缩放另留真实证据 | [自动场景](test_desktop_observation.py)、[实机记录](../../docs/desktop-observation.md) |

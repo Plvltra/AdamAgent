@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：私有 C 分支 rebase 到 main 已提交的 229b4fb；核对 B20～B22 与既有媒体、消费、重放和桌面入口的组合。
+本次核对范围：C09.1 独立回环文本 Agent 的能力发现与同步消息；保留已同步的 main 229b4fb。
 
 本次同步结论：架构关系保持，组装入口保留 FileChangePlan 与浏览器/桌面批准参数；Conversation 和录制同时保留诊断与媒体输入，日志同时校验诊断与视觉来源。合并双方契约说明，移除重复架构段落。验证：相关重放、多模态、消费、桌面动作与诊断选择共 85 项通过；Ruff、Pyright 通过，本次不重复运行全量。
 
@@ -2393,3 +2393,19 @@ flowchart LR
 ~~~
 
 租约异常释放；原bootstrap浏览器清理迁入与桌面共同的中断回调，两者都尝试清理。原批准、DPI、非原子观察与来源说明保留；动作复检不能清除失焦记录。实际锁屏拒绝已只读验证，真实动作恢复仍待验，见桌面文档。
+
+
+## C09.1 独立文本互操作
+
+~~~mermaid
+flowchart LR
+    IA_HOST["显式客户端宿主"] --> IA_CLIENT["interop.client / TextAgentClient"]
+    IA_CLIENT --> IA_CARD["固定源 Agent Card / 0.3.0"]
+    IA_CLIENT --> IA_RPC["真实回环 HTTP / JSON-RPC message/send"]
+    IA_RPC --> IA_SERVER["独立进程 interop.server"]
+    IA_SERVER --> IA_CALLBACK["宿主文本回调 / 无 SessionStore"]
+    IA_CALLBACK --> IA_MESSAGE["Agent Message / 原关联 ID"]
+    IA_MESSAGE --> IA_RESULT["interop.models / TextResult"]
+~~~
+
+新增 interop 仅依赖 contracts 与自身；HTTP 类型不进入公共结果契约。网络失败不自动重试，不从远端声明提升权限；未接入生产聊天或工具审批，生命周期待 C09.2。8项真实互通/失败场景与架构共38项通过。新增函数中文契约已核对，原有关键注释未删除。详见 [固定子集及使用边界](interop.md)。
