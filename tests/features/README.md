@@ -399,3 +399,5 @@ B35.1：test_failure_tasks.py覆盖三条构造失败来源、六个变体实际
 B35.2：test_failure_suite.py验证整族隔离、新目录重置及B31实际应用；含默认入口兼容共2 passed（3.77秒）。
 
 B35.3：test_failure_task_boundaries.py覆盖错误判据、无效/重复变体、变化来源和宿主答案越界读取；本章及B31入口共6 passed（9.49秒）。
+
+B36.1：test_experience_evidence.py覆盖真实来源关联、正反证据、旧版本保持及来源/环境变化；1 passed（0.55秒）。
