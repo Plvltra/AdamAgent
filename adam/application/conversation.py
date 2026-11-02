@@ -6,6 +6,7 @@ from functools import partial
 from time import monotonic_ns
 from typing import Any
 
+from adam.application.completion_verifier import CompletionVerifier
 from adam.application.event_queue import EventQueue
 from adam.application.reflection import ReflectionService
 from adam.application.request_policy import RequestPolicy
@@ -38,6 +39,7 @@ from adam.contracts.ports import ModelClient, ReviewParticipant, ToolRunner
 from adam.contracts.rules import ProjectRules
 from adam.contracts.runtime import CountState, RuntimeState, StateReader
 from adam.contracts.skills import SkillSelection
+from adam.contracts.verification import TaskVerifier
 from adam.session.outcome import ExecutionOutcome
 from adam.session.storage import SessionStore
 
@@ -86,9 +88,11 @@ class Conversation:
         diagnostic_reader: DiagnosticReader | None = None,
         input_provider: Callable[[str], EventQueue | None] | None = None,
         input_owner: str | None = None,
+        verifier: TaskVerifier | None = None,
     ) -> None:
         """注入会话依赖；context_layout 仅供旧录制重放，默认使用当前排列。
 
+        verifier仅由宿主显式注入；启用时暂存流式正文，验收通过才提交最终回答。
         state_reader 由宿主提供窄状态查询；缺省保持不注入，旧排列也不新增状态。
         compaction_version=None 让旧录制保持当时的摘要输入与估算。
         diagnostic_reader 仅在真实请求构造时观察本轮检查；预览与历史不会自动读文件。
@@ -106,6 +110,7 @@ class Conversation:
         self.limits = limits
         self.tool_executor = tools
         self._last_turn: tuple[str, str] | None = None
+        self.verifier = verifier
         self.context_builder = ContextBuilder(
             context_config or ContextConfig(),
             self.limits.max_output_tokens,
@@ -273,6 +278,11 @@ class Conversation:
         self._check_execution_state(session.session_id)
         turn: list[dict[str, Any]] = [{"role": "user", "content": text}]
         seen_call_ids: set[str] = set()
+        verification = (
+            CompletionVerifier(self.verifier, self.store, session.session_id, turn_id, self.cancel)
+            if self.verifier
+            else None
+        )
 
         progress = TurnProgress(
             RequestPolicy(self.limits.max_model_requests, self.notify, cancel=self.cancel),
@@ -302,7 +312,11 @@ class Conversation:
                 not self.planning or not self.planning.unfinished()
             )
             ready = ready and (not self.review or not self.review.pending())
-            output = on_output if ready and self.input_provider is None else None
+            output = (
+                on_output
+                if ready and self.input_provider is None and verification is None
+                else None
+            )
             provided_names = tuple(tool["function"]["name"] for tool in context.tools)
             request_id, result = progress.requests.run(
                 partial(self.requests.run, session.session_id, turn_id, context, output)
@@ -326,6 +340,11 @@ class Conversation:
                 )
             ):
                 continue
+            if not calls and verification:
+                diagnosis = verification.review(request_id, result.message["content"])
+                if diagnosis is not None:
+                    turn.append({"role": "user", "content": diagnosis})
+                    continue
             if not calls and not self._seal_input(turn_id, turn):
                 continue
             turn.append(result.message)

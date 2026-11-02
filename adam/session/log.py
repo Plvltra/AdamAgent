@@ -160,6 +160,7 @@ class SessionLog:
             "reflection_finished": self._apply_reflection,
             "review_requested": self._apply_review,
             "review_finished": self._apply_review,
+            "verification_finished": self._apply_verification,
             "experience_decided": self._apply_experience,
             "edit_planned": self._apply_edit,
             "edit_started": self._apply_edit,
@@ -291,6 +292,49 @@ class SessionLog:
         if messages[0]["content"] != self.turns[owner]["user_text"]:
             raise ValueError("mismatched compaction question")
         self._validate_tool_trace(owner, messages, complete=True)
+
+    def _apply_verification(self, kind: str, payload: dict[str, Any]) -> None:
+        """验收只能关联本轮已成功请求，次数连续；修正上限由轮次协调器控制；不修改轮次成功状态。"""
+        turn_id = self._require_turn(payload)
+        request = self.requests.get(self._identifier(payload, "request_id"), {})
+        previous = [
+            e
+            for e in self.events
+            if e["type"] == "verification_finished" and e["payload"]["turn_id"] == turn_id
+        ]
+        if (
+            set(payload)
+            != {
+                "turn_id",
+                "request_id",
+                "attempt",
+                "status",
+                "verifier_id",
+                "version",
+                "diagnostics",
+                "observed_files",
+            }
+            or request.get("turn_id") != turn_id
+            or request.get("status") != "succeeded"
+            or type(payload["attempt"]) is not int
+            or payload["attempt"] != len(previous) + 1
+            or payload["status"] not in {"passed", "failed", "unknown"}
+            or any(
+                not isinstance(payload[k], str) or not payload[k]
+                for k in ("verifier_id", "version")
+            )
+            or not isinstance(payload["diagnostics"], list)
+            or any(not isinstance(v, str) for v in payload["diagnostics"])
+            or not isinstance(payload["observed_files"], list)
+            or any(
+                not isinstance(v, list)
+                or len(v) != 2
+                or not isinstance(v[0], str)
+                or (v[1] is not None and not isinstance(v[1], str))
+                for v in payload["observed_files"]
+            )
+        ):
+            raise ValueError("invalid verification result")
 
     def _start_turn(self, kind: str, payload: dict[str, Any]) -> None:
         turn_id = self._identifier(payload, "turn_id")

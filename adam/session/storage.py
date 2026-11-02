@@ -178,6 +178,10 @@ class SessionStore:
         """按提交顺序返回完整成功轮次；不通过消息 ID 推测分组，不包含失败输入。"""
         return self._read_log(session_id).history_turns()
 
+    def append_verification(self, session_id: str, payload: dict[str, Any]) -> None:
+        """保存宿主验收结果；先经日志关联校验，失败不得继续修正或报告成功。"""
+        self._append(session_id, record("verification_finished", payload))
+
     def append_review(self, session_id: str, kind: str, payload: dict[str, Any]) -> None:
         """追加已核对来源的审查记录；保存失败必须停止当前协作。"""
         if kind not in {"review_requested", "review_finished"}:

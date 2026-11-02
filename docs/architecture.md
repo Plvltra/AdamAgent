@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B38.1 新增contracts.verification及verification.files；宿主选择冻结文件标准，只读检查实际终态，尚未接入Conversation。
+本次核对范围：B38.2 bootstrap显式注入主Conversation验收器，CompletionVerifier协调终态检查和关联日志后最多两次诊断修正；预算/批准/最终提交复用原路径。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2126,3 +2126,17 @@ flowchart LR
 ```
 
 模型未获得登记/修改判据的工具；[模块](../adam/verification/files.py)仅依赖contracts，依赖方向加入架构检查。
+
+## B38.2 收尾验收
+
+```mermaid
+flowchart LR
+  Bootstrap[build_application 显式verifier] --> Conversation
+  Conversation --> Gate[CompletionVerifier]
+  Gate --> TaskVerifier
+  Gate --> Log[SessionStore verification_finished]
+  Gate -->|失败诊断，最多两次| Conversation
+  Conversation -->|验收通过| Commit[原append_messages提交]
+```
+
+验收事件由session.log关联校验，diagnostics逐轮展示。失败、未知或写入故障不生成成功历史。

@@ -39,6 +39,11 @@ def read_report(path: Path) -> dict[str, Any]:
         turns.append(
             {
                 "turn_id": turn_id,
+                "verifications": [
+                    e["payload"]
+                    for e in log.events
+                    if e["type"] == "verification_finished" and e["payload"]["turn_id"] == turn_id
+                ],
                 **_details(turn),
                 "requests": [
                     {"request_id": key, **_details(value), "usage": usages.get(key)}

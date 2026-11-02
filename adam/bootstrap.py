@@ -41,6 +41,7 @@ from adam.contracts.planning import PlanReport
 from adam.contracts.ports import ModelClient, ToolRunner
 from adam.contracts.proposals import ProposalOwner
 from adam.contracts.terminals import TerminalRequest
+from adam.contracts.verification import TaskVerifier
 from adam.documents.embedding import FastEmbedBackend
 from adam.hooks.runner import HookRunner
 from adam.isolation.backend import WslBubblewrap
@@ -103,6 +104,7 @@ def build_application(
     child_client_factory: ChildClientFactory | None = None,
     decorate_tools: Callable[[ToolRunner], ToolRunner] | None = None,
     observe_conversation: Callable[[Conversation], None] | None = None,
+    verifier: TaskVerifier | None = None,
     live_input: bool = False,
     cancel: CancellationToken | None = None,
 ) -> AgentApplication:
@@ -113,6 +115,7 @@ def build_application(
     child_client_factory 在工作线程中创建独立模型资源；未提供时不启用委派。
     decorate_tools 供宿主显式装饰主轮次工具边界，例如录制；不从配置或模型加载执行代码。
     observe_conversation 在组装完成后安装宿主观察接口；不从配置或模型加载回调。
+    verifier仅供宿主显式选择可信验收器，不继承给子Agent。
     live_input显式启用运行中输入；cancel须与主HTTP适配器共享，默认聊天保持原路径。
     启用子任务或 MCP 的调用方须在释放主会话锁前调用 application.close；
     组装失败会回收已创建资源，主模型与主存储仍由调用方持有。
@@ -419,6 +422,7 @@ def build_application(
             config.system_prompt,
             decorate_tools(executor) if decorate_tools else executor,
             config.agent,
+            verifier=verifier,
             model=config.llm.model,
             cancel=main_cancel,
             on_turn_started=(lambda tid: inputs.begin(store.active_session_id, tid))

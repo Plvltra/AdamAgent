@@ -33,6 +33,8 @@ class FailureCode(StrEnum):
     ISOLATION_ERROR = "isolation_error"
     APPROVAL_DENIED = "approval_denied"
     EXECUTION_UNKNOWN = "execution_unknown"
+    VERIFICATION_FAILED = "verification_failed"
+    VERIFICATION_UNKNOWN = "verification_unknown"
     INTERNAL_ERROR = "internal_error"
     INTERRUPTED = "interrupted"
     PROCESS_EXIT = "process_exit"
