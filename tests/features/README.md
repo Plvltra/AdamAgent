@@ -391,3 +391,5 @@ B33.3：test_rubric_contamination.py验证评分载荷、来源伪造、缺来�
 B34.1：test_phase_timing.py覆盖真实应用阶段采集、首输出、实际文件操作失败和审批嵌套区间；2 passed（2.10秒）。
 
 B34.2：test_phase_report.py验收CLI、分布、缓存费用和未知；加真实入口定向共2 passed（2.09秒）。
+
+B34.3：test_phase_comparison.py覆盖两组重复、实际缓存日志、缺失/重叠和截断；B34章末及B31直接受影响入口/报告共8 passed（12.59秒）。
