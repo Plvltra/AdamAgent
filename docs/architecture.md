@@ -2,24 +2,29 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B17.1 documents.pdf 独立页级提取与锁定依赖。
+本次核对范围：B17.2.1 PDF 授权字节快照、读取工具注册与有界来源回传。
 
-核对结论：documents 新增独立 pdf 模块，接收已授权读取的字节，经上下文限定的 pypdf 返回 PdfExtract/PdfPage，复用 DocumentError。尚未连接模型工具或索引；没有更改现有文本扫描链路。新增说明明确页码、版本、截断、取消与资源约束，原模块注释未删除。
+核对结论：factory 注册 PdfTools 为可协作取消的只读工具，原 PathPolicy 先授权；documents.pdf_source 负责有界原字节与读取前后校验，pdf 只负责解析，工具层负责版本续读、期限与完整 JSON 限长。原记录和重放直接覆盖工具结果，索引仍仅原文本来源。原工厂说明保留并扩展 PDF 职责。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-## B17.1 PDF 提取基础
+## B17 PDF 读取与提取
 
 ~~~mermaid
 flowchart LR
-    PDF_BYTES["调用方已授权读取的有界字节"] --> PDF_READ["documents.pdf.extract_pdf"]
+    PDF_FACTORY["factory / read_pdf / 原模式和请求名单"] --> PDF_TOOL["PdfTools / 只读参数、版本、协作期限"]
+    PDF_TOOL --> PDF_SOURCE["pdf_source / 原 PathPolicy / 字节快照与读取复查"]
+    PDF_SOURCE --> PDF_BYTES["已授权且有界的原字节"]
+    PDF_BYTES --> PDF_READ["documents.pdf.extract_pdf"]
+    PDF_RESULT --> PDF_PACK["PdfTools / 再授权、完整页状态、JSON限长"]
+    PDF_PACK --> PDF_LOG["原工具结果 / JSONL / 录制与离线重放"]
     PDF_LIMIT["PdfLimits / 字节、页、字符与解析边界"] --> PDF_READ
     PDF_READ --> PDF_LIB["pypdf / ContextVar 配置与物理页"]
     PDF_LIB --> PDF_RESULT["PdfExtract / PdfPage / 原 SHA、页码、截断与 OCR 提示"]
     PDF_READ --> PDF_ERROR["DocumentError / 整次失败或原取消传播"]
 ~~~
 
-此图是独立 API，尚未接到聊天或资料索引；调用方路径授权责任与资源限制见 [PDF 感知](pdf-perception.md)。
+读取工具已接到主/子聊天的原工具流程，资料索引接入仍待 B17.2.2；原文件授权、元数据校验和资源限制见 [PDF 感知](pdf-perception.md)。
 
 ## B16 语义工具目录与运行时接入
 

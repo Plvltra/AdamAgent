@@ -166,8 +166,11 @@ max_read_lines = 200
 max_result_chars = 8000
 max_scan_entries = 5000
 max_text_file_bytes = 1048576
+# PDF 原字节上限与单次请求页数；解码和总页数仍受独立解析边界限制。
+max_pdf_file_bytes = 8388608
+max_pdf_read_pages = 20
 max_git_path_list_bytes = 1048576
-# Cooperative directory scan timeout; blocking file IO is not interrupted.
+# Cooperative directory/PDF timeout; blocking IO and parser setup are not interrupted.
 scan_timeout_seconds = 5
 # Timeout for each Git subprocess, not the entire multi-command query.
 git_timeout_seconds = 5

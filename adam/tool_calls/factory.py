@@ -14,6 +14,7 @@ from adam.tool_calls.command_tools import CommandTools
 from adam.tool_calls.edit_tools import EditTools
 from adam.tool_calls.file_tools import FileTools
 from adam.tool_calls.git_tools import GitTools
+from adam.tool_calls.pdf_tools import PdfTools, encode_pdf_result
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.registry import ParallelHandler, ToolHandler, ToolRegistry
 
@@ -57,6 +58,7 @@ def create_tool_registry(
         handlers,
         limits,
         {
+            "read_pdf": encode_pdf_result,
             **dict.fromkeys(
                 ("code_structure", "find_definitions", "find_references"), encode_result
             ),
@@ -67,6 +69,7 @@ def create_tool_registry(
             **dict.fromkeys(
                 ("file_info", "list_directory", "read_file", "find_files", "search_text"), "files"
             ),
+            "read_pdf": "documents",
             **dict.fromkeys(("git_status", "git_diff", "git_log"), "git"),
             **dict.fromkeys(("code_structure", "find_definitions", "find_references"), "code"),
             "replace_text": "editing",
@@ -115,11 +118,13 @@ def _path_handler(
 def _readers(
     policy: PathPolicy, limits: ToolLimits, cancel: CancellationToken | None = None
 ) -> dict[str, PathHandler]:
-    """生成无共享调用状态的文件、代码和 Git 查询，取消令牌只属于本次动作。"""
+    """生成无共享调用状态的文件、PDF、代码和 Git 查询，取消令牌只属于本次动作。"""
     files = FileTools(policy, limits, cancel)
+    pdf = PdfTools(policy, limits, cancel)
     code = CodeTools(policy, limits, cancel)
     git = GitTools(policy, limits, cancel)
     return {
+        "read_pdf": pdf.read_pdf,
         "code_structure": code.code_structure,
         "find_definitions": code.find_definitions,
         "find_references": code.find_references,

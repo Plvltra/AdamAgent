@@ -81,16 +81,25 @@ class PermissionConfig:
 
 @dataclass(frozen=True)
 class ToolLimits:
-    """单次读取/结果限制；扫描为协作超时，Git 和通用命令为子进程超时。"""
+    """单次读取/结果限制；扫描和 PDF 为协作超时，Git 和通用命令为子进程超时。"""
 
     max_read_lines: int = 200
     max_result_chars: int = 8000
     max_scan_entries: int = 5000
     max_text_file_bytes: int = 1048576
+    max_pdf_file_bytes: int = 8388608
+    max_pdf_read_pages: int = 20
     max_git_path_list_bytes: int = 1048576
     scan_timeout_seconds: int = 5
     git_timeout_seconds: int = 5
     command_timeout_seconds: int = 30
+
+    def __post_init__(self) -> None:
+        """PDF 上限与解析器支持范围一致；直接构造和 TOML 均不能关闭边界。"""
+        for name, ceiling in (("max_pdf_file_bytes", 33554432), ("max_pdf_read_pages", 100)):
+            value = getattr(self, name)
+            if type(value) is not int or not 1 <= value <= ceiling:
+                raise ConfigError(f"tool_limits.{name} 必须为1～{ceiling}的整数。")
 
 
 @dataclass(frozen=True)
