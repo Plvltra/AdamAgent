@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C/B31同步与批次回归 | 补齐子图片私有目录和诊断媒体保护；C03/C06/C07批次全量3990项通过/2101.14秒，一次运行 | [元数据](../../docs/evaluations/c-batch-20261103/run-result.json)、[图片边界](test_image_input.py) |
 | C07.3 生成工具闭环 | 7项原应用生成/查询/重复/重启及存储故障；C07局部21项通过/8.25秒，真实Qwen闭环单独留证 | [业务场景](test_generation_tools.py)、[真实报告](../../docs/evaluations/c073/report.md) |
 | C07.2 本地双模态生成 | 5项配置/参数与真实进程停止；连同原作业14项通过/2.49秒。实际图片及3秒音乐各一次，质量限制单独记录 | [业务场景](test_local_generation.py)、[真实报告](../../docs/evaluations/c072/report.json) |
 | C07.1 生成作业 | 9项真实存储/额度、重复拒绝、取消、未知恢复及保存故障；加生成包边界10项通过/2.13秒，后端为明确WAV fixture | [业务场景](test_generation_jobs.py)、[契约](../../docs/generation.md) |

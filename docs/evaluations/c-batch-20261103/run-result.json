@@ -1,0 +1,11 @@
+{
+  "started_utc": "2026-11-02T16:22:08.7779641Z",
+  "ended_utc": "2026-11-02T16:57:11.6314265Z",
+  "head": "d46193ad9f98eb97bc6f7b68c9fa5a844fdaaeec",
+  "dirty_paths": [
+    " M adam/bootstrap.py",
+    " M tests/features/test_image_input.py"
+  ],
+  "exit_code": 0,
+  "wall_seconds": 2102.8534624
+}

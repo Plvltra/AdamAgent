@@ -478,7 +478,10 @@ def test_child_loads_in_own_namespace_and_parent_cannot_read_its_reference(tmp_p
         assert list((store.root / "_media" / "children" / app.session.session_id).rglob("*.media"))
 
 
-@pytest.mark.parametrize("directory", ["_media", "_mcp_media"])
+@pytest.mark.parametrize(
+    "directory",
+    ["_media", "_mcp_media", "_background", "_inputs", "_triggers", "_terminals", "_subagents"],
+)
 @pytest.mark.parametrize("rules_enabled", [True, False])
 def test_child_image_loading_cannot_republish_reserved_media(tmp_path, directory, rules_enabled):
     """关闭可选规则也不能让真实子任务把宿主私有媒体重新发布为获准图片。"""
