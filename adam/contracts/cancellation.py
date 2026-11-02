@@ -20,6 +20,10 @@ class CancellationToken:
         """请求停止；可重复调用，不在调用线程执行目标任务的清理。"""
         self._event.set()
 
+    def reset(self) -> None:
+        """仅由宿主在上一轮完全结束后重置，不能在活任务运行中撤销停止信号。"""
+        self._event.clear()
+
     def check(self) -> None:
         """已取消时抛中断信号；实际请求已知用量由模型适配器补充。"""
         if self._event.is_set():

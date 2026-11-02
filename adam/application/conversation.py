@@ -304,6 +304,8 @@ class Conversation:
             request_id, result = progress.requests.run(
                 partial(self.requests.run, session.session_id, turn_id, context, output)
             )
+            if self.cancel:
+                self.cancel.check()
             if self.rules:
                 self.rules.acknowledge(context.rules)
             calls = result.message.get("tool_calls") or []

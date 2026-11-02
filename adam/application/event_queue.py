@@ -3,6 +3,7 @@
 import hashlib
 import json
 from collections import deque
+from collections.abc import Callable
 from itertools import islice
 from threading import Lock
 
@@ -14,11 +15,19 @@ class EventQueue:
 
     peek不移除数据，消费者保存处理结果后再ack队首；只有一个协调消费者。
     去重索引保留整个运行，达到max_events后拒绝新事件，避免无限缓存或旧ID再次生效。
-    队列不提供跨进程持久性，重启不能据内存回执声称已处理或自动重发。
+    on_accept/on_ack在变更前串行调用，失败保留队列原状态；回调不得重入队列。
+    队列本身不提供跨进程持久性，重启不能据内存回执声称已处理或自动重发。
     """
 
     def __init__(
-        self, task_id: str, *, capacity: int = 64, max_events: int = 1024, max_chars: int = 8192
+        self,
+        task_id: str,
+        *,
+        capacity: int = 64,
+        max_events: int = 1024,
+        max_chars: int = 8192,
+        on_accept: Callable[[InputEvent], None] | None = None,
+        on_ack: Callable[[InputEvent], None] | None = None,
     ) -> None:
         self._identity(task_id)
         if (
@@ -28,6 +37,7 @@ class EventQueue:
         ):
             raise ValueError("invalid event queue limits")
         self.task_id = task_id
+        self._on_accept, self._on_ack = on_accept, on_ack
         self.capacity, self.max_events, self.max_chars = capacity, max_events, max_chars
         self._pending: deque[InputEvent] = deque()
         self._seen: dict[tuple[str, str], tuple[int, str]] = {}
@@ -64,7 +74,10 @@ class EventQueue:
             if len(self._pending) >= self.capacity or len(self._seen) >= self.max_events:
                 raise ValueError("event queue capacity exhausted")
             sequence = len(self._seen) + 1
-            self._pending.append(InputEvent(self.task_id, sequence, event_id, kind, source, text))
+            event = InputEvent(self.task_id, sequence, event_id, kind, source, text)
+            if self._on_accept:
+                self._on_accept(event)
+            self._pending.append(event)
             self._seen[key] = (sequence, fingerprint)
             return EventReceipt(sequence, False)
 
@@ -84,6 +97,8 @@ class EventQueue:
                 or self._pending[0].sequence != sequence
             ):
                 raise ValueError("only the first pending event can be acknowledged")
+            if self._on_ack:
+                self._on_ack(self._pending[0])
             self._pending.popleft()
 
     def close(self) -> None:

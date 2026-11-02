@@ -9,10 +9,12 @@ from adam.application.conversation import Conversation
 from adam.application.experiences import ExperienceService
 from adam.application.memories import MemoryService
 from adam.application.modes import ModeController
+from adam.application.running_inputs import RunningInputs
 from adam.application.undo import UndoService
 from adam.context.builder import RequestContext
 from adam.contracts.checkpoints import UndoResult
 from adam.contracts.errors import AgentError, LLMError
+from adam.contracts.events import EventReceipt
 from adam.contracts.execution import ExecutionMode
 from adam.contracts.history import Summary
 from adam.contracts.memory import MemoryCommand, MemoryRecord
@@ -43,12 +45,14 @@ class AgentApplication:
         *,
         close_resources: Callable[[], None] | None = None,
         on_interrupt: Callable[[], None] | None = None,
+        running_inputs: RunningInputs | None = None,
         on_session_selected: Callable[[str], None] | None = None,
         skills: SkillProvider | None = None,
         modes: ModeController | None = None,
         undo: UndoService | None = None,
     ) -> None:
         self._close_resources = close_resources
+        self._running_inputs = running_inputs
         self._on_interrupt, self._on_session_selected = on_interrupt, on_session_selected
         self._conversation = conversation
         self._store = store
@@ -250,6 +254,7 @@ class AgentApplication:
         """
         with (
             self._interrupt_scope(),
+            self._input_scope(),
             self._modes.turn() if self._modes is not None else nullcontext(),
         ):
             if skill_id is not None:
@@ -301,6 +306,23 @@ class AgentApplication:
         """查看基础上下文；可提供假设问题预览相关记忆，不提交消息或请求模型。"""
         return self._conversation.preview_context(query)
 
+    def submit_input(self, text: str, event_id: str | None = None) -> EventReceipt:
+        """向当前运行补充用户要求，不启动新轮次或访问会话JSONL。"""
+        if self._running_inputs is None:
+            raise AgentError("运行中输入未启用，请使用 --live-input。")
+        return self._running_inputs.submit(text, event_id)
+
+    def stop_current(self) -> None:
+        """立即发出取消信号，不受补充队列容量限制。"""
+        if self._running_inputs is None:
+            raise AgentError("运行中输入未启用，请使用Ctrl+C。")
+        self._running_inputs.stop()
+
+    def check_interruption(self) -> None:
+        """终端等待批准时检查当前运行停止信号，空闲终端不会被旧信号打断。"""
+        if self._running_inputs is not None:
+            self._running_inputs.check()
+
     @contextmanager
     def _interrupt_scope(self) -> Iterator[None]:
         """用户中断时回收当前会话附属任务；清理失败不覆盖原始中断。"""
@@ -313,3 +335,19 @@ class AgentApplication:
                 except Exception:
                     error.add_note("附属后台任务清理或保存失败，请检查任务记录。")
             raise
+
+    @contextmanager
+    def _input_scope(self) -> Iterator[None]:
+        """轮次退出时关闭补充入口；保存故障不覆盖原模型或工具异常。"""
+        try:
+            yield
+        except BaseException as error:
+            if self._running_inputs:
+                try:
+                    self._running_inputs.finish(False)
+                except Exception:
+                    error.add_note("补充输入收尾保存失败，记录可能仍为进行中。")
+            raise
+        else:
+            if self._running_inputs:
+                self._running_inputs.finish(True)

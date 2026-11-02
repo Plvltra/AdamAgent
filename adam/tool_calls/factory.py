@@ -31,6 +31,7 @@ def create_tool_registry(
     delegated: bool = False,
     protected_dirs: tuple[Path, ...] = (),
     command_output_bytes: int | None = None,
+    cancel: CancellationToken | None = None,
 ) -> ToolRegistry:
     """创建内置工具；工作目录无效时失败，未提供确认回调时命令及编辑默认拒绝。
 
@@ -41,7 +42,7 @@ def create_tool_registry(
     policy = PathPolicy(workspace, permissions or PermissionConfig(), protected_dirs=protected_dirs)
     limits = limits or ToolLimits()
     commands = CommandTools(
-        policy.workspace, limits, confirm_command, capture_bytes=command_output_bytes
+        policy.workspace, limits, confirm_command, capture_bytes=command_output_bytes, cancel=cancel
     )
     edits = EditTools(policy, limits, confirm_edit)
     readers = _readers(policy, limits)

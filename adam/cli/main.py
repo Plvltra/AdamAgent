@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import sys
 from collections.abc import Callable
 from enum import Enum, auto
 from pathlib import Path
@@ -10,6 +11,7 @@ from colorama import just_fix_windows_console
 
 from adam.application.facade import AgentApplication
 from adam.bootstrap import open_application
+from adam.cli.live_input import LiveInput
 from adam.cli.memory_commands import handle_memory_command
 from adam.cli.reply_output import ReplyOutput, write_fragment
 from adam.cli.terminal import (
@@ -322,22 +324,31 @@ def main() -> int:
     parser.add_argument("--llm-config", type=Path, help="模型配置路径，默认主配置旁的 llm.toml")
     parser.add_argument("--workspace", type=Path, default=Path.cwd(), help="工具工作目录")
     parser.add_argument("--resume", help="启动时恢复指定的 8 位会话 ID")
+    parser.add_argument(
+        "--live-input", action="store_true", help="运行时使用/add补充要求、/stop停止"
+    )
     args = parser.parse_args()
     if args.resume is not None and not valid_session_id(args.resume):
         parser.error("--resume 必须是 8 位小写十六进制会话 ID")
+    live = LiveInput(sys.stdin.readline, print) if args.live_input else None
+    read = live.read if live else input
     try:
         with open_application(
             args.config,
             args.llm_config,
             args.workspace,
-            confirm_command=lambda command: confirm_command(command, input, print),
-            confirm_edit=lambda plan: confirm_edit(plan, input, print),
+            confirm_command=lambda command: confirm_command(command, read, print),
+            confirm_edit=lambda plan: confirm_edit(plan, read, print),
             on_tool=lambda name: print(f"工具> {name}"),
             on_notice=print,
             on_plan=show_plan,
+            live_input=args.live_input,
         ) as application:
             print(f"会话目录：{application.sessions_dir}")
-            chat(application, resume_id=args.resume)
+            if live:
+                live.start(application)
+                print("运行中输入已启用：/add <补充要求>，/stop停止。")
+            chat(application, read=read, resume_id=args.resume)
     except AgentError as error:
         show_failure(error)
         return 2

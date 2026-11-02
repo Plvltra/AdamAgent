@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from adam.config.settings import ToolLimits
+from adam.contracts.cancellation import CancellationToken
 from adam.contracts.errors import CommandLogError, ToolError
 from adam.contracts.models import CommandRequest, ExecutionRecorder
 from adam.tool_calls.command_output import OutputCapture
@@ -32,9 +33,11 @@ class CommandTools:
         confirm: Callable[[CommandRequest], bool] | None = None,
         *,
         capture_bytes: int | None = None,
+        cancel: CancellationToken | None = None,
     ) -> None:
         """注入命令确认与每条流的头尾字节容量；回传字符上限仍由 limits 控制。"""
         self.workspace = workspace
+        self.cancel = cancel
         self.limits = limits
         self.confirm = confirm
         self.capture_bytes = limits.max_result_chars if capture_bytes is None else capture_bytes
@@ -48,7 +51,10 @@ class CommandTools:
 
         cwd 相对启动工作目录解析；用户确认覆盖本次具体命令和目录。
         无确认回调默认拒绝；日志失败抛出 CommandLogError，禁止自动重试。
+        cancel在批准前后及进程等待中检查；停止后回收进程并保存实际中断结果。
         """
+        if self.cancel:
+            self.cancel.check()
         command = self.prepare(args)
         details = {
             "argv": list(command.argv),
@@ -61,6 +67,8 @@ class CommandTools:
             self._record(record, "command_denied", {**details, **result})
             return result
 
+        if self.cancel:
+            self.cancel.check()
         # 先落盘开始事件，再启动进程；崩溃留下的开始事件不会被误判为成功。
         self._record(record, "command_started", details)
         started = time.monotonic()
@@ -149,6 +157,8 @@ class CommandTools:
         try:
             deadline = time.monotonic() + command.timeout_seconds
             while process.poll() is None:
+                if self.cancel:
+                    self.cancel.check()
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise subprocess.TimeoutExpired(command.argv, command.timeout_seconds)

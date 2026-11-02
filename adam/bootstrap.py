@@ -19,6 +19,7 @@ from adam.application.proposal_review import ProposalReview
 from adam.application.proposals import ProposalSubmission
 from adam.application.reflection import ReflectionService
 from adam.application.review import ReviewService
+from adam.application.running_inputs import RunningInputs
 from adam.application.runtime_state import RuntimeStateReader
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
@@ -92,6 +93,8 @@ def build_application(
     child_client_factory: ChildClientFactory | None = None,
     decorate_tools: Callable[[ToolRunner], ToolRunner] | None = None,
     observe_conversation: Callable[[Conversation], None] | None = None,
+    live_input: bool = False,
+    cancel: CancellationToken | None = None,
 ) -> AgentApplication:
     """将已打开的依赖组装为应用，不接管调用方的主存储或主模型资源。
 
@@ -100,11 +103,14 @@ def build_application(
     child_client_factory 在工作线程中创建独立模型资源；未提供时不启用委派。
     decorate_tools 供宿主显式装饰主轮次工具边界，例如录制；不从配置或模型加载执行代码。
     observe_conversation 在组装完成后安装宿主观察接口；不从配置或模型加载回调。
+    live_input显式启用运行中输入；cancel须与主HTTP适配器共享，默认聊天保持原路径。
     启用子任务或 MCP 的调用方须在释放主会话锁前调用 application.close；
     组装失败会回收已创建资源，主模型与主存储仍由调用方持有。
     """
     with ExitStack() as resources:
         modes = ModeController()
+        main_cancel = (cancel or CancellationToken()) if live_input else None
+        inputs = RunningInputs(store.root / "_inputs", main_cancel) if main_cancel else None
         documents_dir = config.documents_dir or store.root / "_documents"
         knowledge_dir = config.knowledge_dir or store.root / "_knowledge"
         checkpoints_dir = store.root / "_checkpoints"
@@ -118,6 +124,7 @@ def build_application(
             knowledge_dir,
             mcp_media_dir,
             background_dir,
+            store.root / "_inputs",
         )
         artifacts = _artifact_tools(
             config.artifacts, store, artifacts_dir, config.tool_limits.max_result_chars
@@ -137,6 +144,7 @@ def build_application(
             confirm_edit=confirm_edit,
             protected_dirs=protected_dirs,
             command_output_bytes=config.artifacts.max_bytes if config.artifacts.enabled else None,
+            cancel=main_cancel,
         )
         background_service = BackgroundService(
             background_dir,
@@ -166,7 +174,7 @@ def build_application(
             document_config,
             documents_dir,
             config.permissions,
-            (checkpoints_dir, artifacts_dir, mcp_media_dir, background_dir),
+            (checkpoints_dir, artifacts_dir, mcp_media_dir, background_dir, store.root / "_inputs"),
             knowledge_dir=knowledge_dir,
         )
         registry, skills = register_skills(
@@ -332,6 +340,7 @@ def build_application(
             registry,
             on_tool or (lambda _: None),
             before_call=bind_source,
+            cancel=main_cancel,
             discovery=discovery,
             no_progress=config.no_progress,
             after_call=planner.publish if planner else None,
@@ -359,6 +368,11 @@ def build_application(
             decorate_tools(executor) if decorate_tools else executor,
             config.agent,
             model=config.llm.model,
+            cancel=main_cancel,
+            on_turn_started=(lambda tid: inputs.begin(store.active_session_id, tid))
+            if inputs
+            else None,
+            input_provider=inputs.queue if inputs else None,
             context_config=config.context,
             notify=on_notice,
             accounting=manager.account if manager else None,
@@ -397,6 +411,7 @@ def build_application(
             client,
             memories,
             close_resources=resources.pop_all().close,
+            running_inputs=inputs,
             on_interrupt=lambda: background_service.cancel_owner(store.active_session_id),
             on_session_selected=background_service.recover,
             skills=skills,
@@ -469,6 +484,7 @@ def _open_child(
                 knowledge_dir,
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
+                checkpoints_dir.parent / "_inputs",
             ),
         )
         registry = register_documents(
@@ -483,6 +499,7 @@ def _open_child(
                 artifacts_dir,
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
+                checkpoints_dir.parent / "_inputs",
             ),
             check_cancel=cancel.check,
             knowledge_dir=knowledge_dir,
@@ -502,6 +519,7 @@ def _open_child(
                 knowledge_dir,
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
+                checkpoints_dir.parent / "_inputs",
             ),
         )
         rules = (
@@ -518,6 +536,7 @@ def _open_child(
                     knowledge_dir,
                     mcp_media_dir,
                     checkpoints_dir.parent / "_background",
+                    checkpoints_dir.parent / "_inputs",
                 ),
             )
             if config.rules.enabled
@@ -545,6 +564,7 @@ def _open_child(
                         knowledge_dir,
                         mcp_media_dir,
                         checkpoints_dir.parent / "_background",
+                        checkpoints_dir.parent / "_inputs",
                     ),
                 ),
                 config.tool_limits,
@@ -616,6 +636,7 @@ def _open_child(
                             knowledge_dir,
                             mcp_media_dir,
                             checkpoints_dir.parent / "_background",
+                            checkpoints_dir.parent / "_inputs",
                         ),
                     ),
                     config.tool_limits.max_text_file_bytes,
@@ -675,6 +696,7 @@ def open_application(
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,
+    live_input: bool = False,
 ) -> Iterator[AgentApplication]:
     """从配置打开应用；配置错误不会创建 HTTP 客户端或会话目录。
 
@@ -683,6 +705,7 @@ def open_application(
     不把界面故障误判成存储错误。
     """
     config = load_config(config_path, llm_path)
+    main_cancel = CancellationToken() if live_input else None
 
     @contextmanager
     def child_client(cancel: CancellationToken) -> Iterator[ModelClient]:
@@ -692,7 +715,7 @@ def open_application(
 
     with (
         SessionStore(config.sessions_dir) as store,
-        httpx.Client(transport=InterruptibleTransport(), follow_redirects=False) as http,
+        httpx.Client(transport=InterruptibleTransport(main_cancel), follow_redirects=False) as http,
     ):
         application = build_application(
             config,
@@ -705,6 +728,8 @@ def open_application(
             on_notice=on_notice,
             on_plan=on_plan,
             child_client_factory=child_client,
+            live_input=live_input,
+            cancel=main_cancel,
         )
         try:
             yield application

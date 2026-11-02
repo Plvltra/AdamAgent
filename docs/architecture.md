@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B27.2.1 应用输入安全点与轮次协议。
+本次核对范围：B27.2.2 终端运行输入、独立留痕与共享取消。
 
-核对结论：Conversation新增宿主input_provider，绑定本轮EventQueue；在请求前/完整工具批次后消费，最终回答前原子封口。protocol允许安全点user补充，仍拒绝破坏工具配对和最终回答后的消息。CLI尚未接入。
+核对结论：LiveInput唯一读线程经AgentApplication投递到RunningInputs，接受/上下文状态写独立_inputs文件；Conversation仅在安全点消费。主HTTP、工具调度及命令等待共享取消令牌，默认交互不变。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -1967,4 +1967,20 @@ flowchart LR
     EQ --> ER[contracts.EventReceipt / 入队与重复回执]
 ```
 
-多个生产线程可投递，单个协调消费者peek后保存处理结果再ack；队列不做模型请求或持久写入。B27.2.1已连接Conversation，补充随成功轮次整体保存；CLI及独立接受/处理事件在B27.2.2/3接入。[队列契约](running-events.md)描述容量、去重和关闭语义。
+多个生产线程可投递，单个协调消费者peek后保存处理结果再ack；队列不做模型请求或持久写入。B27.2.1已连接Conversation，补充随成功轮次整体保存；B27.2.2通过可选--live-input接入CLI与独立输入记录，重启恢复在B27.3完成。[队列契约](running-events.md)描述容量、去重和关闭语义。
+## B27.2.2 运行输入接入
+
+```mermaid
+flowchart LR
+    LI[CLI LiveInput / 唯一readline线程] --> API[AgentApplication]
+    API --> RI[RunningInputs / 轮次归属]
+    RI --> EQ[EventQueue]
+    RI --> IO[_inputs / 原子输入记录]
+    C[Conversation / 安全点] --> EQ
+    EQ -->|接受与确认回调| RI
+    API --> CT[CancellationToken]
+    CT --> HTTP[InterruptibleTransport]
+    CT --> TS[ToolExecutor / CommandTools等待]
+```
+
+输入线程不访问SessionStore；成功上下文仍由主线程整体提交。默认不启用输入泵，启用时最终正文暂存以避免补充后的旧回答先被展示。恢复遗留输入的验收仍待B27.3。
