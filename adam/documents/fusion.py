@@ -46,5 +46,11 @@ def reciprocal_rank_fusion(
     ]
     return sorted(
         combined,
-        key=lambda hit: (-hit.score, hit.chunk.path, hit.chunk.start_line, hit.chunk.chunk_id),
+        key=lambda hit: (
+            -hit.score,
+            hit.chunk.path,
+            hit.chunk.page or 0,
+            hit.chunk.start_line,
+            hit.chunk.chunk_id,
+        ),
     )[:limit]

@@ -14,14 +14,19 @@ def terms(text: str) -> list[str]:
     return words
 
 
-def split_document(path: str, text: str, version: str, max_chars: int = 1000) -> list[Chunk]:
+def split_document(
+    path: str, text: str, version: str, max_chars: int = 1000, *, page: int | None = None
+) -> list[Chunk]:
     """按标题、段落和长度产生有界片段；超长单行拆开但保留真实行号。
 
     path 是可定位的来源路径；片段 ID 同时绑定文件版本、位置和文本。
     空白行不单独索引。标题保存在元数据中，不伪造成其他片段的原文。
+    提供 page 时 text 必须是该物理页的提取文本；不跨页拼接，行号从该页重新计数。
     """
     if type(max_chars) is not int or max_chars < 32:
         raise ValueError("max_chars must be at least 32")
+    if page is not None and (type(page) is not int or page < 1):
+        raise ValueError("page must be a positive physical page number")
     result: list[Chunk] = []
     title = ""
     parts: list[str] = []
@@ -32,8 +37,10 @@ def split_document(path: str, text: str, version: str, max_chars: int = 1000) ->
         body = "\n".join(parts).strip()
         if body:
             key = f"{path}\0{version}\0{first}:{last}\0{body}"
+            if page is not None:
+                key += f"\0page:{page}"
             identifier = hashlib.sha256(key.encode()).hexdigest()[:16]
-            result.append(Chunk(identifier, path, title, first, last, body, version))
+            result.append(Chunk(identifier, path, title, first, last, body, version, page))
         parts, size = [], 0
 
     for number, line in enumerate(text.splitlines(), 1):

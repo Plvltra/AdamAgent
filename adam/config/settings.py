@@ -275,6 +275,8 @@ class DocumentConfig:
     max_files: int = 200
     max_file_bytes: int = 1048576
     max_total_bytes: int = 10485760
+    max_pdf_pages: int = 512
+    max_pdf_text_chars: int = 1000000
     max_scan_entries: int = 5000
     max_chunks: int = 10000
     scan_timeout_seconds: int = 10
@@ -328,8 +330,10 @@ class DocumentConfig:
         ranges = {
             "chunk_chars": (32, 4000),
             "max_files": (1, 10000),
-            "max_file_bytes": (1, 10485760),
+            "max_file_bytes": (1, 33554432),
             "max_total_bytes": (1, 104857600),
+            "max_pdf_pages": (1, 2048),
+            "max_pdf_text_chars": (1, 1000000),
             "max_scan_entries": (1, 100000),
             "max_chunks": (1, 50000),
             "scan_timeout_seconds": (1, 300),

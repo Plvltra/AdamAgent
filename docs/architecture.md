@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B17.2.1 PDF 授权字节快照、读取工具注册与有界来源回传。
+本次核对范围：B17.2.2 PDF 全文有界提取、逐页索引及搜索/知识/语境/评估来源。
 
-核对结论：factory 注册 PdfTools 为可协作取消的只读工具，原 PathPolicy 先授权；documents.pdf_source 负责有界原字节与读取前后校验，pdf 只负责解析，工具层负责版本续读、期限与完整 JSON 限长。原记录和重放直接覆盖工具结果，索引仍仅原文本来源。原工厂说明保留并扩展 PDF 职责。
+核对结论：DocumentSource 复用 PdfSnapshot 及 PDF 解析边界，extract_pdf_all 一次解析全文；DocumentIndex 按页分块并保存 DocumentNotice。页码贯穿搜索、目录、语境生成、引用审计和评估，source_coverage 在无匹配时仍可见。缓存格式独立于知识持久范围，纯文本来源身份保持。原页码、失败、权限及取消说明保留并迁移到共用解析入口。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -22,9 +22,17 @@ flowchart LR
     PDF_READ --> PDF_LIB["pypdf / ContextVar 配置与物理页"]
     PDF_LIB --> PDF_RESULT["PdfExtract / PdfPage / 原 SHA、页码、截断与 OCR 提示"]
     PDF_READ --> PDF_ERROR["DocumentError / 整次失败或原取消传播"]
+    PDF_SCAN["DocumentSource / 配置资料根与扫描期限"] --> PDF_SOURCE
+    PDF_SCAN --> PDF_ALL["extract_pdf_all / 一次全文解析、拒绝文字截断"]
+    PDF_ALL --> PDF_LIB
+    PDF_ALL --> PDF_INDEX["DocumentIndex / 每物理页独立 Chunk 与 DocumentNotice"]
+    PDF_INDEX --> PDF_SEARCH["DocumentSearch / 原关键词、向量与融合"]
+    PDF_INDEX --> PDF_KNOW["KnowledgeDirectory / ContextPrefixStore / 页级来源"]
+    PDF_INDEX --> PDF_AUDIT["evidence_audit / evaluation / 页码身份校验"]
+    PDF_SEARCH --> PDF_LOG
 ~~~
 
-读取工具已接到主/子聊天的原工具流程，资料索引接入仍待 B17.2.2；原文件授权、元数据校验和资源限制见 [PDF 感知](pdf-perception.md)。
+读取工具与资料索引均已接入；PDF 页码是物理页，行号是页内提取位置，扫描提示不代表执行了 OCR；原文件授权、元数据校验和资源限制见 [PDF 感知](pdf-perception.md)。
 
 ## B16 语义工具目录与运行时接入
 
@@ -1155,6 +1163,8 @@ flowchart LR
     SEARCH --> INDEX
     INDEX["documents/index.py<br/>DocumentIndex"] --> SOURCE["documents/source.py<br/>有界扫描"]
     SOURCE --> AUTH["注入的路径授权函数"]
+    SOURCE --> DOC_PDF["pdf_source + pdf / 授权快照、全文物理页"]
+    DOC_PDF --> TEXT
     INDEX --> TEXT
     INDEX --> CACHE["JSON 快照 + 文件锁 + 原子替换"]
     SOURCE --> CONFIG["config/settings.py<br/>DocumentConfig"]

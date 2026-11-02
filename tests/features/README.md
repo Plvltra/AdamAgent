@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B17.2.2 PDF 页级索引 | 21项新增；两组相关143与227项通过，涵盖来源/扫描提示/版本/权限/故障/重放；主线门禁全量验证 | [test_pdf_indexing.py](test_pdf_indexing.py) |
 | B17.2.1 PDF 读取工具 | 15项权限/变化/页码/额度/取消/配置/重放；两组相关162和111项通过，新增TOML后62项 | [test_pdf_tools.py](test_pdf_tools.py) |
 | B17.1 PDF 提取基础 | 15项真实页码/版本/图像标记/截断/加密/解码限额/取消/配置隔离；架构合计37项，真实中文书稿三页另存统计 | [test_pdf_extraction.py](test_pdf_extraction.py) |
 | B16.3 二十工具对照 | 7项报告、错误与权限验收；相关共115项；真实本地命中9/10，多余候选与失败原样归档 | [test_tool_discovery_evaluation.py](test_tool_discovery_evaluation.py) |

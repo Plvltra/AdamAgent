@@ -9,7 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from adam.documents.models import Chunk, DocumentError
+from adam.documents.models import Chunk, DocumentError, coverage_metadata
 from adam.documents.search import SearchResult
 
 
@@ -81,6 +81,7 @@ def _case_result(
         "query": case["query"],
         "method": result.method,
         "generation": result.generation,
+        **coverage_metadata(result.notices),
         **({"fusion": asdict(result.fusion)} if result.fusion else {}),
         **({"reranking": asdict(result.reranking)} if result.reranking else {}),
         **(
@@ -115,6 +116,7 @@ def _case_result(
                 "score": round(hit.score, 6),
                 "chunk_id": hit.chunk.chunk_id,
                 "version": hit.chunk.version,
+                **({"page": hit.chunk.page} if hit.chunk.page is not None else {}),
                 "retrieval_ranks": [asdict(rank) for rank in hit.retrieval_ranks],
                 **({"rerank_score": hit.rerank_score} if hit.rerank_score is not None else {}),
             }
@@ -127,6 +129,8 @@ def _matches(source: dict[str, Any], chunk: Chunk) -> bool:
     path = Path(chunk.path).as_posix()
     expected = source["path"]
     if not (path == expected or path.endswith("/" + expected)):
+        return False
+    if source.get("page") != chunk.page:
         return False
     return source["evidence"] in chunk.text and (
         "version" not in source
@@ -203,7 +207,9 @@ def _validate_cases(cases: object) -> list[dict[str, Any]]:
         ):
             raise DocumentError("有答案题须有 1～20 个相关片段；无答案题的相关片段必须为空。")
         normalized = [_validate_source(source, legacy=legacy) for source in sources]
-        identities = [(s["path"], s.get("start_line"), s.get("end_line")) for s in normalized]
+        identities = [
+            (s["path"], s.get("page"), s.get("start_line"), s.get("end_line")) for s in normalized
+        ]
         if len(set(identities)) != len(identities):
             raise DocumentError("同一题的金标准片段位置重复。")
         validated.append(
@@ -221,7 +227,7 @@ def _validate_source(source: object, *, legacy: bool) -> dict[str, Any]:
     )
     if (
         not isinstance(source, dict)
-        or source.keys() != fields
+        or source.keys() - {"page"} != fields
         or not isinstance(source["path"], str)
         or not source["path"].strip()
         or Path(source["path"]).is_absolute()
@@ -231,6 +237,11 @@ def _validate_source(source: object, *, legacy: bool) -> dict[str, Any]:
         or not source["evidence"].strip()
     ):
         raise DocumentError("相关片段须有相对路径和非空原文依据。")
+    if Path(source["path"]).suffix.lower() == ".pdf":
+        if legacy or type(source.get("page")) is not int or not 1 <= source["page"] <= 2048:
+            raise DocumentError("PDF 金标准必须绑定版本、物理页码和页内提取行号。")
+    elif "page" in source:
+        raise DocumentError("普通文本金标准不使用 PDF 物理页码。")
     if not legacy and (
         not isinstance(source["version"], str)
         or re.fullmatch(r"[0-9a-f]{64}", source["version"]) is None

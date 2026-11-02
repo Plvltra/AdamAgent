@@ -1,7 +1,8 @@
 """从已授权且有界的 PDF 字节提取物理页文本；不读取路径、执行动作或进行 OCR。"""
 
 import hashlib
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from io import BytesIO
 from typing import Any
@@ -77,11 +78,6 @@ def extract_pdf(
     """
     budget = limits or PdfLimits()
     cancel = check_cancel or (lambda: None)
-    cancel()
-    if not isinstance(data, bytes) or not data.startswith(b"%PDF-"):
-        raise DocumentError("不是支持的 PDF 文件，未提取内容。")
-    if len(data) > budget.max_file_bytes:
-        raise DocumentError("PDF 原文件字节数超限，请缩小文件。")
     if (
         type(start_page) is not int
         or start_page < 1
@@ -89,6 +85,46 @@ def extract_pdf(
         or not 1 <= page_count <= budget.max_read_pages
     ):
         raise DocumentError("PDF 起始物理页码或页数范围无效。")
+    with _open_pdf(data, budget, cancel) as reader:
+        total = len(reader.pages)
+        if start_page > total:
+            raise DocumentError("PDF 起始物理页码超过总页数。")
+        pages = _pages(reader, start_page, page_count, budget, cancel)
+    cancel()
+    following = pages[-1].page + 1
+    return PdfExtract(
+        hashlib.sha256(data).hexdigest(),
+        total,
+        tuple(pages),
+        following if following <= total else None,
+    )
+
+
+def extract_pdf_all(
+    data: bytes, *, limits: PdfLimits, check_cancel: Callable[[], None]
+) -> PdfExtract:
+    """为索引一次解析全部物理页；任何文字截断或未读完都失败，不缓存部分原文。
+
+    复用页树、解码及取消限制；图像没有转成文字，会保留页面能力标记。
+    max_read_pages 只约束交互分页，本接口受 max_pages 和总文本字符上限约束。
+    """
+    with _open_pdf(data, limits, check_cancel) as reader:
+        total = len(reader.pages)
+        pages = _pages(reader, 1, total, limits, check_cancel)
+        if len(pages) != total or any(page.truncated for page in pages):
+            raise DocumentError("PDF 提取文字超过单页或总字符上限，未建立部分索引。")
+    check_cancel()
+    return PdfExtract(hashlib.sha256(data).hexdigest(), total, tuple(pages), None)
+
+
+@contextmanager
+def _open_pdf(data: bytes, budget: PdfLimits, cancel: Callable[[], None]) -> Iterator[PdfReader]:
+    """统一打开及解析错误边界，读取和索引在同一组局部限制内使用 reader。"""
+    cancel()
+    if not isinstance(data, bytes) or not data.startswith(b"%PDF-"):
+        raise DocumentError("不是支持的 PDF 文件，未提取内容。")
+    if len(data) > budget.max_file_bytes:
+        raise DocumentError("PDF 原文件字节数超限，请缩小文件。")
     try:
         # ContextVar 作用域只影响本次解析，不修改其他主/子任务的库级全局限制。
         with apply_configuration(_configuration(budget)):
@@ -103,9 +139,7 @@ def extract_pdf(
             total = len(reader.pages)
             if not total or total > budget.max_pages:
                 raise DocumentError("PDF 页数为空或超限，未返回部分文档。")
-            if start_page > total:
-                raise DocumentError("PDF 起始物理页码超过总页数。")
-            pages = _pages(reader, start_page, page_count, budget, cancel)
+            yield reader
     except DocumentError:
         raise
     except LimitReachedError as error:
@@ -113,14 +147,6 @@ def extract_pdf(
     except Exception as error:
         # 不把库异常中的文件原文、对象内容或解密细节发送给模型。
         raise DocumentError("PDF 结构损坏或文本提取失败，未返回部分内容。") from error
-    cancel()
-    following = pages[-1].page + 1
-    return PdfExtract(
-        hashlib.sha256(data).hexdigest(),
-        total,
-        tuple(pages),
-        following if following <= total else None,
-    )
 
 
 def _configuration(limits: PdfLimits) -> Configuration:

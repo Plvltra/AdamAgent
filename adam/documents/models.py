@@ -11,7 +11,7 @@ class DocumentError(ToolError):
 
 @dataclass(frozen=True)
 class Chunk:
-    """源文档的一个片段，行号从 1 开始，version 是原文件字节的 SHA-256。"""
+    """行号从1开始，version 为原文件 SHA-256；PDF 的 page 是物理页，行号属页内提取文本。"""
 
     chunk_id: str
     path: str
@@ -20,10 +20,39 @@ class Chunk:
     end_line: int
     text: str
     version: str
+    page: int | None = None
 
     def to_dict(self) -> dict[str, str | int]:
         """返回可以写入索引和工具结果的来源快照。"""
-        return asdict(self)
+        result = asdict(self)
+        if self.page is None:
+            result.pop("page")
+        return result
+
+
+@dataclass(frozen=True)
+class DocumentNotice:
+    """未覆盖的 PDF 内容；没有提取到文本不能据此推断页面为空或没有答案。"""
+
+    path: str
+    version: str
+    page: int
+    kind: str
+
+
+def coverage_metadata(notices: tuple[DocumentNotice, ...]) -> dict[str, object]:
+    """保留总数和最多五条完整来源，避免扫描件的每页提示挤占全部工具输出。"""
+    if not notices:
+        return {}
+    return {
+        "source_coverage": {
+            "status": "incomplete_pdf_perception",
+            "notice_count": len(notices),
+            "notices": [asdict(notice) for notice in notices[:5]],
+            "notices_truncated": len(notices) > 5,
+            "hint": "PDF 图像未识别；无文本页不代表空白。用 read_pdf 按物理页核查。",
+        }
+    }
 
 
 @dataclass(frozen=True)

@@ -42,7 +42,10 @@ def keyword_search(
             score += inverse * count * 2.2 / (count + 1.2 * (0.25 + 0.75 * length / average))
         if score > 0:
             hits.append(SearchHit(chunk, score))
-    return sorted(hits, key=lambda hit: (-hit.score, hit.chunk.path, hit.chunk.start_line))[:limit]
+    return sorted(
+        hits,
+        key=lambda hit: (-hit.score, hit.chunk.path, hit.chunk.page or 0, hit.chunk.start_line),
+    )[:limit]
 
 
 def validate_query(query: str, limit: int) -> None:

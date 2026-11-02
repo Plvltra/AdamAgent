@@ -13,7 +13,7 @@ from adam.documents.contextualization import (
 from adam.documents.embedding import EmbeddingBackend, FastEmbedBackend
 from adam.documents.fusion import reciprocal_rank_fusion
 from adam.documents.index import Corpus, DocumentIndex
-from adam.documents.models import FusionReport, SearchHit
+from adam.documents.models import DocumentNotice, FusionReport, SearchHit
 from adam.documents.reranking import FastEmbedReranker, RerankReport, rerank_hits
 from adam.documents.retrieval import keyword_search, validate_query
 from adam.documents.snapshots import digest
@@ -32,6 +32,7 @@ class SearchResult:
     reranking: RerankReport | None = None
     contextualization: ContextReport | None = None
     context_prefixes: tuple[ContextPrefix, ...] = ()
+    notices: tuple[DocumentNotice, ...] = ()
 
 
 class DocumentSearch:
@@ -108,6 +109,7 @@ class DocumentSearch:
             reranking,
             contextualization,
             tuple(notes[hit.chunk.chunk_id] for hit in hits if hit.chunk.chunk_id in notes),
+            corpus.notices,
         )
 
     def _context(self, corpus: Corpus) -> tuple[dict[str, ContextPrefix], ContextReport | None]:

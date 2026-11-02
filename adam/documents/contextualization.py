@@ -14,7 +14,7 @@ from adam.documents.snapshots import digest, load_snapshot, save_snapshot
 
 @dataclass(frozen=True)
 class ContextExcerpt:
-    """送入生成器的原文前缀；行号属于整个分块，original_chars 保留截断前的字符数。"""
+    """原文前缀及位置；PDF 行号属于物理页提取文本，original_chars 是未截断分块长度。"""
 
     chunk_id: str
     path: str
@@ -24,6 +24,7 @@ class ContextExcerpt:
     title: str
     text: str
     original_chars: int
+    page: int | None = None
 
 
 @dataclass(frozen=True)
@@ -265,4 +266,5 @@ def _excerpt(chunk: Chunk, size: int) -> ContextExcerpt:
         chunk.title,
         chunk.text[:size],
         len(chunk.text),
+        chunk.page,
     )

@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 from adam.documents.index import DocumentIndex
-from adam.documents.models import Chunk, DocumentError
+from adam.documents.models import Chunk, DocumentError, coverage_metadata
 
 
 def audit_summary(index: DocumentIndex, summary: dict[str, Any]) -> dict[str, Any]:
@@ -12,6 +12,7 @@ def audit_summary(index: DocumentIndex, summary: dict[str, Any]) -> dict[str, An
 
     summary 包含 source_generation 与 claims；每条 claim 有 text 和 citations。
     citation 使用 chunk_id、path、version、start_line/end_line、start/end 和 quote，
+    PDF 必须另含物理页码 page，行号为该页提取文本的位置，不代表 PDF 版面行坐标。
     字符区间相对于分块。缺失、改写、错绑或过时引用不会标为有效；格式非法直接拒绝。
     返回中的 provenance_valid 只说明来源核对成功，semantic_support 始终未检查。
     """
@@ -63,6 +64,7 @@ def audit_summary(index: DocumentIndex, summary: dict[str, Any]) -> dict[str, An
         "total_chunks": len(chunks),
         "cited_files": len({chunks[identity].path for identity in cited_ids}),
         "total_files": corpus.file_count,
+        **coverage_metadata(corpus.notices),
     }
 
 
@@ -80,6 +82,7 @@ def quote_chunk(chunk: Chunk, *, start: int = 0, end: int | None = None) -> dict
         "start": start,
         "end": end,
         "quote": chunk.text[start:end],
+        **({"page": chunk.page} if chunk.page is not None else {}),
     }
 
 
@@ -87,7 +90,7 @@ def _citation_error(chunk: Chunk | None, citation: dict[str, Any]) -> str | None
     """只在当前授权语料中查身份，不读取模型提供的路径。"""
     if chunk is None:
         return "missing_chunk"
-    if any(
+    if citation.get("page") != chunk.page or any(
         citation[name] != getattr(chunk, name)
         for name in ("path", "version", "start_line", "end_line")
     ):
@@ -142,7 +145,7 @@ def validate_summary(summary: object) -> None:
 
 def _validate_citation(citation: object) -> tuple[str, int, int]:
     """限制单条来源和字符区间格式；实际版本、位置和逐字内容由当前语料核对。"""
-    if not isinstance(citation, dict) or citation.keys() != {
+    if not isinstance(citation, dict) or citation.keys() - {"page"} != {
         "chunk_id",
         "path",
         "version",
@@ -153,6 +156,10 @@ def _validate_citation(citation: object) -> tuple[str, int, int]:
         "quote",
     }:
         raise ValueError("citation schema")
+    if "page" in citation and (
+        type(citation["page"]) is not int or not 1 <= citation["page"] <= 2048
+    ):
+        raise ValueError("citation physical page")
     for key, length in (("chunk_id", 16), ("version", 64)):
         if (
             not isinstance(citation[key], str)

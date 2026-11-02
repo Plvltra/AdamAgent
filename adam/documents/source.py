@@ -9,6 +9,8 @@ from pathlib import Path
 
 from adam.config.settings import DocumentConfig
 from adam.documents.models import DocumentError
+from adam.documents.pdf import PdfLimits, PdfPage, extract_pdf_all
+from adam.documents.pdf_source import read_pdf_snapshot
 
 EXCLUDED = {"node_modules", "__pycache__", "venv", "env"}
 
@@ -20,6 +22,7 @@ class Source:
     path: str
     text: str
     version: str
+    pages: tuple[PdfPage, ...] | None = None
 
 
 class DocumentSource:
@@ -46,12 +49,18 @@ class DocumentSource:
     def scan(self) -> list[Source]:
         """返回全部合格文档；超限或文件读取失败时拒绝不完整的刷新。
 
-        跳过隐藏项、缓存目录、链接和非 MD/TXT 文件。每个源文件重新读取并计算哈希，
+        跳过隐藏项、缓存目录、链接和非 MD/TXT/PDF 文件。每个源文件重新读取并计算哈希，
         因此即使修改保持了大小和 mtime，也不会继续使用旧版本。
-        在文件边界协作检查取消；阻塞的操作系统文件读取不能在调用中途强制停止。
+        在文件及 PDF 解析边界协作检查取消和时间；阻塞的底层操作不能强制停止。
         """
         self.check_cancel()
         deadline = time.monotonic() + self.config.scan_timeout_seconds
+
+        def check() -> None:
+            self.check_cancel()
+            if time.monotonic() > deadline:
+                raise DocumentError("文档扫描超时，请缩小文档目录。")
+
         pending = [self.authorize(str(root)) for root in self.requested_roots]
         sources: dict[str, Source] = {}
         visited: set[Path] = set()
@@ -87,6 +96,7 @@ class DocumentSource:
                         elif entry.is_file(follow_symlinks=False) and path.suffix.lower() in {
                             ".md",
                             ".txt",
+                            ".pdf",
                         }:
                             authorized = self.authorize(str(path))
                             key = str(authorized)
@@ -94,7 +104,7 @@ class DocumentSource:
                                 continue
                             if len(sources) >= self.config.max_files:
                                 raise DocumentError("文档数量超限，请缩小文档目录。")
-                            source, count = self._read(authorized)
+                            source, count = self._read(authorized, check)
                             total_bytes += count
                             if total_bytes > self.config.max_total_bytes:
                                 raise DocumentError("文档总字节数超限，请缩小文档目录。")
@@ -107,8 +117,20 @@ class DocumentSource:
             ) from error
         return sorted(sources.values(), key=lambda source: source.path)
 
-    def _read(self, path: Path) -> tuple[Source, int]:
-        """限制读取字节数，并拒绝读取期间变化的文件。"""
+    def _read(self, path: Path, check: Callable[[], None]) -> tuple[Source, int]:
+        """限制原文件字节数，PDF 保留逐页文本；读取或解析期间变化时拒绝刷新。"""
+        if path.suffix.lower() == ".pdf":
+            limits = PdfLimits(
+                max_file_bytes=self.config.max_file_bytes,
+                max_pages=self.config.max_pdf_pages,
+                max_page_chars=100000,
+                max_total_chars=self.config.max_pdf_text_chars,
+            )
+            snapshot = read_pdf_snapshot(path, self.authorize, limits, check)
+            extracted = extract_pdf_all(snapshot.data, limits=limits, check_cancel=check)
+            snapshot.verify(self.authorize)
+            check()
+            return Source(str(path), "", snapshot.version, extracted.pages), len(snapshot.data)
         with path.open("rb") as stream:
             before = os.fstat(stream.fileno())
             data = stream.read(self.config.max_file_bytes + 1)

@@ -35,7 +35,7 @@ class CatalogLimits:
 
 @dataclass(frozen=True)
 class CatalogReference:
-    """目录第二层的原文引用；chunk_id 与 version 绑定位置和完整原文，不能自行扩权。"""
+    """原文引用的身份、版本及位置；PDF 保留物理 page 和页内提取行号，不能自行扩权。"""
 
     chunk_id: str
     path: str
@@ -43,6 +43,7 @@ class CatalogReference:
     start_line: int
     end_line: int
     text_chars: int
+    page: int | None = None
 
 
 @dataclass(frozen=True)
@@ -118,7 +119,7 @@ def build_catalog(
     topics = []
     for key, (title, chunks) in sorted(groups.items()):
         check_cancel()
-        ordered = sorted(chunks, key=lambda c: (c.path, c.start_line))
+        ordered = sorted(chunks, key=lambda c: (c.path, c.page or 0, c.start_line))
         topics.append(
             KnowledgeTopic(
                 digest(["topic", key])[:16],
@@ -194,7 +195,13 @@ def _overview(chunks: list[Chunk], limits: CatalogLimits) -> tuple[OverviewExcer
 
 def _reference(chunk: Chunk) -> CatalogReference:
     return CatalogReference(
-        chunk.chunk_id, chunk.path, chunk.version, chunk.start_line, chunk.end_line, len(chunk.text)
+        chunk.chunk_id,
+        chunk.path,
+        chunk.version,
+        chunk.start_line,
+        chunk.end_line,
+        len(chunk.text),
+        chunk.page,
     )
 
 
@@ -212,6 +219,11 @@ def _validate_reference(reference: CatalogReference) -> None:
         or not 1 <= reference.start_line <= reference.end_line
         or type(reference.text_chars) is not int
         or reference.text_chars < 1
+        or (Path(reference.path).suffix.lower() == ".pdf") != (reference.page is not None)
+        or (
+            reference.page is not None
+            and (type(reference.page) is not int or not 1 <= reference.page <= 2048)
+        )
     ):
         raise DocumentError("知识目录的原文引用格式无效。")
 

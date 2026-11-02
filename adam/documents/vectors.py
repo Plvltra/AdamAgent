@@ -76,7 +76,12 @@ class VectorSearch:
             ]
             return sorted(
                 (hit for hit in hits if hit.score >= minimum),
-                key=lambda hit: (-hit.score, hit.chunk.path, hit.chunk.start_line),
+                key=lambda hit: (
+                    -hit.score,
+                    hit.chunk.path,
+                    hit.chunk.page or 0,
+                    hit.chunk.start_line,
+                ),
             )[:limit]
         except Timeout as error:
             raise DocumentError("文档向量缓存正在刷新，请稍后查询。") from error
