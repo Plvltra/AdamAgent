@@ -1,0 +1,94 @@
+{
+  "card": {
+    "name": "Pinned SDK reference",
+    "url": "http://127.0.0.1:49637/",
+    "skills": [
+      "text"
+    ],
+    "protocol_version": "0.3.0"
+  },
+  "success": {
+    "local_id": "success",
+    "remote_id": "4c232742-2003-4dac-b0d8-b4836b4fc88b",
+    "context_id": "5204f657-3a90-40f3-b239-d173fe63c4ee",
+    "state": "completed",
+    "text": "HELLO REFERENCE",
+    "last_known_state": null,
+    "origin": "http://127.0.0.1:49637"
+  },
+  "failure": {
+    "local_id": "failure",
+    "remote_id": "5db894ad-e8e5-4b36-9d02-5ec5445915f7",
+    "context_id": "fb599c53-613b-4ba5-bed4-8f1d8df09600",
+    "state": "failed",
+    "text": "",
+    "last_known_state": null,
+    "origin": "http://127.0.0.1:49637"
+  },
+  "cancel_response": {
+    "local_id": "cancel",
+    "remote_id": "7dd2171b-3e2b-42a6-aeff-77c81fbce6c1",
+    "context_id": "b948e537-334c-4702-b72b-aede221db470",
+    "state": "canceled",
+    "text": "",
+    "last_known_state": null,
+    "origin": "http://127.0.0.1:49637"
+  },
+  "cancellation": {
+    "local_id": "cancel",
+    "remote_id": "7dd2171b-3e2b-42a6-aeff-77c81fbce6c1",
+    "context_id": "b948e537-334c-4702-b72b-aede221db470",
+    "state": "canceled",
+    "text": "",
+    "last_known_state": null,
+    "origin": "http://127.0.0.1:49637"
+  },
+  "duplicate_blocked_locally": true,
+  "terminal_repeat_response": {
+    "error": {
+      "code": -32602,
+      "message": "Task 4c232742-2003-4dac-b0d8-b4836b4fc88b is in terminal state: TaskState.completed"
+    },
+    "id": "repeat-terminal",
+    "jsonrpc": "2.0"
+  },
+  "query_timeout": {
+    "local_id": "success",
+    "remote_id": "4c232742-2003-4dac-b0d8-b4836b4fc88b",
+    "context_id": "5204f657-3a90-40f3-b239-d173fe63c4ee",
+    "state": "unknown",
+    "text": "HELLO REFERENCE",
+    "last_known_state": "completed",
+    "origin": "http://127.0.0.1:49637"
+  },
+  "recovered": {
+    "local_id": "success",
+    "remote_id": "4c232742-2003-4dac-b0d8-b4836b4fc88b",
+    "context_id": "5204f657-3a90-40f3-b239-d173fe63c4ee",
+    "state": "completed",
+    "text": "HELLO REFERENCE",
+    "last_known_state": null,
+    "origin": "http://127.0.0.1:49637"
+  },
+  "actual_calls": [
+    {
+      "task_id": "4c232742-2003-4dac-b0d8-b4836b4fc88b",
+      "text": "hello reference"
+    },
+    {
+      "task_id": "5db894ad-e8e5-4b36-9d02-5ec5445915f7",
+      "text": "fail"
+    },
+    {
+      "task_id": "7dd2171b-3e2b-42a6-aeff-77c81fbce6c1",
+      "text": "wait"
+    }
+  ],
+  "passed": true,
+  "reference": {
+    "origin": "http://127.0.0.1:49637",
+    "pid": 23544,
+    "sdk": "0.3.0",
+    "uvicorn": "0.35.0"
+  }
+}

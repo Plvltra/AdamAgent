@@ -1,0 +1,24 @@
+G:\Myself\Adam2\.cache\c-a2a-reference\Lib\site-packages\a2a\server\apps\jsonrpc\fastapi_app.py:9: StarletteDeprecationWarning: 'HTTP_413_REQUEST_ENTITY_TOO_LARGE' is deprecated. Use 'HTTP_413_CONTENT_TOO_LARGE' instead.
+  from a2a.server.apps.jsonrpc.jsonrpc_app import (
+Exception in callback EventConsumer.agent_task_callback(<Task cancell...metry.py:177>>) at G:\Myself\Adam2\.cache\c-a2a-reference\Lib\site-packages\a2a\server\events\event_consumer.py:153
+handle: <Handle EventConsumer.agent_task_callback(<Task cancell...metry.py:177>>) at G:\Myself\Adam2\.cache\c-a2a-reference\Lib\site-packages\a2a\server\events\event_consumer.py:153>
+Traceback (most recent call last):
+  File "H:\Python\Python311\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "G:\Myself\Adam2\.cache\c-a2a-reference\Lib\site-packages\a2a\utils\telemetry.py", line 234, in sync_wrapper
+    result = func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "G:\Myself\Adam2\.cache\c-a2a-reference\Lib\site-packages\a2a\server\events\event_consumer.py", line 163, in agent_task_callback
+    if agent_task.exception() is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\Myself\Adam2\.cache\c-a2a-reference\Lib\site-packages\a2a\utils\telemetry.py", line 194, in async_wrapper
+    result = await func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\Myself\Adam2\.cache\c-a2a-reference\Lib\site-packages\a2a\server\request_handlers\default_request_handler.py", line 172, in _run_event_stream
+    await self.agent_executor.execute(request, queue)
+  File "G:\Myself\Adam2\scripts\support\a2a_reference.py", line 50, in execute
+    await asyncio.sleep(60)
+  File "H:\Python\Python311\Lib\asyncio\tasks.py", line 649, in sleep
+    return await future
+           ^^^^^^^^^^^^
+asyncio.exceptions.CancelledError

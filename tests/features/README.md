@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C09.4 参考互操作 | 官方SDK0.3.0独立服务的成功/失败/取消/重复/超时恢复；C09局部19项通过 | [实际入口](../../scripts/interop_acceptance.py)、[报告](../../docs/evaluations/c094/reference-report.json)、[SDK日志限制](../../docs/interop.md#c094-固定参考服务互操作) |
 | C09.3 原主工具远端协作 | 6项真实HTTP+主工具批准/模式/预算/来源/重启查询/取消；与架构共36项通过 | [业务场景](test_remote_tools.py)、[费用与权限](../../docs/interop.md#c093-主-agent-工具与批准) |
 | C09.2 任务生命周期 | 5项真实HTTP完成/取消/失败/恢复/超时不重发，与C09.1共13项通过 | [业务场景](test_interop_tasks.py)、[支持范围](../../docs/interop.md#c092-任务生命周期) |
 | C09.1 独立文本 Agent | 8项真实双进程能力发现/文本计算、业务失败和范围拒绝；与架构共38项通过 | [业务场景](test_interop_text.py)、[独立宿主](support/interop_worker.py)、[协议子集](../../docs/interop.md) |

@@ -31,3 +31,24 @@
 返回证据包含真实工具 source、远端 task/context ID、状态、费用合同和 independently_verified=false。已有 JSONL 的真实远端工具结果恢复关联，其他工具返回内容不能伪造关联；未完成或丢失结果保留未知，禁止再次派发。大结果仅省略远端文本，优先保留ID和不确定性。取消在本地HTTP请求前检查，等待中的HTTP最长使用原10秒网络超时；应用退出不隐式取消已批准的远端任务，恢复后可查询/显式批准取消。
 
 2026-11-02：6项原主应用+真实回环HTTP场景：完成/日志/实际费用未知/重启查询不重发、拒批、plan拒绝、报价上限、任务数/会话隔离、取消单独批准；与架构共36项通过，Ruff/Pyright通过。仅模型HTTP使用MockTransport，远端服务、回调与本地存储真实运行；无真实付费模型。文档和新增契约已审查，未删除原组装入口说明。C09.4 固定参考服务互操作仍待验。
+
+
+## C09.4 固定参考服务互操作
+
+参考服务使用官方 [a2a-python v0.3.0](https://github.com/a2aproject/a2a-python/releases/tag/v0.3.0)（发布提交5041480）、uvicorn 0.35.0，运行于独立进程和隔离环境。`scripts/support/a2a_reference.py` 只实现确定性文本业务和一次查询延迟；JSON-RPC、Agent Card、TaskStore、事件队列与取消调度来自官方 SDK，不复用 Adam 的服务实现。它是基于固定官方SDK构建的参考服务，不是另一个生产Agent的兼容性认证。
+
+2026-11-02 实际结果：
+
+| 场景 | 实际证据 |
+| --- | --- |
+| 成功 | completed，文本产物 `HELLO REFERENCE` |
+| 业务失败 | failed，没有伪造完成结果 |
+| 取消 | 原 wait Task 返回 canceled，原运行协程被SDK取消 |
+| 重复提交 | 同本地关联在客户端拒绝；协议层向原completed Task重发返回 -32602，未增加业务执行 |
+| 查询超时恢复 | 明确延迟一次tasks/get响应，客户端记unknown并保留原ID/上次completed；恢复查询仍为同Task，产物一致 |
+
+服务记录只有3次实际业务执行（成功、失败、等待取消），没有因重复或查询超时再次执行。自有参考进程退出码0。原始 [报告](evaluations/c094/reference-report.json)、[服务日志](evaluations/c094/reference-server.log)、[完整环境版本](evaluations/c094/reference-requirements.txt) 已保存。SDK 0.3.0 在取消时的 EventConsumer 回调记录 CancelledError，另有Starlette弃用警告；终态/查询均正确但不能声称参考环境无异常，不修改或隐藏上游代码。未验证同messageId任意重发的服务端去重，A2A消息ID不被当作幂等键保证。
+
+可复现：用独立环境安装 `reference-requirements.txt`，设置仓库根为PYTHONPATH，以项目环境运行 `scripts/interop_acceptance.py --reference-python <参考环境python绝对路径> --output <不存在的新目录>`。脚本启动和关闭自有服务，保留原始调用事实，无模型费用。
+
+当前已验证子集：Agent Card、JSON-RPC message/send（纯文本Message或Task）、tasks/get、tasks/cancel、文本artifacts；固定回环源、宿主身份边界与显式批准。不支持SSE/推送、文件、gRPC/REST、多轮continuation、认证部署、服务重启持久化，**不宣称完整A2A兼容**。C09大项局部回归19项通过（12.59秒），本次无全量、无重复门禁。新增脚本契约与失败/清理边界已审查。

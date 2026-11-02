@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C09.3 原主工具入口的远端任务、逐次批准与费用约定上限；不新增聊天循环或存储协议。
+本次核对范围：C09.4 固定官方 SDK 参考进程的互操作验收；生产架构无变化，新增独立验收脚本及非敏感证据。
 
 本次同步结论：架构关系保持，组装入口保留 FileChangePlan 与浏览器/桌面批准参数；Conversation 和录制同时保留诊断与媒体输入，日志同时校验诊断与视觉来源。合并双方契约说明，移除重复架构段落。验证：相关重放、多模态、消费、桌面动作与诊断选择共 85 项通过；Ruff、Pyright 通过，本次不重复运行全量。
 
@@ -2442,3 +2442,18 @@ flowchart LR
 ~~~
 
 RemoteTools 仅借用本地存储，远端只收到文本或ID；不发送SessionStore/本地权限。每次按原submit开始保守计数，宿主报价上限与未知实际费用分开；恢复只认真实远端工具结果及原合同。原注释保留，新增契约明确取消/未知和回调责任；6项业务与架构共36项通过。固定参考服务互操作待C09.4，见 [支持范围](interop.md)。
+
+
+## C09.4 参考服务验收入口
+
+~~~mermaid
+flowchart LR
+    IA_RUN["scripts.interop_acceptance / 项目环境"] --> IA_CLIENT["生产 TaskClient"]
+    IA_RUN --> IA_PROCESS["自有独立参考进程 / 固定 SDK 0.3.0"]
+    IA_CLIENT --> IA_WIRE["真实回环 JSON-RPC"]
+    IA_WIRE --> IA_SDK["官方 A2AStarletteApplication / DefaultRequestHandler"]
+    IA_SDK --> IA_REFERENCE["TextExecutor / 确定性业务与实际调用记录"]
+    IA_REFERENCE --> IA_EVIDENCE["成功 失败 取消 重复 超时恢复报告"]
+~~~
+
+参考SDK仅在隔离验收环境，不进入生产公共端口或项目默认依赖。只在明确标记下延迟一次查询响应，不替换任务协议；保留官方取消回调的CancelledError限制。生产关系保持，新增脚本注释已核对，C09局部19项通过。见 [原始结果和支持子集](interop.md#c094-固定参考服务互操作)。
