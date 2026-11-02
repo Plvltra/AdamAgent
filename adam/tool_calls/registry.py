@@ -291,7 +291,7 @@ class ToolRegistry:
             raise ToolError("参数必须为对象且不能包含未知字段。")
         if any(key not in args for key in params["required"]):
             raise ToolError("缺少必填参数。")
-        types = {"string": str, "integer": int, "boolean": bool, "array": list}
+        types = {"string": str, "integer": int, "boolean": bool, "array": list, "object": dict}
         for key, value in args.items():
             if type(value) is not types[params["properties"][key]["type"]]:
                 raise ToolError(f"参数 {key} 类型错误。")

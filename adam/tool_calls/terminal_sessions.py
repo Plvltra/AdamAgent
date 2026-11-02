@@ -10,21 +10,10 @@ from typing import Any
 
 from adam.contracts.errors import ToolError
 from adam.contracts.models import CommandRequest
+from adam.contracts.terminals import TerminalRequest
 from adam.tool_calls.command_output import OutputCapture
 from adam.tool_calls.command_tools import CommandTools
 from adam.tool_calls.processes import start_command, terminate_process
-
-
-@dataclass(frozen=True)
-class TerminalRequest:
-    """每次批准的具体动作；env为显式覆盖项，text是原样写入stdin的正文。"""
-
-    action: str
-    terminal_id: str
-    command: CommandRequest
-    env: tuple[tuple[str, str], ...] = ()
-    text: str = ""
-    eof: bool = False
 
 
 @dataclass

@@ -27,6 +27,7 @@ from adam.application.runtime_state import RuntimeStateReader
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.manager import SubagentManager
+from adam.application.terminals import TerminalService
 from adam.application.triggers import LocalTriggers
 from adam.application.undo import UndoService
 from adam.config.loader import load_config
@@ -39,6 +40,7 @@ from adam.contracts.models import CommandRequest, FileChangePlan
 from adam.contracts.planning import PlanReport
 from adam.contracts.ports import ModelClient, ToolRunner
 from adam.contracts.proposals import ProposalOwner
+from adam.contracts.terminals import TerminalRequest
 from adam.documents.embedding import FastEmbedBackend
 from adam.hooks.runner import HookRunner
 from adam.isolation.backend import WslBubblewrap
@@ -79,6 +81,8 @@ from adam.tool_calls.review_tools import SPECS as REVIEW_SPECS
 from adam.tool_calls.review_tools import handlers as review_handlers
 from adam.tool_calls.session_tools import SessionTools
 from adam.tool_calls.skill_tools import register_skills
+from adam.tool_calls.terminal_sessions import TerminalSessions
+from adam.tool_calls.terminal_tools import TerminalTools
 from adam.tool_calls.trigger_tools import TriggerTools
 
 ChildClientFactory = Callable[[CancellationToken], AbstractContextManager[ModelClient]]
@@ -92,6 +96,7 @@ def build_application(
     *,
     confirm_command: Callable[[CommandRequest], bool] | None = None,
     confirm_edit: Callable[[FileChangePlan], bool] | None = None,
+    confirm_terminal: Callable[[TerminalRequest], bool] | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,
@@ -131,6 +136,7 @@ def build_application(
             background_dir,
             store.root / "_inputs",
             store.root / "_triggers",
+            store.root / "_terminals",
             store.root / "_subagents",
         )
         artifacts = _artifact_tools(
@@ -160,6 +166,19 @@ def build_application(
         resources.callback(background_service.close)
         background = BackgroundTools(background_service.start, background_service.query, store)
         registry = background.register(registry)
+        terminal_service = TerminalService(
+            store.root / "_terminals",
+            TerminalSessions(CommandTools(workspace, config.tool_limits), confirm_terminal),
+        )
+        resources.callback(terminal_service.close)
+        terminal_tools = TerminalTools(
+            terminal_service.start,
+            terminal_service.send,
+            terminal_service.query,
+            terminal_service.stop,
+            store,
+        )
+        registry = terminal_tools.register(registry)
         triggers = LocalTriggers(store.root / "_triggers", background_service.query)
         resources.callback(triggers.close)
         trigger_tools = TriggerTools(triggers.dispatch, store) if inputs else None
@@ -202,6 +221,7 @@ def build_application(
                 background_dir,
                 store.root / "_inputs",
                 store.root / "_triggers",
+                store.root / "_terminals",
                 store.root / "_subagents",
             ),
             knowledge_dir=knowledge_dir,
@@ -355,6 +375,7 @@ def build_application(
         def bind_source(link: dict[str, str]) -> None:
             """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
             background.bind_source(link)
+            terminal_tools.bind_source(link)
             if trigger_tools:
                 trigger_tools.bind_source(link)
             if manager:
@@ -439,12 +460,20 @@ def build_application(
             """主会话锁已取得后恢复附属记录；即使关闭live-input也不遗漏旧输入。"""
             background_service.recover(session_id)
             triggers.recover(session_id)
+            terminal_service.recover(session_id)
             if (store.root / "_inputs" / session_id).exists():
                 recover_inputs(
                     store.root / "_inputs",
                     session_id,
                     {turn.turn_id for turn in store.load_turns(session_id)},
                 )
+
+        def interrupt_processes() -> None:
+            """取消当前主会话的后台任务和持久终端，不影响其他会话。"""
+            try:
+                background_service.cancel_owner(store.active_session_id)
+            finally:
+                terminal_service.cancel_owner(store.active_session_id)
 
         if observe_conversation:
             observe_conversation(conversation)
@@ -455,7 +484,7 @@ def build_application(
             memories,
             close_resources=resources.pop_all().close,
             running_inputs=inputs,
-            on_interrupt=lambda: background_service.cancel_owner(store.active_session_id),
+            on_interrupt=interrupt_processes,
             on_session_selected=recover_attached,
             skills=skills,
             modes=modes,
@@ -529,6 +558,7 @@ def _open_child(
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
                 checkpoints_dir.parent / "_triggers",
+                checkpoints_dir.parent / "_terminals",
                 checkpoints_dir.parent / "_inputs",
                 checkpoints_dir.parent / "_subagents",
             ),
@@ -546,6 +576,7 @@ def _open_child(
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
                 checkpoints_dir.parent / "_triggers",
+                checkpoints_dir.parent / "_terminals",
                 checkpoints_dir.parent / "_inputs",
                 checkpoints_dir.parent / "_subagents",
             ),
@@ -568,6 +599,7 @@ def _open_child(
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
                 checkpoints_dir.parent / "_triggers",
+                checkpoints_dir.parent / "_terminals",
                 checkpoints_dir.parent / "_inputs",
                 checkpoints_dir.parent / "_subagents",
             ),
@@ -587,6 +619,7 @@ def _open_child(
                     mcp_media_dir,
                     checkpoints_dir.parent / "_background",
                     checkpoints_dir.parent / "_triggers",
+                    checkpoints_dir.parent / "_terminals",
                     checkpoints_dir.parent / "_inputs",
                     checkpoints_dir.parent / "_subagents",
                 ),
@@ -617,6 +650,7 @@ def _open_child(
                         mcp_media_dir,
                         checkpoints_dir.parent / "_background",
                         checkpoints_dir.parent / "_triggers",
+                        checkpoints_dir.parent / "_terminals",
                         checkpoints_dir.parent / "_inputs",
                         checkpoints_dir.parent / "_subagents",
                     ),
@@ -692,6 +726,7 @@ def _open_child(
                             mcp_media_dir,
                             checkpoints_dir.parent / "_background",
                             checkpoints_dir.parent / "_triggers",
+                            checkpoints_dir.parent / "_terminals",
                             checkpoints_dir.parent / "_inputs",
                             checkpoints_dir.parent / "_subagents",
                         ),
@@ -750,6 +785,7 @@ def open_application(
     *,
     confirm_command: Callable[[CommandRequest], bool] | None = None,
     confirm_edit: Callable[[FileChangePlan], bool] | None = None,
+    confirm_terminal: Callable[[TerminalRequest], bool] | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,
@@ -781,6 +817,7 @@ def open_application(
             workspace,
             confirm_command=confirm_command,
             confirm_edit=confirm_edit,
+            confirm_terminal=confirm_terminal,
             on_tool=on_tool,
             on_notice=on_notice,
             on_plan=on_plan,

@@ -32,6 +32,7 @@ from adam.contracts.models import (
     FileChangePlan,
     valid_session_id,
 )
+from adam.contracts.terminals import TerminalRequest
 
 
 def show_session(application: AgentApplication, write: Callable[[str], None]) -> None:
@@ -203,6 +204,26 @@ def confirm_command(
         return False
 
 
+def confirm_terminal(
+    request: TerminalRequest, read: Callable[[str], str], write: Callable[[str], None]
+) -> bool:
+    """展示启动环境或原样输入；初始cwd不冒充shell当前目录，非y与EOF拒绝。"""
+    write(f"终端> {request.terminal_id} / {request.action}")
+    write(f"初始工作目录> {request.command.cwd}（后续程序可自行改变）")
+    write("启动参数> " + json.dumps(request.command.argv, ensure_ascii=False))
+    write("执行环境> 宿主管道终端，不是沙箱；仅批准本次动作。")
+    if request.action == "start":
+        write("环境覆盖> " + json.dumps(dict(request.env), ensure_ascii=False))
+        write(f"终端寿命上限> {request.command.timeout_seconds} 秒")
+    else:
+        write("输入正文（JSON转义）> " + json.dumps(request.text, ensure_ascii=False))
+        write(f"写完关闭输入> {request.eof}")
+    try:
+        return read("允许本次终端动作？[y/N] ").strip().lower() == "y"
+    except EOFError:
+        return False
+
+
 def confirm_edit(
     plan: FileChangePlan, read: Callable[[str], str], write: Callable[[str], None]
 ) -> bool:
@@ -339,6 +360,7 @@ def main() -> int:
             args.workspace,
             confirm_command=lambda command: confirm_command(command, read, print),
             confirm_edit=lambda plan: confirm_edit(plan, read, print),
+            confirm_terminal=lambda request: confirm_terminal(request, read, print),
             on_tool=lambda name: print(f"工具> {name}"),
             on_notice=print,
             on_plan=show_plan,

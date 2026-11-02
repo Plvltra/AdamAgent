@@ -2,7 +2,7 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B30.2.1 TerminalService持久意图、会话归属和恢复；聊天接入未完成。
+本次核对范围：B30.2.2 主聊天终端工具、contracts批准计划、CLI展示与取消恢复。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2068,4 +2068,17 @@ flowchart LR
   State --> Recovery[恢复旧观察 / 未结算输入unknown]
 ~~~
 
-启动和输入先写意图，实时查询再保存有界观察。终端ID由协调层预分配；恢复无活进程映射，不按PID重连或重发输入。聊天工具与CLI审批接入待B30.2.2。
+启动和输入先写意图，实时查询再保存有界观察。终端ID由协调层预分配；恢复无活进程映射，不按PID重连或重发输入。聊天工具与CLI审批已于B30.2.2接入。
+## B30.2.2 终端聊天边界
+
+~~~mermaid
+flowchart LR
+  Model[主模型工具调用] --> Tools[tool_calls.TerminalTools]
+  Tools --> Service[application.TerminalService]
+  Service --> Sessions[tool_calls.TerminalSessions]
+  Sessions --> Request[contracts.TerminalRequest]
+  Request --> CLI[cli.confirm_terminal / 启动和每次输入]
+  Bootstrap[bootstrap资源及取消管理] --> Service
+~~~
+
+CLI只理解批准契约，不导入终端进程实现。主会话绑定来源和身份；默认子Agent不注册终端工具，plan模式拒绝启动及输入。退出与取消回收活进程，重启只恢复旧记录。受保护目录新增_terminals。
