@@ -1,0 +1,32 @@
+{
+  "status": "blocked_before_dispatch",
+  "error": "ValueError: Target is not authorized visible foreground window",
+  "failure_location": "WindowsDesktop.observe -> _state",
+  "target": {
+    "pid": 49888,
+    "handle": 4985634
+  },
+  "foreground": 134034,
+  "target_visible": true,
+  "target_minimized": false,
+  "actions_dispatched": 0,
+  "approvals": 0,
+  "screenshot_created": false,
+  "action_chain": "not reached",
+  "focus_recovery": "not reached",
+  "retry": false,
+  "launch": "Start-Process powershell.exe without WindowStyle Hidden",
+  "independent_readback": {
+    "actual-value.txt": {
+      "exists": false,
+      "text": null
+    },
+    "clicked-value.txt": {
+      "exists": false,
+      "text": null
+    }
+  },
+  "input_desktop_eligible": true,
+  "target_closed": true,
+  "backend_closed": true
+}

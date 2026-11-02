@@ -3,10 +3,13 @@
 import ctypes
 import io
 from collections import deque
+from threading import Event, Thread
 from typing import Any
 
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.desktop import DesktopActionUnknownError, DesktopApproval
+from adam.contracts.errors import ToolError
+from adam.desktop.adapters.input_desktop import require_input_desktop
 from adam.desktop.models import Control, DesktopFrame, WindowIdentity
 
 
@@ -18,13 +21,20 @@ class WindowsDesktop:
             raise ValueError("Explicit identity and bounded controls required")
         self.handle, self.process_id, self.max_controls = handle, process_id, max_controls
         self.identity: WindowIdentity | None = None
+        self._invalidated = Event()
+        self._invalidated.set()
+        self._watch_stop = Event()
+        self._watcher: Thread | None = None
 
-    def observe(self, cancel: CancellationToken) -> DesktopFrame:
+    def observe(self, cancel: CancellationToken, *, renew: bool = True) -> DesktopFrame:
         """DPI 感知线程读取树和窗口截图；失焦、移动、超限时整次拒绝。
 
         仅截取目标矩形；调用方使用独立测试窗口。截图可能含覆盖层，不能据此证明
         未被遮挡；前后状态检查减少竞争，但不是 Windows 原子快照。
         """
+        require_input_desktop()
+        if not renew and self._invalidated.is_set():
+            raise ToolError("Desktop focus was lost; a new explicit observation is required")
         from pywinauto import Desktop
 
         user: Any = ctypes.WinDLL("user32", use_last_error=True)
@@ -80,6 +90,9 @@ class WindowsDesktop:
             if self._state(window, user) != (identity, rect, dpi):
                 raise ValueError("Window changed during observation")
             self.identity = identity
+            if renew:
+                self._invalidated.clear()
+                self._start_watcher()
             return DesktopFrame(
                 identity,
                 str(window.window_text())[:1000],
@@ -93,6 +106,10 @@ class WindowsDesktop:
         finally:
             user.SetThreadDpiAwarenessContext(previous)
 
+    def revalidate(self, cancel: CancellationToken) -> DesktopFrame:
+        """动作复检不能清除历史失焦标志；只有显式新观察可以恢复。"""
+        return self.observe(cancel, renew=False)
+
     def perform(
         self, plan: DesktopApproval, expected: DesktopFrame, cancel: CancellationToken
     ) -> None:
@@ -100,6 +117,9 @@ class WindowsDesktop:
 
         原生调用一旦进入，不猜测其是否产生副作用；异常停止本轮而不自动重复。
         """
+        if self._invalidated.is_set():
+            raise ToolError("Desktop focus was lost; a new observation is required")
+        require_input_desktop()
         from pywinauto import Desktop, keyboard, mouse, uia_defines
 
         user: Any = ctypes.WinDLL("user32", use_last_error=True)
@@ -148,6 +168,8 @@ class WindowsDesktop:
             cancel.check()
             if self._state(window, user) != (expected.identity, expected.rect, expected.dpi):
                 raise ValueError("Target changed before dispatch")
+            if self._invalidated.is_set():
+                raise ToolError("Desktop focus was lost before dispatch; observe again")
             try:
                 if plan.operation == "fill":
                     assert target is not None
@@ -177,12 +199,44 @@ class WindowsDesktop:
         finally:
             user.SetThreadDpiAwarenessContext(previous)
 
+    def close(self) -> None:
+        """停止只读看守并使旧观察失效；可重复关闭，后续显式观察会重新启动。"""
+        self._invalidated.set()
+        self._watch_stop.set()
+        if self._watcher is not None:
+            self._watcher.join(timeout=1)
+            if self._watcher.is_alive():
+                raise ToolError("Desktop guard did not stop; cannot resume")
+            self._watcher = None
+
+    def _start_watcher(self) -> None:
+        """观察后记录检测到的失焦/锁屏；恢复不会自动清除失效标志。"""
+        if self._watcher is not None and self._watcher.is_alive() and self._watch_stop.is_set():
+            raise ToolError("Previous desktop guard is still stopping")
+        if self._watcher is None or not self._watcher.is_alive():
+            self._watch_stop.clear()
+            self._watcher = Thread(target=self._watch, daemon=True, name="adam-desktop-guard")
+            self._watcher.start()
+
+    def _watch(self) -> None:
+        """每50ms只读检查输入资格与前台；不调用UIA或截图，故障按失效处理。"""
+        user = ctypes.WinDLL("user32", use_last_error=True)
+        user.GetForegroundWindow.restype = ctypes.c_void_p
+        while not self._watch_stop.wait(0.05):
+            try:
+                require_input_desktop()
+                if user.GetForegroundWindow() != self.handle:
+                    self._invalidated.set()
+            except Exception:
+                self._invalidated.set()
+
     def _state(
         self,
         window: Any,  # noqa: ANN401 - UIA 动态包装器
         user: Any,  # noqa: ANN401 - UIA 与 ctypes 的动态 SDK 边界
     ) -> tuple[WindowIdentity, tuple[int, int, int, int], int]:
         """失焦、进程替换、最小化或非法尺寸时拒绝旧目标。"""
+        require_input_desktop()
         info = window.element_info
         if (
             info.process_id != self.process_id

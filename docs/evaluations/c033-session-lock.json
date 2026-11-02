@@ -1,0 +1,9 @@
+{
+  "checked_at": "2026-11-02T12:20:06.478664+00:00",
+  "api": "WTSInfoEx lock state + GetThreadDesktop/UOI_IO",
+  "foreground_process": "LockApp (read-only PID check)",
+  "side_effects": "read only; no screenshots or desktop changes",
+  "input_available": false,
+  "error_type": "ToolError",
+  "error": "Desktop session is locked, disconnected or unknown; unlock then observe again"
+}

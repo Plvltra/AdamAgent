@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C03.2 主应用显式注入桌面目标与逐次批准、工具目录、当前来源和动作后观察；子任务不注册桌面。
+本次核对范围：C03.3 跨进程桌面输入租约、Windows会话锁状态/输入桌面检查、失焦看守与中断清理；原动作批准/日志关系保持。
 
 核对结论：新增 scripts.web_evaluation 独立评估入口与对应关系图；生产对话、网络和存储职责保持。主子文件、文档、规则、Skill、提案及图片读取同时保护 _media 和 _mcp_media。图片路径授权不依赖可选规则开关，真实子任务回归确认拒绝后无媒体来源/正文副作用。当前同步 main 固定 446d767 的 B16.1～3；只读取已提交内容。C00.4 新增 contracts.consumption、config.consumption、context.consumption、session.consumption_log 与 subagents.unit_budget；复用原请求/摘要事件和 token 账本，不新增消费文件。启用时实际请求冻结单价与各单位预留，成员刷新/恢复同时维护单位快照；录制只增加可选配置/决策快照，旧文本录制格式保持。当前消费者工程验收完成，不把音频账本当作语音能力。C04.2 新增 application.image_questions、config.vision、contracts.vision、llm.local_vision、cli.image_question；bootstrap 只在显式独立入口组装回环模型，复用 ContextBuilder/RequestRunner 与 SessionAccount/SharedTokenBudget，subagents.account.restore_account 恢复既有子日志，不生成新任务。SessionLog 验证可选 image_question 来源及未知费用，旧文本格式不变；默认聊天/DeepSeek/主子工具链不升级。真实视觉首批严格 2/4、最终复验 3/4，均非全通过，不能当通用可靠布局能力；详见 [视觉问答](visual-question-answering.md)。C04.1 新增 vision.models/service/adapters.pillow 与 tool_calls.vision_tools；bootstrap 按 VisionConfig 注入原路径策略及主子独立 SessionMedia，Conversation 不新增图片工具分支或 SDK 依赖，默认模型不获视觉能力。C00.3 新增 contracts.model_input、application.media_input、llm.message_encoding 与 recording.media；复用 C00.2，不新增上传/解码能力。媒体字节只在模型发送边界编码及录制旁路冻结，Conversation 只编排通用输入预检与引用，不认识具体图片 SDK；默认客户端仍无视觉声明。C01.3 新增 web.evidence 与 tool_calls.web_sources，复用原工具/JSONL 边界。B12.2.2 新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用；B12.2.3 已接入显式知识入口与主子目录保护，B12.3 已验收竞争/中断边界。B12.2.1 的独立状态、锁外回调与落盘前来源/修订复核，以及 B11.3 的原文审计和冻结证据说明保留；生产聊天流程不新增最终回答拦截，来源与逐字引用有效不能证明语义正确。
 
@@ -2376,3 +2376,18 @@ flowchart LR
 ~~~
 
 普通工具结果沿原日志持久化，窗口图像不隐式附给默认文本模型。原生派发后异常停止轮次，不以受控参数错误让模型重试；无桌面注入时不导入原生SDK。C03.1 的只读类说明已更新为含动作适配器，原DPI/非原子/来源解释保留；frame_version提取复用原算法。详情见 [桌面观察与动作](desktop-observation.md)。
+
+
+## C03.3 输入租约与失效
+
+~~~mermaid
+flowchart LR
+    DG_TOOLS["DesktopTools.invoke"] --> DG_LEASE["desktop.lease / 用户临时目录FileLock"]
+    DG_LEASE --> DG_WINDOWS["WindowsDesktop / 观察和派发"]
+    DG_WINDOWS --> DG_INPUT["adapters.input_desktop / WTSInfoEx + UOI_IO"]
+    DG_WINDOWS --> DG_WATCH["只读看守 / 50ms失焦锁存"]
+    DG_WATCH --> DG_INVALID["旧引用失效 / 显式观察恢复"]
+    DG_APP["facade中断 + ExitStack退出"] --> DG_CLOSE["DesktopTools.close / 停看守、丢旧引用"]
+~~~
+
+租约异常释放；原bootstrap浏览器清理迁入与桌面共同的中断回调，两者都尝试清理。原批准、DPI、非原子观察与来源说明保留；动作复检不能清除失焦记录。实际锁屏拒绝已只读验证，真实动作恢复仍待验，见桌面文档。

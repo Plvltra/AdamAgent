@@ -13,6 +13,7 @@ from adam.contracts.errors import ToolError
 from adam.contracts.execution import ToolCapability
 from adam.contracts.media import MediaSource
 from adam.contracts.models import ExecutionRecorder
+from adam.desktop.lease import DesktopLease
 from adam.desktop.models import DesktopActionBackend, Observation
 from adam.desktop.service import DesktopObserver, frame_version
 from adam.session.media_evidence import SessionMedia
@@ -52,6 +53,14 @@ class DesktopTools:
         self.observer = DesktopObserver(backend, media.publish)
         self.source: dict[str, str] | None = None
         self.last: tuple[str, Observation] | None = None
+        self.lease = DesktopLease()
+
+    def close(self) -> None:
+        """中断或应用退出时丢弃旧观察并停止后端看守；不撤销已派发动作。"""
+        self.last = None
+        close = getattr(self.backend, "close", None)
+        if close is not None:
+            close()
 
     def bind_source(self, source: dict[str, str]) -> None:
         """原执行器注入真实工具来源，模型参数不得指定所有者。"""
@@ -71,6 +80,17 @@ class DesktopTools:
         cancel: CancellationToken,
     ) -> dict[str, Any]:
         """先校验来源及版本，批准后再观察；动作一旦派发，收尾失败不能自动重做。"""
+        try:
+            with self.lease.hold():
+                return self._execute(name, args, cancel)
+        except BaseException:
+            self.last = None
+            raise
+
+    def _execute(
+        self, name: str, args: dict[str, Any], cancel: CancellationToken
+    ) -> dict[str, Any]:
+        """持有输入租约时运行单个调用；旧引用在拒批、取消或故障后失效。"""
         sid = self.media.store.active_session_id
         if not sid or self.source is None:
             raise ToolError("Desktop requires active tool source")
@@ -85,13 +105,15 @@ class DesktopTools:
         observed = self.last[1]
         plan = self._plan(args, observed)
         if self.confirm is None or not self.confirm(plan):
+            self.last = None
             return {"ok": False, "status": "denied"}
         cancel.check()
         if self.media.store.active_session_id != sid:
             self.last = None
             raise ToolError("Session changed during approval")
         self.last = None
-        current = self.backend.observe(cancel)
+        revalidate = getattr(self.backend, "revalidate", self.backend.observe)
+        current = revalidate(cancel)
         if frame_version(current) != frame_version(observed.frame):
             raise ToolError("Window or observed contents changed during approval; observe again")
         self.backend.perform(plan, current, cancel)

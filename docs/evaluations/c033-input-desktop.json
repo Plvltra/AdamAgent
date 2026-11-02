@@ -1,0 +1,6 @@
+{
+  "checked_at": "2026-11-02T12:14:34.545565+00:00",
+  "api": "GetThreadDesktop + GetUserObjectInformationW(UOI_IO)",
+  "side_effects": "read only; no screenshot, desktop switch, unlock or input",
+  "input_available": true
+}

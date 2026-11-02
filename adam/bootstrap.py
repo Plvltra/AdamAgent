@@ -311,6 +311,7 @@ def build_application(
                 SessionMedia(store, MediaStore(media_dir)),
                 confirm_desktop,
             )
+            resources.callback(desktop.close)
         registry, images = register_vision(
             registry,
             config.vision,
@@ -580,6 +581,8 @@ def build_application(
                 cleanup.callback(interrupt_processes)
                 if browser:
                     cleanup.callback(browser.close)
+                if desktop:
+                    cleanup.callback(desktop.close)
 
         return AgentApplication(
             conversation,
