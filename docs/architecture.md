@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B27.2.2 终端运行输入、独立留痕与共享取消。
+本次核对范围：B27.3 输入重启恢复与实际故障验收。
 
-核对结论：LiveInput唯一读线程经AgentApplication投递到RunningInputs，接受/上下文状态写独立_inputs文件；Conversation仅在安全点消费。主HTTP、工具调度及命令等待共享取消令牌，默认交互不变。
+核对结论：bootstrap在主会话锁取得后协调附属恢复，recover_inputs依据已提交轮次更新独立输入状态，不重建队列或重发；原原子写入函数提取复用，准确的保存约束保留。47项局部回归通过。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -1967,7 +1967,7 @@ flowchart LR
     EQ --> ER[contracts.EventReceipt / 入队与重复回执]
 ```
 
-多个生产线程可投递，单个协调消费者peek后保存处理结果再ack；队列不做模型请求或持久写入。B27.2.1已连接Conversation，补充随成功轮次整体保存；B27.2.2通过可选--live-input接入CLI与独立输入记录，重启恢复在B27.3完成。[队列契约](running-events.md)描述容量、去重和关闭语义。
+多个生产线程可投递，单个协调消费者peek后保存处理结果再ack；队列不做模型请求或持久写入。B27.2.1已连接Conversation，补充随成功轮次整体保存；B27.2.2通过可选--live-input接入CLI与独立输入记录，B27.3已接入按主会话提交事实恢复。[队列契约](running-events.md)描述容量、去重和关闭语义。
 ## B27.2.2 运行输入接入
 
 ```mermaid
@@ -1983,4 +1983,14 @@ flowchart LR
     CT --> TS[ToolExecutor / CommandTools等待]
 ```
 
-输入线程不访问SessionStore；成功上下文仍由主线程整体提交。默认不启用输入泵，启用时最终正文暂存以避免补充后的旧回答先被展示。恢复遗留输入的验收仍待B27.3。
+输入线程不访问SessionStore；成功上下文仍由主线程整体提交。默认不启用输入泵，启用时最终正文暂存以避免补充后的旧回答先被展示。B27.3已验收遗留输入恢复，恢复读取已提交轮次事实，不以in_context推断成功。
+```mermaid
+flowchart LR
+    R[AgentApplication.resume / 主会话锁已取得] --> B[bootstrap.recover_attached]
+    B --> H[SessionStore.load_turns / 已提交轮次]
+    B --> I[running_inputs.recover_inputs]
+    H -->|成功turn_id集合| I
+    I --> F[_inputs / completed或interrupted]
+```
+
+恢复器校验身份、顺序、容量和记录状态，原子替换更新；不创建输入队列，不调用模型。失败恢复保留主会话已选中的事实并明确报错。

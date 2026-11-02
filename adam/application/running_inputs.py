@@ -122,16 +122,87 @@ class RunningInputs:
     def _save(self) -> None:
         """临时文件fsync后替换；失败停止本轮，不把未保存输入当成已接受。"""
         assert self._path is not None
-        path = self._path
-        temporary = path.with_suffix(".tmp")
-        try:
-            if path.resolve() != path or temporary.resolve() != temporary:
-                raise ValueError("input storage link")
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with temporary.open("w", encoding="utf-8") as stream:
-                json.dump(self._record, stream, ensure_ascii=False)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, path)
-        except (OSError, ValueError) as error:
-            raise StorageError("补充输入记录保存失败，已停止，未自动重发。") from error
+        _write_record(self._path, self._record)
+
+
+def recover_inputs(root: Path, session_id: str, completed_turns: set[str]) -> int:
+    """宿主取得主会话锁后恢复遗留输入；成功事实来自已提交轮次，不按输入标记猜测。
+
+    只更新running记录，保留正文、来源、序号和in_context；未消费内容标为unprocessed。
+    不重建队列或请求模型，残留tmp不参与恢复。损坏记录明确报错，原文件保留。
+    """
+    if not valid_session_id(session_id):
+        raise StorageError("输入恢复会话身份无效。")
+    directory = root.absolute() / session_id
+    try:
+        if directory.resolve() != directory:
+            raise ValueError("input storage link")
+        if not directory.exists():
+            return 0
+        changed = 0
+        for count, path in enumerate(directory.glob("*.json"), 1):
+            if count > 4096 or path.resolve() != path or path.stat().st_size > 4_000_000:
+                raise ValueError("input recovery limit or link")
+            record = json.loads(path.read_text(encoding="utf-8"))
+            _validate_record(record, session_id, path.stem)
+            if record["status"] != "running":
+                continue
+            record["status"] = "completed" if path.stem in completed_turns else "interrupted"
+            record["recovery_reason"] = "依据已提交轮次恢复；未处理输入未自动重发。"
+            for event in record["events"]:
+                if event["state"] == "accepted":
+                    event["state"] = "unprocessed"
+            _write_record(path, record)
+            changed += 1
+        return changed
+    except (OSError, ValueError, TypeError) as error:
+        raise StorageError("补充输入记录损坏或不可访问，未自动重发。") from error
+
+
+def _validate_record(record: object, session_id: str, turn_id: str) -> None:
+    """恢复只接受本会话的有界顺序记录，不把损坏文件当成可重发任务。"""
+    if (
+        not re.fullmatch(r"[a-zA-Z0-9_-]{1,128}", turn_id)
+        or not isinstance(record, dict)
+        or record.get("session_id") != session_id
+        or record.get("turn_id") != turn_id
+        or record.get("status") not in {"running", "completed", "interrupted"}
+        or not isinstance(record.get("events"), list)
+        or len(record["events"]) > 64
+    ):
+        raise ValueError("invalid input record")
+    seen = set()
+    for sequence, event in enumerate(record["events"], 1):
+        if (
+            not isinstance(event, dict)
+            or type(event.get("sequence")) is not int
+            or event["sequence"] != sequence
+            or event.get("task_id") != turn_id
+            or event.get("kind") != "user_input"
+            or event.get("source") != "terminal"
+            or event.get("state") not in {"accepted", "in_context", "unprocessed"}
+            or not isinstance(event.get("text"), str)
+            or not 1 <= len(event["text"]) <= 8192
+            or not isinstance(event.get("event_id"), str)
+            or not 1 <= len(event["event_id"]) <= 128
+        ):
+            raise ValueError("invalid input event")
+        if event["event_id"] in seen:
+            raise ValueError("duplicate input event")
+        seen.add(event["event_id"])
+
+
+def _write_record(path: Path, record: dict[str, Any]) -> None:
+    """临时文件fsync后替换；写入失败保留原文件，临时文件不会被恢复器读取。"""
+    temporary = path.with_suffix(".tmp")
+    try:
+        if path.resolve() != path or temporary.resolve() != temporary:
+            raise ValueError("input storage link")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with temporary.open("w", encoding="utf-8") as stream:
+            json.dump(record, stream, ensure_ascii=False)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    except (OSError, ValueError) as error:
+        raise StorageError("补充输入记录保存失败，已停止，未自动重发。") from error

@@ -19,7 +19,7 @@ from adam.application.proposal_review import ProposalReview
 from adam.application.proposals import ProposalSubmission
 from adam.application.reflection import ReflectionService
 from adam.application.review import ReviewService
-from adam.application.running_inputs import RunningInputs
+from adam.application.running_inputs import RunningInputs, recover_inputs
 from adam.application.runtime_state import RuntimeStateReader
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
@@ -403,6 +403,17 @@ def build_application(
                 pending=manager.pending_agents if manager else None,
             ),
         )
+
+        def recover_attached(session_id: str) -> None:
+            """主会话锁已取得后恢复附属记录；即使关闭live-input也不遗漏旧输入。"""
+            background_service.recover(session_id)
+            if (store.root / "_inputs" / session_id).exists():
+                recover_inputs(
+                    store.root / "_inputs",
+                    session_id,
+                    {turn.turn_id for turn in store.load_turns(session_id)},
+                )
+
         if observe_conversation:
             observe_conversation(conversation)
         return AgentApplication(
@@ -413,7 +424,7 @@ def build_application(
             close_resources=resources.pop_all().close,
             running_inputs=inputs,
             on_interrupt=lambda: background_service.cancel_owner(store.active_session_id),
-            on_session_selected=background_service.recover,
+            on_session_selected=recover_attached,
             skills=skills,
             modes=modes,
             undo=UndoService(
