@@ -1,6 +1,6 @@
 # 业务功能测试任务
 
-更新日期：2026-11-01
+更新日期：2026-11-02
 
 这里按用户可见的能力组织自动化验收。功能模块改名后，仍能按“会话恢复”“命令执行”等业务名称找到对应测试。每个文件包含可独立运行的 pytest 场景；参数化场景展开为多个用例。
 
@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B20.2.1 诊断选择与版本观察 | 7项真实编辑/版本/权限/容量/故障与16项契约；相关100项通过，模型接入待下一步 | [业务场景](test_diagnostic_selection.py)、[契约](../test_diagnostic_context.py) |
 | B20.1 编辑诊断协议 | 6项实际编辑/检查、版本变化、超限、来源伪造及重启，22项协议边界；相关126项 | [业务场景](test_edit_diagnostics.py)、[契约边界](../test_diagnostics.py) |
 | B19.3.2 实际执行中断与恢复 | 真实取消/强杀各确认4个 Linux 身份回收，命令未知与用量已知分别保留，重启幂等；相关89项回归 | [真实验收入口](../../scripts/isolated_command_fault_acceptance.py)、[实际报告](../../docs/evaluations/b19-command-faults.json) |
 | B19.3.1 真实隔离边界与输出编码 | 5项新增协议/完整性/重放，相关171项；18项真实边界、执行限额继承及4项真实编码另存证据 | [完整性](test_isolated_output_integrity.py)、[真实入口](../../scripts/isolated_boundary_acceptance.py) |

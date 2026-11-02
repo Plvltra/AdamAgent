@@ -2,13 +2,26 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B20.1 诊断契约、Hook响应v2、编辑来源匹配、日志校验与新语法检查示例。
+本次核对范围：B20.2.1 诊断选择契约、当前轮次最新报告、路径权限和版本观察。
 
-核对结论：contracts.diagnostics 提供不可变有界报告及匹配契约，HookRunner 和 HookLog 使用同一契约；后置检查继续观察已保存工具事实。新增标准库语法检查示例，不改旧脚本、工具输出或模型输入。原严格协议注释随解析实现迁入 parse_response，旧 parse_reply 保留兼容，结果/日志说明补充新语义。
+核对结论：application.diagnostics 通过窄 VersionCheck 查询当前状态，contracts.diagnostic_context 保留有界选择和来源，tool_calls.diagnostic_files 复用原读取权限。新增独立API，尚未接入 Conversation/模型请求。原检查事实、工具输出和日志保持；新增说明已经对照失败和容量行为审查。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B20.2.1 诊断选择与版本观察
+
+~~~mermaid
+flowchart LR
+    DG_READER["application.diagnostics / DiagnosticContextReader"] --> DG_STORE["SessionStore.load_hooks / 本会话事实"]
+    DG_READER --> DG_SELECTION["contracts.diagnostic_context / 有界选择及来源"]
+    DG_READER --> DG_CHECK["注入 VersionCheck"]
+    DG_CHECK --> DG_FILES["tool_calls.diagnostic_files / DiagnosticFiles"]
+    DG_FILES --> DG_POLICY["原 PathPolicy 与 read_snapshot"]
+~~~
+
+查询不运行检查器、不改日志、不请求模型；尚未接入 Conversation。消息只显示当前版本问题，完整证据保留原报告。见 [诊断范围与验证](edit-diagnostics.md)。
 
 ## B20.1 修改后诊断
 
