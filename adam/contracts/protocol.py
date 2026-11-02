@@ -41,7 +41,7 @@ def validate_turn(messages: list[dict[str, Any]], *, allow_partial: bool = False
     """校验完整轮次，无效时抛出 ValueError；不修改输入。
 
     要求以用户消息开始、以最终回答结束，工具结果按调用顺序完整配对，
-    同一轮次内的工具调用 ID 不重复。allow_partial 仅供中断恢复校验尚未提交的前缀，
+    同一轮次内的工具调用 ID 不重复；工具结果完整配对后可追加用户补充。allow_partial 仅供中断恢复校验尚未提交的前缀，
     允许缺少末尾回答或工具结果，但不放松已有消息的顺序和结构要求。
     """
     if (
@@ -63,6 +63,9 @@ def validate_turn(messages: list[dict[str, Any]], *, allow_partial: bool = False
                 or not isinstance(message.get("content"), str)
             ):
                 raise ValueError("unmatched tool result")
+        elif message.get("role") == "user":
+            if not isinstance(message.get("content"), str) or not message["content"].strip():
+                raise ValueError("empty supplemental input")
         else:
             validate_assistant(message)
             calls = message.get("tool_calls") or []

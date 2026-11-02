@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B27.2.1 输入安全点 | 请求/工具批次边界消费、成功历史、最终封口和配对约束 | [安全点验收](test_running_input_boundary.py) |
 | B27.1 运行事件队列 | 有界FIFO、去重/冲突、关闭保留、并发投递 | [队列契约](test_running_events.py) |
 | B26.3 真实后台故障 | 双进程输出隔离、独立取消、强杀宿主后恢复未知且不重跑 | [实际验收](test_background_acceptance.py) |
 | B26.2.2 生产后台工具 | 模型启动/等待真实进程、Ctrl+C、任务锁/恢复、意图保存失败无执行 | [持久任务](test_background_persistence.py) |

@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B27.1 运行事件数据契约及内存队列。
+本次核对范围：B27.2.1 应用输入安全点与轮次协议。
 
-核对结论：新增contracts.events与application.event_queue，队列只管理有界事件、去重与确认，不依赖工具、模型或存储；CLI/Conversation尚未接入。原模块调用关系保持。
+核对结论：Conversation新增宿主input_provider，绑定本轮EventQueue；在请求前/完整工具批次后消费，最终回答前原子封口。protocol允许安全点user补充，仍拒绝破坏工具配对和最终回答后的消息。CLI尚未接入。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -1962,8 +1962,9 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    EQ[application.EventQueue / 单次运行] --> EV[contracts.InputEvent / 类型来源序号]
+    C[Conversation / 请求与完整工具批次边界] -->|宿主input_provider| EQ[application.EventQueue / 单次运行]
+    EQ --> EV[contracts.InputEvent / 类型来源序号]
     EQ --> ER[contracts.EventReceipt / 入队与重复回执]
 ```
 
-多个生产线程可投递，单个协调消费者peek后保存处理结果再ack；队列不做模型请求或持久写入。当前未连接CLI、Conversation和JSONL，接入在B27.2/3完成。[队列契约](running-events.md)描述容量、去重和关闭语义。
+多个生产线程可投递，单个协调消费者peek后保存处理结果再ack；队列不做模型请求或持久写入。B27.2.1已连接Conversation，补充随成功轮次整体保存；CLI及独立接受/处理事件在B27.2.2/3接入。[队列契约](running-events.md)描述容量、去重和关闭语义。

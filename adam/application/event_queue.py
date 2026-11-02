@@ -91,6 +91,14 @@ class EventQueue:
         with self._lock:
             self._closed = True
 
+    def close_if_empty(self) -> bool:
+        """原子封口用于最终回答边界；有未处理输入时返回False并继续接收。"""
+        with self._lock:
+            if self._pending:
+                return False
+            self._closed = True
+            return True
+
     @staticmethod
     def _identity(value: str) -> None:
         if (

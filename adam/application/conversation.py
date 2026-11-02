@@ -6,6 +6,7 @@ from functools import partial
 from time import monotonic_ns
 from typing import Any
 
+from adam.application.event_queue import EventQueue
 from adam.application.reflection import ReflectionService
 from adam.application.request_policy import RequestPolicy
 from adam.application.request_runner import RequestRunner, save_failure
@@ -22,6 +23,7 @@ from adam.contracts.errors import (
     StorageError,
     TurnSaveError,
 )
+from adam.contracts.events import EventKind
 from adam.contracts.execution import ExecutionMode, ToolBudget
 from adam.contracts.history import (
     COMPACTION_VERSION,
@@ -82,12 +84,14 @@ class Conversation:
         state_reader: StateReader | None = None,
         compaction_version: str | None = COMPACTION_VERSION,
         diagnostic_reader: DiagnosticReader | None = None,
+        input_provider: Callable[[str], EventQueue | None] | None = None,
     ) -> None:
         """注入会话依赖；context_layout 仅供旧录制重放，默认使用当前排列。
 
         state_reader 由宿主提供窄状态查询；缺省保持不注入，旧排列也不新增状态。
         compaction_version=None 让旧录制保持当时的摘要输入与估算。
         diagnostic_reader 仅在真实请求构造时观察本轮检查；预览与历史不会自动读文件。
+        input_provider由宿主按turn_id提供运行队列；启用后暂存最终正文，避免先展示后补充。
         """
         validate_compaction_version(compaction_version)
         self.compaction_version = compaction_version
@@ -113,6 +117,7 @@ class Conversation:
         self.mode_provider = mode_provider
         self.state_reader = state_reader
         self.diagnostic_reader = diagnostic_reader
+        self.input_provider = input_provider
         self.planning = planning
         self.reflection, self.review = reflection, review
         self.requests = RequestRunner(
@@ -287,13 +292,14 @@ class Conversation:
         while progress.requests.used < self.limits.max_model_requests:
             if self.cancel:
                 self.cancel.check()
+            self._consume_input(turn_id, turn)
             context = self._prepare_context(session, turn_id, turn, progress)
             # 未收集子结果或计划未闭合时暂存正文，避免提前流式展示即将被要求收尾的回答。
             ready = (not self.delegation or self.delegation.accept_final()) and (
                 not self.planning or not self.planning.unfinished()
             )
             ready = ready and (not self.review or not self.review.pending())
-            output = on_output if ready else None
+            output = on_output if ready and self.input_provider is None else None
             provided_names = tuple(tool["function"]["name"] for tool in context.tools)
             request_id, result = progress.requests.run(
                 partial(self.requests.run, session.session_id, turn_id, context, output)
@@ -314,6 +320,8 @@ class Conversation:
                     progress.requests.used < self.limits.max_model_requests
                 )
             ):
+                continue
+            if not calls and not self._seal_input(turn_id, turn):
                 continue
             turn.append(result.message)
             if not calls:
@@ -340,6 +348,36 @@ class Conversation:
                     progress.reflections += (advice,)
 
         raise BudgetError("达到本轮请求上限。", code=FailureCode.REQUEST_LIMIT)
+
+    def _input_queue(self, turn_id: str) -> EventQueue | None:
+        """只接受宿主为当前轮次提供的队列，防止旧运行输入进入新任务。"""
+        queue = self.input_provider(turn_id) if self.input_provider else None
+        if queue is not None and queue.task_id != turn_id:
+            raise ValueError("input queue belongs to another turn")
+        return queue
+
+    def _consume_input(self, turn_id: str, turn: list[dict[str, Any]]) -> None:
+        """只在请求前或完整工具批次后加入用户补充；ack表示进入本轮内存上下文。
+
+        成功轮次整体保存；接受/失败输入的独立事件留痕由后续宿主入口接入。
+        子任务进展和timer不能经此入口提升为用户指令。
+        """
+        queue = self._input_queue(turn_id)
+        if queue is None:
+            return
+        for event in queue.peek(queue.capacity):
+            if event.kind is not EventKind.USER_INPUT:
+                raise ValueError("this input boundary accepts only user input")
+            turn.append({"role": "user", "content": event.text})
+            queue.ack(event.sequence)
+
+    def _seal_input(self, turn_id: str, turn: list[dict[str, Any]]) -> bool:
+        """原子封口避免最终回答检查后的输入丢失；已有补充时再请求一次模型。"""
+        queue = self._input_queue(turn_id)
+        if queue is None or queue.close_if_empty():
+            return True
+        self._consume_input(turn_id, turn)
+        return False
 
     def _check_execution_state(self, session_id: str) -> None:
         """副作用或撤销未确认时禁止继续调用模型；只读诊断仍可使用。"""
