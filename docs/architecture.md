@@ -3,7 +3,7 @@
 最近核对：2026-11-03
 
 主线同步基线：C07.3已完成；私有C分支同步固定main 771d9ed（B31.2），保留主线父子消息、提醒、终端和输入恢复，保留C媒体/浏览器/桌面/生成来源及取消边界。
-本次核对范围：C05.1独立按键录音/离线转写/确认草稿；不新增Conversation轮次，真实麦克风成功采集尚待设备恢复。
+本次核对范围：C05.2确认草稿通过VoiceConversation接入原send及输入来源；保持原权限/批准，固定capture_id不补发。真实麦克风成功采集尚待设备恢复。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2819,4 +2819,21 @@ flowchart LR
     VS_DRAFT --> VS_CLI
 ~~~
 
-audio仅依赖自身与contracts，脚本负责注入原C00额度；默认聊天不加载设备或ASR。确认草稿尚未接入Conversation，来源仍为真实录音/合成样本的明确设备说明及SHA。11项局部验证通过，真实ASR合成样本成功；MME/WASAPI打开真实麦克风失败，保留待验收。详情见[语音交互](voice-interaction.md)。
+audio仅依赖自身与contracts，脚本负责注入原C00额度；默认聊天不加载设备或ASR。C05.1独立入口只保存草稿；C05.2显式宿主接入Conversation，来源保留真实录音/合成样本的明确设备说明及SHA。11项局部验证通过，真实ASR合成样本成功；MME/WASAPI打开真实麦克风失败，保留待验收。详情见[语音交互](voice-interaction.md)。
+
+## C05.2 确认语音对话
+
+~~~mermaid
+flowchart LR
+    VC_CLI["scripts.voice_chat / 原配置与批准"] --> VC_LOAD["audio.input.load_confirmed / 确认状态与WAV摘要"]
+    VC_LOAD --> VC_CONTRACT["contracts.speech.ConfirmedSpeech"]
+    VC_CLI --> VC_APP["application.voice.VoiceConversation / 排他提交身份"]
+    VC_CONTRACT --> VC_APP
+    VC_APP --> VC_SEND["原AgentApplication.send / Conversation"]
+    VC_SEND --> VC_CALLBACK["原on_turn_started后绑定真实轮次"]
+    VC_CALLBACK --> VC_MEDIA["原SessionMedia / input来源与录音"]
+    VC_APP --> VC_RECEIPT["_media/voice_submissions / 原子回执"]
+    VC_APP --> VC_HISTORY["原SessionStore.load_turns / 成功恢复"]
+~~~
+
+脚本显式组合原应用和独立草稿加载器；audio不反向依赖application。语音回执先排他创建，再调用原send，模型只收到确认后的普通用户文字。输入来源绑定在原轮次回调之后、模型请求之前；重复身份只读原结果，未知也不重新派发。原成功历史可恢复丢失的收尾回执；跨会话查询拒绝。原模式、命令/编辑批准与模型计量保持。6项相关业务测试和定向静态检查通过；图中类、回调与保存位置已按实现核对。详见[语音交互](voice-interaction.md#c052-确认文字接入原对话)。

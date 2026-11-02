@@ -12,6 +12,7 @@ from pathlib import Path
 from adam.audio.models import AudioBudget, Recording, Transcriber
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.consumption import ConsumptionSnapshot, Quantities
+from adam.contracts.speech import ConfirmedSpeech
 
 
 @dataclass(frozen=True)
@@ -174,3 +175,23 @@ class SpeechInput:
                 or len(audio.readframes(frames)) != frames * 2
             ):
                 raise ValueError("recording duration or frame bytes mismatch")
+
+
+def load_confirmed(root: Path, capture_id: str) -> ConfirmedSpeech:
+    """只读用户已确认的固定草稿及原WAV；未确认、改字节或损坏记录不创建聊天轮次。"""
+    import re
+
+    if re.fullmatch(r"[0-9a-f]{32}", capture_id) is None:
+        raise ValueError("invalid speech capture identity")
+    path = root / (capture_id + ".json")
+    audio_path = path.with_suffix(".wav")
+    if path.stat().st_size > 65536 or audio_path.stat().st_size > 16777216:
+        raise ValueError("speech draft exceeds limit")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if value["capture_id"] != capture_id or value["state"] != "confirmed":
+        raise ValueError("speech draft is not confirmed")
+    raw = audio_path.read_bytes()
+    SpeechInput._validate(Recording(raw, value["duration_ms"], value["device"]))
+    return ConfirmedSpeech(
+        capture_id, value["confirmed_text"], raw, value["audio_version"], value["device"]
+    )
