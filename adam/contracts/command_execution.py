@@ -18,7 +18,10 @@ class CommandInputPreview:
 
 @dataclass(frozen=True)
 class CommandIsolationResult:
-    """真实退出事实；非零、停止原因及截断分别保留，不推断业务成功。"""
+    """真实退出事实；非零、停止原因及解码损失分别保留，不推断业务成功。
+
+    invalid_utf8 表示捕获片段曾需要替换解码，也可能来自输出硬截断的字符切口。
+    """
 
     exit_code: int
     reason: str
@@ -27,6 +30,7 @@ class CommandIsolationResult:
     captured_bytes: int
     duration_ms: int
     policy: str = "bubblewrap-native-single-process-v1"
+    invalid_utf8: bool = False
 
 
 class CommandRunner(Protocol):

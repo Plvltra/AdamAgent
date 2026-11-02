@@ -64,3 +64,8 @@ def validate_finish(previous: dict[str, Any], payload: dict[str, Any]) -> None:
             or payload.get("policy") != "bubblewrap-native-single-process-v1"
         ):
             raise ValueError("inconsistent isolated command outcome")
+        if "invalid_utf8" in payload and (
+            type(payload["invalid_utf8"]) is not bool
+            or (payload["invalid_utf8"] and payload.get("truncated") is not True)
+        ):
+            raise ValueError("isolated output decoding loss must remain incomplete")

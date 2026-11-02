@@ -1,0 +1,127 @@
+{
+  "checked_at": "2026-11-01T15:27:47.028188+00:00",
+  "distribution": "Ubuntu",
+  "real_backend": true,
+  "paid_model_requests": 0,
+  "cases": [
+    {
+      "name": "real_boundaries",
+      "checks": {
+        "fd_limit": {
+          "errno": 24,
+          "opened": 29,
+          "passed": true
+        },
+        "fork": {
+          "errno": 1,
+          "passed": true
+        },
+        "host_file": {
+          "errno": 2,
+          "passed": true
+        },
+        "ipv4_socket": {
+          "errno": 1,
+          "passed": true
+        },
+        "ipv6_socket": {
+          "errno": 1,
+          "passed": true
+        },
+        "make_symlink": {
+          "errno": 30,
+          "passed": true
+        },
+        "other_elf_exec": {
+          "errno": 13,
+          "passed": true
+        },
+        "other_elf_fd_exec": {
+          "errno": 13,
+          "passed": true
+        },
+        "parent_path": {
+          "errno": 2,
+          "passed": true
+        },
+        "parent_proc_root": {
+          "errno": 13,
+          "passed": true
+        },
+        "pe_exec": {
+          "errno": 13,
+          "passed": true
+        },
+        "pe_header": {
+          "passed": true
+        },
+        "pe_input_mode": {
+          "mode": "0o644",
+          "passed": true
+        },
+        "privileges_and_seccomp": {
+          "passed": true
+        },
+        "raise_cpu_hard_limit": {
+          "passed": true
+        },
+        "unix_socket": {
+          "errno": 1,
+          "passed": true
+        },
+        "unselected_file": {
+          "errno": 2,
+          "passed": true
+        },
+        "write_input": {
+          "errno": 30,
+          "passed": true
+        }
+      },
+      "host_sources_unchanged": true
+    },
+    {
+      "name": "selected_program_reexec_keeps_limits",
+      "actual_limits": {
+        "cpu": [
+          2,
+          2
+        ],
+        "memory": [
+          268435456,
+          268435456
+        ],
+        "files": [
+          32,
+          32
+        ]
+      }
+    },
+    {
+      "name": "utf8",
+      "invalid_utf8": false,
+      "captured_bytes": 8
+    },
+    {
+      "name": "literal_replacement",
+      "invalid_utf8": false,
+      "captured_bytes": 3
+    },
+    {
+      "name": "invalid_bytes",
+      "invalid_utf8": true,
+      "captured_bytes": 13
+    },
+    {
+      "name": "partial_character",
+      "invalid_utf8": true,
+      "captured_bytes": 2
+    }
+  ],
+  "limits": [
+    "PE 输入为真实 cmd.exe 副本，但快照不可写且文件无执行位；该例仅证明组合策略拒绝，不单独证明 Landlock。",
+    "其他 ELF 的路径及 FD 执行使用原本可执行的运行时文件，单独核对 EACCES。",
+    "同一选定 ELF 允许替换当前进程，不能新增进程，继承的硬限额仍有效。",
+    "实际执行中取消、强杀与进程身份回收由 B19.3.2 单独验收。"
+  ]
+}

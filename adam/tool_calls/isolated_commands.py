@@ -157,7 +157,8 @@ class IsolatedCommandTool:
             "stderr": actual.stderr,
             "reason": actual.reason,
             "policy": actual.policy,
-            "truncated": actual.reason != "exited",
+            "truncated": actual.reason != "exited" or actual.invalid_utf8,
+            "invalid_utf8": actual.invalid_utf8,
             "elapsed_seconds": actual.duration_ms / 1000,
             "captured_bytes": actual.captured_bytes,
         }

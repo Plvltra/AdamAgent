@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B19.3.1 真实隔离边界与输出编码 | 5项新增协议/完整性/重放，相关171项；18项真实边界、执行限额继承及4项真实编码另存证据 | [完整性](test_isolated_output_integrity.py)、[真实入口](../../scripts/isolated_boundary_acceptance.py) |
 | B19.2.3 隔离命令接入 | 33项发现/批准/版本/权限/模式/Hook/预算/日志/计划/反思/重放，包含512字符失败停止；四项真实 WSL 聊天证据另存 | [业务场景](test_isolated_command_flow.py)、[真实入口](../../scripts/isolated_chat_acceptance.py) |
 | B19.2.2 授权输入快照 | 25项授权/变更/限额/路径/协议，相关117项通过；实际只读挂载和2MiB原字节摘要已验收 | [业务场景](test_command_input_snapshots.py)、[真实入口](../../scripts/isolated_input_acceptance.py) |
 | B19.2.1 原生命令隔离 | 21项参数/真实管道/故障/取消/无降级，相关75项通过；11项真实 WSL 命令证据另存，模型工具尚未接入 | [业务场景](test_isolated_commands.py)、[真实入口](../../scripts/isolated_command_acceptance.py) |

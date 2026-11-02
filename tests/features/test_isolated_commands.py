@@ -25,6 +25,9 @@ from adam.isolation.commands import IsolatedCommands
         "too_large",
         "extra",
         "launcher_exit",
+        "invalid_utf8",
+        "bad_utf8_flag",
+        "missing_utf8_flag",
     ],
 )
 def test_real_host_pipe_preserves_exit_and_cleans_up_without_fallback(monkeypatch, phase):
@@ -57,12 +60,13 @@ def test_real_host_pipe_preserves_exit_and_cleans_up_without_fallback(monkeypatc
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", launch)
     try:
-        if phase in {"success", "nonzero"}:
+        if phase in {"success", "nonzero", "invalid_utf8"}:
             result = runner.run(["/bin/echo", "hello"], cancel=token)
             assert result.exit_code == (7 if phase == "nonzero" else 0)
             assert result.stdout == '{"policy":"fake","exit_code":0}'
             assert result.policy == "bubblewrap-native-single-process-v1"
             assert result.reason == "exited"
+            assert result.invalid_utf8 is (phase == "invalid_utf8")
         else:
             with pytest.raises(RequestInterrupted if phase == "cancel" else IsolationError):
                 runner.run(["/bin/echo", "hello"], cancel=token)

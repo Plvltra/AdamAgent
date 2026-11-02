@@ -102,15 +102,26 @@ def _execute(
                 process.wait(timeout=1)
             process.stdout.close()
             process.stderr.close()
+        stdout, out_loss = _decode(buffers["stdout"])
+        stderr, err_loss = _decode(buffers["stderr"])
         return {
             "policy": POLICY,
             "exit_code": process.returncode,
             "reason": reason,
-            "stdout": bytes(buffers["stdout"]).decode("utf-8", errors="replace"),
-            "stderr": bytes(buffers["stderr"]).decode("utf-8", errors="replace"),
+            "stdout": stdout,
+            "stderr": stderr,
+            "invalid_utf8": out_loss or err_loss,
             "captured_bytes": size,
             "duration_ms": round((time.monotonic() - started) * 1000),
         }
+
+
+def _decode(data: bytearray) -> tuple[str, bool]:
+    """替换不可解码片段时明确标记损失；合法的 U+FFFD 字符本身不算解码失败。"""
+    try:
+        return data.decode("utf-8"), False
+    except UnicodeError:
+        return data.decode("utf-8", errors="replace"), True
 
 
 def main() -> int:

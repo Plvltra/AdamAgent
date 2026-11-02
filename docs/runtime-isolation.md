@@ -121,3 +121,20 @@ python -m scripts.isolated_chat_acceptance --distribution Ubuntu --output isolat
 ```
 
 [真实入口](../scripts/isolated_chat_acceptance.py) 使用生产组装和真实 WSL，模拟模型 HTTP；[结果](evaluations/b19-command-chat.json) 记录授权 CRLF/中文原字节读取、真实非零退出、只读目录拒写、用户拒绝，以及日志重启和删除源文件后的离线重放。首次路径断言未考虑 Windows 临时目录规范化，已改为比较解析后的路径；受限执行环境的 WSL E_ACCESSDENIED 也没有绕过，获原授权运行后通过。付费请求为0。实际执行中取消、强杀与 Linux PID 身份清理继续留在 B19.3。
+
+
+## B19.3.1 真实边界与输出编码
+
+[实际 WSL 验收](../scripts/isolated_boundary_acceptance.py) 和 [结果](evaluations/b19-command-boundaries.json) 覆盖18项检查：宿主文件、父进程根路径及未选择文件不可见，只读输入不能改写，IPv4/IPv6/Unix socket 与 fork 被拒绝，其他 ELF 经路径或文件描述符执行被拒绝，FD 上限和 CPU 硬限额不能提高，NoNewPrivs 与 seccomp 生效。选定的 Python 可以替换当前进程，CPU 2秒、内存256MiB和FD32硬限额仍继承。
+
+真实 cmd.exe 副本不能执行；该文件也没有执行权限，因此只证明组合策略拒绝，不能单独据此归因于 Landlock。其他 ELF 检查使用原本可执行的运行时文件，核对实际 EACCES。验收不连接外部网络、不改宿主文件、不调用付费模型。
+
+实际读取非法 UTF-8 时，旧实现会替换字节却未标记损失。现在 Linux 端严格解码后再决定是否替换，结果带 invalid_utf8；该标记令工具结果 truncated、附件 complete=false，并随命令事实与离线重放保留。合法 U+FFFD 字符不会误报。输出上限切在字符中间也属于捕获片段解码有损，不代表原程序必然输出非法文本。旧日志允许缺少新字段，新后端协议必须提供布尔值。
+
+四个真实字节案例覆盖中文CRLF、合法替换字符、非法字节和半个多字节字符；[2项业务场景](../tests/features/test_isolated_output_integrity.py) 验证附件、日志篡改拒绝和零后端重放，另补3项管道协议边界。相关171项通过（37.01秒），Ruff、552个文件格式、Pyright和注释单独核对。主线按 AGENTS.md 三级验证规则执行。
+
+```powershell
+python -m scripts.isolated_boundary_acceptance --distribution Ubuntu --output isolated-boundaries.json
+```
+
+实际执行中取消和强杀后的进程身份回收留在 B19.3.2，本小项不把整章标为完成。

@@ -171,12 +171,22 @@ def _result(value: object) -> CommandIsolationResult:
     if (
         not isinstance(value, dict)
         or set(value)
-        != {"policy", "exit_code", "reason", "stdout", "stderr", "captured_bytes", "duration_ms"}
+        != {
+            "policy",
+            "exit_code",
+            "reason",
+            "stdout",
+            "stderr",
+            "captured_bytes",
+            "duration_ms",
+            "invalid_utf8",
+        }
         or value["policy"] != POLICY
         or type(value["exit_code"]) is not int
         or value["reason"] not in ("exited", "wall_limit", "output_limit")
         or not isinstance(value["stdout"], str)
         or not isinstance(value["stderr"], str)
+        or type(value["invalid_utf8"]) is not bool
         or len(value["stdout"]) + len(value["stderr"]) > 65536
         or type(value["captured_bytes"]) is not int
         or not 0 <= value["captured_bytes"] <= 65536
@@ -192,4 +202,5 @@ def _result(value: object) -> CommandIsolationResult:
         value["stderr"],
         value["captured_bytes"],
         value["duration_ms"],
+        invalid_utf8=value["invalid_utf8"],
     )

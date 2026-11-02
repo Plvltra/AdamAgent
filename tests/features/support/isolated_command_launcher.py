@@ -26,7 +26,12 @@ def main():
         "stderr": "actual-error" if phase == "nonzero" else "",
         "captured_bytes": 60,
         "duration_ms": 12,
+        "invalid_utf8": phase == "invalid_utf8",
     }
+    if phase == "bad_utf8_flag":
+        result["invalid_utf8"] = 1
+    if phase == "missing_utf8_flag":
+        del result["invalid_utf8"]
     if phase == "wrong_policy":
         result["policy"] = "host"
     if phase == "bad_status":

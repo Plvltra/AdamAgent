@@ -57,3 +57,6 @@ ToolArtifacts 在预览之前将取得的原结果交给原 ArtifactStore：单�
 ## B19.2.3 隔离命令的差别
 
 新隔离命令共用最终预览与附件，但 Linux 后端输出达到64KiB就停止，保留的是实际取得片段，不能称为进程最终尾部。模型预览和重复失败反馈保留 environment、reason 与 exit_code；极小额度的反馈可只返回状态、完整失败指纹、附件读取凭据/完整性和 preview_omitted_chars，正文全部省略。此时可省略附件的 saved_chars/format 展示字段及重复 policy，完整值仍在附件或命令事实日志。33项 [接入验收](../tests/features/test_isolated_command_flow.py) 包含512字符的非零退出、超时、输出停止和连续失败最终停止；原宿主命令捕获与预览场景继续回归。
+
+
+B19.3.1：隔离后端明确输出 invalid_utf8；解码替换造成字节损失时标记 truncated，附件 complete=false。合法的替换字符本身不算损失。真实字节验收与日志/重放验证见 [隔离边界](runtime-isolation.md)。
