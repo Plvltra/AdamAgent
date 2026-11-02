@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 
 from adam.contracts.checkpoints import EditCheckpoint
-from adam.contracts.errors import StorageError, ToolError
+from adam.contracts.errors import StorageError
+from adam.contracts.models import DeletePlan
 from adam.session.checkpoints import CheckpointStore
 from adam.session.edit_log import EditLog
 from adam.session.storage import SessionStore
@@ -121,8 +122,9 @@ def test_existing_empty_file_checkpoint_keeps_v1_and_cannot_replace_absence(tmp_
 def test_creation_cannot_accidentally_use_restore_existing_file(tmp_path):
     item = creation(tmp_path)
     item.path.write_bytes(b"")
-    with pytest.raises(ToolError, match="原目标不存在"):
-        plan_restore(read_snapshot(item.path, 10), item)
+    plan = plan_restore(read_snapshot(item.path, 10), item)
+    assert isinstance(plan, DeletePlan) and plan.candidate is None
+    assert "delete empty file" in plan.diff
     assert item.path.read_bytes() == b""
 
 

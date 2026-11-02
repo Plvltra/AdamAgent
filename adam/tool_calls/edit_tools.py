@@ -12,7 +12,7 @@ from typing import Any
 from adam.config.settings import ToolLimits
 from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import ToolError
-from adam.contracts.models import CreatePlan, EditPlan, FileChangePlan
+from adam.contracts.models import CreatePlan, DeletePlan, EditPlan, FileChangePlan
 from adam.tool_calls.edit_plan import EditConflictError, plan_create, plan_edit, plan_restore
 from adam.tool_calls.file_evidence import FileResult, FileStateError
 from adam.tool_calls.policy import PathPolicy
@@ -65,8 +65,8 @@ class EditTools:
         self._check_create_target(plan)
         return True
 
-    def prepare_restore(self, checkpoint: EditCheckpoint) -> EditPlan:
-        """按当前写入权限读取修改后版本，生成恢复原字节的计划；不执行写入。"""
+    def prepare_restore(self, checkpoint: EditCheckpoint) -> EditPlan | DeletePlan:
+        """按当前写权限核对修改后版本，规划恢复原字节或删除已创建文件；无写入副作用。"""
         try:
             path = self.policy.resolve_write(str(checkpoint.path))
             return plan_restore(read_snapshot(path, self.limits.max_text_file_bytes), checkpoint)
@@ -207,13 +207,28 @@ class EditTools:
                     # 清理失败不掩盖原结果；遗留临时名字不代表另一份创建或自动恢复动作。
                     pass
 
+    def apply_restore(self, plan: EditPlan | DeletePlan) -> None:
+        """执行已批准撤销；原替换复用apply，创建撤销只删除仍匹配版本的普通文件。
+
+        调用方负责从成功检查点规划、批准及保存undo_started。删除前复核当前权限与内容，
+        复核和unlink不是跨进程比较删除事务；不提供绕过检查点的模型删除工具。
+        """
+        if isinstance(plan, EditPlan):
+            self.apply(plan)
+            return
+        try:
+            self._check_current(plan)
+            plan.path.unlink()
+        except OSError as error:
+            raise ToolError("撤销创建时删除失败；未自动重试，请检查路径和权限。") from error
+
     def _check_create_target(self, plan: CreatePlan) -> None:
         """每次按当前策略检查缺失目标；返回后仍可能出现同名目录项，不充当写锁。"""
         if self.policy.resolve_create(str(plan.path)) != plan.path:
             raise EditConflictError("创建目标路径已经变化，请重新生成并确认计划。")
 
-    def _check_current(self, plan: EditPlan) -> None:
-        """批准后的目标仍须是同一路径、同一版本，不能覆盖外部编辑。"""
+    def _check_current(self, plan: EditPlan | DeletePlan) -> None:
+        """批准后的目标仍须同路径、同版本，防止替换或撤销删除已观察到的外部编辑。"""
         path = self.policy.resolve_write(str(plan.path))
         if path != plan.path:
             raise EditConflictError("批准后文件已变化，请重新读取并确认新的 diff。")

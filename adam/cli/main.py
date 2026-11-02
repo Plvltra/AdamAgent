@@ -23,7 +23,13 @@ from adam.cli.terminal import (
 )
 from adam.config.loader import adam_home
 from adam.contracts.errors import AgentError
-from adam.contracts.models import CommandRequest, CreatePlan, FileChangePlan, valid_session_id
+from adam.contracts.models import (
+    CommandRequest,
+    CreatePlan,
+    DeletePlan,
+    FileChangePlan,
+    valid_session_id,
+)
 
 
 def show_session(application: AgentApplication, write: Callable[[str], None]) -> None:
@@ -198,8 +204,13 @@ def confirm_command(
 def confirm_edit(
     plan: FileChangePlan, read: Callable[[str], str], write: Callable[[str], None]
 ) -> bool:
-    """展示创建或修改的完整diff；只批准当前计划，非y拒绝，Ctrl+C取消当前轮次。"""
-    action = "创建" if isinstance(plan, CreatePlan) else "修改"
+    """展示创建/修改/撤销删除的完整diff；只批准当前计划，非y拒绝，Ctrl+C取消当前轮次。"""
+    if isinstance(plan, CreatePlan):
+        action = "创建"
+    elif isinstance(plan, DeletePlan):
+        action = "删除"
+    else:
+        action = "修改"
     write(f"{action}文件> {plan.path}")
     write(plan.diff)
     try:

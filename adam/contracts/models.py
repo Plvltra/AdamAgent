@@ -107,8 +107,22 @@ class CreatePlan:
     original: None = field(default=None, init=False)
 
 
-# 两种计划共享批准展示；缺失和已有内容仍由各自契约区分。
-FileChangePlan = EditPlan | CreatePlan
+@dataclass(frozen=True)
+class DeletePlan:
+    """仅供撤销已确认创建的批准对象；期望内容固定，目标状态为不存在而非空字节。
+
+    宿主从已核对来源的创建检查点生成，不提供模型通用删除入口。
+    """
+
+    path: Path
+    before_version: str
+    diff: str
+    original: bytes
+    candidate: None = field(default=None, init=False)
+
+
+# 三种计划共享批准展示；缺失、已有内容与撤销删除仍由各自契约区分。
+FileChangePlan = EditPlan | CreatePlan | DeletePlan
 
 
 @dataclass(frozen=True)

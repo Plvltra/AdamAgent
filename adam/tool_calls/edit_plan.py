@@ -5,7 +5,7 @@ from pathlib import Path
 
 from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import ToolError
-from adam.contracts.models import CreatePlan
+from adam.contracts.models import CreatePlan, DeletePlan
 from adam.contracts.models import EditPlan as EditPlan
 from adam.tool_calls.file_evidence import FileStateError
 from adam.tool_calls.text_file import TextSnapshot
@@ -75,13 +75,18 @@ def plan_create(path: Path, content: str, max_bytes: int) -> CreatePlan:
     return CreatePlan(path, candidate, _diff(path, "", text, creating=True))
 
 
-def plan_restore(snapshot: TextSnapshot, checkpoint: EditCheckpoint) -> EditPlan:
-    """从当前版本和原始副本生成逆向计划；版本或路径不符时拒绝覆盖外部修改。"""
-    if checkpoint.original is None:
-        raise ToolError("该检查点的原目标不存在，不能按已有文件恢复；需要创建撤销流程。")
+def plan_restore(snapshot: TextSnapshot, checkpoint: EditCheckpoint) -> EditPlan | DeletePlan:
+    """从当前版本与检查点生成恢复字节或删除计划；路径/版本不符时拒绝更改外部修改。"""
     if snapshot.path != checkpoint.path or snapshot.version != checkpoint.target_version:
         raise EditConflictError(
             "文件与该次修改后的版本不一致，不能撤销；请先核对外部改动。", version=snapshot.version
+        )
+    if checkpoint.original is None:
+        return DeletePlan(
+            snapshot.path,
+            snapshot.version,
+            _diff(snapshot.path, _normalize(snapshot.text), "", deleting=True),
+            snapshot.raw,
         )
     try:
         original = checkpoint.original.decode("utf-8-sig")
@@ -96,18 +101,22 @@ def plan_restore(snapshot: TextSnapshot, checkpoint: EditCheckpoint) -> EditPlan
     )
 
 
-def _diff(path: Path, before: str, after: str, *, creating: bool = False) -> str:
+def _diff(
+    path: Path, before: str, after: str, *, creating: bool = False, deleting: bool = False
+) -> str:
     """为编辑、创建和撤销生成完整差异；展示不重新编码实际写入字节。
 
-    创建使用/dev/null作为原状态；空文件也有明确头信息，避免将缺失与已有空文件混淆。
+    创建/删除以/dev/null标识缺失的一侧；空文件也有明确头信息，避免将缺失与空内容混淆。
     """
     if creating and not after:
         return f"new empty file\n--- /dev/null\n+++ {path}\n"
+    if deleting and not before:
+        return f"delete empty file\n--- {path}\n+++ /dev/null\n"
     lines = unified_diff(
         before.splitlines(keepends=True),
         after.splitlines(keepends=True),
         fromfile="/dev/null" if creating else str(path),
-        tofile=str(path),
+        tofile="/dev/null" if deleting else str(path),
     )
     # 没有末尾换行的删除/新增行也要独立展示，避免相邻 diff 行粘连。
     return "".join(

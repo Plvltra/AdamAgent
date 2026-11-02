@@ -2,13 +2,27 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B22.2.3.1 创建计划接入execute_plan、原ToolInvocation和SessionStore缺失检查点。
+本次核对范围：B22.2.3.2 DeletePlan、创建撤销批准与UndoService原独立日志。
 
-核对结论：execute_plan分别处理创建与替换，复用批准/检查点/开始/结果顺序；SessionStore按已登记操作保存缺失原状态并核对来源。create_file加入可信编辑类别，复用额度和执行事实。生产工具工厂尚未注册创建，测试宿主显式注册后穿过原执行器；原未知结果和日志失败停止说明保留。
+核对结论：原UndoService从成功创建检查点经plan_restore生成DeletePlan，CLI明确显示删除差异；apply_restore复核当前路径/版本后删除，原替换仍委派apply。独立undo日志的target/after可保留None缺失，结果保存失败保持unknown。未新增模型删除入口，创建生产注册仍待B22.3；原版本/批准/注释契约已扩展。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B22.2.3.2 撤销创建
+
+~~~mermaid
+flowchart LR
+    FC_UNDO["UndoService / 最近成功编辑"] --> FC_UNDO_CP["SessionStore / 核对创建检查点"]
+    FC_UNDO --> FC_RESTORE_PLAN["EditTools.prepare_restore / 当前权限与版本"]
+    FC_RESTORE_PLAN --> FC_DELETE["DeletePlan / 缺失目标与完整删除diff"]
+    FC_UNDO --> FC_DELETE_APPROVE["CLI / 明确删除批准"]
+    FC_UNDO --> FC_RESTORE["apply_restore / 复核后unlink或原apply"]
+    FC_UNDO --> FC_UNDO_LOG["原undo_* / 保存失败保持unknown"]
+~~~
+
+没有模型通用删除工具；版本检查与unlink并非跨进程比较删除事务。见 [撤销边界](file-creation.md)。
 
 ## B22.2.3.1 创建记录接入
 

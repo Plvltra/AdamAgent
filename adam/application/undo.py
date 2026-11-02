@@ -1,4 +1,4 @@
-"""用户撤销的应用流程；复用编辑权限与原子写入，不调用模型或修改聊天历史。"""
+"""用户撤销的应用流程；复用编辑权限与版本复核，不调用模型或修改聊天历史。"""
 
 import secrets
 from collections.abc import Callable
@@ -61,7 +61,7 @@ class UndoService:
                 return UndoResult(undo_id, checkpoint.edit_id, checkpoint.path, "denied")
             self._record(session_id, "undo_started", link)
             started = True
-            self._editor.apply(plan)
+            self._editor.apply_restore(plan)
         except (KeyboardInterrupt, EOFError) as error:
             if not started:
                 try:
