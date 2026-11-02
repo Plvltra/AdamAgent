@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B38.3 实际应用取消、验收/最终保存失败和原预算验收；模块/调用方向无变化，passed验收不替代整轮成功提交。
+本次核对范围：B39.1 增加宿主探索任务组与文件定位证据验收；尚未接入自动取消调度。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2140,3 +2140,16 @@ flowchart LR
 ```
 
 验收事件由session.log关联校验，diagnostics逐轮展示。失败、未知或写入故障不生成成功历史。
+
+## B39.1 探索任务组
+
+```mermaid
+flowchart LR
+    Host[持有主会话锁的宿主] --> Group[ExplorationGroup]
+    Group --> Contract[TaskVerifier 协议]
+    Citation[CitationVerifier] -. 实现 .-> Contract
+    Citation --> Files[明确允许的文件 / 行内容 / SHA256]
+    Group --> Snapshot[原子 JSON 快照 / 唯一 winner]
+```
+
+任务组成员固定为已派发的 agent_id/run_id。宿主提交真实已完成回复，独立判据通过且快照保存成功才发布 winner；恢复只读取记录，不重发任务。一个成员只验收一次，失败不阻断其他成员。此基础接口不负责线程取消或 token 记账，B39.2 再接现有调度器。文件匹配只证明当时定位有效，不代表任意语义任务成功，也不保证未来文件保持不变。
