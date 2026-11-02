@@ -405,3 +405,5 @@ B36.1：test_experience_evidence.py覆盖真实来源关联、正反证据、旧
 B36.2：test_experience_validation.py验证新任务实际文件、错误答案、执行故障和提炼来源拒绝；1 passed（0.46秒）。
 
 B36.3：test_experience_regression.py覆盖实际文件对照、反例推翻、环境变化及真实E4接受；章末4 passed（2.47秒）。
+
+B37.1：test_skill_proposal.py验证真实SkillCatalog兼容、原目标保留及新建/更新来源信息；1 passed（0.50秒）。

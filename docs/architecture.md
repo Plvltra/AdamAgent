@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B36.3 experience_validation 增加不改账本的基线及只读候选正文；人工接受继续复用既有E4入口，不增加自动记忆通路，生产架构无变化。
+本次核对范围：B37.1 skill_proposal 读取经验账本及目标Skill快照，生成隔离候选/diff/来源并调用原生frontmatter校验；不安装Skill，生产加载链无变化。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
