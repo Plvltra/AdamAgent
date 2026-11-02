@@ -2,7 +2,7 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B30.3 真实shell状态及宿主强杀输入未知恢复；架构无变化。
+本次核对范围：B31.1 固定任务资产和独立终态验证；聊天生产架构无变化。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2082,3 +2082,16 @@ flowchart LR
 ~~~
 
 CLI只理解批准契约，不导入终端进程实现。主会话绑定来源和身份；默认子Agent不注册终端工具，plan模式拒绝启动及输入。退出与取消回收活进程，重启只恢复旧记录。受保护目录新增_terminals。
+## B31.1 固定任务与验证
+
+~~~mermaid
+flowchart LR
+  Assets[scripts.task_eval_assets / 六题] --> Prepare[prepare_task / 全新目录]
+  Prepare --> Memory[B06记忆种子]
+  Prepare --> Sessions[SessionStore / 两个查证会话]
+  Prepare --> Workspace[初始任务文件]
+  Verify[verify_task / 宿主固定真值] --> Workspace
+  Verify --> Evidence[JSON答案 / 来源ID / 实际工具列表]
+~~~
+
+验证器不执行模型生成代码，不读取模型自报成功字段。标准答案留在宿主，不放入workspace；旧评估产物不覆盖。runner与真实模型入口待B31.2。[范围](task-evaluation.md)。
