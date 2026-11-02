@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from typing import Any, Literal, Protocol
 
+from adam.contracts.diagnostics import DiagnosticReport, parse_diagnostics
 from adam.contracts.execution import ExecutionMode
 
 
@@ -66,7 +67,10 @@ class HookRequest:
 
 @dataclass(frozen=True)
 class HookResult:
-    """检查器结果；failed 与 denied 区分，after_tool 的 observed 不能改写工具事实。"""
+    """检查器结果；failed 与 denied 区分，after_tool 的 observed 不能改写工具事实。
+
+    diagnostics.status 是被检查文件的结果；Hook 可正常交付一份语法 failed 报告。
+    """
 
     status: Literal["allowed", "denied", "observed", "failed"]
     message: str = ""
@@ -74,10 +78,16 @@ class HookResult:
     exit_code: int | None = None
     duration_ms: int = 0
     stderr: str = ""
+    diagnostics: DiagnosticReport | None = None
 
     def to_record(self) -> dict[str, Any]:
         """返回可独立存储的结果副本，不包含程序环境或模型认证配置。"""
-        return asdict(self)
+        result = asdict(self)
+        if self.diagnostics is None:
+            del result["diagnostics"]
+        else:
+            result["diagnostics"] = parse_diagnostics(self.diagnostics.to_record()).to_record()
+        return result
 
 
 class HookService(Protocol):
@@ -95,7 +105,17 @@ class HookService(Protocol):
 def parse_reply(
     event: HookEvent, raw: bytes
 ) -> tuple[Literal["allowed", "denied", "observed"], str]:
-    """校验单个完整响应；拒绝重复键、未知字段及非有限数值，不修补非协议文本。"""
+    """保留旧的状态/说明接口；需要结构化诊断的调用方使用 parse_response。"""
+    result = parse_response(event, raw)
+    assert result.status != "failed"
+    return result.status, result.message
+
+
+def parse_response(event: HookEvent, raw: bytes) -> HookResult:
+    """校验单个完整响应；拒绝重复键、未知字段及非有限数值，不修补非协议文本。
+
+    版本1保留原说明协议；版本2仅用于后置诊断。此处不读取文件，编辑来源由调用方核对。
+    """
 
     def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         result = {}
@@ -111,24 +131,39 @@ def parse_reply(
     data = json.loads(
         raw.decode("utf-8"), object_pairs_hook=unique, parse_constant=invalid_constant
     )
-    if not isinstance(data, dict) or type(data.get("version")) is not int or data["version"] != 1:
+    if (
+        not isinstance(data, dict)
+        or type(data.get("version")) is not int
+        or data["version"] not in {1, 2}
+    ):
         raise ValueError("invalid hook version")
+    diagnostics = None
     status: Literal["allowed", "denied", "observed"]
     if event is HookEvent.BEFORE_TOOL:
-        if data.keys() - {"version", "decision", "reason"} or data.get("decision") not in (
-            "allow",
-            "deny",
+        if (
+            data["version"] != 1
+            or data.keys() - {"version", "decision", "reason"}
+            or data.get("decision")
+            not in (
+                "allow",
+                "deny",
+            )
         ):
             raise ValueError("invalid before hook response")
         text = data.get("reason", "")
         status = "allowed" if data["decision"] == "allow" else "denied"
     elif event is HookEvent.AFTER_TOOL:
-        if data.keys() != {"version", "note"}:
+        expected = (
+            {"version", "note"} if data["version"] == 1 else {"version", "note", "diagnostics"}
+        )
+        if data.keys() != expected:
             raise ValueError("invalid after hook response")
+        if data["version"] == 2:
+            diagnostics = parse_diagnostics(data["diagnostics"])
         text, status = data["note"], "observed"
     else:
         raise ValueError("invalid hook event")
     if not isinstance(text, str) or len(text) > 2000 or "\0" in text:
         raise ValueError("invalid hook message")
     text.encode("utf-8")  # JSON 中转义的孤立代理字符也不能进入后续日志。
-    return status, text
+    return HookResult(status, text, exit_code=0, diagnostics=diagnostics)

@@ -3,6 +3,7 @@
 import json
 from typing import Any
 
+from adam.contracts.diagnostics import match_edit, parse_diagnostics
 from adam.contracts.execution import ExecutionMode
 from adam.contracts.hooks import HookEvent
 
@@ -25,7 +26,10 @@ class HookLog:
         self.records: dict[str, dict[str, Any]] = {}
 
     def apply(self, kind: str, payload: dict[str, Any], tool: dict[str, Any]) -> None:
-        """检查来源、前后阶段和单次结算；父轮次、请求由 SessionLog 先校验。"""
+        """检查来源、前后阶段和单次结算；诊断须对应已保存的编辑路径和版本。
+
+        父轮次、请求由 SessionLog 先校验；重启读取只核对记录，不读取文件或重做检查。
+        """
         expected = _LINK if kind == "hook_started" else _LINK | {"result"}
         if payload.keys() != expected or any(
             not isinstance(payload.get(key), str) or not payload[key] for key in _LINK
@@ -62,6 +66,10 @@ class HookLog:
             raise ValueError("unknown, duplicate or mismatched hook finish")
         result = payload["result"]
         _validate_result(result, event)
+        if "diagnostics" in result:
+            match_edit(
+                parse_diagnostics(result["diagnostics"]), tool["name"], json.loads(tool["output"])
+            )
         previous.update(result)
 
     def check_tool_finish(self, tool: dict[str, Any], output: str) -> None:
@@ -105,7 +113,7 @@ class HookLog:
 
 def _validate_result(result: object, event: HookEvent) -> None:
     """检查完成结果的边界；拒绝伪造阶段、非法耗时及未解释的失败状态。"""
-    if not isinstance(result, dict) or result.keys() != {
+    if not isinstance(result, dict) or result.keys() - {"diagnostics"} != {
         "status",
         "message",
         "error_code",
@@ -114,6 +122,10 @@ def _validate_result(result: object, event: HookEvent) -> None:
         "stderr",
     }:
         raise ValueError("invalid hook result fields")
+    if "diagnostics" in result:
+        if event is not HookEvent.AFTER_TOOL or result["status"] != "observed":
+            raise ValueError("diagnostics require a completed after hook")
+        parse_diagnostics(result["diagnostics"])
     valid = {"allowed", "denied"} if event is HookEvent.BEFORE_TOOL else {"observed"}
     status, code, exit_code = result["status"], result["error_code"], result["exit_code"]
     if not isinstance(status, str) or status not in valid | {"failed", "interrupted"}:

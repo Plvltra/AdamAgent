@@ -42,3 +42,8 @@
 T11.2 的 apply_proposal 在 Hook 前核对 path 与真实候选完全一致，两个示例按相同目录和结果规则处理它。
 提案业务验收见 [test_proposal_application.py](../../tests/features/test_proposal_application.py)，包含前置拒绝、后置失败保留实际修改，以及伪造路径在 Hook 前拒绝。
 仅按工具名称编写的个人检查器需要自行将新入口纳入策略；项目升级不会改写用户脚本。
+
+
+## B20.1 新的结构化示例
+
+[after_python_diagnostics.py](after_python_diagnostics.py) 使用后置响应v2，将语法问题正常交付为有文件版本和位置的诊断；原 after_python_syntax.py 保留其v1/非零退出教学行为。显式替换用户配置的 after_tool.argv 才会使用新示例，不自动改用户配置。新报告目前保存在 Hook 日志，模型回传待B20.2；字段、范围和测试见 [修改后诊断](../../docs/edit-diagnostics.md)。

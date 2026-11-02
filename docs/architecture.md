@@ -2,13 +2,29 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B19.3.2 真实用户进程的取消、宿主强杀、全部 Linux 身份回收与持锁恢复。
+本次核对范围：B20.1 诊断契约、Hook响应v2、编辑来源匹配、日志校验与新语法检查示例。
 
-核对结论：生产架构无变化，保留图形与原注释。新增显式验收脚本，真实路径仍为原工具 → IsolatedCommands → Linux 看守/Bubblewrap/用户命令。宿主断线由看守清理，存储恢复不会推断命令结果或重新执行；修正旧隔离前置段落的阶段状态。
+核对结论：contracts.diagnostics 提供不可变有界报告及匹配契约，HookRunner 和 HookLog 使用同一契约；后置检查继续观察已保存工具事实。新增标准库语法检查示例，不改旧脚本、工具输出或模型输入。原严格协议注释随解析实现迁入 parse_response，旧 parse_reply 保留兼容，结果/日志说明补充新语义。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B20.1 修改后诊断
+
+~~~mermaid
+flowchart LR
+    DG_EDIT["原专用编辑 / applied 与 after_version"] --> DG_TOOL["ToolInvocation / tool_finished 已保存"]
+    DG_TOOL --> DG_HOOK["原 ToolHooks / 后置检查"]
+    DG_HOOK --> DG_RUN["HookRunner / 原有界进程"]
+    DG_RUN --> DG_EX["显式用户检查器 / 新 Python 语法示例"]
+    DG_RUN --> DG_PARSE["contracts.hooks.parse_response / v1 或 v2"]
+    DG_PARSE --> DG_DATA["contracts.diagnostics / 报告及编辑来源校验"]
+    DG_HOOK --> DG_LOG["HookLog / 绑定原工具结果与来源"]
+    DG_LOG --> DG_DATA
+~~~
+
+检查状态不改写编辑事实，此阶段尚未接入独立模型观察。契约与验证见 [修改后诊断](edit-diagnostics.md)。
 
 ## B19.2.3 隔离命令工具
 

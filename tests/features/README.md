@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B20.1 编辑诊断协议 | 6项实际编辑/检查、版本变化、超限、来源伪造及重启，22项协议边界；相关126项 | [业务场景](test_edit_diagnostics.py)、[契约边界](../test_diagnostics.py) |
 | B19.3.2 实际执行中断与恢复 | 真实取消/强杀各确认4个 Linux 身份回收，命令未知与用量已知分别保留，重启幂等；相关89项回归 | [真实验收入口](../../scripts/isolated_command_fault_acceptance.py)、[实际报告](../../docs/evaluations/b19-command-faults.json) |
 | B19.3.1 真实隔离边界与输出编码 | 5项新增协议/完整性/重放，相关171项；18项真实边界、执行限额继承及4项真实编码另存证据 | [完整性](test_isolated_output_integrity.py)、[真实入口](../../scripts/isolated_boundary_acceptance.py) |
 | B19.2.3 隔离命令接入 | 33项发现/批准/版本/权限/模式/Hook/预算/日志/计划/反思/重放，包含512字符失败停止；四项真实 WSL 聊天证据另存 | [业务场景](test_isolated_command_flow.py)、[真实入口](../../scripts/isolated_chat_acceptance.py) |
