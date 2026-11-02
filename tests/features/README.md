@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C10.2 Android动作 | 10项四操作、原批准/模式、一次性引用、断连及未知停止；7项观察回归通过，实机另留证 | [业务场景](test_mobile_actions.py)、[范围](../../docs/mobile.md#c102-原工具授权动作) |
 | C10.1 Android观察 | 7项原媒体/版本、断连/重连/旋转、取消与设备互斥；2.17秒通过，另1项包边界 | [业务场景](test_mobile_observation.py)、[测试应用与范围](../../docs/mobile.md) |
 | C/B31同步与批次回归 | 补齐子图片私有目录和诊断媒体保护；C03/C06/C07批次全量3990项通过/2101.14秒，一次运行 | [元数据](../../docs/evaluations/c-batch-20261103/run-result.json)、[图片边界](test_image_input.py) |
 | C05.4 连续按键宿主（实机待验） | 2项原应用安全点补充/停止播报后下一轮与线程归属；2.96秒通过 | [业务场景](test_voice_loop.py)、[入口](../../scripts/voice_loop.py) |

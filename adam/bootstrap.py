@@ -42,6 +42,7 @@ from adam.contracts.desktop import DesktopApproval
 from adam.contracts.execution import ExecutionMode, ToolCapability
 from adam.contracts.interop import RemoteAgentPolicy, RemoteApproval
 from adam.contracts.memory import MemorySelection
+from adam.contracts.mobile import MobileApproval
 from adam.contracts.models import CommandRequest, FileChangePlan
 from adam.contracts.planning import PlanReport
 from adam.contracts.ports import ModelClient, ToolRunner
@@ -61,6 +62,7 @@ from adam.llm.http_transport import InterruptibleTransport
 from adam.mcp.media_store import MCPMediaStore
 from adam.memory.semantic import SemanticMemoryRanker
 from adam.memory.store import MemoryStore
+from adam.mobile.observation import AndroidObserver
 from adam.rules.catalog import RuleCatalog
 from adam.rules.tracker import RuleTracker
 from adam.session.artifacts import ArtifactStore
@@ -86,6 +88,7 @@ from adam.tool_calls.feedback_tools import handlers as feedback_handlers
 from adam.tool_calls.generation_tools import GenerationTools
 from adam.tool_calls.isolated_commands import register_isolated_commands
 from adam.tool_calls.mcp_tools import register_mcp
+from adam.tool_calls.mobile_tools import register_mobile
 from adam.tool_calls.orchestration_tools import register_orchestration
 from adam.tool_calls.planning_tools import SPECS as PLANNING_SPECS
 from adam.tool_calls.planning_tools import handlers as planning_handlers
@@ -122,6 +125,8 @@ def build_application(
     confirm_edit: Callable[[FileChangePlan], bool] | None = None,
     confirm_terminal: Callable[[TerminalRequest], bool] | None = None,
     confirm_browser: Callable[[BrowserApproval], bool] | None = None,
+    mobile_observer: AndroidObserver | None = None,
+    confirm_mobile: Callable[[MobileApproval], bool] | None = None,
     desktop_backend: DesktopActionBackend | None = None,
     confirm_desktop: Callable[[DesktopApproval], bool] | None = None,
     remote_policy: RemoteAgentPolicy | None = None,
@@ -156,6 +161,7 @@ def build_application(
     主子媒体预检各自只借用所属 SessionMedia，默认模型无视觉声明时明确拒绝。
     网页工具按次创建/关闭独立连接；禁用时不加载其后端。
     桌面仅由宿主显式注入目标及逐次批准，子任务不继承桌面或批准；默认不注册。
+    Android同样只由主宿主注入固定模拟器及逐次批准，动作走原外部动作权限。
     远端工具同样仅由主宿主注入固定源/报价上限及批准；不传递本地工具权限。
     生成仅由主宿主注入固定后端与共享C00额度，子任务不继承；默认不注册。
     浏览器按会话延迟创建，逐次确认确切动作；子任务不注册浏览器、不继承主审批。
@@ -316,6 +322,15 @@ def build_application(
         remote = None
         if remote_policy is not None:
             registry, remote = register_remote(registry, store, remote_policy, confirm_remote)
+        mobile = None
+        if mobile_observer is not None:
+            registry, mobile = register_mobile(
+                registry,
+                mobile_observer,
+                SessionMedia(store, MediaStore(media_dir)),
+                confirm_mobile,
+            )
+            resources.callback(mobile.close)
         desktop = None
         if desktop_backend is not None:
             registry, desktop = register_desktop(
@@ -495,6 +510,8 @@ def build_application(
                 generation.bind_source(link)
             if remote:
                 remote.bind_source(link)
+            if mobile:
+                mobile.bind_source(link)
             if desktop:
                 desktop.bind_source(link)
             if browser:
@@ -610,6 +627,8 @@ def build_application(
                 cleanup.callback(interrupt_processes)
                 if browser:
                     cleanup.callback(browser.close)
+                if mobile:
+                    cleanup.callback(mobile.close)
                 if desktop:
                     cleanup.callback(desktop.close)
 

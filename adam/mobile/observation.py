@@ -58,13 +58,14 @@ class AndroidObserver:
         self.adb, self.serial, self.port, self.package = adb.resolve(), serial, port, package
         self.lease_root = lease_root or Path(tempfile.gettempdir())
         self._last: MobileFrame | None = None
+        self._lease = FileLock(self.lease_root / ("adam-mobile-" + self.serial + ".lock"))
 
     @contextmanager
     def lease(self) -> Iterator[None]:
         """同serial跨宿主互斥；竞争立即拒绝，不排队使用过期页面，异常释放。"""
         self.lease_root.mkdir(parents=True, exist_ok=True)
-        path = self.lease_root / ("adam-mobile-" + self.serial + ".lock")
-        lock = FileLock(path)
+        # 同一协调调用的动作与收尾观察可嵌套，其他实例/线程仍互斥。
+        lock = self._lease
         try:
             lock.acquire(timeout=0)
         except Timeout as error:

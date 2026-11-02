@@ -23,3 +23,19 @@ AndroidObserver租约以模拟器serial命名，默认同用户临时目录，�
 首次正式API因windows子命令缺前台字段失败，已按原始证据修正。第二次横屏切换后报identity or rotation unavailable，失败瞬间未记录原始boot/window输出，根因未证实；稳定后同一正则/state成功。第三次验收显式等待旋转稳定5秒再重新观察成功，不在生产API内加入自动重试，也不将先前失败删除。
 
 截图/层级和原始dumpsys证据保留.cache/c101-visual/api-portrait.png、api-landscape.png、对应XML及window*.txt。恢复竖屏后仅清理本次模拟器/ADB；[清理报告](evaluations/c101/cleanup.json)确认无自有进程或5041/5556/5557监听残留。保留测试AVD与APK。C10.1完成；填写保存、真实断连动作与普通工具批准留C10.2，前后台/取消综合对照留C10.4。
+## C10.2 原工具授权动作
+
+build_application显式注入mobile_observer和confirm_mobile才注册mobile_observe/mobile_action，主任务专用，子任务不继承。原执行器继续承担模式、规则、Hook、预算、取消和工具来源；观察为SESSION_STATE，动作是EXTERNAL_ACTION。没有逐次批准回调时拒绝动作，plan模式不派发。批准文本包含固定serial、一次性version、operation和实际输入参数，页面文字不能改变授权。
+
+支持click（唯一content-desc且控件启用、属于测试包，点取bounds中心）、input（已有焦点的测试包EditText，追加1～200字符ASCII）、swipe（截图内两点，固定300毫秒）和back（固定KEYCODE_BACK）。input仅允许英文/数字/空格/下划线/点/连字符，空格转换成adb的%s；不支持中文或shell元字符，也不声称通用输入法能力。参数在批准前校验，不提供任意ADB/shell接口。
+
+设备租约覆盖整个观察或批准/复检/派发/收尾，同实例嵌套观察可重入，其他实例/线程互斥。动作在批准前及批准后复核当前设备/页面，动作引用先消费；每次观察追加随机一次性标识，即使页面未变也拒绝旧版本重复动作。拒批、取消、设备变化或故障均丢弃旧引用。派发进入ADB后失败或动作后观察失败抛MobileActionUnknownError，原轮次停止，不自动重做；dispatched只表示派发并观察完成，业务成功仍须独立查询。
+
+10项动作业务场景与7项原观察场景已验证；首次17项运行13通过/4失败（10.99秒），已修正拒批/plan预期及已知设备拒绝转ToolError，相关5项复验通过（4.69秒），不重复其他已通过项。全架构检查发现新依赖未登记：tool_calls→mobile和此前VoiceLoop→audio；同步允许这两条有明确职责的协调边后，相关3项通过（0.23秒），其余31项此前通过。audio/mobile仍只依赖自身与contracts。Ruff/定向Pyright通过；注释审查保留原来源/模式/中断说明，补充bootstrap移动端契约。未跑全量。
+### C10.2 实机填写与独立查询
+
+独立视觉子代理在原应用/工具管线运行固定MockTransport策略：观察→点名称→输入→返回收键盘→点备注→输入→返回→保存。7次逐次批准、7次dispatched，保存只有一次；随机name=C102-88ba46d015、note=Note-8fbb9defd1。独立adb run-as读取files/record.json，两字段完全一致，savedAt=1793642169020。[完整工具结果与读回](evaluations/c102/report.json)保留真实来源/版本；这证明固定脚本策略的实机动作，不是模型选工具能力验收。
+
+重复原版本保存返回Stale mobile observation，批准数仍7，未重复保存。另建验收会话先取得fresh观察，再真实停止自己的模拟器；devices列表确认serial消失，用fresh版本点击保存返回emulator disconnected or unauthorized，0批准/0派发，见[断连证据](evaluations/c102/disconnect.json)。不是用已失效版本或仅停止ADB服务冒充断连。
+
+独立看最终正式API截图确认两字段及Saved JSON一致，SHA256为77da7d380d097266a81730b18fa74a40b3a4824c75a1668fe2ad2b8e05d18035，证据.cache/c102-visual/final.png。初始辅助脚本导入浏览器测试helper因本地缺playwright而退出，未派发动作；改为直接组装原应用，未安装依赖或改生产逻辑。滑动自动边界已验，综合前后台/旋转/取消及模型策略对照留C10.4。

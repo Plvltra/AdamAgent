@@ -1,0 +1,47 @@
+{
+  "approvals": [],
+  "results": [
+    {
+      "ok": true,
+      "status": "observed",
+      "version": "7ca68915d36729aef56852ede7a876c21bce257ab51bfe2537d14965d7ee5a1f:774b33ae840346b4ae279a6922a32668",
+      "device": {
+        "serial": "emulator-5556",
+        "device_version": "emulator-5556:1:4693e5a3-b167-451d-8324-05463f4b8b45:Window{10c28c3 u0 com.adam.practice/com.adam.practice.MainActivity}:0",
+        "rotation": 0,
+        "width": 720,
+        "height": 1280,
+        "hierarchy": "<hierarchy rotation=\"0\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"android:id/content\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"Adam Practice - Local Record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,88][696,153]\" /><node index=\"1\" text=\"C102-88ba46d015\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-name\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,153][696,244]\" /><node index=\"2\" text=\"Note-8fbb9defd1\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-note\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"true\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,244][696,335]\" /><node index=\"3\" text=\"SAVE RECORD\" resource-id=\"\" class=\"android.widget.Button\" package=\"com.adam.practice\" content-desc=\"save-record\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,335][696,431]\" /><node index=\"4\" text=\"Saved: {&quot;name&quot;:&quot;C102-88ba46d015&quot;,&quot;note&quot;:&quot;Note-8fbb9defd1&quot;,&quot;savedAt&quot;:1793642169020}\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"saved-result\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,431][696,502]\" /></node></node></node><node index=\"1\" text=\"\" resource-id=\"android:id/statusBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,48]\" /><node index=\"2\" text=\"\" resource-id=\"android:id/navigationBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][0,0]\" /></node></hierarchy>",
+        "version": "7ca68915d36729aef56852ede7a876c21bce257ab51bfe2537d14965d7ee5a1f"
+      },
+      "image": {
+        "media_id": "b8c22983cfa346d5bc390d94465c7e20",
+        "source": {
+          "session_id": "05c61ec9",
+          "turn_id": "ade26e7ea1119919a98395692901715d",
+          "kind": "tool",
+          "request_id": "087637877a7492ac16b0d3bb79395e80",
+          "tool_call_id": "observe-disconnect",
+          "tool_name": "mobile_observe"
+        },
+        "mime_type": "image/png",
+        "size_bytes": 53631,
+        "version": "d85549a6d7e7d080001681c1b5b5497478163c1819f77c33f81678687c915396",
+        "created_at": "2026-11-02T17:58:19.350170+00:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "ok": false,
+      "error": "emulator disconnected or unauthorized",
+      "no_progress": {
+        "action": "continue",
+        "repeats": 1,
+        "fingerprint": "f8e6c5d205fdb011e18c5ded5177c5c9078c17548290a0fa72e5e1e342caa106"
+      }
+    }
+  ],
+  "shutdown": "OK: killing emulator, bye bye\n\nOK\n\n",
+  "devices": "List of devices attached\n\n",
+  "answer": "Disconnected boundary checked."
+}

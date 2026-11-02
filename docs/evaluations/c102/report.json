@@ -1,0 +1,334 @@
+{
+  "model": "fixed MockTransport, no real model",
+  "name": "C102-88ba46d015",
+  "note": "Note-8fbb9defd1",
+  "approvals": [
+    {
+      "serial": "emulator-5556",
+      "version": "df9d34916d4c76f537036691ea9466dab523a4a06531d738c880e63699a52a7f:2fbc30b5333a439fbd32a7aa9ccfdca6",
+      "operation": "click",
+      "arguments": [
+        "tap",
+        "360",
+        "198"
+      ]
+    },
+    {
+      "serial": "emulator-5556",
+      "version": "d3e7b1fdbb1ce2f19afe3c7593b1cf5e4a27b13b2166d3d6d718e5b8bc9378c0:a1171a33659b4373a92dad2df546d32b",
+      "operation": "input",
+      "arguments": [
+        "text",
+        "C102-88ba46d015"
+      ]
+    },
+    {
+      "serial": "emulator-5556",
+      "version": "fba5a616fc66cce223bca84338f63cfeeb571bb71b5f462d8426afda3661a0f3:b3d63c8284da492183f5e23b162244d6",
+      "operation": "back",
+      "arguments": [
+        "keyevent",
+        "4"
+      ]
+    },
+    {
+      "serial": "emulator-5556",
+      "version": "178eea4c7e6aaab2b4af700fd61fa4572350a0cfae4e954f7b4796d0dbdb85cb:9c7def4b43654c598c1c398cc2f68b72",
+      "operation": "click",
+      "arguments": [
+        "tap",
+        "360",
+        "289"
+      ]
+    },
+    {
+      "serial": "emulator-5556",
+      "version": "8ab7d1dde78467e9fbbd6a07d4f17360095e27c5f3be3f177de0155511d43307:92aa004352484356bf074f9e3d0d66f8",
+      "operation": "input",
+      "arguments": [
+        "text",
+        "Note-8fbb9defd1"
+      ]
+    },
+    {
+      "serial": "emulator-5556",
+      "version": "fb730520e2fe96e13719c5a6711124c7835706ae4c58e61a7073ebd7bbda6557:12ecf62499254e1e9a65524a723be86f",
+      "operation": "back",
+      "arguments": [
+        "keyevent",
+        "4"
+      ]
+    },
+    {
+      "serial": "emulator-5556",
+      "version": "0b6d4e7f168fdca7a1de3aa91f6a89f0b4dfe7c9b0d538cd2fed2943130438ff:286c467672cf4a7c9e0e24bf2e2612d9",
+      "operation": "click",
+      "arguments": [
+        "tap",
+        "360",
+        "383"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "ok": true,
+      "status": "observed",
+      "version": "df9d34916d4c76f537036691ea9466dab523a4a06531d738c880e63699a52a7f:2fbc30b5333a439fbd32a7aa9ccfdca6",
+      "device": {
+        "serial": "emulator-5556",
+        "device_version": "emulator-5556:1:4693e5a3-b167-451d-8324-05463f4b8b45:Window{10c28c3 u0 com.adam.practice/com.adam.practice.MainActivity}:0",
+        "rotation": 0,
+        "width": 720,
+        "height": 1280,
+        "hierarchy": "<hierarchy rotation=\"0\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"android:id/content\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"Adam Practice - Local Record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,88][696,153]\" /><node index=\"1\" text=\"Record name\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-name\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,153][696,244]\" /><node index=\"2\" text=\"Record note\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-note\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,244][696,335]\" /><node index=\"3\" text=\"SAVE RECORD\" resource-id=\"\" class=\"android.widget.Button\" package=\"com.adam.practice\" content-desc=\"save-record\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,335][696,431]\" /><node index=\"4\" text=\"No saved record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"saved-result\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,431][696,469]\" /></node></node></node><node index=\"1\" text=\"\" resource-id=\"android:id/statusBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,48]\" /><node index=\"2\" text=\"\" resource-id=\"android:id/navigationBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][0,0]\" /></node></hierarchy>",
+        "version": "df9d34916d4c76f537036691ea9466dab523a4a06531d738c880e63699a52a7f"
+      },
+      "image": {
+        "media_id": "b7900031ab3f4219991be80a3c727e01",
+        "source": {
+          "session_id": "446430e7",
+          "turn_id": "43328c1b20c1e48e00182cad7b841c93",
+          "kind": "tool",
+          "request_id": "1e094ca23715cccfa201fa887004b199",
+          "tool_call_id": "observe",
+          "tool_name": "mobile_observe"
+        },
+        "mime_type": "image/png",
+        "size_bytes": 34934,
+        "version": "41e4ef7af367b30e1913782285c82eff4e1e0734b51e4045fbfac52d8c9f585a",
+        "created_at": "2026-11-03T01:55:07.900804+08:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "ok": true,
+      "status": "dispatched",
+      "version": "d3e7b1fdbb1ce2f19afe3c7593b1cf5e4a27b13b2166d3d6d718e5b8bc9378c0:a1171a33659b4373a92dad2df546d32b",
+      "device": {
+        "serial": "emulator-5556",
+        "device_version": "emulator-5556:1:4693e5a3-b167-451d-8324-05463f4b8b45:Window{10c28c3 u0 com.adam.practice/com.adam.practice.MainActivity}:0",
+        "rotation": 0,
+        "width": 720,
+        "height": 1280,
+        "hierarchy": "<hierarchy rotation=\"0\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"android:id/content\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"Adam Practice - Local Record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,88][696,153]\" /><node index=\"1\" text=\"Record name\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-name\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"true\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,153][696,244]\" /><node index=\"2\" text=\"Record note\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-note\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,244][696,335]\" /><node index=\"3\" text=\"SAVE RECORD\" resource-id=\"\" class=\"android.widget.Button\" package=\"com.adam.practice\" content-desc=\"save-record\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,335][696,431]\" /><node index=\"4\" text=\"No saved record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"saved-result\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,431][696,469]\" /></node></node></node><node index=\"1\" text=\"\" resource-id=\"android:id/statusBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,48]\" /><node index=\"2\" text=\"\" resource-id=\"android:id/navigationBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][0,0]\" /></node></hierarchy>",
+        "version": "d3e7b1fdbb1ce2f19afe3c7593b1cf5e4a27b13b2166d3d6d718e5b8bc9378c0"
+      },
+      "image": {
+        "media_id": "37888d839f0bbdcf5e74b50fc9f744c0",
+        "source": {
+          "session_id": "446430e7",
+          "turn_id": "43328c1b20c1e48e00182cad7b841c93",
+          "kind": "tool",
+          "request_id": "9bd220d138220a8e0044eda2c5d3198f",
+          "tool_call_id": "action-1",
+          "tool_name": "mobile_action"
+        },
+        "mime_type": "image/png",
+        "size_bytes": 70772,
+        "version": "451ec5a299f12918e71ae27aac40580f13363654f7b3fcb5dbee06617252c449",
+        "created_at": "2026-11-03T01:55:17.256286+08:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "ok": true,
+      "status": "dispatched",
+      "version": "fba5a616fc66cce223bca84338f63cfeeb571bb71b5f462d8426afda3661a0f3:b3d63c8284da492183f5e23b162244d6",
+      "device": {
+        "serial": "emulator-5556",
+        "device_version": "emulator-5556:1:4693e5a3-b167-451d-8324-05463f4b8b45:Window{10c28c3 u0 com.adam.practice/com.adam.practice.MainActivity}:0",
+        "rotation": 0,
+        "width": 720,
+        "height": 1280,
+        "hierarchy": "<hierarchy rotation=\"0\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"android:id/content\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"Adam Practice - Local Record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,88][696,153]\" /><node index=\"1\" text=\"C102-88ba46d015\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-name\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"true\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,153][696,244]\" /><node index=\"2\" text=\"Record note\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-note\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,244][696,335]\" /><node index=\"3\" text=\"SAVE RECORD\" resource-id=\"\" class=\"android.widget.Button\" package=\"com.adam.practice\" content-desc=\"save-record\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,335][696,431]\" /><node index=\"4\" text=\"No saved record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"saved-result\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,431][696,469]\" /></node></node></node><node index=\"1\" text=\"\" resource-id=\"android:id/statusBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,48]\" /><node index=\"2\" text=\"\" resource-id=\"android:id/navigationBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][0,0]\" /></node></hierarchy>",
+        "version": "fba5a616fc66cce223bca84338f63cfeeb571bb71b5f462d8426afda3661a0f3"
+      },
+      "image": {
+        "media_id": "d82cf993e8aadc697b21cb57c27d069e",
+        "source": {
+          "session_id": "446430e7",
+          "turn_id": "43328c1b20c1e48e00182cad7b841c93",
+          "kind": "tool",
+          "request_id": "34dfbdf68f5b0f57c3a8bd8e67afa19f",
+          "tool_call_id": "action-2",
+          "tool_name": "mobile_action"
+        },
+        "mime_type": "image/png",
+        "size_bytes": 73267,
+        "version": "862336b0ef70280815f3e45ed20bd173c38f6b4534b3c28d2a9d8c60da6c4523",
+        "created_at": "2026-11-03T01:55:26.8058+08:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "ok": true,
+      "status": "dispatched",
+      "version": "178eea4c7e6aaab2b4af700fd61fa4572350a0cfae4e954f7b4796d0dbdb85cb:9c7def4b43654c598c1c398cc2f68b72",
+      "device": {
+        "serial": "emulator-5556",
+        "device_version": "emulator-5556:1:4693e5a3-b167-451d-8324-05463f4b8b45:Window{10c28c3 u0 com.adam.practice/com.adam.practice.MainActivity}:0",
+        "rotation": 0,
+        "width": 720,
+        "height": 1280,
+        "hierarchy": "<hierarchy rotation=\"0\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"android:id/content\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"Adam Practice - Local Record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,88][696,153]\" /><node index=\"1\" text=\"C102-88ba46d015\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-name\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"true\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,153][696,244]\" /><node index=\"2\" text=\"Record note\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-note\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,244][696,335]\" /><node index=\"3\" text=\"SAVE RECORD\" resource-id=\"\" class=\"android.widget.Button\" package=\"com.adam.practice\" content-desc=\"save-record\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,335][696,431]\" /><node index=\"4\" text=\"No saved record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"saved-result\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,431][696,469]\" /></node></node></node><node index=\"1\" text=\"\" resource-id=\"android:id/statusBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,48]\" /><node index=\"2\" text=\"\" resource-id=\"android:id/navigationBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][0,0]\" /></node></hierarchy>",
+        "version": "178eea4c7e6aaab2b4af700fd61fa4572350a0cfae4e954f7b4796d0dbdb85cb"
+      },
+      "image": {
+        "media_id": "9f84534d2a0953f436b41340aa18a668",
+        "source": {
+          "session_id": "446430e7",
+          "turn_id": "43328c1b20c1e48e00182cad7b841c93",
+          "kind": "tool",
+          "request_id": "0745256d34c3e9d94bb751bf59ba96ff",
+          "tool_call_id": "action-3",
+          "tool_name": "mobile_action"
+        },
+        "mime_type": "image/png",
+        "size_bytes": 37750,
+        "version": "72c7c5638de5a18f0dafa4223e8ef9feda287e8fd72136c48ddc401dea4aedaa",
+        "created_at": "2026-11-03T01:55:35.931925+08:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "ok": true,
+      "status": "dispatched",
+      "version": "8ab7d1dde78467e9fbbd6a07d4f17360095e27c5f3be3f177de0155511d43307:92aa004352484356bf074f9e3d0d66f8",
+      "device": {
+        "serial": "emulator-5556",
+        "device_version": "emulator-5556:1:4693e5a3-b167-451d-8324-05463f4b8b45:Window{10c28c3 u0 com.adam.practice/com.adam.practice.MainActivity}:0",
+        "rotation": 0,
+        "width": 720,
+        "height": 1280,
+        "hierarchy": "<hierarchy rotation=\"0\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"android:id/content\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"Adam Practice - Local Record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,88][696,153]\" /><node index=\"1\" text=\"C102-88ba46d015\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-name\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,153][696,244]\" /><node index=\"2\" text=\"Record note\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-note\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"true\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,244][696,335]\" /><node index=\"3\" text=\"SAVE RECORD\" resource-id=\"\" class=\"android.widget.Button\" package=\"com.adam.practice\" content-desc=\"save-record\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,335][696,431]\" /><node index=\"4\" text=\"No saved record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"saved-result\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,431][696,469]\" /></node></node></node><node index=\"1\" text=\"\" resource-id=\"android:id/statusBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,48]\" /><node index=\"2\" text=\"\" resource-id=\"android:id/navigationBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][0,0]\" /></node></hierarchy>",
+        "version": "8ab7d1dde78467e9fbbd6a07d4f17360095e27c5f3be3f177de0155511d43307"
+      },
+      "image": {
+        "media_id": "4cd66124aa6b9e5ef5f72fc090ce4009",
+        "source": {
+          "session_id": "446430e7",
+          "turn_id": "43328c1b20c1e48e00182cad7b841c93",
+          "kind": "tool",
+          "request_id": "e4c7fd69cfb77338f0589789b2570fe6",
+          "tool_call_id": "action-4",
+          "tool_name": "mobile_action"
+        },
+        "mime_type": "image/png",
+        "size_bytes": 73502,
+        "version": "d7647995376a2a08720e61757bd893c2d5d7784b6d28256d3725024e39f37563",
+        "created_at": "2026-11-03T01:55:45.543135+08:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "ok": true,
+      "status": "dispatched",
+      "version": "fb730520e2fe96e13719c5a6711124c7835706ae4c58e61a7073ebd7bbda6557:12ecf62499254e1e9a65524a723be86f",
+      "device": {
+        "serial": "emulator-5556",
+        "device_version": "emulator-5556:1:4693e5a3-b167-451d-8324-05463f4b8b45:Window{10c28c3 u0 com.adam.practice/com.adam.practice.MainActivity}:0",
+        "rotation": 0,
+        "width": 720,
+        "height": 1280,
+        "hierarchy": "<hierarchy rotation=\"0\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"android:id/content\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"Adam Practice - Local Record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,88][696,153]\" /><node index=\"1\" text=\"C102-88ba46d015\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-name\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,153][696,244]\" /><node index=\"2\" text=\"Note-8fbb9defd1\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-note\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"true\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,244][696,335]\" /><node index=\"3\" text=\"SAVE RECORD\" resource-id=\"\" class=\"android.widget.Button\" package=\"com.adam.practice\" content-desc=\"save-record\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,335][696,431]\" /><node index=\"4\" text=\"No saved record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"saved-result\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,431][696,469]\" /></node></node></node><node index=\"1\" text=\"\" resource-id=\"android:id/statusBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,48]\" /><node index=\"2\" text=\"\" resource-id=\"android:id/navigationBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][0,0]\" /></node></hierarchy>",
+        "version": "fb730520e2fe96e13719c5a6711124c7835706ae4c58e61a7073ebd7bbda6557"
+      },
+      "image": {
+        "media_id": "dd78c2b34d67bbf4ef8f0bb9fa2d2537",
+        "source": {
+          "session_id": "446430e7",
+          "turn_id": "43328c1b20c1e48e00182cad7b841c93",
+          "kind": "tool",
+          "request_id": "2f8204c9ff0780ba98bc1478ed5b1c92",
+          "tool_call_id": "action-5",
+          "tool_name": "mobile_action"
+        },
+        "mime_type": "image/png",
+        "size_bytes": 75619,
+        "version": "e8afa97f332392a8cd62775299cbe4e1e189313922225888c9cd81fc35d1fe41",
+        "created_at": "2026-11-03T01:55:55.133802+08:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "ok": true,
+      "status": "dispatched",
+      "version": "0b6d4e7f168fdca7a1de3aa91f6a89f0b4dfe7c9b0d538cd2fed2943130438ff:286c467672cf4a7c9e0e24bf2e2612d9",
+      "device": {
+        "serial": "emulator-5556",
+        "device_version": "emulator-5556:1:4693e5a3-b167-451d-8324-05463f4b8b45:Window{10c28c3 u0 com.adam.practice/com.adam.practice.MainActivity}:0",
+        "rotation": 0,
+        "width": 720,
+        "height": 1280,
+        "hierarchy": "<hierarchy rotation=\"0\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"android:id/content\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"Adam Practice - Local Record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,88][696,153]\" /><node index=\"1\" text=\"C102-88ba46d015\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-name\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,153][696,244]\" /><node index=\"2\" text=\"Note-8fbb9defd1\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-note\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"true\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,244][696,335]\" /><node index=\"3\" text=\"SAVE RECORD\" resource-id=\"\" class=\"android.widget.Button\" package=\"com.adam.practice\" content-desc=\"save-record\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,335][696,431]\" /><node index=\"4\" text=\"No saved record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"saved-result\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,431][696,469]\" /></node></node></node><node index=\"1\" text=\"\" resource-id=\"android:id/statusBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,48]\" /><node index=\"2\" text=\"\" resource-id=\"android:id/navigationBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][0,0]\" /></node></hierarchy>",
+        "version": "0b6d4e7f168fdca7a1de3aa91f6a89f0b4dfe7c9b0d538cd2fed2943130438ff"
+      },
+      "image": {
+        "media_id": "431e2545bbe131151421c873a1681a8b",
+        "source": {
+          "session_id": "446430e7",
+          "turn_id": "43328c1b20c1e48e00182cad7b841c93",
+          "kind": "tool",
+          "request_id": "197a4de6ea44ed799c616426b4967a61",
+          "tool_call_id": "action-6",
+          "tool_name": "mobile_action"
+        },
+        "mime_type": "image/png",
+        "size_bytes": 39915,
+        "version": "50fcee503d40065d9ae862afa18527859059e92ce12b74476e146b077a6e0365",
+        "created_at": "2026-11-03T01:56:04.595223+08:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "ok": true,
+      "status": "dispatched",
+      "version": "7e56ded1ab8815d94ce9d1c34e38aa8441e29e6cb5ba1a4a041cfbd391820720:2b4ba4b762204f3d8f393a2b879af635",
+      "device": {
+        "serial": "emulator-5556",
+        "device_version": "emulator-5556:1:4693e5a3-b167-451d-8324-05463f4b8b45:Window{10c28c3 u0 com.adam.practice/com.adam.practice.MainActivity}:0",
+        "rotation": 0,
+        "width": 720,
+        "height": 1280,
+        "hierarchy": "<hierarchy rotation=\"0\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"android:id/content\" class=\"android.widget.FrameLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"\" resource-id=\"\" class=\"android.widget.LinearLayout\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,48][720,1184]\"><node index=\"0\" text=\"Adam Practice - Local Record\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,88][696,153]\" /><node index=\"1\" text=\"C102-88ba46d015\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-name\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,153][696,244]\" /><node index=\"2\" text=\"Note-8fbb9defd1\" resource-id=\"\" class=\"android.widget.EditText\" package=\"com.adam.practice\" content-desc=\"record-note\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"true\" scrollable=\"false\" long-clickable=\"true\" password=\"false\" selected=\"false\" bounds=\"[24,244][696,335]\" /><node index=\"3\" text=\"SAVE RECORD\" resource-id=\"\" class=\"android.widget.Button\" package=\"com.adam.practice\" content-desc=\"save-record\" checkable=\"false\" checked=\"false\" clickable=\"true\" enabled=\"true\" focusable=\"true\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,335][696,431]\" /><node index=\"4\" text=\"Saved: {&quot;name&quot;:&quot;C102-88ba46d015&quot;,&quot;note&quot;:&quot;Note-8fbb9defd1&quot;,&quot;savedAt&quot;:1793642169020}\" resource-id=\"\" class=\"android.widget.TextView\" package=\"com.adam.practice\" content-desc=\"saved-result\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[24,431][696,502]\" /></node></node></node><node index=\"1\" text=\"\" resource-id=\"android:id/statusBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][720,48]\" /><node index=\"2\" text=\"\" resource-id=\"android:id/navigationBarBackground\" class=\"android.view.View\" package=\"com.adam.practice\" content-desc=\"\" checkable=\"false\" checked=\"false\" clickable=\"false\" enabled=\"true\" focusable=\"false\" focused=\"false\" scrollable=\"false\" long-clickable=\"false\" password=\"false\" selected=\"false\" bounds=\"[0,0][0,0]\" /></node></hierarchy>",
+        "version": "7e56ded1ab8815d94ce9d1c34e38aa8441e29e6cb5ba1a4a041cfbd391820720"
+      },
+      "image": {
+        "media_id": "2c4747d017db181e1ae0dc179a5ce9ad",
+        "source": {
+          "session_id": "446430e7",
+          "turn_id": "43328c1b20c1e48e00182cad7b841c93",
+          "kind": "tool",
+          "request_id": "b643ac47b1d46ea79fec82ac84d825e5",
+          "tool_call_id": "action-7",
+          "tool_name": "mobile_action"
+        },
+        "mime_type": "image/png",
+        "size_bytes": 53539,
+        "version": "77da7d380d097266a81730b18fa74a40b3a4824c75a1668fe2ad2b8e05d18035",
+        "created_at": "2026-11-03T01:56:13.872822+08:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "ok": false,
+      "error": "Stale mobile observation; observe again",
+      "no_progress": {
+        "action": "continue",
+        "repeats": 1,
+        "fingerprint": "81eb3f69c2f4dfdb854361d6ec1c06d2c31bd6fdcb1c4a15954d798ce6cf080c"
+      }
+    }
+  ],
+  "answer": "Stopped on refusal or failure; no retry.",
+  "session_id": "446430e7",
+  "independent_readback": {
+    "code": 0,
+    "stdout": "{\"name\":\"C102-88ba46d015\",\"note\":\"Note-8fbb9defd1\",\"savedAt\":1793642169020}",
+    "stderr": ""
+  },
+  "visual_review": "Final official API PNG independently inspected: portrait 720x1280; both randomized fields and Saved JSON match independent record.json. SHA256 77da7d380d097266a81730b18fa74a40b3a4824c75a1668fe2ad2b8e05d18035.",
+  "dispatched_count": 7,
+  "save_count": 1
+}

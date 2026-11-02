@@ -3,7 +3,7 @@
 最近核对：2026-11-03
 
 主线同步基线：C07.3已完成；私有C分支同步固定main 771d9ed（B31.2），保留主线父子消息、提醒、终端和输入恢复，保留C媒体/浏览器/桌面/生成来源及取消边界。
-本次核对范围：C10.1固定Android模拟器观察、设备输入租约、版本失效及测试APK；动作工具与导航仍待实现。
+本次核对范围：C10.2 Android动作接入原主工具授权、来源、模式及中断；导航仍待实现。同步登记VoiceLoop到audio的既有协调依赖。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2894,3 +2894,20 @@ flowchart LR
 
 mobile仅依赖自身与contracts，与desktop/robotics分开；不添加万能执行接口或默认注册手机工具。观察前后核对同一状态和完整UI，取消/不稳定不发布；版本只认当前宿主，设备租约跨实例互斥。测试应用和离线构建脚本在tests/support/android_app及scripts/build_android_practice.py；包无网络/硬件权限，私有记录供后续动作独立查询。真实旋转解析依据和测试范围见[Android观察](mobile.md)。
 C10.1实机补证：正式AndroidObserver在API30测试应用完成竖/横两次观察及旧版本拒绝，经原SessionMedia发布2条来源；独立看图确认组件完整，原始失败和清理状态保留[报告](mobile.md#c101-模拟器实机结果)。测试7项+包边界1项通过；上述图与实现一致。
+
+## C10.2 Android普通工具
+
+~~~mermaid
+flowchart LR
+    MA_BOOT["bootstrap / 显式模拟器和批准回调"] --> MA_TOOLS["MobileTools / 主工具、绑定原执行来源"]
+    MA_PIPE["原ToolExecutor / 模式、Hook、预算、日志"] --> MA_TOOLS
+    MA_TOOLS --> MA_LEASE["AndroidObserver.lease / 同设备互斥"]
+    MA_TOOLS --> MA_PLAN["mobile.actions.plan_action / 固定操作与参数"]
+    MA_PLAN --> MA_APPROVE["MobileApproval / 逐次授权"]
+    MA_APPROVE --> MA_CHECK["require_current / 批准后页面复核"]
+    MA_CHECK --> MA_ACT["perform / 单次ADB输入"]
+    MA_ACT --> MA_OBS["原observe / 新版本及SessionMedia来源"]
+~~~
+
+mobile_observe与mobile_action仅显式注入主宿主后注册，子任务不继承；输入操作归原EXTERNAL_ACTION权限。观察版本一次消费，派发后失败标未知并停止轮次；原来源和媒体保护不变。中断/退出丢弃动作引用，各ADB客户端自身finally释放。tool_calls→mobile是协调到执行适配器的新边；同时登记已实现application.VoiceLoop→audio协调依赖，audio/mobile反向依赖仍禁止。相关测试及实机范围见[Android动作](mobile.md#c102-原工具授权动作)。
+C10.2实机补证：固定策略通过原工具/模式/批准/媒体来源运行，7批准7派发保存一次，独立文件查询一致；重复原版本和fresh版本真实断连分别拒绝。相关动作与观察17场景最终通过；[证据](mobile.md#c102-实机填写与独立查询)保留模型模拟边界，架构图与实际调用一致。
