@@ -272,7 +272,16 @@ def build_application(
                 lambda name, args: executor.execute_nested(name, args),
             )
         registry = registry.with_mode(modes.current)
-        registry, discovery = register_discovery(registry, config.tool_discovery, modes.current)
+        registry, discovery = register_discovery(
+            registry,
+            config.tool_discovery,
+            modes.current,
+            embedding_backend=FastEmbedBackend(
+                documents_dir / "models", config.tool_discovery.embedding_model
+            )
+            if config.tool_discovery.ranking == "semantic"
+            else None,
+        )
 
         def bind_source(link: dict[str, str]) -> None:
             """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
@@ -496,7 +505,16 @@ def _open_child(
                 cancel=cancel,
             )
         registry = registry.with_mode(lambda: mode)
-        registry, discovery = register_discovery(registry, config.tool_discovery, lambda: mode)
+        registry, discovery = register_discovery(
+            registry,
+            config.tool_discovery,
+            lambda: mode,
+            embedding_backend=FastEmbedBackend(
+                documents_dir / "models", config.tool_discovery.embedding_model
+            )
+            if config.tool_discovery.ranking == "semantic"
+            else None,
+        )
         executor = ToolExecutor(
             store,
             registry,

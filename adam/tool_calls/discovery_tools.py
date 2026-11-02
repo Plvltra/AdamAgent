@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import Any
 
 from adam.config.settings import ToolDiscoveryConfig
+from adam.contracts.embedding import EmbeddingBackend
 from adam.contracts.errors import ToolError
 from adam.contracts.execution import ExecutionMode, ToolCapability, check_tool_mode
 from adam.contracts.models import ExecutionRecorder
@@ -13,6 +14,7 @@ from adam.contracts.tool_catalog import ToolLoadingMode
 from adam.tool_calls.catalog import schema
 from adam.tool_calls.discovery import ToolDirectory, ToolVisibility
 from adam.tool_calls.registry import ToolRegistry
+from adam.tool_calls.semantic_discovery import SemanticToolRanker
 
 _SPECS = {
     "list_tools": schema(
@@ -55,10 +57,14 @@ class ToolDiscovery:
         config: ToolDiscoveryConfig,
         mode_provider: Callable[[], ExecutionMode],
         max_result_chars: int,
+        *,
+        embedding_backend: EmbeddingBackend | None = None,
     ) -> None:
         self.directory = directory
         self.loading = ToolLoadingMode(config.mode)
         self.mode_provider, self.max_result_chars = mode_provider, max_result_chars
+        self.semantic = config.ranking == "semantic"
+        self.ranker = SemanticToolRanker(config, embedding_backend)
         self._turn_id: str | None = None
         self._selection: ToolVisibility | None = None
 
@@ -75,7 +81,7 @@ class ToolDiscovery:
         definitions = selected.snapshot().definitions()
         if self.loading is ToolLoadingMode.FULL:
             return definitions
-        specs = deepcopy(_SPECS)
+        specs = _specs(self.semantic)
         specs["discover_tools"]["description"] += (
             "\n可发现分组（count为工具数，examples仅为部分名称；完整目录用list_tools）："
             + json.dumps(self._overview(selected), ensure_ascii=False)
@@ -121,20 +127,38 @@ class ToolDiscovery:
         args: dict[str, Any],
         _record: ExecutionRecorder | None,
     ) -> dict[str, Any]:
-        """返回完整条目页；结果放不下一项时明确失败，不用通用截断隐藏分页位置。"""
-        entries = self._active().listings()
-        group, query = args.get("group"), args.get("query", "").casefold()
+        """返回完整候选页及实际排序来源；候选不选中 Schema，放不下一项时明确失败。
+
+        语义编码只在真实查询时发生，不在预览或组装时加载；保留原分页和输出上限。
+        """
+        self._active()
+        group, query = args.get("group"), args.get("query", "")
         offset, limit = args.get("offset", 0), args.get("limit", 20)
-        if group is not None and group not in {entry.group for entry in entries}:
-            raise ToolError("未知或当前模式不可用的工具分组。")
         if len(query) > 200 or offset < 0 or not 1 <= limit <= 100:
             raise ToolError("工具目录查询或分页范围无效。")
+        ranked = self.ranker.rank(self.directory, self.mode_provider(), query, group=group)
+        scores = dict(ranked.scores)
         matches = [
-            {"name": entry.name, "group": entry.group, "summary": entry.summary}
-            for entry in entries
-            if (group is None or entry.group == group)
-            and query in (entry.name + " " + entry.group + " " + entry.summary).casefold()
+            {
+                "name": entry.name,
+                "group": entry.group,
+                "summary": entry.summary,
+                **({"score": scores[entry.name]} if entry.name in scores else {}),
+            }
+            for entry in ranked.entries
         ]
+        provenance = (
+            {
+                "ranking": {
+                    "strategy": ranked.strategy,
+                    "directory_version": ranked.directory_version,
+                    "embedding": ranked.embedding,
+                    "fallback_reason": ranked.fallback_reason,
+                }
+            }
+            if self.semantic
+            else {}
+        )
         if offset > len(matches):
             raise ToolError("工具目录偏移超出结果范围。")
         page = matches[offset : offset + limit]
@@ -145,6 +169,7 @@ class ToolDiscovery:
                 "total": len(matches),
                 "offset": offset,
                 "next_offset": end if end < len(matches) else None,
+                **provenance,
             }
             if len(json.dumps({"ok": True, **result}, ensure_ascii=False)) <= self.max_result_chars:
                 return result
@@ -180,15 +205,26 @@ def register_discovery(
     registry: ToolRegistry,
     config: ToolDiscoveryConfig,
     mode_provider: Callable[[], ExecutionMode],
+    *,
+    embedding_backend: EmbeddingBackend | None = None,
 ) -> tuple[ToolRegistry, ToolDiscovery]:
-    """冻结已注册的真实目录，再添加发现适配器；无效外部说明以受控错误拒绝。"""
+    """冻结可信目录后添加发现入口；语义后端由宿主提供，未提供时查询明确降级。
+
+    无效外部说明以受控错误拒绝；构造和预览不推理、不下载、不选择底层工具。
+    """
     try:
         directory = registry.directory()
     except ValueError as error:
         raise ToolError("工具目录说明无效，未启动模型请求。") from error
-    service = ToolDiscovery(directory, config, mode_provider, registry.limits.max_result_chars)
+    service = ToolDiscovery(
+        directory,
+        config,
+        mode_provider,
+        registry.limits.max_result_chars,
+        embedding_backend=embedding_backend,
+    )
     registered = registry.extended(
-        _SPECS,
+        _specs(service.semantic),
         {"list_tools": service.list_tools, "discover_tools": service.discover},
         capabilities={
             "list_tools": ToolCapability.READ_ONLY,
@@ -197,3 +233,18 @@ def register_discovery(
         groups=dict.fromkeys(_SPECS, "discovery"),
     )
     return registered, service
+
+
+def _specs(semantic: bool) -> dict[str, Any]:
+    """注册与请求使用相同说明；默认关键词模式的既有 Schema 保持。"""
+    result = deepcopy(_SPECS)
+    if semantic:
+        result["list_tools"]["description"] = (
+            "按任务描述语义检索当前模式允许的工具，或按准确分组分页查询。"
+            "返回候选、排序来源及可能的关键词降级原因；分数不是执行权限。"
+            "查询不选择也不执行工具，须 discover_tools 后在后续请求调用。"
+        )
+        result["list_tools"]["parameters"]["properties"]["query"]["description"] = (
+            "自然语言任务描述或准确工具名，最多200字符；空字符串按目录顺序列出"
+        )
+    return result

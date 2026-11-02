@@ -16,7 +16,7 @@ ToolRanking 包含实际策略、目录版本、候选、可选模型身份与�
 
 ## 配置与接入阶段
 
-ToolDiscoveryConfig 与 TOML 已校验以下选项；B16.1 只提供目录 API，现有聊天仍使用原 list_tools，B16.2 才接入语义排序和本地模型适配器。当前不会因为写入 ranking 而下载或请求任何模型。
+ToolDiscoveryConfig 与 TOML 校验以下选项。B16.1 建立独立目录 API，B16.2 已把它接入聊天 list_tools 和本地模型适配器；启用后只在非空目录查询时推理，不会自动下载模型。
 
 ```toml
 [tool_discovery]
@@ -33,4 +33,19 @@ mode 控制完整工具说明何时加载；ranking 独立控制目录如何排�
 
 [22项业务场景](../tests/features/test_semantic_tool_directory.py) 通过真实 ToolRegistry/ToolVisibility 检查过滤先于编码、候选不选择/不执行、准确名称与分组、Schema/模型/模式/分组缓存失效、坏批次/失败降级、取消与配置。连同原发现/聊天/配置/架构共136项通过（16.34秒）；默认模型名改为沿用现有本地模型后，相关69项再次通过。最初测试夹具误用了不存在的能力枚举，纠正为已有 EDIT_FILE 后重跑通过，未修改生产权限规则。
 
-Ruff、Pyright、链接和新增/改写注释单独审查；主线提交门禁执行全量 pytest。B16.2 接入与 B16.3 二十工具效果对照尚未完成。
+Ruff、Pyright、链接和新增/改写注释单独审查；主线提交门禁执行全量 pytest。B16.2 接入已在下节记录；B16.3 二十工具效果对照尚未完成。
+
+
+## B16.2 接入原工具发现
+
+设置 ranking="semantic" 后，[ToolDiscovery.list_tools](../adam/tool_calls/discovery_tools.py) 使用任务描述查候选，结果增加 ranking.strategy、directory_version、embedding、fallback_reason，语义候选各带 score。默认 keyword 保持原返回结构。查询仍受原分页和输出限制，连同元信息计算大小；缩小页仍放不下一项时明确失败，不截断掉 next_offset。
+
+bootstrap 为主任务和每个子任务分别注入 FastEmbedBackend，模型缓存使用实际 documents_dir/models，缺省 documents_dir 为 sessions_dir/_documents。后端延迟加载，allow_download=False；组装和 /context 预览不推理。查询找不到模型时明确返回关键词降级，不能把它当成功的语义排序。
+
+准备模型使用已有显式入口：先安装可选 documents 依赖，再执行 python -m adam.document_search --cache-dir <实际documents_dir> --model <embedding_model> prepare-model。该命令可以下载公开模型文件；正常聊天不会替你执行。使用已有同名模型缓存可以直接复用，不需要另建向量数据库。
+
+list_tools 只返回候选，discover_tools 才加入本轮选择，后续请求实际附上完整 Schema 才允许调用。同批 discover+新工具调用仍被拒绝。路径、模式、Hook 和逐次批准继续由原执行器检查；语义分数不参与授权。主子实例和向量缓存分开，子任务只对自己实际注册且当前模式允许的目录排序。
+
+排序来源随原工具结果进入 JSONL 和录制；每次请求继续记录实际 tool_schema.names/utf8_bytes。重开会话保留这些证据，离线重放使用当时的目录与结果，不重新加载 embedding 模型或外部工具。目录更新后重新组装冻结快照及版本，旧索引不会作为新目录结果；本版没有进程内热更新注册表。
+
+[8项接入场景](../tests/features/test_semantic_tool_flow.py) 验证真实 list→discover→后续请求→文件读取、同批提前调用拒绝、plan 过滤与越界文件拒绝、编码失败降级、分页/结果过小、变更目录、真实子线程隔离及重启/零编码重放。与原发现、目录基础、架构、重放共108项通过（27.49秒），Ruff/Pyright通过。语义向量和远端聊天为测试替身，本地文件与执行器真实运行；真实二十工具效果留在 B16.3。主线提交门禁运行全量 pytest。

@@ -2,16 +2,20 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B16.1 可信目录版本、独立语义候选排序和有界配置。
+本次核对范围：B16.2 语义目录接入 list_tools、主子后端组装和原执行记录。
 
-核对结论：ToolDirectory 新增完整目录版本，SemanticToolRanker 在模式过滤后调用注入的 EmbeddingBackend，并在完整校验后更新单份内存缓存。配置区分说明加载和目录排序，既有发现与实际请求名单尚未改动；本步只新增独立 API。共享向量契约说明扩展到工具目录，原权限与不扩权注释保留。
+核对结论：bootstrap 为主/子 ToolDiscovery 分别注入本地 FastEmbedBackend，list_tools 使用 SemanticToolRanker 并返回实际排序来源。查询仍不改变选择，discover/固定请求名单与原权限检查保持。分页预算含元信息，记录和重放复用原工具边界。原完整分页、不截断和无副作用说明已保留并扩展。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-## B16.1 语义工具目录基础
+## B16 语义工具目录与运行时接入
 
 ~~~mermaid
 flowchart LR
+    ST_BOOT["bootstrap / 每个主子任务独立本地后端"] --> ST_QUERY["ToolDiscovery.list_tools / 真实轮次查询"]
+    ST_QUERY --> ST_RANK
+    ST_RESULT --> ST_PAGE["有界候选页 / 原工具 JSONL 与重放"]
+    ST_CHOOSE["discover_tools / 原单轮选择"] --> ST_REQUEST["下次完整 Schema / 固定请求名单 / 原执行授权"]
     ST_REG["可信 ToolRegistry"] --> ST_DIR["ToolDirectory / 完整 Schema 与能力版本"]
     ST_DIR --> ST_RANK["SemanticToolRanker / 先模式与分组过滤"]
     ST_CFG["ToolDiscoveryConfig / 本地模型与数量阈值"] --> ST_RANK
@@ -21,7 +25,7 @@ flowchart LR
     ST_RANK --> ST_RESULT
 ~~~
 
-此处尚无聊天工具连线；B16.2 才把候选查询接入原 ToolDiscovery，选择与执行授权保持分离。见 [语义工具发现](semantic-tool-discovery.md)。
+list_tools 返回候选后由模型决定是否调用 discover_tools；候选不会自动流入已选择集合。bootstrap 使用 documents_dir/models 的本地缓存，预览不推理，正常查询不自动下载。见 [语义工具发现](semantic-tool-discovery.md)。
 
 ## B15.3.2 MCP 二进制引用接入
 

@@ -146,3 +146,8 @@ names 和 utf8_bytes：后者是 ensure_ascii=False、默认分隔符编码整�
 复现：.venv/Scripts/python.exe -m pytest -q -s tests/features/test_tool_discovery_acceptance.py。
 输出 T12_COMPARISON 包含当前环境实测值；7项专项通过，完整检查作为本项独立提交门禁。
 T12.2 完整 Ruff、Pyright、1478项 pytest 检查已通过，提交 7c1cb62。
+
+
+## B16 语义目录扩展
+
+默认关键词查询和上述选择/授权规则保持。可选 tool_discovery.ranking="semantic" 已接入 list_tools，使用本地模型按任务描述排序，返回分数、目录版本和实际降级原因。查询不自动选择工具，必须继续走 discover_tools 与下一次请求名单。主子模型与缓存分别创建，编码前过滤模式，离线重放不重新推理。配置、模型准备及验收见 [语义工具发现](semantic-tool-discovery.md)。
