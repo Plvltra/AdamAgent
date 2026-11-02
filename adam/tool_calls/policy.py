@@ -42,6 +42,25 @@ class PathPolicy:
             raise ToolError("只能修改已有的普通文件。")
         return path
 
+    def resolve_create(self, value: str) -> Path:
+        """授权一个不存在的目标，父目录必须已存在；不创建目录或占位文件。
+
+        复用写入根、凭据、保留目录及链接限制。返回值只是当前观察，发布前仍须复核，
+        并使用不覆盖已有目标的原子操作，不能把这次exists检查当成锁。
+        """
+        path = self._resolve(value, self.write_roots, must_exist=False, writing=True)
+        if os.name == "nt" and (
+            path.is_reserved()
+            or any(":" in part or part.endswith((".", " ")) for part in path.parts[1:])
+        ):
+            raise ToolError("不允许创建Windows设备名、替代数据流或带尾部点/空格的路径。")
+        # lexists也能发现断开的符号链接；任何已有目录项都不是可创建目标。
+        if os.path.lexists(path):
+            raise ToolError("创建目标已经存在，请改用已有文件的编辑工具。")
+        if not path.parent.is_dir():
+            raise ToolError("创建目标的父目录必须已经存在；未自动创建目录。")
+        return path
+
     def _resolve(
         self, value: str, roots: tuple[Path, ...], *, must_exist: bool, writing: bool = False
     ) -> Path:

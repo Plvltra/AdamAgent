@@ -1,10 +1,11 @@
-"""从读取快照生成单文件替换计划；不访问文件，也不执行修改。"""
+"""从快照或明确缺失状态生成单文件计划；不访问文件，也不执行修改。"""
 
 from difflib import unified_diff
 from pathlib import Path
 
 from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import ToolError
+from adam.contracts.models import CreatePlan
 from adam.contracts.models import EditPlan as EditPlan
 from adam.tool_calls.file_evidence import FileStateError
 from adam.tool_calls.text_file import TextSnapshot
@@ -56,6 +57,24 @@ def plan_edit(
     )
 
 
+def plan_create(path: Path, content: str, max_bytes: int) -> CreatePlan:
+    """生成UTF-8/LF创建候选与完整diff；支持空文件，拒绝孤立CR、NUL或超限。
+
+    path须由宿主检查写入权限、现有父目录与目标缺失；此纯函数不以磁盘查询替代这些检查。
+    新建没有旧内容，before_version与original均为None，不能当作已有空文件的替换。
+    """
+    if not path.is_absolute() or type(max_bytes) is not int or max_bytes < 1:
+        raise ToolError("创建计划需要绝对路径和有效文件大小上限。")
+    text = _normalize(content)
+    try:
+        candidate = text.encode("utf-8")
+    except UnicodeError as error:
+        raise ToolError("新文件内容不是有效UTF-8。") from error
+    if len(candidate) > max_bytes:
+        raise ToolError("新文件内容超过文本大小上限。")
+    return CreatePlan(path, candidate, _diff(path, "", text, creating=True))
+
+
 def plan_restore(snapshot: TextSnapshot, checkpoint: EditCheckpoint) -> EditPlan:
     """从当前版本和原始副本生成逆向计划；版本或路径不符时拒绝覆盖外部修改。"""
     if snapshot.path != checkpoint.path or snapshot.version != checkpoint.target_version:
@@ -75,12 +94,17 @@ def plan_restore(snapshot: TextSnapshot, checkpoint: EditCheckpoint) -> EditPlan
     )
 
 
-def _diff(path: Path, before: str, after: str) -> str:
-    """为普通编辑和撤销生成同一格式的完整差异；展示不重新编码实际写入字节。"""
+def _diff(path: Path, before: str, after: str, *, creating: bool = False) -> str:
+    """为编辑、创建和撤销生成完整差异；展示不重新编码实际写入字节。
+
+    创建使用/dev/null作为原状态；空文件也有明确头信息，避免将缺失与已有空文件混淆。
+    """
+    if creating and not after:
+        return f"new empty file\n--- /dev/null\n+++ {path}\n"
     lines = unified_diff(
         before.splitlines(keepends=True),
         after.splitlines(keepends=True),
-        fromfile=str(path),
+        fromfile="/dev/null" if creating else str(path),
         tofile=str(path),
     )
     # 没有末尾换行的删除/新增行也要独立展示，避免相邻 diff 行粘连。

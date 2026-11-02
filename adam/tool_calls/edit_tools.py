@@ -12,8 +12,8 @@ from typing import Any
 from adam.config.settings import ToolLimits
 from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import ToolError
-from adam.contracts.models import EditPlan
-from adam.tool_calls.edit_plan import EditConflictError, plan_edit, plan_restore
+from adam.contracts.models import CreatePlan, EditPlan
+from adam.tool_calls.edit_plan import EditConflictError, plan_create, plan_edit, plan_restore
 from adam.tool_calls.file_evidence import FileResult, FileStateError
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.text_file import read_snapshot
@@ -47,6 +47,11 @@ class EditTools:
         except ToolError as error:
             # 规划已拿到完整原字节；同一错误遇到新版本不算重复原地失败。
             raise FileStateError(str(error), version=snapshot.version) from error
+
+    def prepare_create(self, args: dict[str, Any]) -> CreatePlan:
+        """检查目标缺失与独立写权限，固定创建候选和diff；不批准、不写入。"""
+        path = self.policy.resolve_create(args["path"])
+        return plan_create(path, args["content"], self.limits.max_text_file_bytes)
 
     def prepare_restore(self, checkpoint: EditCheckpoint) -> EditPlan:
         """按当前写入权限读取修改后版本，生成恢复原字节的计划；不执行写入。"""

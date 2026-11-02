@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
@@ -91,6 +91,20 @@ class EditPlan:
     candidate: bytes
     diff: str
     original: bytes
+
+
+@dataclass(frozen=True)
+class CreatePlan:
+    """新文件的批准对象；原状态为不存在，不能用空文件字节或空内容摘要代替。
+
+    candidate和diff在规划时固定。计划不表示文件已写入，实际发布前仍须重新校验权限和缺失状态。
+    """
+
+    path: Path
+    candidate: bytes
+    diff: str
+    before_version: None = field(default=None, init=False)
+    original: None = field(default=None, init=False)
 
 
 @dataclass(frozen=True)
