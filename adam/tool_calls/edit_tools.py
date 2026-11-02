@@ -163,6 +163,39 @@ class EditTools:
                 except OSError:
                     pass
 
+    def apply_create(self, plan: CreatePlan) -> None:
+        """发布已批准的创建候选；目标存在时绝不覆盖，不自动创建父目录或重试。
+
+        调用者负责批准固定计划和保存开始记录。候选先在同目录完整写入并flush/fsync，
+        再用硬链接发布新名字；不支持硬链接的文件系统直接失败，不退回普通覆盖写入。
+        发布前复核权限和缺失状态，但路径检查不是抵御恶意目录替换的操作系统沙箱。
+        """
+        temporary: Path | None = None
+        try:
+            self._check_create_target(plan)
+            with tempfile.NamedTemporaryFile(
+                dir=plan.path.parent, prefix=".adam-create-", delete=False
+            ) as stream:
+                temporary = Path(stream.name)
+                stream.write(plan.candidate)
+                stream.flush()
+                os.fsync(stream.fileno())
+            self._check_create_target(plan)
+            # 与replace不同，link在目标已存在时失败；批准后的同名竞争不会覆盖对方。
+            os.link(temporary, plan.path)
+        except FileExistsError as error:
+            raise EditConflictError("创建目标已经出现，未覆盖；请重新检查文件。") from error
+        except OSError as error:
+            raise ToolError("文件创建失败；未自动重试或覆盖，请检查权限和文件系统支持。") from error
+        finally:
+            if temporary is not None:
+                try:
+                    # 发布后两个名字共享文件，不能chmod临时名字，否则会修改目标属性。
+                    temporary.unlink(missing_ok=True)
+                except OSError:
+                    # 清理失败不掩盖原结果；遗留临时名字不代表另一份创建或自动恢复动作。
+                    pass
+
     def _check_create_target(self, plan: CreatePlan) -> None:
         """每次按当前策略检查缺失目标；返回后仍可能出现同名目录项，不充当写锁。"""
         if self.policy.resolve_create(str(plan.path)) != plan.path:

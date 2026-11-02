@@ -2,13 +2,25 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B22.2.1 EditCheckpoint缺失状态、CheckpointStore v2及EditLog创建投影。
+本次核对范围：B22.2.2 EditTools.apply_create完整候选和不覆盖发布。
 
-核对结论：原检查点可表达create/null缺失，存储以v2保存且原replace保持v1；EditLog独立验证创建类型，SessionLog阻止原替换工具伪造创建来源。已有文件恢复明确拒绝缺失快照。无实际创建/删除或模型新工具，原成功/unknown与快照分离契约保留。
+核对结论：EditTools增加显式apply_create，复核原PathPolicy后把完整同目录候选经flush/fsync和os.link发布；已有目标不覆盖，不支持时失败。清理临时名不chmod共享文件。原替换/撤销不变，创建日志和模型入口尚未连接；新增契约与实际竞态/故障一致。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B22.2.2 新文件原子发布
+
+~~~mermaid
+flowchart LR
+    FC_APPLY["EditTools.apply_create / 已批准候选"] --> FC_RECHECK["PathPolicy.resolve_create / 前后复核"]
+    FC_APPLY --> FC_TEMP["同目录临时文件 / 写完整、flush、fsync"]
+    FC_TEMP --> FC_LINK["os.link / 已有目标失败"]
+    FC_LINK --> FC_UNLINK["只清理临时名字 / 不改共享属性"]
+~~~
+
+本步是显式宿主API，调用方仍负责批准与执行日志；模型创建尚未接入。实际文件系统支持和边界见 [文件创建](file-creation.md)。
 
 ## B22.2.1 缺失状态检查点
 
