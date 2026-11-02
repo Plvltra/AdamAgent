@@ -2,7 +2,8 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C07.3已完成；私有C分支同步固定main 771d9ed（B31.2），保留主线父子消息、提醒、终端和输入恢复，保留C媒体/浏览器/桌面/生成来源及取消边界。
+主线同步基线：C07.3已完成；私有C分支同步固定main 771d9ed（B31.2），保留主线父子消息、提醒、终端和输入恢复，保留C媒体/浏览器/桌面/生成来源及取消边界。
+本次核对范围：C05.1独立按键录音/离线转写/确认草稿；不新增Conversation轮次，真实麦克风成功采集尚待设备恢复。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2802,3 +2803,20 @@ flowchart LR
 
 生成包保持只依赖自身和contracts，工具层显式依赖生成包并通过SessionMedia校验来源；Conversation不识别生成SDK。快照放在已保护的媒体目录内，主子文件/文档读取不获得额外访问权。默认无生成工具，子任务不继承主后端；启用宿主必须注入共享UnitBudget。重启先恢复本会话全部已配置模态，遗留running转unknown；已存但撤销后端或损坏记录阻止新派发，不凭缺失内存缓存重做。见[生成闭环](generation.md#c073-普通工具生成闭环)。
 C/B31同步核对（2026-11-03）：42个C提交已逐项rebase到固定main 771d9ed，原C与主线架构标题均已核对无遗漏。中断入口通过ExitStack回收桌面/浏览器，并调用主线后台/终端清理；会话选择继续使用recover_attached恢复后台、提醒、终端与运行输入。CLI浏览器与终端批准均复用唯一read入口。子图片读取补齐_background/_inputs/_triggers/_terminals/_subagents保留目录，子诊断读取补齐_media；扩展原图片隔离场景，不新增权限能力。相关Ruff与定向Pyright通过，原契约和注释保留。三大项批次全量唯一一次运行3990项通过（2101.14秒，墙钟2102.85秒）；基线d46193a加上述目录修复，日志.cache/c-batch-20261103。
+
+## C05.1 有界语音输入
+
+~~~mermaid
+flowchart LR
+    VS_CLI["scripts.voice_input / 按键与确认"] --> VS_MIC["audio.adapters.microphone / 原生采样率、看守、关闭设备"]
+    VS_MIC --> VS_WAV["Recording / 实际PCM WAV与设备"]
+    VS_WAV --> VS_INPUT["audio.input.SpeechInput / 原始转写与确认"]
+    VS_INPUT --> VS_STORE["宿主指定草稿目录 / WAV摘要、原子JSON"]
+    VS_INPUT --> VS_BUDGET["注入原UnitBudget / 音频毫秒与未知消费"]
+    VS_INPUT --> VS_ASR["WhisperASR / 固定可取消子进程"]
+    VS_ASR --> VS_WORKER["whisper_worker / 离线CPU模型"]
+    VS_WORKER --> VS_DRAFT["SpeechDraft / 待确认、确认或失败"]
+    VS_DRAFT --> VS_CLI
+~~~
+
+audio仅依赖自身与contracts，脚本负责注入原C00额度；默认聊天不加载设备或ASR。确认草稿尚未接入Conversation，来源仍为真实录音/合成样本的明确设备说明及SHA。11项局部验证通过，真实ASR合成样本成功；MME/WASAPI打开真实麦克风失败，保留待验收。详情见[语音交互](voice-interaction.md)。

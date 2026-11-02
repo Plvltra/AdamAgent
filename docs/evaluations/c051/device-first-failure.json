@@ -1,0 +1,9 @@
+{
+  "microphone": {
+    "status": "rejected",
+    "type": "PortAudioError",
+    "error": "Error opening RawInputStream: Unanticipated host error [PaErrorCode -9999]: 'Undefined external error.' [MME error 1]"
+  },
+  "capture_wall_seconds": 0.35899999999674037,
+  "device_reopened_and_closed": "Error opening RawInputStream: Unanticipated host error [PaErrorCode -9999]: 'Undefined external error.' [MME error 1]"
+}

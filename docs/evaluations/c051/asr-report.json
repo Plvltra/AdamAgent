@@ -1,0 +1,25 @@
+{
+  "exact_match": true,
+  "reporting_error": "After successful confirmation, acceptance helper called nonexistent UnitBudget.state. Original committed draft retained; report reconstructed without a second ASR call.",
+  "elapsed_seconds": null,
+  "scope": "actual SpeechInput and WhisperASR on synthetic speech; not microphone acceptance",
+  "draft": {
+    "capture_id": "8da068d4efa38ce52bb857fc6ce08b5b",
+    "device": "Windows Huihui synthetic fixture, not microphone",
+    "created_at": "2026-11-03T00:52:42.004217+08:00",
+    "audio_version": "663bf101323166d740553c8079cfc89c8e24bd229725a0abb2682be5c697e4c5",
+    "duration_ms": 5847,
+    "state": "confirmed",
+    "transcript": "这是本地语音测试。请告诉我现在的任务进度。",
+    "confirmed_text": "这是本地语音测试。请告诉我现在的任务进度。",
+    "error": null,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 26,
+      "images": 0,
+      "audio_ms": 5847,
+      "calls": 1
+    },
+    "cost": null
+  }
+}

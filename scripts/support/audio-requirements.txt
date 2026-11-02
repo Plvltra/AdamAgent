@@ -1,0 +1,4 @@
+# 独立ASR Python环境；av 19移除了faster-whisper 1.2.1使用的metadata_errors参数。
+faster-whisper==1.2.1
+av==16.0.1
+sounddevice==0.5.6
