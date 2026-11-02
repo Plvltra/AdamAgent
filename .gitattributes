@@ -13,3 +13,6 @@ examples/injection-evaluation/*.json text eol=lf
 tests/fixtures/document_multi_questions.json text eol=lf
 tests/fixtures/documents/*.txt text eol=lf
 docs/evaluations/b09-*.json text eol=lf
+
+# This archived evaluation used CRLF bytes; preserve its historical hash.
+tests/fixtures/documents/locking.txt -text
