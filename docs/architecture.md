@@ -2,11 +2,13 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B17.3.1 独立图片分析扩展契约与未配置能力结果；三级验证与手动全量测试门禁。
+本次核对范围：B17.3.2 整本书稿验收入口及读取/索引的显式 PDF 流限制。
 
-核对结论：contracts.perception 新增字节请求、分析回复及注入接口；documents.image_analysis 只做来源与调用边界，不打开路径或组装网络客户端。生产尚未注入图片分析器，未注册图片聊天工具，默认明确 unavailable。PDF 读取与索引流程保持原样；原注释未删除，新增说明明确扩展接口不等于视觉能力。
+核对结论：现有生产模块关系无变化，ToolLimits 与 DocumentConfig 向 PdfLimits 传递显式 max_pdf_stream_bytes，索引缓存包含该限制。scripts.pdf_acceptance 复用原 PDF、索引、搜索与工具，在临时副本完成更新验收；不增加生产模型或视觉链。原权限、协作期限和不完整内容说明保留，新增配置说明及真实失败记录。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+[PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
 ## B17.3.1 图片分析扩展契约
 

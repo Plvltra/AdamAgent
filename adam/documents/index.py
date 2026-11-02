@@ -49,6 +49,7 @@ class DocumentIndex:
             "source_format": "physical-pdf-pages-v1",
             "max_pdf_pages": config.max_pdf_pages,
             "max_pdf_text_chars": config.max_pdf_text_chars,
+            "max_pdf_stream_bytes": config.max_pdf_stream_bytes,
         }
         key = digest(self.cache_scope)[:24]
         self.path = cache_dir / (key + ".json")

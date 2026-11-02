@@ -33,7 +33,7 @@ pypdf 按页抽取文本，但扫描页需要另行 OCR；整个页面内容流�
 
 真实中文书稿《深入理解 AI Agent.pdf》也进行了文本提取：原文件11084397字节、313物理页，读取122～124页得到1996/1677/1654字符，均有中文且未截断，下一页125。此次显式提高原文件上限为16 MiB；默认8 MiB会正确拒绝该文件。[元数据证据](evaluations/b17-pdf/book-extraction.json) 只保存版本、页码和统计，没有复制原书正文，也没有声称做过看图验收。
 
-Ruff、Pyright及注释单独审查；主线提交门禁执行全量 pytest。B17.2 路径/工具/页级索引接入已完成，B17.3 组合验收与图片分析扩展仍待完成。
+Ruff、Pyright及注释单独审查；主线提交门禁执行全量 pytest。B17.2 路径/工具/页级索引接入已完成，B17.3 的图片扩展接口及下述组合验收已完成；实际视觉后端和模型引用质量仍待单独验收。
 
 
 ## B17.2.1 模型读取工具
@@ -42,7 +42,7 @@ Ruff、Pyright及注释单独审查；主线提交门禁执行全量 pytest。B1
 
 [PdfSnapshot](../adam/documents/pdf_source.py) 先重新授权，再通过同一文件句柄有界读取；比较句柄前后及当前路径的设备/文件身份、大小和修改时间。提取完成再次授权、复查元数据；变化或撤权丢弃该次结果。它不加跨进程文件锁，不能保证发现刻意保留所有元数据的并发写入；SHA 始终对应本次实际读取的原字节。后续调用若携带 expected_version，源内容更新便明确拒绝跨版本续读。
 
-[PdfTools](../adam/tool_calls/pdf_tools.py) 使用 tool_limits.max_pdf_file_bytes（默认8388608，上限33554432）、max_pdf_read_pages（默认20，上限100）；TOML 和直接构造共用校验。还沿用 scan_timeout_seconds 的协作期限、max_result_chars 的最终输出预算。解析器其余复杂度和文本上限保持 B17.1 设置。
+[PdfTools](../adam/tool_calls/pdf_tools.py) 使用 tool_limits.max_pdf_file_bytes（默认8388608，上限33554432）、max_pdf_read_pages（默认20，上限100）；TOML 和直接构造共用校验。还沿用 scan_timeout_seconds 的协作期限、max_result_chars 的最终输出预算。另可通过 max_pdf_stream_bytes 显式配置解析流字节上限（默认2097152，上限8388608）；解析器其余复杂度和文本上限保持 B17.1 设置。
 
 最终结果包含 path、version、total_pages、pages、next_page 与 layout_verified；页状态、实际提取字符数和 truncated 都保留。超出预算先省略后续整页并修正 next_page，单页仍过长才缩短其文字并标记；基础来源放不下时失败，不用通用 preview 截断掉 JSON 定位信息。想读取被截掉的同页全文需提高结果限制，next_page 不是该页尾部偏移。
 
@@ -61,7 +61,7 @@ Ruff、Pyright及注释单独审查；主线提交门禁执行全量 pytest。B1
 
 image_only、no_extractable_text 和含文字但有未识别图片的 unread_images 形成带路径、版本及页码的提示。search_documents、知识目录与引用审计使用 source_coverage 保存总数和最多5条来源，明确是否省略其余提示；即使查询 no_match，也不能把扫描件说成没有答案。版面、图像和 OCR 始终未验证。输出放不下完整基础元数据时明确失败，不截断 JSON 来源字段。
 
-索引沿用 documents.max_file_bytes（默认1 MiB，上限32 MiB）与 max_total_bytes（默认10 MiB）；增加 max_pdf_pages（默认512，上限2048）和 max_pdf_text_chars（默认1000000，上限1000000）。单页提取最多100000字符，解码流仍受2 MiB限制，超限不建立部分索引。较大的书稿需要同时明确提高文件/语料字节额度及必要的 scan_timeout_seconds；这些仍是有界输入和协作检查，不是 OS 硬内存或超时隔离。
+索引沿用 documents.max_file_bytes（默认1 MiB，上限32 MiB）与 max_total_bytes（默认10 MiB）；增加 max_pdf_pages（默认512，上限2048）和 max_pdf_text_chars（默认1000000，上限1000000）。单页提取最多100000字符，max_pdf_stream_bytes 默认限制解析流为2 MiB，可显式提高至8 MiB；超限不建立部分索引。较大的书稿需要同时明确提高文件/语料字节额度及必要的 scan_timeout_seconds；这些仍是有界输入和协作检查，不是 OS 硬内存或超时隔离。
 
 解析格式及 PDF 限额参与缓存文件隔离；索引可以重建，知识候选持久目录继续使用原资料范围。纯文本语料的 source_generation 也保持原计算口径，避免仅因新增 PDF 功能就让已有知识变成过时记录。新增或改变 PDF 才会改变对应语料来源版本。旧会话和录制保存当时结果，重放不会重新读取 PDF。
 
@@ -81,3 +81,20 @@ image_only、no_extractable_text 和含文字但有未识别图片的 unread_ima
 返回 ImageInspection 不包含图片字节，保留 source_version、size_bytes、mime_type、question_sha256 和分析来源。independently_verified 始终为 false：模型分析不是可直接核验的原文，也不自动标成正确事实。请求对象隐藏字节的 repr 仅避免调试输出误打印，不是脱敏存储机制。
 
 [24项契约场景](../tests/features/test_image_analysis_contract.py) 覆盖无后端时零网络/进程、原字节及哈希传递、单次调用、未知用量、输入/输出边界、模型身份、编码失败、预算/保存故障和调用前后取消。连同 PDF 三组场景及架构共97项通过（7.15秒）。测试使用不透明合成字节和预设分析器，明确不验证实际像素理解；未调用付费 API。B17.3.2 继续进行文本 PDF 的组合验收并记录真实模型/视觉待验收范围。
+
+
+## B17.3.2 整本书稿组合验收
+
+[pdf_acceptance](../scripts/pdf_acceptance.py) 仅读取显式传入的 PDF，不扫描其父目录。实际提取、索引和检索在临时资料根中的原字节副本上完成；所有物理页须有文本片段或能力提示。搜索命中后，调用原注册 read_pdf 核对同一版本和页内片段，再只改变临时副本，验证旧版本续读被拒绝、索引版本更新。原文件保持不变。输出文件排他创建，不覆盖旧报告；失败不生成成功报告。
+
+真实《深入理解 AI Agent.pdf》共313物理页、11084397字节，提取502345字符并建立1502个片段，313页均被记录。查询“函数调用”命中物理页197、177、150；原工具读取、来源版本、旧版本拒绝和副本刷新均通过，耗时59.61秒。[成功报告](evaluations/b17-pdf/book-indexing.json) 仅包含来源哈希、计数、页码与结果，不复制书稿原文。
+
+第一次全文索引确实失败：其中2407908字节的图片资源流超过默认2 MiB上限。保留[默认限制拒绝报告](evaluations/b17-pdf/book-default-limit.json)，没有自动放大额度或交付部分索引。随后显式设置4 MiB后才通过；ToolLimits 和 DocumentConfig 均增加 max_pdf_stream_bytes，默认2 MiB、最高8 MiB。配置上限纳入可重建索引缓存，不改变知识持久范围。报告中的32 MiB文件/语料及300秒协作期限仅用于这次显式验收，不修改用户默认配置。
+
+```powershell
+python -m scripts.pdf_acceptance --pdf "你的书稿.pdf" --query "函数调用" --max-stream-bytes 4194304 --output pdf-result.json
+```
+
+仍有两页 unread_images 提示；没有解码图片、OCR、页面截图或视觉理解。此报告验证文本工程链和来源一致性，不评分检索相关性，也不验证真实聊天模型能否正确引用；付费模型请求数为0。图片 API 完成范围见上一节，生产视觉后端仍未配置。
+
+[5项入口验收](../tests/features/test_pdf_acceptance.py) 使用真实小型 PDF 验证完整流程、原件不变、既有报告不覆盖、加密与无匹配时不产生通过报告，以及配置流上限在读取工具和索引中生效。相关 PDF、图片契约、索引、知识查询、配置和架构共180项通过（14.69秒）；Ruff、526个文件格式与 Pyright 通过。前序多页、混合扫描和更新用例复用，不复制为另一套测试。注释审查保留原边界说明，架构同步；主线按 AGENTS.md 三级验证规则执行，B17 结束局部回归，B19 结束全量回归。

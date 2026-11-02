@@ -1,0 +1,16 @@
+{
+  "source_name": "深入理解 AI Agent.pdf",
+  "source_version": "0b939175a49ba2cf9909477f7ff2df1dd8136385993ab8bdcf492fdcf0db9bd0",
+  "source_bytes": 11084397,
+  "real_pdf_parser": true,
+  "operation": "full_index",
+  "status": "limit_rejected",
+  "configured_stream_limit": 2097152,
+  "observed_declared_stream_bytes": 2407908,
+  "failure": "PDF 解码或结构复杂度超限，未返回部分内容。",
+  "partial_index_returned": false,
+  "automatic_retry": false,
+  "automatic_limit_increase": false,
+  "paid_model_requests": 0,
+  "visual_analysis": "not_performed"
+}

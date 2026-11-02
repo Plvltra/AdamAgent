@@ -89,6 +89,7 @@ class ToolLimits:
     max_text_file_bytes: int = 1048576
     max_pdf_file_bytes: int = 8388608
     max_pdf_read_pages: int = 20
+    max_pdf_stream_bytes: int = 2097152
     max_git_path_list_bytes: int = 1048576
     scan_timeout_seconds: int = 5
     git_timeout_seconds: int = 5
@@ -96,7 +97,11 @@ class ToolLimits:
 
     def __post_init__(self) -> None:
         """PDF 上限与解析器支持范围一致；直接构造和 TOML 均不能关闭边界。"""
-        for name, ceiling in (("max_pdf_file_bytes", 33554432), ("max_pdf_read_pages", 100)):
+        for name, ceiling in (
+            ("max_pdf_file_bytes", 33554432),
+            ("max_pdf_read_pages", 100),
+            ("max_pdf_stream_bytes", 8388608),
+        ):
             value = getattr(self, name)
             if type(value) is not int or not 1 <= value <= ceiling:
                 raise ConfigError(f"tool_limits.{name} 必须为1～{ceiling}的整数。")
@@ -277,6 +282,7 @@ class DocumentConfig:
     max_total_bytes: int = 10485760
     max_pdf_pages: int = 512
     max_pdf_text_chars: int = 1000000
+    max_pdf_stream_bytes: int = 2097152
     max_scan_entries: int = 5000
     max_chunks: int = 10000
     scan_timeout_seconds: int = 10
@@ -334,6 +340,7 @@ class DocumentConfig:
             "max_total_bytes": (1, 104857600),
             "max_pdf_pages": (1, 2048),
             "max_pdf_text_chars": (1, 1000000),
+            "max_pdf_stream_bytes": (1, 8388608),
             "max_scan_entries": (1, 100000),
             "max_chunks": (1, 50000),
             "scan_timeout_seconds": (1, 300),

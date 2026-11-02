@@ -37,6 +37,8 @@ max_total_bytes = 10485760
 # PDF 与文本共用原文件字节限额；PDF 索引完整提取，超限失败而不缓存部分文字。
 max_pdf_pages = 512
 max_pdf_text_chars = 1000000
+# 保留默认2 MiB；大资源须显式提高，最多8 MiB，不自动重试或放宽。
+max_pdf_stream_bytes = 2097152
 max_scan_entries = 5000
 max_chunks = 10000
 scan_timeout_seconds = 10
@@ -172,6 +174,7 @@ max_text_file_bytes = 1048576
 # PDF 原字节上限与单次请求页数；解码和总页数仍受独立解析边界限制。
 max_pdf_file_bytes = 8388608
 max_pdf_read_pages = 20
+max_pdf_stream_bytes = 2097152
 max_git_path_list_bytes = 1048576
 # Cooperative directory/PDF timeout; blocking IO and parser setup are not interrupted.
 scan_timeout_seconds = 5

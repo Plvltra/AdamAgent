@@ -42,6 +42,7 @@ class PdfTools:
         budget = PdfLimits(
             max_file_bytes=self.limits.max_pdf_file_bytes,
             max_read_pages=self.limits.max_pdf_read_pages,
+            max_stream_bytes=self.limits.max_pdf_stream_bytes,
         )
         snapshot = read_pdf_snapshot(path, self.policy.resolve, budget, check)
         if expected is not None and snapshot.version != expected:

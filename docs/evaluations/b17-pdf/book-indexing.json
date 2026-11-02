@@ -1,0 +1,59 @@
+{
+  "checked_at": "2026-11-01T13:37:01.513897+00:00",
+  "source_name": "深入理解 AI Agent.pdf",
+  "source_version": "0b939175a49ba2cf9909477f7ff2df1dd8136385993ab8bdcf492fdcf0db9bd0",
+  "source_bytes": 11084397,
+  "physical_pages": 313,
+  "observed_pages": 313,
+  "chunks": 1502,
+  "indexed_chars": 502345,
+  "notices": {
+    "unread_images": 2
+  },
+  "query": "函数调用",
+  "retrieved_pages": [
+    197,
+    177,
+    150
+  ],
+  "retrieved_versions_match": true,
+  "read_matches_first_fragment": true,
+  "old_version_rejected": true,
+  "changed_copy_version": "756a680bfc1087690503d89c65796507d714d1133591a25876e6c24a8fff1f57",
+  "copy_generation_changed": true,
+  "source_metadata_unchanged": true,
+  "limits": {
+    "roots": [
+      "temporary_copy_only"
+    ],
+    "chunk_chars": 400,
+    "max_files": 200,
+    "max_file_bytes": 33554432,
+    "max_total_bytes": 33554432,
+    "max_pdf_pages": 2048,
+    "max_pdf_text_chars": 1000000,
+    "max_pdf_stream_bytes": 4194304,
+    "max_scan_entries": 5000,
+    "max_chunks": 10000,
+    "scan_timeout_seconds": 300,
+    "top_k": 5,
+    "method": "keyword",
+    "embedding_model": "BAAI/bge-small-zh-v1.5",
+    "semantic_min_score": 0.5,
+    "hybrid_candidates": 20,
+    "rrf_constant": 60,
+    "rerank": false,
+    "reranker_model": "BAAI/bge-reranker-v2-m3-int8",
+    "rerank_candidates": 20,
+    "rerank_query_chars": 256,
+    "rerank_passage_chars": 512,
+    "contextualize": false,
+    "context_prefix_chars": 300,
+    "context_input_chars": 1200
+  },
+  "elapsed_seconds": 59.61,
+  "real_pdf_parser": true,
+  "paid_model_requests": 0,
+  "visual_analysis": "not_performed",
+  "retrieval_quality": "not_scored"
+}

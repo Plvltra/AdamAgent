@@ -125,6 +125,7 @@ class DocumentSource:
                 max_pages=self.config.max_pdf_pages,
                 max_page_chars=100000,
                 max_total_chars=self.config.max_pdf_text_chars,
+                max_stream_bytes=self.config.max_pdf_stream_bytes,
             )
             snapshot = read_pdf_snapshot(path, self.authorize, limits, check)
             extracted = extract_pdf_all(snapshot.data, limits=limits, check_cancel=check)
