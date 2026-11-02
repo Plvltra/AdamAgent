@@ -1,6 +1,7 @@
 """B31任务矩阵运行器；真实API必须显式启用，逐次保存结果，不把失败从分母删除。"""
 
 import argparse
+import hashlib
 import math
 import re
 import time
@@ -11,14 +12,17 @@ from typing import Any
 
 import httpx
 
+from adam.application.conversation import Conversation
 from adam.bootstrap import build_application
 from adam.config.loader import load_config
 from adam.config.settings import AppConfig
+from adam.contracts.memory import MemorySelection
 from adam.llm.client import LLMClient
 from adam.session.diagnostics import read_report
 from adam.session.storage import SessionStore
 from scripts.injection_capture import write_record
 from scripts.task_eval_assets import CASES, PreparedTask, prepare_task, verify_task
+from scripts.task_eval_report import ablation_configs
 
 
 def run_suite(
@@ -86,6 +90,9 @@ def run_suite(
                 name: {
                     "model": c.llm.model,
                     "protocol": c.llm.protocol,
+                    "provider_fingerprint": hashlib.sha256(c.llm.base_url.encode()).hexdigest(),
+                    "stream": c.llm.stream,
+                    "request_timeout_seconds": c.llm.timeout_seconds,
                     "agent": asdict(c.agent),
                     "memory": asdict(c.memory),
                     "planning": asdict(c.planning),
@@ -158,6 +165,29 @@ def _run_trial(
     """每次重新组装真实应用，故障仍保留日志；费用只是显式单价的估算。"""
     started, reply, tools, identity = time.monotonic(), "", [], None
     error, task = None, None
+    memory_selections: list[dict[str, Any]] = []
+
+    def observe(conversation: Conversation) -> None:
+        """只记录生产选择器实际返回的身份，不推断模型是否采用这些记忆。"""
+        provider = conversation.memory_provider
+        if provider is None:
+            return
+
+        def select(query: str, capacity: int) -> MemorySelection:
+            selection = provider(query, capacity)
+            memory_selections.append(
+                {
+                    "status": selection.status,
+                    "strategy": selection.strategy,
+                    "records": [
+                        {"id": r.memory_id, "revision": r.revision} for r in selection.records
+                    ],
+                }
+            )
+            return selection
+
+        conversation.memory_provider = select
+
     try:
         task = prepare_task(root, planned["case"])
         config = AppConfig(
@@ -189,6 +219,7 @@ def _run_trial(
                     task.workspace.resolve()
                 ),
                 on_tool=tools.append,
+                observe_conversation=observe,
             )
             try:
                 reply = app.send(task.case.prompt)
@@ -231,6 +262,7 @@ def _run_trial(
         "passed": error is None and check["passed"],
         "error": error,
         "verification": check,
+        "memory_selections": memory_selections,
         "reply": reply,
         "tools": tools,
         "session_id": identity,
@@ -251,6 +283,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path, action="append", required=True)
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument("--ablate", choices=("memory", "planning", "reflection"))
     parser.add_argument("--case", action="append")
     parser.add_argument("--max-known-tokens", type=int, default=100000)
     parser.add_argument("--price-cny", type=float, nargs=2, metavar=("INPUT_PER_M", "OUTPUT_PER_M"))
@@ -258,6 +291,10 @@ def main(argv: list[str] | None = None) -> int:
     if not args.live:
         parser.error("真实模型请求必须显式指定--live；本入口不会自动调用API")
     configs = {f"config{i}": load_config(path) for i, path in enumerate(args.config)}
+    if args.ablate:
+        if len(configs) != 1:
+            parser.error("--ablate requires exactly one --config")
+        configs = ablation_configs(next(iter(configs.values())), args.ablate)
     run_suite(
         args.output,
         configs,

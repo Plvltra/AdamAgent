@@ -2,7 +2,7 @@
 
 - [x] B31.1：固定任务、全新试验环境和独立终态验证。
 - [x] B31.2：多配置/重复运行、失败分母、用量费用与显式真实模型入口。
-- [ ] B31.3：开关消融、正常反例及报告。
+- [x] B31.3：开关消融、正常反例及报告。
 
 scripts/task_eval_assets.py定义六个最小任务：指定加法修复、正确差值保持不改、基础记忆回忆、两个已保存会话查证、主动关联项目检查要求、无需工具的普通问题。记忆种子复用B06 scripts.memory_eval.seed_memories；普通问题复用E4 reflection_eval材料，未另造一套记忆存储。
 
@@ -24,3 +24,12 @@ verify_task由宿主持有固定真值，不执行模型生成的Python。代码
 没有--live时在加载配置前拒绝执行。程序化工程验收必须注入MockTransport，错误工厂不会退回联网HTTP；报告标为mock_http，不能宣称真实模型效果。真实运行报告标为live_model，但仍只代表固定题结果。
 
 验收：8个隔离试验保留故意错误答案，准确统计12 token/试验与显式单价；未知用量停止和显式启用约束通过，2 passed（7.31秒），定向Pyright通过。未调用付费API。
+## B31.3 单开关对照报告
+
+run入口增加--ablate memory、planning或reflection，只接受一个基础配置，生成disabled/enabled两臂，其余有效设置相同。manifest保存服务端地址哈希、模型/协议及主要请求设置；不保存地址中的潜在凭据明文。实际记忆选择通过生产选择器观察接口记录status、策略、ID与revision，不据此推断模型一定使用了记忆。
+
+只读报告入口为 python -m scripts.task_eval_report <结果目录>，默认disabled为基线，可用--baseline指定。报告从manifest逐条读取试验产物，不相信旧聚合成功数字；缺失文件保持计划分母并标missing、用量未知。按case与iteration配对，分别列improved、regressed、both_passed、both_failed、unavailable；正确代码不改和无需工具的普通问题单独统计。
+
+只有配置差异恰为一个支持的enabled字段才标single_mechanism_toggle；其他差异如实列出，不宣称因果或统计显著性。mock_http报告只算离线工程证据，live_model也只代表固定题结果。这里仍没有真实付费模型质量结论。
+
+验收：四个真实应用/模拟HTTP试验验证记忆开关实际改变注入内容与来源记录，正常反例保持通过；删除产物后报告保留分母并标缺失。1 passed（4.34秒），定向Pyright通过。本章局部回归与B29～B31全量在本次小项提交后执行。
