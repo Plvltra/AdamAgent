@@ -231,7 +231,9 @@ def test_bad_or_over_limit_inputs_are_explicit_and_never_publish_media(tmp_path,
         assert not list(store.root.rglob("*.media"))
 
 
-@pytest.mark.parametrize("target", ["directory", "missing", "credential", "retained", "outside"])
+@pytest.mark.parametrize(
+    "target", ["directory", "missing", "credential", "retained", "mcp_retained", "outside"]
+)
 def test_image_file_permissions_are_checked_before_decoding(tmp_path, monkeypatch, target):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -244,8 +246,9 @@ def test_image_file_permissions_are_checked_before_decoding(tmp_path, monkeypatc
     elif target == "credential":
         path = workspace / ".env.secret"
         path.write_bytes(image_bytes())
-    elif target == "retained":
-        path = config.sessions_dir / "_media" / "raw.png"
+    elif target in {"retained", "mcp_retained"}:
+        directory = "_media" if target == "retained" else "_mcp_media"
+        path = config.sessions_dir / directory / "raw.png"
         path.parent.mkdir(parents=True)
         path.write_bytes(image_bytes())
     else:
@@ -473,6 +476,57 @@ def test_child_loads_in_own_namespace_and_parent_cannot_read_its_reference(tmp_p
                 ref.media_id, expected_version=ref.version
             )
         assert list((store.root / "_media" / "children" / app.session.session_id).rglob("*.media"))
+
+
+@pytest.mark.parametrize("directory", ["_media", "_mcp_media"])
+@pytest.mark.parametrize("rules_enabled", [True, False])
+def test_child_image_loading_cannot_republish_reserved_media(tmp_path, directory, rules_enabled):
+    """关闭可选规则也不能让真实子任务把宿主私有媒体重新发布为获准图片。"""
+    config = image_config(tmp_path)
+    config = replace(config, rules=replace(config.rules, enabled=rules_enabled))
+    private = config.sessions_dir / directory / "private.bin"
+    private.parent.mkdir(parents=True)
+    raw = image_bytes()
+    private.write_bytes(raw)
+    results = []
+
+    def child(request):
+        body = json.loads(request.content)
+        if not outputs(body):
+            value = tool_response([call("child-load", "load_image", path=str(private))])
+        else:
+            results.extend(outputs(body))
+            value = answer("child input checked")
+        return httpx.Response(200, json=value)
+
+    count = 0
+
+    def parent(request):
+        nonlocal count
+        count += 1
+        if count == 1:
+            value = tool_response([call("spawn", "spawn_agent", name="loader", task="check input")])
+        elif count == 2:
+            value = tool_response([call("wait", "wait_agents", agent_ids=[])])
+        else:
+            assert outputs(json.loads(request.content))[-1]["agents"][0]["status"] == "completed"
+            value = answer("child checked")
+        return httpx.Response(200, json=value)
+
+    with delegated_app(tmp_path, parent, child, config=config) as (app, store):
+        app.select_mode("plan")
+        assert app.send("check private input boundary") == "child checked"
+        assert len(results) == 1
+        assert results[0]["ok"] is False and "保留目录" in results[0]["error"]
+        assert media_events(store, app.session.session_id) == []
+        assert not list(store.root.rglob("*.media"))
+        child_root = store.root / "_subagents" / app.session.session_id / "sessions"
+        with SessionStore(child_root) as children:
+            sessions = children.list_sessions()
+            assert len(sessions) == 1
+            for session in sessions:
+                assert media_events(children, session.session_id) == []
+    assert private.read_bytes() == raw
 
 
 def test_recorded_load_fact_replays_without_source_file_decoder_or_network(tmp_path, monkeypatch):

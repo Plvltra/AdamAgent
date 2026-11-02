@@ -709,6 +709,7 @@ def _open_child(
                     artifacts_dir,
                     media_dir,
                     knowledge_dir,
+                    mcp_media_dir,
                 ),
             ),
             SessionMedia(

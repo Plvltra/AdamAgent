@@ -24,12 +24,13 @@
 | B28.2 双向持久消息 | 子进展报告/父收集、入站来源、持久状态、保存失败及恢复不重发 | [双向消息](test_subagent_progress.py) |
 | B28.1 运行中父子消息 | 请求中补充、message_id去重、旧run拒绝及原续聊 | [父子消息](test_subagent_live_messages.py) |
 | B27.3 输入重启恢复 | 三个真实强杀边界、成功历史判定、不重发、工具补充及乱序拒绝 | [恢复验收](test_running_input_recovery.py) |
+| C/B15.3 媒体目录交集 | 新增 5 项：主图片拒绝 MCP 保留目录、真实子任务在规则开/关两种配置下拒绝本地/MCP 保留媒体；不发布正文或来源，原字节不变 | [test_image_input.py](test_image_input.py) |
+| C00.4 独立单位与估价 | 新增 105 项：50 单位/并发、16 配置、13 存储/估价、24 实际主子/反思/摘要/重放及 2 显式图问；未知/取消/保存/旧日志/限额/价格冻结/收尾竞争，提交门禁运行全量检查；音频消费者仍待 C05 | [实际业务](test_consumption_loop.py)、[存储](test_consumption_evidence.py)、[单位](../test_consumption.py)、[配置](../test_consumption_config.py)、[图问](test_image_questions.py)、[限制](../../docs/multimodal-input.md#c004-多单位消费) |
 | B27.2.2 终端运行输入 | 输入泵投递、停止/恢复、独立留痕、保存失败及真实命令取消 | [终端输入](test_live_input.py) |
 | B27.2.1 输入安全点 | 请求/工具批次边界消费、成功历史、最终封口和配对约束 | [安全点验收](test_running_input_boundary.py) |
 | B27.1 运行事件队列 | 有界FIFO、去重/冲突、关闭保留、并发投递 | [队列契约](test_running_events.py) |
 | B26.3 真实后台故障 | 双进程输出隔离、独立取消、强杀宿主后恢复未知且不重跑 | [实际验收](test_background_acceptance.py) |
 | B26.2.2 生产后台工具 | 模型启动/等待真实进程、Ctrl+C、任务锁/恢复、意图保存失败无执行 | [持久任务](test_background_persistence.py) |
-| C00.4 独立单位与估价 | 新增 105 项：50 单位/并发、16 配置、13 存储/估价、24 实际主子/反思/摘要/重放及 2 显式图问；未知/取消/保存/旧日志/限额/价格冻结/收尾竞争，提交门禁运行全量检查；音频消费者仍待 C05 | [实际业务](test_consumption_loop.py)、[存储](test_consumption_evidence.py)、[单位](../test_consumption.py)、[配置](../test_consumption_config.py)、[图问](test_image_questions.py)、[限制](../../docs/multimodal-input.md#c004-多单位消费) |
 | B26.2.1 输出游标 | 退出前短输出可读、独立续读、缺口与字符边界、会话所有权 | [输出游标](test_background_output_cursor.py) |
 | B26.1 后台进程 | 真实返回、一次批准、所有权、输出限额、取消及超时 | [后台任务](test_background_jobs.py) |
 | B25.3 真实HTTP | 4项实际回环TCP/时钟验收心跳、慢输出、断流和总时限；相关123项通过 | [网络验收](test_stream_http_deadlines.py) |
