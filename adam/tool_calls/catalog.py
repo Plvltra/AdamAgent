@@ -76,6 +76,18 @@ SPECS = {
         },
         ["path", "old_text", "new_text", "expected_version"],
     ),
+    "replace_span": schema(
+        "以唯一首尾锚点替换已有UTF-8文件的大段内容，包括两个锚点本身。"
+        "先read_file取得version；锚点各自唯一、不能重叠或逆序，完整diff经用户批准后才写入。",
+        {
+            "path": PATH,
+            "start_text": ("string", "范围开头的原文，可多行，1～4096字符，全文唯一"),
+            "end_text": ("string", "范围结尾的原文，可多行，1～4096字符，全文唯一且在首锚点之后"),
+            "new_text": ("string", "替换整个范围的新内容；空字符串删除范围，锚点不会自动保留"),
+            "expected_version": ("string", "read_file返回的完整文件version，必须原样传回"),
+        },
+        ["path", "start_text", "end_text", "new_text", "expected_version"],
+    ),
     "run_command": {
         "description": "在宿主账户权限下执行通用程序，需用户逐次确认，不提供操作系统隔离。"
         "支持脚本、Git、构建等命令；"

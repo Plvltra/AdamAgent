@@ -2,13 +2,27 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B23.1 prepare_span与plan_span_edit，唯一锚点转换为原EditPlan。
+本次核对范围：B23.2 replace_span生产注册、原编辑事实/额度和Hook来源。
 
-核对结论：EditTools新增无副作用prepare_span，复用原写权限和完整快照；纯plan_span_edit核对版本/唯一边界后将完整旧段交给plan_edit。沿用原候选/diff/字节契约，不新增执行或存储链路；模型入口待B23.2。原注释无删除，新增说明明确包含锚点、唯一/顺序及版本边界。
+核对结论：factory新增replace_span说明/EDIT_FILE能力和路径选择，EditTools经prepare_span返回原execute_plan。FILE_EDIT_TOOLS同时驱动编辑额度、日志来源、执行报告、计划证据和诊断；三个独立Hook示例同步。原UndoService和录制链不变，子任务仍不能编辑；原注释保留，新增入口说明复用原事务。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B23.2 正式首尾工具
+
+~~~mermaid
+flowchart LR
+    SP_REG["factory / replace_span与EDIT_FILE"] --> SP_GATE["原发现、参数、模式、路径和Hook"]
+    SP_GATE --> SP_ENTRY["EditTools.replace_span"]
+    SP_ENTRY --> SP_PREP["prepare_span / 原EditPlan"]
+    SP_ENTRY --> SP_EXEC["execute_plan / 原批准和写入"]
+    SP_KIND["FILE_EDIT_TOOLS"] --> SP_BUDGET["原编辑额度、日志及执行证据"]
+    SP_KIND --> SP_DIAG["原诊断来源匹配"]
+~~~
+
+原检查点保留完整字节，用户undo恢复原版本；记录重放不重复文件写入。见 [工具验收](span-editing.md)。
 
 ## B23.1 首尾锚点规划
 
@@ -20,7 +34,7 @@ flowchart LR
     SP_PLAN --> SP_EXISTING["plan_edit / 原EditPlan与完整diff"]
 ~~~
 
-本阶段不批准、不执行、不注册模型工具。具体范围及书稿取舍见 [首尾编辑](span-editing.md)。
+规划接口本身不批准或执行，生产replace_span随后复用原execute_plan。具体范围及书稿取舍见 [首尾编辑](span-editing.md)。
 
 ## B22.3.1 生产创建工具
 

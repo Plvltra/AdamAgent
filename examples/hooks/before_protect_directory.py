@@ -16,7 +16,7 @@ def decide(data: dict[str, Any], protected: list[str]) -> dict[str, Any]:
     ):
         raise ValueError("requires before_tool version 1")
     tool = data["tool"]
-    if tool["name"] not in {"replace_text", "apply_proposal", "create_file"}:
+    if tool["name"] not in {"replace_text", "replace_span", "apply_proposal", "create_file"}:
         return {"version": 1, "decision": "allow", "reason": "此示例只检查专用文件编辑"}
     workspace = Path(data["workspace"]).resolve()
     target = (workspace / tool["arguments"]["path"]).resolve()

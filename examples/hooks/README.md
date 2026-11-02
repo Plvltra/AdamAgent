@@ -4,7 +4,7 @@
 
 | 示例 | 行为 | 检查范围 |
 | --- | --- | --- |
-| before_protect_directory.py | 拒绝 replace_text / apply_proposal / create_file 修改或创建指定目录内的文件，模板保护 vendor 和 generated | 专用编辑工具；run_command 和其他工具仍按原有权限及审批处理 |
+| before_protect_directory.py | 拒绝 replace_text / replace_span / apply_proposal / create_file 修改或创建指定目录内的文件，模板保护 vendor 和 generated | 专用编辑工具；run_command 和其他工具仍按原有权限及审批处理 |
 | after_python_syntax.py | 成功编辑工作目录内的 .py 后，核对实际文件版本并用 ast.parse 检查语法 | 最多1 MiB；不导入或执行目标代码，不证明运行结果正确 |
 
 前置通过仍要经过原有工具权限和人工批准。后置检查发现语法错误时，修改已经发生：退出码非零会产生提示与失败审计，原编辑结果保持 applied，不自动撤销或重做。
@@ -45,6 +45,8 @@ T11.2 的 apply_proposal 在 Hook 前核对 path 与真实候选完全一致，�
 
 
 B22.3.1将create_file纳入三个仓库示例，语法错误仍不回滚已经创建的文件；[创建业务测试](../../tests/features/test_file_creation_loop.py)运行真实示例验证目录拒绝与两种语法报告。用户自有检查器仍须显式检查新工具名称。
+
+B23.2将replace_span纳入相同目录与语法检查，仍以实际applied结果和after_version为依据；[首尾工具测试](../../tests/features/test_span_edit_loop.py)验证真实目录拒绝和结构化诊断。
 
 ## B20.1 新的结构化示例
 

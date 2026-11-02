@@ -7,6 +7,7 @@ import pytest
 
 from adam.config.settings import PermissionConfig, ToolLimits
 from adam.contracts.errors import ToolError
+from adam.contracts.execution import ToolCapability
 from adam.tool_calls.edit_plan import EditConflictError
 from adam.tool_calls.edit_tools import EditTools
 from adam.tool_calls.factory import create_tool_registry
@@ -142,7 +143,4 @@ def test_read_only_authorization_does_not_allow_span_edit_planning(tmp_path):
     allowed = planner(workspace, permissions=PermissionConfig((), (outside,)))
     assert allowed.prepare_span(arguments(path, raw)).candidate == b"changed"
     assert path.read_bytes() == raw
-    assert all(
-        tool["function"]["name"] != "replace_span"
-        for tool in create_tool_registry(workspace).definitions()
-    )
+    assert create_tool_registry(workspace).capability("replace_span") is ToolCapability.EDIT_FILE

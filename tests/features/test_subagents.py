@@ -198,16 +198,26 @@ def test_child_permissions_do_not_prompt_write_execute_or_redelegate(tmp_path):
                             new_text="bad",
                             expected_version="v",
                         ),
+                        call(
+                            "span",
+                            "replace_span",
+                            path="safe.txt",
+                            start_text="ori",
+                            end_text="nal",
+                            new_text="bad",
+                            expected_version="v",
+                        ),
                         call("nested", "spawn_agent", name="nested", task="forbidden"),
                     ]
                 ),
             )
         results = outputs(body)
-        assert [item["status"] for item in results[:2]] == [
+        assert [item["status"] for item in results[:3]] == [
+            "approval_required",
             "approval_required",
             "approval_required",
         ]
-        assert results[2]["ok"] is False
+        assert results[3]["ok"] is False
         return httpx.Response(200, json=answer("approval required; proposal only"))
 
     with application(tmp_path, parent, child) as (app, _):

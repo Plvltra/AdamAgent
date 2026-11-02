@@ -109,6 +109,12 @@ class EditTools:
         """检查缺失目标与完整内容，再复用批准、检查点及不覆盖发布流程。"""
         return self.execute_plan(self.prepare_create(args), record)
 
+    def replace_span(
+        self, args: dict[str, Any], record: Callable[[str, dict[str, Any]], None] | None = None
+    ) -> dict[str, Any]:
+        """首尾定位完成后复用原批准、检查点、版本复核及替换写入，不另建编辑事务。"""
+        return self.execute_plan(self.prepare_span(args), record)
+
     def execute_plan(
         self,
         plan: EditPlan | CreatePlan,

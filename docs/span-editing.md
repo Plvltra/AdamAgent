@@ -6,16 +6,28 @@
 
 `start_text`、`end_text`为精确文本，LF/CRLF归一化后匹配，各1～4096字符。首锚点的开头到尾锚点的结尾构成替换范围，两个锚点本身都被替换；允许多行，拒绝同一位置、重叠、逆序和多次出现。`new_text`为空可删除整段。边界之外的内容不变，原BOM和统一换行形式保持。
 
-[EditTools.prepare_span](../adam/tool_calls/edit_tools.py)检查当前独立写权限并完整读取快照；[plan_span_edit](../adam/tool_calls/edit_plan.py)先核对expected_version，再定位首尾，把宿主读取的完整旧段交给原plan_edit。结果仍是原EditPlan，携带原字节、固定候选和完整diff。规划不批准、不写入，也不创建检查点；当前没有生产replace_span注册。
+[EditTools.prepare_span](../adam/tool_calls/edit_tools.py)检查当前独立写权限并完整读取快照；[plan_span_edit](../adam/tool_calls/edit_plan.py)先核对expected_version，再定位首尾，把宿主读取的完整旧段交给原plan_edit。结果仍是原EditPlan，携带原字节、固定候选和完整diff。规划不批准、不写入，也不创建检查点；生产replace_span接入见下文B23.2。
 
 未变化候选、混合换行、内容超限仍由原规划器拒绝。失败保留已完整读取的文件版本，供既有重复失败识别使用；版本冲突不继续猜测锚点位置。这个机制节省模型重复输出旧段的参数，不承诺减少读取全文、完整差异或撤销快照的本地工作量。
+
+## B23.2 生产工具
+
+`replace_span(path, start_text, end_text, new_text, expected_version)`与原精确替换并存，归入editing/EDIT_FILE。按需发现后须在下一次请求使用，参数/模式/路径/前置Hook先行；创建计划后完整diff仍逐次批准，外部修改在规划及批准后分别检查。子Agent只返回approval_required，不进入批准或磁盘修改。
+
+新的可信工具名加入FILE_EDIT_TOOLS，沿用原编辑次数上限、日志父来源、执行报告、计划证据及结构化诊断匹配。快照仍是原replace操作，保留完整旧字节；没有新建一套存储或撤销事务。结束记录保存失败时实际文件可能已改变，重启保持unknown、不把未完成消息加入历史。
+
+三个仓库Hook示例显式识别replace_span，语法问题独立于实际编辑成功；用户自有脚本不被自动改写。录制/重放使用原工具边界，离线重放不再次修改源文件。
+
+[9项工具测试](../tests/features/test_span_edit_loop.py)验证按需发现→真实读取→首尾编辑→原撤销和零写入重放，模式、拒绝、规划前及批准期间外部变化，真实目录Hook/语法诊断、与创建共用编辑额度、保存失败及unknown恢复。原子Agent权限场景增加该工具，已有动作断言保留；规划层18个原场景不删减，只把“未注册”更新为可信EDIT_FILE注册。相关133项通过（79.92秒），Ruff、590文件格式和Pyright通过。
+
+源码、三个示例及已有测试差异和新测试全文已审查，原注释与版本/批准契约保留；新增函数说明使用原流程。架构同步当前生产关系，主线按 AGENTS.md 三级验证规则执行。
 
 ## 验证与进度
 
 [18项规划测试](../tests/features/test_span_edit_plan.py)使用真实文件，覆盖含首尾范围、LF/CRLF/BOM、多行锚点、整段删除、缺失/重复/逆序/重叠、外部版本、独立读写授权和候选限额。相关编辑/撤销/创建/架构共96项通过（28.77秒）；Ruff、588文件格式和Pyright通过。两处源码差异与新增测试全文已审查，原版本、BOM、换行和差异展示说明保留，架构同步规划关系。主线按 AGENTS.md 三级验证规则执行。
 
 - [x] B23.1：无副作用的首尾编辑规划。
-- [ ] B23.2：生产工具复用批准、日志、写入与撤销。
+- [x] B23.2：生产工具复用批准、日志、写入与撤销。
 - [ ] B23.3：三百行实际修改、参数体积及外部变化验收。
 
 总进度见 [完整练习路线](agent-book-practice-plan.md)。
