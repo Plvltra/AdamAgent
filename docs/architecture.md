@@ -3,7 +3,7 @@
 最近核对：2026-11-03
 
 主线同步基线：C07.3已完成；私有C分支同步固定main 771d9ed（B31.2），保留主线父子消息、提醒、终端和输入恢复，保留C媒体/浏览器/桌面/生成来源及取消边界。
-本次核对范围：C10.2 Android动作接入原主工具授权、来源、模式及中断；导航仍待实现。同步登记VoiceLoop到audio的既有协调依赖。
+本次核对范围：C10.3独立GridWorld状态转移与原导航工具，显式主宿主注入、会话绑定及中断急停。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2911,3 +2911,17 @@ flowchart LR
 
 mobile_observe与mobile_action仅显式注入主宿主后注册，子任务不继承；输入操作归原EXTERNAL_ACTION权限。观察版本一次消费，派发后失败标未知并停止轮次；原来源和媒体保护不变。中断/退出丢弃动作引用，各ADB客户端自身finally释放。tool_calls→mobile是协调到执行适配器的新边；同时登记已实现application.VoiceLoop→audio协调依赖，audio/mobile反向依赖仍禁止。相关测试及实机范围见[Android动作](mobile.md#c102-原工具授权动作)。
 C10.2实机补证：固定策略通过原工具/模式/批准/媒体来源运行，7批准7派发保存一次，独立文件查询一致；重复原版本和fresh版本真实断连分别拒绝。相关动作与观察17场景最终通过；[证据](mobile.md#c102-实机填写与独立查询)保留模型模拟边界，架构图与实际调用一致。
+
+## C10.3 二维导航仿真
+
+~~~mermaid
+flowchart LR
+    NG_HOST["bootstrap / 显式GridWorld"] --> NG_TOOLS["NavigationTools / 单主会话绑定"]
+    NG_PIPE["原发现与ToolExecutor / 模式、Hook、预算、日志"] --> NG_TOOLS
+    NG_TOOLS --> NG_GRID["robotics.grid.GridWorld / 位置、障碍、步数、版本"]
+    NG_GRID --> NG_RESULT["实际转移与观察副本 / active-arrived-exhausted-stopped"]
+    NG_RESULT --> NG_PIPE
+    NG_CLOSE["原应用中断及退出"] --> NG_STOP["GridWorld.stop / 无工具复位"]
+~~~
+
+robotics仅依赖自身与contracts，和mobile/desktop完全分离；没有硬件接口。tool_calls注册nav_observe/nav_move/nav_stop，移动需原act模式。宿主固定地图，版本拒绝重复移动，碰撞消耗步数，急停不依赖旧版本。5项业务+35项架构检查通过，真实本地模型9请求6步到达，保留一次blocked及总结遗漏；[实测与边界](navigation.md)。
