@@ -15,6 +15,7 @@ from adam.documents.knowledge_lifecycle import KnowledgeLifecycle
 from adam.documents.knowledge_proposals import KnowledgeProposals
 from adam.documents.models import DocumentError, coverage_metadata
 from adam.documents.search import DocumentSearch, SearchResult
+from adam.tool_calls.graph_tools import register_graph
 from adam.tool_calls.knowledge_fact_tools import register_knowledge_facts
 from adam.tool_calls.knowledge_tools import register_knowledge
 from adam.tool_calls.policy import PathPolicy
@@ -90,6 +91,7 @@ def register_documents(
         capabilities={"search_documents": ToolCapability.READ_ONLY},
         groups={"search_documents": "documents"},
     )
+    registry = register_graph(registry, search)
     registry = register_knowledge(registry, search.index)
     if knowledge_dir is not None:
         registry = register_knowledge_facts(

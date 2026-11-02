@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C08.3 图融合工具 | 10 项：源更新/删除/撤权/取消、混合候选、完整来源、主子调用和持久化 | [融合](test_graph_retrieval.py)、[工具](test_graph_tools.py)、[主子](test_graph_chat.py) |
 | C08.2 有界路径 | 4 项：两份原来源的两跳路径、无依据与跳数边界、节点/边超限、循环终止 | [test_graph_query.py](test_graph_query.py) |
 | C08.1 关系证据提取 | 5 项真实文件/索引：原文版本、同名身份、冲突与去重、缺失标记、容量及授权失败 | [test_graph_evidence.py](test_graph_evidence.py) |
 | C02.4 浏览器固定闭环 | 5 项真实 Chrome/HTTP/文件：查询、一次保存与回执、跳转和重新观察后旧引用、重复提交、提交前取消；真实本地模型单次成功另留证据 | [test_browser_acceptance.py](test_browser_acceptance.py)、[真实记录](../../docs/evaluations/c02-browser-acceptance.json) |
