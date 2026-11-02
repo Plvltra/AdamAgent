@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B25.1单调时钟策略、有效增量标记和时限配置。
+本次核对范围：B25.2 SSE读取、HTTP读取时限与原失败收尾。
 
-核对结论：llm新增StreamWatch，StreamReply成功解析后提供progressed标记，LLMConfig/loader增加两项时限。HTTP读取尚未使用该策略；原解析和取消说明保留，accept契约补充进展标记。
+核对结论：LLMClient._stream在原始字节和解析事件边界调用StreamWatch，并限制HTTP读取间隔。超时复用API_TIMEOUT及原用量、响应关闭和会话失败流程；原错误/取消契约保留，补充协作检查范围。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -18,9 +18,13 @@
 flowchart LR
     SW_CFG[LLMConfig / 空闲与总时限] --> SW_POLICY[StreamWatch / 单调时钟]
     SW_PARSE[StreamReply.accept / 原SSE解析] --> SW_FLAG[progressed / 有效增量]
+    SW_HTTP[LLMClient._stream / HTTP读取超时] --> SW_POLICY
+    SW_POLICY --> SW_PARSE
+    SW_FLAG --> SW_POLICY
+    SW_POLICY --> SW_END[原API_TIMEOUT / 用量 / 关闭响应]
 ```
 
-策略与标记已独立验收，HTTP连接待B25.2；[约束说明](stream-deadlines.md)。
+策略已接入HTTP及原会话失败流程；[约束说明](stream-deadlines.md)。
 
 ## B24.2 双协议入口
 

@@ -12,6 +12,7 @@ from adam.contracts.models import Completion, ModelOutput
 from adam.contracts.protocol import validate_assistant
 from adam.llm.input_observation import PrefixTracker
 from adam.llm.messages_client import complete_messages
+from adam.llm.stream_watch import StreamDeadlineError, StreamWatch
 from adam.llm.streaming import StreamReply, sse_events
 from adam.llm.usage import parse_cache_usage, parse_usage
 
@@ -173,8 +174,17 @@ class LLMClient:
     def _stream(
         self, body: dict[str, Any], on_output: Callable[[ModelOutput], None] | None
     ) -> Completion:
-        """收齐 SSE 后才交回响应；断流保留已知用量，部分文本不持久化或执行。"""
+        """收齐SSE才交回响应；断流/语义超时保留已知用量，部分文本不持久化或执行。
+
+        每批字节及事件边界检查期限；阻塞读取由HTTP读取超时限制，最多延后一次读取间隔。
+        """
         reply = StreamReply()
+        watch = StreamWatch(self.config.semantic_idle_seconds, self.config.stream_total_seconds)
+        read_timeout = min(
+            self.config.timeout_seconds,
+            self.config.semantic_idle_seconds,
+            self.config.stream_total_seconds,
+        )
         connected = False
         try:
             with self.client.stream(
@@ -182,18 +192,21 @@ class LLMClient:
                 self.config.base_url + "/chat/completions",
                 headers={"Authorization": f"Bearer {self.config.api_key}"},
                 json=body,
-                timeout=self.config.timeout_seconds,
+                timeout=httpx.Timeout(self.config.timeout_seconds, read=read_timeout),
             ) as response:
                 connected = True
                 self._check_stream_response(response)
-                events = iter(sse_events(response.iter_bytes()))
+                events = iter(sse_events(watch.chunks(response.iter_bytes())))
                 while True:
                     # 只转换协议解析错误；界面回调失败仍按原异常传播。
                     try:
                         event = next(events)
+                        watch.check()
                         if event == "[DONE]":
                             return reply.finish()
                         text = reply.accept(event)
+                        if reply.progressed:
+                            watch.progressed()
                     except (
                         StopIteration,
                         ValueError,
@@ -219,7 +232,7 @@ class LLMClient:
                 cache_usage=reply.cache_usage,
                 code=FailureCode.API_CONNECTION,
             ) from None
-        except httpx.TimeoutException:
+        except (httpx.TimeoutException, StreamDeadlineError):
             raise LLMError(
                 "请求超时；未自动重试。",
                 reply.usage,

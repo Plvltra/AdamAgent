@@ -1,7 +1,7 @@
 """区分网络存活与模型进展；由读取边界调用，不启动监控线程。"""
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Iterator
 
 
 class StreamDeadlineError(TimeoutError):
@@ -27,6 +27,13 @@ class StreamWatch:
         """检查期限并统计字节；心跳不能续期。"""
         self.check()
         self.network_bytes += size
+
+    def chunks(self, source: Iterable[bytes]) -> Iterator[bytes]:
+        """在SSE过滤心跳前检查每批网络字节，结束时也核对期限。"""
+        for chunk in source:
+            self.received(len(chunk))
+            yield chunk
+        self.check()
 
     def progressed(self) -> None:
         """有效正文、推理或工具增量后续期；迟到输出不能救活过期请求。"""
