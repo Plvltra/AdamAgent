@@ -80,11 +80,13 @@ class EditTools:
         return self.execute_plan(self.prepare(args), record)
 
     def execute_plan(
-        self, plan: EditPlan, record: Callable[[str, dict[str, Any]], None] | None = None
+        self,
+        plan: EditPlan | CreatePlan,
+        record: Callable[[str, dict[str, Any]], None] | None = None,
     ) -> dict[str, Any]:
         """记录已校验计划后确认；检查点与开始记录成功才写入，结果记录成功才回传。
 
-        plan 由本实例的 prepare 或同等宿主校验生成，不能直接接收模型构造的计划。
+        plan由prepare、prepare_create或同等宿主校验生成，不能直接接收模型构造的计划。
         没有确认回调则拒绝。编辑日志失败向上传播，未知结果不标记失败或自动重试。
         本地组件可不传 record，此时不保存检查点；模型执行由 ToolExecutor 提供持久化回调。
         """
@@ -94,12 +96,18 @@ class EditTools:
             "before_version": plan.before_version,
             "target_version": target_version,
             "diff": plan.diff,
+            **({"operation": "create"} if isinstance(plan, CreatePlan) else {}),
         }
         if record:
             record("edit_planned", details)
         started = monotonic_ns()
         result: dict[str, Any] = {"path": str(plan.path), "after_version": None, "error": None}
-        if self.confirm is None or not self.confirm(plan):
+        approved = (
+            self.confirm_create(plan)
+            if isinstance(plan, CreatePlan)
+            else self.confirm is not None and self.confirm(plan)
+        )
+        if not approved:
             result["status"] = "denied"
         else:
             # 文件和日志不是一个事务；开始后未记录结束时一律保留 unknown。
@@ -110,7 +118,10 @@ class EditTools:
                 )
                 record("edit_started", {})
             try:
-                self.apply(plan)
+                if isinstance(plan, CreatePlan):
+                    self.apply_create(plan)
+                else:
+                    self.apply(plan)
             except ToolError as error:
                 if isinstance(error, FileStateError):
                     result = FileResult(result, version=error.version)

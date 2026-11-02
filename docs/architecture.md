@@ -2,13 +2,26 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B22.2.2 EditTools.apply_create完整候选和不覆盖发布。
+本次核对范围：B22.2.3.1 创建计划接入execute_plan、原ToolInvocation和SessionStore缺失检查点。
 
-核对结论：EditTools增加显式apply_create，复核原PathPolicy后把完整同目录候选经flush/fsync和os.link发布；已有目标不覆盖，不支持时失败。清理临时名不chmod共享文件。原替换/撤销不变，创建日志和模型入口尚未连接；新增契约与实际竞态/故障一致。
+核对结论：execute_plan分别处理创建与替换，复用批准/检查点/开始/结果顺序；SessionStore按已登记操作保存缺失原状态并核对来源。create_file加入可信编辑类别，复用额度和执行事实。生产工具工厂尚未注册创建，测试宿主显式注册后穿过原执行器；原未知结果和日志失败停止说明保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B22.2.3.1 创建记录接入
+
+~~~mermaid
+flowchart LR
+    FC_EXEC["EditTools.execute_plan / CreatePlan"] --> FC_CONFIRM["confirm_create / 原批准回调"]
+    FC_EXEC --> FC_ACTION["ToolInvocation / 原动作记录回调"]
+    FC_ACTION --> FC_SESSION_STORE["SessionStore / 父工具、操作与版本"]
+    FC_SESSION_STORE --> FC_CHECKPOINT_STORE["CheckpointStore / create缺失状态"]
+    FC_EXEC --> FC_APPLY["apply_create / 原子发布"]
+~~~
+
+创建可由显式宿主注册后执行和留痕；生产工具工厂尚未开放，创建撤销下一步接入。
 
 ## B22.2.2 新文件原子发布
 

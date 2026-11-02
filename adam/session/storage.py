@@ -498,13 +498,13 @@ class SessionStore:
         self._append(session_id, record(kind, payload))
 
     def save_edit_checkpoint(
-        self, session_id: str, edit_id: str, original: bytes, *, max_bytes: int
+        self, session_id: str, edit_id: str, original: bytes | None, *, max_bytes: int
     ) -> None:
-        """在编辑开始前保存原字节，来源和版本从已登记计划取得。
+        """在编辑开始前保存原字节或明确缺失，操作、来源和版本从已登记计划取得。
 
         调用方须先持有会话锁并记录 edit_planned；max_bytes 沿用编辑工具文件上限。
         只接受进行中轮次里尚未开始的修改，保存失败抛出 StorageError，不能继续写文件。
-        原字节与计划版本不符属于调用契约错误，抛出 ValueError。
+        创建计划只接受None原状态，替换计划须匹配原字节与版本；不符抛ValueError。
         """
         self.select_session(session_id)
         log = self._read_log(session_id)
@@ -525,13 +525,14 @@ class SessionStore:
             original=original,
             before_version=edit["before_version"],
             target_version=edit["target_version"],
+            operation=edit.get("operation", "replace"),
         )
         CheckpointStore(self.root / "_checkpoints", max_bytes=max_bytes).put(checkpoint)
 
     def load_edit_checkpoint(
         self, session_id: str, edit_id: str, *, max_bytes: int
     ) -> EditCheckpoint:
-        """持有会话锁并读取已确认成功编辑的原内容；首次选中时按原规则恢复日志。
+        """持锁读取成功编辑的原内容或缺失状态；首次选中时按原规则恢复日志。
 
         本接口不执行撤销，也不检查当前目标文件版本。
 
@@ -558,6 +559,7 @@ class SessionStore:
             )
             or str(checkpoint.path) != edit["path"]
             or checkpoint.target_version != edit["after_version"]
+            or checkpoint.operation != edit.get("operation", "replace")
         ):
             raise StorageError("检查点与编辑日志不一致，拒绝用于撤销。")
         return checkpoint
