@@ -1,0 +1,22 @@
+# 最小证据图（C08）
+
+当前实现 C08.1：从现有授权文档索引提取关系候选。调用 `extract_graph(index.refresh())`，得到一次固定来源代次的不可变图；没有额外数据库、模型服务或知识发布。两跳查询、聊天工具接入与真实五题对照分别在后续 C08.2～4 交付。
+
+在 Markdown/TXT 语料中显式标注实体 ID 和名称，例如：
+
+```text
+[module:checkout|Checkout] calls [service:live|Atlas].
+[service:live|Atlas] maintained_by [team:billing|Billing].
+```
+
+首版只识别 `calls` 和 `maintained_by`，不推测未标记普通 prose；这是有意收窄的最小后端。显式 `type:id` 表示身份，显示名不是连接依据。同名 Atlas 可以分别为 service:live、service:test；冲突的维护关系全部保留为候选，不自动裁决。
+
+每条边保存原 Chunk ID、文件路径、原字节 SHA-256、片段行范围、片段内字符范围、逐字原文及 `explicit_marker_v1` 提取方法。片段可能跨行或由超长单行拆分，使用原片段行范围而不伪造更精细行号。没有显式完整标记则没有边；片段边界不自动拼接。边 ID 绑定来源版本和精确范围，重复传入同一来源不重复建边。
+
+默认最多 1000 条边，可显式调整至 10000；超限整批报错，不交付貌似完整的半张图。权限、文件读取、总量及取消由原 DocumentIndex 完成；提取函数只接收已授权快照，不自行按证据路径打开文件。候选尚不等于经过人工确认的长期知识，发布仍归原 B12。
+
+[业务验收](../tests/features/test_graph_evidence.py) 使用真实临时文件与 DocumentIndex：准确原文/版本、同名身份隔离、重复输入去重、冲突保留、不完整标记不造事实、边数失败保留原索引/文件、原授权拒绝。5 项场景通过；Ruff、Pyright、架构/文档同步和全量 pytest 按独立提交门禁执行。
+
+模块关系见 [当前架构](architecture.md)。不调用付费模型，不修改真实用户会话，无截图或看图。
+
+验证记录（2026-11-02）：全量 3352 项通过（四进程，534.45 秒），Ruff/格式/Pyright 通过；新增说明直接审查，既有 Python 注释无删除。
