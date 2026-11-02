@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B25.3真实本地HTTP与时钟验收，生产架构无变化。
+本次核对范围：B26.1后台进程宿主API与共用启动函数。
 
-核对结论：生产架构无变化，保留B25.2调用图。新增回环HTTP服务只用于验收，记录真实请求次数、输出及停止结果，结束时回收服务线程；新增测试全文审查，无生产注释删除。
+核对结论：新增BackgroundJobs，批准在调用线程，后台线程仅采集输出/终态；CommandTools公开prepare并与后台共用start_command。原环境白名单说明迁入processes，没有删除原权限与回收约束。生产工具/会话持久化待B26.2。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -1931,3 +1931,16 @@ flowchart TD
 本文件统一维护当前架构图与职责边界。每次改动后的要求见 [AGENTS.md](../AGENTS.md) 的“架构文档同步”。测试中的组装辅助函数不属于生产架构。
 
 B04.2 全量回归核对：RuntimeStateReader 在组装时解析相对工作目录；架构依赖不变。聊天与记忆对照明确区分运行状态和有效历史，新旧录制各自验证最早差异及停止边界。
+
+## B26.1 后台进程基础
+
+```mermaid
+flowchart LR
+    BJ[BackgroundJobs / owner与任务ID] --> CP[CommandTools.prepare / 原参数及批准]
+    BJ --> SP[processes.start_command / 共用启动]
+    CT[CommandTools.run_command] --> SP
+    BJ --> OC[OutputCapture / 有界输出]
+    BJ --> TP[terminate_process / 取消与超时]
+```
+
+当前为显式宿主API，没有模型或存储连线；见[后台任务范围](background-jobs.md)。

@@ -1,7 +1,6 @@
 """需逐次确认的通用命令执行；参数列表启动，不提供操作系统沙箱。"""
 
 import json
-import os
 import shutil
 import subprocess
 import threading
@@ -14,7 +13,7 @@ from adam.config.settings import ToolLimits
 from adam.contracts.errors import CommandLogError, ToolError
 from adam.contracts.models import CommandRequest, ExecutionRecorder
 from adam.tool_calls.command_output import OutputCapture
-from adam.tool_calls.processes import terminate_process
+from adam.tool_calls.processes import start_command, terminate_process
 from adam.tool_calls.result_preview import encode_head_tail
 
 
@@ -50,7 +49,7 @@ class CommandTools:
         cwd 相对启动工作目录解析；用户确认覆盖本次具体命令和目录。
         无确认回调默认拒绝；日志失败抛出 CommandLogError，禁止自动重试。
         """
-        command = self._prepare(args)
+        command = self.prepare(args)
         details = {
             "argv": list(command.argv),
             "cwd": str(command.cwd),
@@ -91,7 +90,7 @@ class CommandTools:
             optional=("elapsed_seconds",),
         )
 
-    def _prepare(self, args: dict[str, Any]) -> CommandRequest:
+    def prepare(self, args: dict[str, Any]) -> CommandRequest:
         """校验通用参数并解析执行路径；确认界面展示的参数即实际执行参数。"""
         argv = args.get("argv")
         if (
@@ -131,34 +130,8 @@ class CommandTools:
         已启动命令被中断时，用内部异常携带清理后的快照，供公开入口落盘再抛出原中断。
         """
         started = time.monotonic()
-        # 不继承 API 密钥等任意环境变量；保留 Windows/Python 启动需要的基础项。
-        names = {
-            "PATH",
-            "SYSTEMROOT",
-            "WINDIR",
-            "COMSPEC",
-            "TEMP",
-            "TMP",
-            "HOME",
-            "USERPROFILE",
-            "APPDATA",
-            "LOCALAPPDATA",
-            "SYSTEMDRIVE",
-        }
-        env = {key: value for key, value in os.environ.items() if key.upper() in names}
-        env.update(PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
         try:
-            process = subprocess.Popen(
-                command.argv,
-                cwd=command.cwd,
-                env=env,
-                shell=False,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                start_new_session=os.name != "nt",
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
-            )
+            process = start_command(command)
         except OSError:
             return self._result("start_failed", started)
 
