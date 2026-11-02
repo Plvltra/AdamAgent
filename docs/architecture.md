@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B37.3 skill_release 在批准前后复核版本/证据并以同目录原子替换单个Skill；回滚遵守版本冲突，权限/评估器/运行内核不可作为目标，生产加载链无变化。
+本次核对范围：B38.1 新增contracts.verification及verification.files；宿主选择冻结文件标准，只读检查实际终态，尚未接入Conversation。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2115,3 +2115,14 @@ scripts.task_eval_report生成单一enabled开关配置，并只读manifest和�
 ## B32.1 首错证据
 
 scripts.first_error复用session.log校验完整JSONL，再按物理行序提取请求/轮次/工具明确失败；B31单次结果通过session_id关联独立终态验证。输出物理行、运行身份和哈希，不修改会话，不调用模型；主次候选与根因未证明分开。环境快照及新模型续跑待B32.2/3。
+## B38.1 可信验收边界
+
+```mermaid
+flowchart LR
+  Host[可信宿主] --> Catalog[VerifierCatalog]
+  Catalog --> Files[FileStateVerifier]
+  Files --> Contract[TaskVerifier / VerificationResult]
+  Files --> Disk[实际任务文件：只读]
+```
+
+模型未获得登记/修改判据的工具；[模块](../adam/verification/files.py)仅依赖contracts，依赖方向加入架构检查。

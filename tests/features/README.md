@@ -411,3 +411,5 @@ B37.1：test_skill_proposal.py验证真实SkillCatalog兼容、原目标保留�
 B37.2：test_skill_release.py实际加载Skill/编辑文件后双集比较，覆盖显式拒绝/接受/回滚；1 passed（7.20秒），HTTP模拟不证明模型效果。
 
 B37.3：扩展test_skill_release.py复用双集产物覆盖过期、批准后冲突、原子写入失败与保护目标；章末及默认B31入口4 passed（12.30秒）。
+
+B38.1：test_trusted_verifier.py验收真实文件、模型虚假成功、标准快照及未知状态；2 passed（0.67秒）。

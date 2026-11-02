@@ -91,6 +91,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
         ("documents", {"documents", "config", "contracts"}),
         ("code_index", {"code_index", "contracts"}),
         ("skills", {"skills", "contracts"}),
+        ("verification", {"verification", "contracts"}),
         ("recording", {"recording", "application", "config", "contracts", "session"}),
         ("rules", {"rules", "contracts"}),
         ("mcp", {"mcp", "config", "contracts"}),
