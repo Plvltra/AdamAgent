@@ -88,3 +88,28 @@ def score(criteria: tuple[Criterion, ...], evidence: tuple[Evidence, ...]) -> di
         "all_criteria_met": bool(criteria) and all(r["status"] == "pass" for r in rows),
         "scope": "declared_criteria_only",
     }
+
+
+def model_suggestions(payload: object, *, source: str) -> tuple[Evidence, ...]:
+    """将不可信评分载荷降为模型建议；来源由宿主绑定，禁止载荷自称独立验证器。
+
+    只接受criterion、passed和可选detail。额外权限/来源字段或错误类型拒绝，
+    即使建议全部通过，也不能单独产生通过评分；空来源按缺证据处理。
+    """
+    if not isinstance(payload, list) or len(payload) > 100:
+        raise ValueError("invalid model suggestions")
+    result = []
+    for item in payload:
+        if (
+            not isinstance(item, dict)
+            or item.keys() - {"criterion", "passed", "detail"}
+            or not isinstance(item.get("criterion"), str)
+            or not item["criterion"].strip()
+            or type(item.get("passed")) is not bool
+            or not isinstance(item.get("detail", ""), str)
+        ):
+            raise ValueError("invalid model suggestion fields")
+        result.append(
+            Evidence(item["criterion"], "model", item["passed"], source, item.get("detail", ""))
+        )
+    return tuple(result)

@@ -7,3 +7,7 @@ B33.1：scripts/rubric.py 提供 Criterion、Evidence 和 score。宿主提前�
 B33.2：scripts/rubric_calibration.py提供calibrate和compare_swapped。六个教学金标位于tests/fixtures/rubric_gold.json（人工编写规则场景，非用户标注）；统计通过误报、漏报、拒评、覆盖率及全样本正确率，缺失预测保留在分母，额外样本拒绝。交换答案顺序后映射回原身份，两次不一致或拒评不选胜者；主观偏好不等于任务成功。调用方显式注入判据，无默认远端模型。
 
 定向2 passed（0.09秒），覆盖刻意错误/缺失和位置偏差；Ruff/Pyright通过。当前只验证协议和小样本，不声称真实评分质量；B33.3仍待完成。
+
+B33.3：model_suggestions是模型评分载荷入口，只接受criterion/passed/detail；来源由宿主绑定，载荷自带origin/source或非布尔passed拒绝。建议无法盖过独立失败，缺来源仍不评分。测试特意模拟两次都被同一攻击内容诱导的评估器：交换顺序一致也不是客观成功，结果仍为主观建议。
+
+B33工程范围完成：章末6 passed（0.76秒），Ruff/Pyright通过。真实模型评判质量、用户人工标注及大样本金标未做；本阶段提供最小协议和独立边界，不提供自动证明成功的模型评分。

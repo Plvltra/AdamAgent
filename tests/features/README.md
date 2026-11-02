@@ -385,3 +385,5 @@ B32.3：test_prefix_modes.py 验收旧响应/新决策区别、响应串用/变�
 B33.1：test_rubric.py 通过真实修复验证器和缺失/矛盾证据验收四维评分；2 passed（25.32秒），不调用模型。
 
 B33.2：test_rubric_calibration.py覆盖六样本金标、误报/漏报/缺失及顺序偏差；2 passed（0.09秒），不调用模型。
+
+B33.3：test_rubric_contamination.py验证评分载荷、来源伪造、缺来源及交换后一致污染；B33章末三个文件6 passed（0.76秒）。
