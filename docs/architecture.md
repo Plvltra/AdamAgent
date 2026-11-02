@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C06.1 有界短视频解码、PTS时间轴与原媒体引用。新增video包，模型/会话编排保持。
+本次核对范围：C06.2 原帧语义端口与带证据的时序事件；帧源、真实模型请求与媒体存储保持原关系。
 
 本次同步验证：LLMClient 同时使用 ChatInputEncoder、Messages 适配器和 StreamWatch；没有移除双方协议/取消契约。相关双协议、多模态和流式停止51项通过（18.06秒），Ruff/Pyright通过。架构关系与双方实现一致，无重复标题或冲突标记；未跑全量。
 
@@ -2475,3 +2475,22 @@ flowchart LR
 ~~~
 
 video只依赖自身和contracts；宿主注入媒体发布端口，不反向依赖SessionStore或视觉SDK。完整解码后发布，发布中失败可留下部分证据；不承诺原生硬取消。可选依赖及uv.lock同步，原关键注释未删除；8项真实视频场景通过，时间轴与独立核图见 [视频输入](video-input.md)。
+
+
+## C06.2 采样时序事件
+
+~~~mermaid
+flowchart LR
+    VT_SOURCE["原 VideoFrames / PTS和来源"] --> VT_ANALYZE["video.temporal / TemporalAnalyzer"]
+    VT_ANALYZE --> VT_CHECK["原序/缺帧/来源/时间轴校验"]
+    VT_CHECK --> VT_PORT["帧分析回调 / FrameMeaning"]
+    VT_PORT --> VT_MODEL["宿主既有视觉问答 / 原请求与用量"]
+    VT_PORT --> VT_EVENT["连续同标签观测片段 / 全部证据帧"]
+    VT_CHECK --> VT_UNKNOWN["乱序或缺失 / 明确不确定性"]
+    VT_EVENT --> VT_REPORT["SequenceReport / sampled_frames_only"]
+    VT_UNKNOWN --> VT_REPORT
+~~~
+
+时序模块只依赖原帧值对象及contracts，视觉SDK由宿主端口隔离。起止是观测时间，不推断采样间的精确事件边界；失败/取消不重问。新增中文契约与不确定性边界已核对，原注释未删除。规则局部5项通过，真实结果见 [视频输入](video-input.md#c062-带证据的时序事件)。
+
+C06.2实际核对：原C04图问4次真实请求保留来源/用量，时序对照复用已记录语义，模型颜色仅2/4正确。正常标签序已知不代表标签准确，倒序/缺帧不确定性正确；原报告见 [真实时序](video-input.md#c062-带证据的时序事件)。生产关系未另改。

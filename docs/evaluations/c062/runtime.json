@@ -1,0 +1,14 @@
+{
+  "local": {
+    "model": "adam-vision",
+    "endpoint": "http://127.0.0.1:8087/v1",
+    "timeout_seconds": 180,
+    "stream": true
+  },
+  "model": "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf",
+  "runtime": "llama-b12032 Vulkan",
+  "cost": null,
+  "currency": null,
+  "mock_scope": "load_image tool selection only; four vision requests real; temporal comparisons replay recorded meanings",
+  "question": "Name the dominant solid color. Answer one word: red, green, blue, yellow, or unknown."
+}

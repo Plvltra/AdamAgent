@@ -1,0 +1,267 @@
+{
+  "normal": {
+    "report": {
+      "video": {
+        "media_id": "f1580490c8818015e8f79a54fb2297ed",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "video/x-matroska",
+        "size_bytes": 1174,
+        "version": "e15bdc520f7fe80d70de4527f8908c3f9dcf0cc10224e9b2786836c7fffb2bb5",
+        "created_at": "2026-11-02T14:02:05.126369+00:00",
+        "schema_version": 1
+      },
+      "events": [
+        {
+          "label": "red",
+          "start_seconds": 0.0,
+          "end_seconds": 0.45,
+          "frames": [
+            {
+              "media_id": "d6b00e5d8cb3d56e769593e1643701ab",
+              "source": {
+                "session_id": "b54c72ef",
+                "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+                "kind": "input",
+                "request_id": null,
+                "tool_call_id": null,
+                "tool_name": null
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+              "created_at": "2026-11-02T14:02:05.139338+00:00",
+              "schema_version": 1
+            },
+            {
+              "media_id": "5cb955a345f9210180c38bce009a71a3",
+              "source": {
+                "session_id": "b54c72ef",
+                "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+                "kind": "input",
+                "request_id": null,
+                "tool_call_id": null,
+                "tool_name": null
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+              "created_at": "2026-11-02T14:02:05.156340+00:00",
+              "schema_version": 1
+            },
+            {
+              "media_id": "80d4a0818eb169752303822c069fe359",
+              "source": {
+                "session_id": "b54c72ef",
+                "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+                "kind": "input",
+                "request_id": null,
+                "tool_call_id": null,
+                "tool_name": null
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+              "created_at": "2026-11-02T14:02:05.174370+00:00",
+              "schema_version": 1
+            }
+          ],
+          "analysis_sources": [
+            "session=a9ed6ead;turn=8683e0c5567d27d144b59d858ecd93e7;request=f0fac7726c4da8cf7fd740b243c51bd1",
+            "session=4e7683c5;turn=a3e5a0e869a2882e8030e035b37c15b9;request=c7d3e69732d2d67235afde34e3cf6000",
+            "session=ee694e7b;turn=14c772fa51ca5a8c714138e24efba6f3;request=4515877f2a4db1865318d28dc9e32708"
+          ],
+          "uncertain": false
+        },
+        {
+          "label": "yellow",
+          "start_seconds": 0.9,
+          "end_seconds": 0.9,
+          "frames": [
+            {
+              "media_id": "83364275acb0c5edc2eff93217987b05",
+              "source": {
+                "session_id": "b54c72ef",
+                "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+                "kind": "input",
+                "request_id": null,
+                "tool_call_id": null,
+                "tool_name": null
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+              "created_at": "2026-11-02T14:02:05.195367+00:00",
+              "schema_version": 1
+            }
+          ],
+          "analysis_sources": [
+            "session=10305284;turn=6d72a70df1ff1dde5d977aaa696feef6;request=ffdd83b53edf3aecba6a0ba3a564e202"
+          ],
+          "uncertain": false
+        }
+      ],
+      "order_known": true,
+      "issues": [],
+      "expected_samples": 4,
+      "analyzed_samples": 4,
+      "coverage": "sampled_frames_only"
+    },
+    "cached_meaning_reads": [
+      "d6b00e5d8cb3d56e769593e1643701ab",
+      "5cb955a345f9210180c38bce009a71a3",
+      "80d4a0818eb169752303822c069fe359",
+      "83364275acb0c5edc2eff93217987b05"
+    ]
+  },
+  "reversed": {
+    "report": {
+      "video": {
+        "media_id": "f1580490c8818015e8f79a54fb2297ed",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "video/x-matroska",
+        "size_bytes": 1174,
+        "version": "e15bdc520f7fe80d70de4527f8908c3f9dcf0cc10224e9b2786836c7fffb2bb5",
+        "created_at": "2026-11-02T14:02:05.126369+00:00",
+        "schema_version": 1
+      },
+      "events": [],
+      "order_known": false,
+      "issues": [
+        "out_of_order_or_duplicate"
+      ],
+      "expected_samples": 4,
+      "analyzed_samples": 0,
+      "coverage": "sampled_frames_only"
+    },
+    "cached_meaning_reads": []
+  },
+  "missing_one": {
+    "report": {
+      "video": {
+        "media_id": "f1580490c8818015e8f79a54fb2297ed",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "video/x-matroska",
+        "size_bytes": 1174,
+        "version": "e15bdc520f7fe80d70de4527f8908c3f9dcf0cc10224e9b2786836c7fffb2bb5",
+        "created_at": "2026-11-02T14:02:05.126369+00:00",
+        "schema_version": 1
+      },
+      "events": [
+        {
+          "label": "red",
+          "start_seconds": 0.0,
+          "end_seconds": 0.0,
+          "frames": [
+            {
+              "media_id": "d6b00e5d8cb3d56e769593e1643701ab",
+              "source": {
+                "session_id": "b54c72ef",
+                "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+                "kind": "input",
+                "request_id": null,
+                "tool_call_id": null,
+                "tool_name": null
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+              "created_at": "2026-11-02T14:02:05.139338+00:00",
+              "schema_version": 1
+            }
+          ],
+          "analysis_sources": [
+            "session=a9ed6ead;turn=8683e0c5567d27d144b59d858ecd93e7;request=f0fac7726c4da8cf7fd740b243c51bd1"
+          ],
+          "uncertain": true
+        },
+        {
+          "label": "red",
+          "start_seconds": 0.45,
+          "end_seconds": 0.45,
+          "frames": [
+            {
+              "media_id": "80d4a0818eb169752303822c069fe359",
+              "source": {
+                "session_id": "b54c72ef",
+                "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+                "kind": "input",
+                "request_id": null,
+                "tool_call_id": null,
+                "tool_name": null
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+              "created_at": "2026-11-02T14:02:05.174370+00:00",
+              "schema_version": 1
+            }
+          ],
+          "analysis_sources": [
+            "session=ee694e7b;turn=14c772fa51ca5a8c714138e24efba6f3;request=4515877f2a4db1865318d28dc9e32708"
+          ],
+          "uncertain": true
+        },
+        {
+          "label": "yellow",
+          "start_seconds": 0.9,
+          "end_seconds": 0.9,
+          "frames": [
+            {
+              "media_id": "83364275acb0c5edc2eff93217987b05",
+              "source": {
+                "session_id": "b54c72ef",
+                "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+                "kind": "input",
+                "request_id": null,
+                "tool_call_id": null,
+                "tool_name": null
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+              "created_at": "2026-11-02T14:02:05.195367+00:00",
+              "schema_version": 1
+            }
+          ],
+          "analysis_sources": [
+            "session=10305284;turn=6d72a70df1ff1dde5d977aaa696feef6;request=ffdd83b53edf3aecba6a0ba3a564e202"
+          ],
+          "uncertain": true
+        }
+      ],
+      "order_known": false,
+      "issues": [
+        "missing_samples"
+      ],
+      "expected_samples": 4,
+      "analyzed_samples": 3,
+      "coverage": "sampled_frames_only"
+    },
+    "cached_meaning_reads": [
+      "d6b00e5d8cb3d56e769593e1643701ab",
+      "80d4a0818eb169752303822c069fe359",
+      "83364275acb0c5edc2eff93217987b05"
+    ]
+  }
+}

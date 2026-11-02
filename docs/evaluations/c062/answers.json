@@ -1,0 +1,2458 @@
+[
+  {
+    "index": 0,
+    "frame": {
+      "pts": 0,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.0,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "d6b00e5d8cb3d56e769593e1643701ab",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+        "created_at": "2026-11-02T14:02:05.139338+00:00",
+        "schema_version": 1
+      }
+    },
+    "loaded_reference": {
+      "media_id": "c124e64bf0114530c4924f2aae705953",
+      "source": {
+        "session_id": "a9ed6ead",
+        "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+        "kind": "tool",
+        "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+        "tool_call_id": "load",
+        "tool_name": "load_image"
+      },
+      "mime_type": "image/png",
+      "size_bytes": 157,
+      "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+      "created_at": "2026-11-02T14:02:05.304366+00:00",
+      "schema_version": 1
+    },
+    "answer": {
+      "text": "red",
+      "images": [
+        {
+          "media_id": "c124e64bf0114530c4924f2aae705953",
+          "source": {
+            "session_id": "a9ed6ead",
+            "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+            "kind": "tool",
+            "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+            "tool_call_id": "load",
+            "tool_name": "load_image"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+          "created_at": "2026-11-02T14:02:05.304366+00:00",
+          "schema_version": 1
+        }
+      ],
+      "session_id": "a9ed6ead",
+      "turn_id": "8683e0c5567d27d144b59d858ecd93e7",
+      "request_id": "f0fac7726c4da8cf7fd740b243c51bd1"
+    },
+    "meaning": {
+      "frame": {
+        "media_id": "d6b00e5d8cb3d56e769593e1643701ab",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+        "created_at": "2026-11-02T14:02:05.139338+00:00",
+        "schema_version": 1
+      },
+      "label": "red",
+      "uncertain": false,
+      "source": "session=a9ed6ead;turn=8683e0c5567d27d144b59d858ecd93e7;request=f0fac7726c4da8cf7fd740b243c51bd1"
+    },
+    "events": [
+      {
+        "type": "session_meta",
+        "timestamp": "2026-11-02T14:02:05.255337+00:00",
+        "payload": {
+          "version": 4,
+          "id": "a9ed6ead",
+          "title": "Load original image only",
+          "system_prompt": "system constraint"
+        }
+      },
+      {
+        "type": "turn_started",
+        "timestamp": "2026-11-02T14:02:05.261337+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "user_text": "Load original image only"
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:05.279338+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+          "model": "test",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "runtime_state": {
+              "format": "runtime_state_v1",
+              "requests": {
+                "maximum": 8,
+                "used": 0,
+                "remaining": 8
+              },
+              "tools": {
+                "maximum": 16,
+                "used": 0,
+                "remaining": 16
+              },
+              "tokens": {
+                "maximum": 50000,
+                "known_used": 0,
+                "unknown_usage": false,
+                "reserved": 0,
+                "remaining": 50000
+              },
+              "failures": {
+                "consecutive": 0,
+                "fingerprint": null
+              },
+              "environment": {
+                "workspace": "G:\\Myself\\Adam2\\.cache\\c062-sequence\\question-0",
+                "mode": "act"
+              },
+              "pending_agents": []
+            },
+            "execution_mode": "act",
+            "memory": {
+              "strategy": "keyword_v1",
+              "status": "no_match",
+              "query": "Load original image only",
+              "records": [],
+              "warning": ""
+            },
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [],
+            "estimated_input_tokens": 5729,
+            "original_history_tokens": 0,
+            "tool_schema": {
+              "names": [
+                "read_pdf",
+                "code_structure",
+                "find_definitions",
+                "find_references",
+                "create_file",
+                "replace_text",
+                "replace_span",
+                "run_command",
+                "list_directory",
+                "find_files",
+                "read_file",
+                "search_text",
+                "file_info",
+                "git_status",
+                "git_diff",
+                "git_log",
+                "load_image",
+                "read_artifact",
+                "search_sessions",
+                "read_session",
+                "update_plan"
+              ],
+              "utf8_bytes": 16502
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:05.284337+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+          "input_tokens": 10,
+          "output_tokens": 2,
+          "input_prefix": {
+            "scope_id": "326798ee877e8ee6",
+            "sequence": 1,
+            "model": "test",
+            "input_bytes": 17134,
+            "input_sha256": "53f07e6d94d9bd8cea9657e893214e15d81209c96c8c9b1e145ad048a9988380",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:05.284337+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 0,
+          "error": null
+        }
+      },
+      {
+        "type": "tool_started",
+        "timestamp": "2026-11-02T14:02:05.289336+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+          "tool_call_id": "load",
+          "name": "load_image",
+          "arguments": "{\"path\": \"sample.bin\"}"
+        }
+      },
+      {
+        "type": "media_saved",
+        "timestamp": "2026-11-02T14:02:05.307338+00:00",
+        "payload": {
+          "media_id": "c124e64bf0114530c4924f2aae705953",
+          "source": {
+            "session_id": "a9ed6ead",
+            "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+            "kind": "tool",
+            "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+            "tool_call_id": "load",
+            "tool_name": "load_image"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+          "created_at": "2026-11-02T14:02:05.304366+00:00",
+          "schema_version": 1
+        }
+      },
+      {
+        "type": "tool_finished",
+        "timestamp": "2026-11-02T14:02:05.313149+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+          "tool_call_id": "load",
+          "output": "{\"ok\": true, \"status\": \"loaded\", \"media\": {\"media_id\": \"c124e64bf0114530c4924f2aae705953\", \"source\": {\"session_id\": \"a9ed6ead\", \"turn_id\": \"4bcf2121bbbd2a13c84ede2b616a60b1\", \"kind\": \"tool\", \"request_id\": \"d8f5b69b8546de4043a22bd22b79f093\", \"tool_call_id\": \"load\", \"tool_name\": \"load_image\"}, \"mime_type\": \"image/png\", \"size_bytes\": 157, \"version\": \"8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb\", \"created_at\": \"2026-11-02T14:02:05.304366+00:00\", \"schema_version\": 1}, \"image\": {\"format\": \"PNG\", \"width\": 64, \"height\": 48, \"orientation\": null, \"display_width\": 64, \"display_height\": 48}, \"model_input_attached\": false}"
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:05.328149+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "request_id": "fb8120ff20f70ee50ab84a351e89fff0",
+          "model": "test",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "runtime_state": {
+              "format": "runtime_state_v1",
+              "requests": {
+                "maximum": 8,
+                "used": 1,
+                "remaining": 7
+              },
+              "tools": {
+                "maximum": 16,
+                "used": 1,
+                "remaining": 15
+              },
+              "tokens": {
+                "maximum": 50000,
+                "known_used": 12,
+                "unknown_usage": false,
+                "reserved": 0,
+                "remaining": 49988
+              },
+              "failures": {
+                "consecutive": 0,
+                "fingerprint": null
+              },
+              "environment": {
+                "workspace": "G:\\Myself\\Adam2\\.cache\\c062-sequence\\question-0",
+                "mode": "act"
+              },
+              "pending_agents": []
+            },
+            "execution_mode": "act",
+            "memory": {
+              "strategy": "keyword_v1",
+              "status": "no_match",
+              "query": "Load original image only",
+              "records": [],
+              "warning": ""
+            },
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [],
+            "estimated_input_tokens": 6065,
+            "original_history_tokens": 0,
+            "tool_schema": {
+              "names": [
+                "read_pdf",
+                "code_structure",
+                "find_definitions",
+                "find_references",
+                "create_file",
+                "replace_text",
+                "replace_span",
+                "run_command",
+                "list_directory",
+                "find_files",
+                "read_file",
+                "search_text",
+                "file_info",
+                "git_status",
+                "git_diff",
+                "git_log",
+                "load_image",
+                "read_artifact",
+                "search_sessions",
+                "read_session",
+                "update_plan"
+              ],
+              "utf8_bytes": 16502
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:05.334148+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "request_id": "fb8120ff20f70ee50ab84a351e89fff0",
+          "input_tokens": 10,
+          "output_tokens": 2,
+          "input_prefix": {
+            "scope_id": "326798ee877e8ee6",
+            "sequence": 2,
+            "model": "test",
+            "input_bytes": 18090,
+            "input_sha256": "fe9daece5ca268334900aba7eceee53dcd2872a9893d894462ff1be2e742d120",
+            "previous_sequence": 1,
+            "previous_bytes": 17134,
+            "previous_sha256": "53f07e6d94d9bd8cea9657e893214e15d81209c96c8c9b1e145ad048a9988380",
+            "common_prefix_bytes": 16617,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:05.334148+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "request_id": "fb8120ff20f70ee50ab84a351e89fff0",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 0,
+          "error": null
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:05.341148+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "message": {
+            "role": "user",
+            "content": "Load original image only"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:05.341148+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "message": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "load",
+                "type": "function",
+                "function": {
+                  "name": "load_image",
+                  "arguments": "{\"path\": \"sample.bin\"}"
+                }
+              }
+            ],
+            "reasoning_content": "provider field"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:05.341148+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "message": {
+            "role": "tool",
+            "tool_call_id": "load",
+            "content": "{\"ok\": true, \"status\": \"loaded\", \"media\": {\"media_id\": \"c124e64bf0114530c4924f2aae705953\", \"source\": {\"session_id\": \"a9ed6ead\", \"turn_id\": \"4bcf2121bbbd2a13c84ede2b616a60b1\", \"kind\": \"tool\", \"request_id\": \"d8f5b69b8546de4043a22bd22b79f093\", \"tool_call_id\": \"load\", \"tool_name\": \"load_image\"}, \"mime_type\": \"image/png\", \"size_bytes\": 157, \"version\": \"8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb\", \"created_at\": \"2026-11-02T14:02:05.304366+00:00\", \"schema_version\": 1}, \"image\": {\"format\": \"PNG\", \"width\": 64, \"height\": 48, \"orientation\": null, \"display_width\": 64, \"display_height\": 48}, \"model_input_attached\": false}"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:05.341148+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "message": {
+            "role": "assistant",
+            "content": "loaded, not viewed"
+          }
+        }
+      },
+      {
+        "type": "turn_completed",
+        "timestamp": "2026-11-02T14:02:05.341148+00:00",
+        "payload": {
+          "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 78,
+          "error": null
+        }
+      },
+      {
+        "type": "turn_started",
+        "timestamp": "2026-11-02T14:02:05.414147+00:00",
+        "payload": {
+          "turn_id": "8683e0c5567d27d144b59d858ecd93e7",
+          "user_text": "Name the dominant solid color. Answer one word: red, green, blue, yellow, or unknown.",
+          "media": [
+            {
+              "media_id": "c124e64bf0114530c4924f2aae705953",
+              "source": {
+                "session_id": "a9ed6ead",
+                "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+                "kind": "tool",
+                "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+                "tool_call_id": "load",
+                "tool_name": "load_image"
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+              "created_at": "2026-11-02T14:02:05.304366+00:00",
+              "schema_version": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:05.424148+00:00",
+        "payload": {
+          "turn_id": "8683e0c5567d27d144b59d858ecd93e7",
+          "request_id": "f0fac7726c4da8cf7fd740b243c51bd1",
+          "model": "adam-vision",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [
+              "4bcf2121bbbd2a13c84ede2b616a60b1"
+            ],
+            "estimated_input_tokens": 8511,
+            "original_history_tokens": 362,
+            "image_question": {
+              "version": 1,
+              "backend": "llama_cpp",
+              "images": [
+                {
+                  "media_id": "c124e64bf0114530c4924f2aae705953",
+                  "source": {
+                    "session_id": "a9ed6ead",
+                    "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+                    "kind": "tool",
+                    "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+                    "tool_call_id": "load",
+                    "tool_name": "load_image"
+                  },
+                  "mime_type": "image/png",
+                  "size_bytes": 157,
+                  "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+                  "created_at": "2026-11-02T14:02:05.304366+00:00",
+                  "schema_version": 1
+                }
+              ],
+              "cost": null,
+              "currency": null,
+              "cost_status": "unpriced"
+            },
+            "tool_schema": {
+              "names": [],
+              "utf8_bytes": 2
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:07.893313+00:00",
+        "payload": {
+          "turn_id": "8683e0c5567d27d144b59d858ecd93e7",
+          "request_id": "f0fac7726c4da8cf7fd740b243c51bd1",
+          "input_tokens": 112,
+          "output_tokens": 2,
+          "cache_usage": {
+            "format": "chat_completions_cache_v1",
+            "hit_tokens": 0,
+            "miss_tokens": null
+          },
+          "input_prefix": {
+            "scope_id": "8ba720f7ac117816",
+            "sequence": 1,
+            "model": "adam-vision",
+            "input_bytes": 961,
+            "input_sha256": "601cc5107d42d694d5b2935651179fcf83f564838eca9a5ccf4175960c8e4b53",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:07.893313+00:00",
+        "payload": {
+          "turn_id": "8683e0c5567d27d144b59d858ecd93e7",
+          "request_id": "f0fac7726c4da8cf7fd740b243c51bd1",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 2469,
+          "error": null
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:07.904312+00:00",
+        "payload": {
+          "turn_id": "8683e0c5567d27d144b59d858ecd93e7",
+          "message": {
+            "role": "user",
+            "content": "Name the dominant solid color. Answer one word: red, green, blue, yellow, or unknown.",
+            "media": [
+              {
+                "media_id": "c124e64bf0114530c4924f2aae705953",
+                "source": {
+                  "session_id": "a9ed6ead",
+                  "turn_id": "4bcf2121bbbd2a13c84ede2b616a60b1",
+                  "kind": "tool",
+                  "request_id": "d8f5b69b8546de4043a22bd22b79f093",
+                  "tool_call_id": "load",
+                  "tool_name": "load_image"
+                },
+                "mime_type": "image/png",
+                "size_bytes": 157,
+                "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+                "created_at": "2026-11-02T14:02:05.304366+00:00",
+                "schema_version": 1
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:07.904312+00:00",
+        "payload": {
+          "turn_id": "8683e0c5567d27d144b59d858ecd93e7",
+          "message": {
+            "role": "assistant",
+            "content": "red"
+          }
+        }
+      },
+      {
+        "type": "turn_completed",
+        "timestamp": "2026-11-02T14:02:07.904312+00:00",
+        "payload": {
+          "turn_id": "8683e0c5567d27d144b59d858ecd93e7",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 2484,
+          "error": null
+        }
+      }
+    ]
+  },
+  {
+    "index": 1,
+    "frame": {
+      "pts": 100,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.1,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "5cb955a345f9210180c38bce009a71a3",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+        "created_at": "2026-11-02T14:02:05.156340+00:00",
+        "schema_version": 1
+      }
+    },
+    "loaded_reference": {
+      "media_id": "96ac0d117a5bf3c6eb96b91a9db0fc8c",
+      "source": {
+        "session_id": "4e7683c5",
+        "turn_id": "60713eaaad4cd0802168338cb8a88290",
+        "kind": "tool",
+        "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+        "tool_call_id": "load",
+        "tool_name": "load_image"
+      },
+      "mime_type": "image/png",
+      "size_bytes": 157,
+      "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+      "created_at": "2026-11-02T14:02:08.007424+00:00",
+      "schema_version": 1
+    },
+    "answer": {
+      "text": "red",
+      "images": [
+        {
+          "media_id": "96ac0d117a5bf3c6eb96b91a9db0fc8c",
+          "source": {
+            "session_id": "4e7683c5",
+            "turn_id": "60713eaaad4cd0802168338cb8a88290",
+            "kind": "tool",
+            "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+            "tool_call_id": "load",
+            "tool_name": "load_image"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+          "created_at": "2026-11-02T14:02:08.007424+00:00",
+          "schema_version": 1
+        }
+      ],
+      "session_id": "4e7683c5",
+      "turn_id": "a3e5a0e869a2882e8030e035b37c15b9",
+      "request_id": "c7d3e69732d2d67235afde34e3cf6000"
+    },
+    "meaning": {
+      "frame": {
+        "media_id": "5cb955a345f9210180c38bce009a71a3",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+        "created_at": "2026-11-02T14:02:05.156340+00:00",
+        "schema_version": 1
+      },
+      "label": "red",
+      "uncertain": false,
+      "source": "session=4e7683c5;turn=a3e5a0e869a2882e8030e035b37c15b9;request=c7d3e69732d2d67235afde34e3cf6000"
+    },
+    "events": [
+      {
+        "type": "session_meta",
+        "timestamp": "2026-11-02T14:02:07.946750+00:00",
+        "payload": {
+          "version": 4,
+          "id": "4e7683c5",
+          "title": "Load original image only",
+          "system_prompt": "system constraint"
+        }
+      },
+      {
+        "type": "turn_started",
+        "timestamp": "2026-11-02T14:02:07.953677+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "user_text": "Load original image only"
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:07.977553+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+          "model": "test",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "runtime_state": {
+              "format": "runtime_state_v1",
+              "requests": {
+                "maximum": 8,
+                "used": 0,
+                "remaining": 8
+              },
+              "tools": {
+                "maximum": 16,
+                "used": 0,
+                "remaining": 16
+              },
+              "tokens": {
+                "maximum": 50000,
+                "known_used": 0,
+                "unknown_usage": false,
+                "reserved": 0,
+                "remaining": 50000
+              },
+              "failures": {
+                "consecutive": 0,
+                "fingerprint": null
+              },
+              "environment": {
+                "workspace": "G:\\Myself\\Adam2\\.cache\\c062-sequence\\question-1",
+                "mode": "act"
+              },
+              "pending_agents": []
+            },
+            "execution_mode": "act",
+            "memory": {
+              "strategy": "keyword_v1",
+              "status": "no_match",
+              "query": "Load original image only",
+              "records": [],
+              "warning": ""
+            },
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [],
+            "estimated_input_tokens": 5729,
+            "original_history_tokens": 0,
+            "tool_schema": {
+              "names": [
+                "read_pdf",
+                "code_structure",
+                "find_definitions",
+                "find_references",
+                "create_file",
+                "replace_text",
+                "replace_span",
+                "run_command",
+                "list_directory",
+                "find_files",
+                "read_file",
+                "search_text",
+                "file_info",
+                "git_status",
+                "git_diff",
+                "git_log",
+                "load_image",
+                "read_artifact",
+                "search_sessions",
+                "read_session",
+                "update_plan"
+              ],
+              "utf8_bytes": 16502
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:07.984371+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+          "input_tokens": 10,
+          "output_tokens": 2,
+          "input_prefix": {
+            "scope_id": "6a42b1908027e014",
+            "sequence": 1,
+            "model": "test",
+            "input_bytes": 17134,
+            "input_sha256": "b64ebfa6b6d6fece3349fec390c48e9c7be92cacb8000d9e9dcada457c72b45b",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:07.984371+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 0,
+          "error": null
+        }
+      },
+      {
+        "type": "tool_started",
+        "timestamp": "2026-11-02T14:02:07.990424+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+          "tool_call_id": "load",
+          "name": "load_image",
+          "arguments": "{\"path\": \"sample.bin\"}"
+        }
+      },
+      {
+        "type": "media_saved",
+        "timestamp": "2026-11-02T14:02:08.011423+00:00",
+        "payload": {
+          "media_id": "96ac0d117a5bf3c6eb96b91a9db0fc8c",
+          "source": {
+            "session_id": "4e7683c5",
+            "turn_id": "60713eaaad4cd0802168338cb8a88290",
+            "kind": "tool",
+            "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+            "tool_call_id": "load",
+            "tool_name": "load_image"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+          "created_at": "2026-11-02T14:02:08.007424+00:00",
+          "schema_version": 1
+        }
+      },
+      {
+        "type": "tool_finished",
+        "timestamp": "2026-11-02T14:02:08.017424+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+          "tool_call_id": "load",
+          "output": "{\"ok\": true, \"status\": \"loaded\", \"media\": {\"media_id\": \"96ac0d117a5bf3c6eb96b91a9db0fc8c\", \"source\": {\"session_id\": \"4e7683c5\", \"turn_id\": \"60713eaaad4cd0802168338cb8a88290\", \"kind\": \"tool\", \"request_id\": \"ee3a0f225aa4ed8b4be39eee1ebd5fa9\", \"tool_call_id\": \"load\", \"tool_name\": \"load_image\"}, \"mime_type\": \"image/png\", \"size_bytes\": 157, \"version\": \"d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d\", \"created_at\": \"2026-11-02T14:02:08.007424+00:00\", \"schema_version\": 1}, \"image\": {\"format\": \"PNG\", \"width\": 64, \"height\": 48, \"orientation\": null, \"display_width\": 64, \"display_height\": 48}, \"model_input_attached\": false}"
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:08.039426+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "request_id": "a36cae340c73189aff403e8d12df9a42",
+          "model": "test",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "runtime_state": {
+              "format": "runtime_state_v1",
+              "requests": {
+                "maximum": 8,
+                "used": 1,
+                "remaining": 7
+              },
+              "tools": {
+                "maximum": 16,
+                "used": 1,
+                "remaining": 15
+              },
+              "tokens": {
+                "maximum": 50000,
+                "known_used": 12,
+                "unknown_usage": false,
+                "reserved": 0,
+                "remaining": 49988
+              },
+              "failures": {
+                "consecutive": 0,
+                "fingerprint": null
+              },
+              "environment": {
+                "workspace": "G:\\Myself\\Adam2\\.cache\\c062-sequence\\question-1",
+                "mode": "act"
+              },
+              "pending_agents": []
+            },
+            "execution_mode": "act",
+            "memory": {
+              "strategy": "keyword_v1",
+              "status": "no_match",
+              "query": "Load original image only",
+              "records": [],
+              "warning": ""
+            },
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [],
+            "estimated_input_tokens": 6065,
+            "original_history_tokens": 0,
+            "tool_schema": {
+              "names": [
+                "read_pdf",
+                "code_structure",
+                "find_definitions",
+                "find_references",
+                "create_file",
+                "replace_text",
+                "replace_span",
+                "run_command",
+                "list_directory",
+                "find_files",
+                "read_file",
+                "search_text",
+                "file_info",
+                "git_status",
+                "git_diff",
+                "git_log",
+                "load_image",
+                "read_artifact",
+                "search_sessions",
+                "read_session",
+                "update_plan"
+              ],
+              "utf8_bytes": 16502
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:08.047424+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "request_id": "a36cae340c73189aff403e8d12df9a42",
+          "input_tokens": 10,
+          "output_tokens": 2,
+          "input_prefix": {
+            "scope_id": "6a42b1908027e014",
+            "sequence": 2,
+            "model": "test",
+            "input_bytes": 18090,
+            "input_sha256": "aa3bc2e177cecca3916cb725e5b797c19eea6d19361eb9cfd29572a996b07bae",
+            "previous_sequence": 1,
+            "previous_bytes": 17134,
+            "previous_sha256": "b64ebfa6b6d6fece3349fec390c48e9c7be92cacb8000d9e9dcada457c72b45b",
+            "common_prefix_bytes": 16617,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:08.047424+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "request_id": "a36cae340c73189aff403e8d12df9a42",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 0,
+          "error": null
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.057243+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "message": {
+            "role": "user",
+            "content": "Load original image only"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.057243+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "message": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "load",
+                "type": "function",
+                "function": {
+                  "name": "load_image",
+                  "arguments": "{\"path\": \"sample.bin\"}"
+                }
+              }
+            ],
+            "reasoning_content": "provider field"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.057243+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "message": {
+            "role": "tool",
+            "tool_call_id": "load",
+            "content": "{\"ok\": true, \"status\": \"loaded\", \"media\": {\"media_id\": \"96ac0d117a5bf3c6eb96b91a9db0fc8c\", \"source\": {\"session_id\": \"4e7683c5\", \"turn_id\": \"60713eaaad4cd0802168338cb8a88290\", \"kind\": \"tool\", \"request_id\": \"ee3a0f225aa4ed8b4be39eee1ebd5fa9\", \"tool_call_id\": \"load\", \"tool_name\": \"load_image\"}, \"mime_type\": \"image/png\", \"size_bytes\": 157, \"version\": \"d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d\", \"created_at\": \"2026-11-02T14:02:08.007424+00:00\", \"schema_version\": 1}, \"image\": {\"format\": \"PNG\", \"width\": 64, \"height\": 48, \"orientation\": null, \"display_width\": 64, \"display_height\": 48}, \"model_input_attached\": false}"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.057243+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "message": {
+            "role": "assistant",
+            "content": "loaded, not viewed"
+          }
+        }
+      },
+      {
+        "type": "turn_completed",
+        "timestamp": "2026-11-02T14:02:08.057243+00:00",
+        "payload": {
+          "turn_id": "60713eaaad4cd0802168338cb8a88290",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 94,
+          "error": null
+        }
+      },
+      {
+        "type": "turn_started",
+        "timestamp": "2026-11-02T14:02:08.100428+00:00",
+        "payload": {
+          "turn_id": "a3e5a0e869a2882e8030e035b37c15b9",
+          "user_text": "Name the dominant solid color. Answer one word: red, green, blue, yellow, or unknown.",
+          "media": [
+            {
+              "media_id": "96ac0d117a5bf3c6eb96b91a9db0fc8c",
+              "source": {
+                "session_id": "4e7683c5",
+                "turn_id": "60713eaaad4cd0802168338cb8a88290",
+                "kind": "tool",
+                "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+                "tool_call_id": "load",
+                "tool_name": "load_image"
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+              "created_at": "2026-11-02T14:02:08.007424+00:00",
+              "schema_version": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:08.110447+00:00",
+        "payload": {
+          "turn_id": "a3e5a0e869a2882e8030e035b37c15b9",
+          "request_id": "c7d3e69732d2d67235afde34e3cf6000",
+          "model": "adam-vision",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [
+              "60713eaaad4cd0802168338cb8a88290"
+            ],
+            "estimated_input_tokens": 8511,
+            "original_history_tokens": 362,
+            "image_question": {
+              "version": 1,
+              "backend": "llama_cpp",
+              "images": [
+                {
+                  "media_id": "96ac0d117a5bf3c6eb96b91a9db0fc8c",
+                  "source": {
+                    "session_id": "4e7683c5",
+                    "turn_id": "60713eaaad4cd0802168338cb8a88290",
+                    "kind": "tool",
+                    "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+                    "tool_call_id": "load",
+                    "tool_name": "load_image"
+                  },
+                  "mime_type": "image/png",
+                  "size_bytes": 157,
+                  "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+                  "created_at": "2026-11-02T14:02:08.007424+00:00",
+                  "schema_version": 1
+                }
+              ],
+              "cost": null,
+              "currency": null,
+              "cost_status": "unpriced"
+            },
+            "tool_schema": {
+              "names": [],
+              "utf8_bytes": 2
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:08.281899+00:00",
+        "payload": {
+          "turn_id": "a3e5a0e869a2882e8030e035b37c15b9",
+          "request_id": "c7d3e69732d2d67235afde34e3cf6000",
+          "input_tokens": 112,
+          "output_tokens": 2,
+          "cache_usage": {
+            "format": "chat_completions_cache_v1",
+            "hit_tokens": 94,
+            "miss_tokens": null
+          },
+          "input_prefix": {
+            "scope_id": "f8360c10095c08ea",
+            "sequence": 1,
+            "model": "adam-vision",
+            "input_bytes": 961,
+            "input_sha256": "ca41b8287fd6dce2622eddb5e3a108233e6cbcc7b4e91ac154d75e8eb24ef5d0",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:08.281899+00:00",
+        "payload": {
+          "turn_id": "a3e5a0e869a2882e8030e035b37c15b9",
+          "request_id": "c7d3e69732d2d67235afde34e3cf6000",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 171,
+          "error": null
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.292536+00:00",
+        "payload": {
+          "turn_id": "a3e5a0e869a2882e8030e035b37c15b9",
+          "message": {
+            "role": "user",
+            "content": "Name the dominant solid color. Answer one word: red, green, blue, yellow, or unknown.",
+            "media": [
+              {
+                "media_id": "96ac0d117a5bf3c6eb96b91a9db0fc8c",
+                "source": {
+                  "session_id": "4e7683c5",
+                  "turn_id": "60713eaaad4cd0802168338cb8a88290",
+                  "kind": "tool",
+                  "request_id": "ee3a0f225aa4ed8b4be39eee1ebd5fa9",
+                  "tool_call_id": "load",
+                  "tool_name": "load_image"
+                },
+                "mime_type": "image/png",
+                "size_bytes": 157,
+                "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+                "created_at": "2026-11-02T14:02:08.007424+00:00",
+                "schema_version": 1
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.292536+00:00",
+        "payload": {
+          "turn_id": "a3e5a0e869a2882e8030e035b37c15b9",
+          "message": {
+            "role": "assistant",
+            "content": "red"
+          }
+        }
+      },
+      {
+        "type": "turn_completed",
+        "timestamp": "2026-11-02T14:02:08.292536+00:00",
+        "payload": {
+          "turn_id": "a3e5a0e869a2882e8030e035b37c15b9",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 187,
+          "error": null
+        }
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "frame": {
+      "pts": 450,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.45,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "80d4a0818eb169752303822c069fe359",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+        "created_at": "2026-11-02T14:02:05.174370+00:00",
+        "schema_version": 1
+      }
+    },
+    "loaded_reference": {
+      "media_id": "a628a33b899415cad7699d9fd9379340",
+      "source": {
+        "session_id": "ee694e7b",
+        "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+        "kind": "tool",
+        "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+        "tool_call_id": "load",
+        "tool_name": "load_image"
+      },
+      "mime_type": "image/png",
+      "size_bytes": 157,
+      "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+      "created_at": "2026-11-02T14:02:08.392719+00:00",
+      "schema_version": 1
+    },
+    "answer": {
+      "text": "red",
+      "images": [
+        {
+          "media_id": "a628a33b899415cad7699d9fd9379340",
+          "source": {
+            "session_id": "ee694e7b",
+            "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+            "kind": "tool",
+            "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+            "tool_call_id": "load",
+            "tool_name": "load_image"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+          "created_at": "2026-11-02T14:02:08.392719+00:00",
+          "schema_version": 1
+        }
+      ],
+      "session_id": "ee694e7b",
+      "turn_id": "14c772fa51ca5a8c714138e24efba6f3",
+      "request_id": "4515877f2a4db1865318d28dc9e32708"
+    },
+    "meaning": {
+      "frame": {
+        "media_id": "80d4a0818eb169752303822c069fe359",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+        "created_at": "2026-11-02T14:02:05.174370+00:00",
+        "schema_version": 1
+      },
+      "label": "red",
+      "uncertain": false,
+      "source": "session=ee694e7b;turn=14c772fa51ca5a8c714138e24efba6f3;request=4515877f2a4db1865318d28dc9e32708"
+    },
+    "events": [
+      {
+        "type": "session_meta",
+        "timestamp": "2026-11-02T14:02:08.335751+00:00",
+        "payload": {
+          "version": 4,
+          "id": "ee694e7b",
+          "title": "Load original image only",
+          "system_prompt": "system constraint"
+        }
+      },
+      {
+        "type": "turn_started",
+        "timestamp": "2026-11-02T14:02:08.341751+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "user_text": "Load original image only"
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:08.362721+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+          "model": "test",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "runtime_state": {
+              "format": "runtime_state_v1",
+              "requests": {
+                "maximum": 8,
+                "used": 0,
+                "remaining": 8
+              },
+              "tools": {
+                "maximum": 16,
+                "used": 0,
+                "remaining": 16
+              },
+              "tokens": {
+                "maximum": 50000,
+                "known_used": 0,
+                "unknown_usage": false,
+                "reserved": 0,
+                "remaining": 50000
+              },
+              "failures": {
+                "consecutive": 0,
+                "fingerprint": null
+              },
+              "environment": {
+                "workspace": "G:\\Myself\\Adam2\\.cache\\c062-sequence\\question-2",
+                "mode": "act"
+              },
+              "pending_agents": []
+            },
+            "execution_mode": "act",
+            "memory": {
+              "strategy": "keyword_v1",
+              "status": "no_match",
+              "query": "Load original image only",
+              "records": [],
+              "warning": ""
+            },
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [],
+            "estimated_input_tokens": 5729,
+            "original_history_tokens": 0,
+            "tool_schema": {
+              "names": [
+                "read_pdf",
+                "code_structure",
+                "find_definitions",
+                "find_references",
+                "create_file",
+                "replace_text",
+                "replace_span",
+                "run_command",
+                "list_directory",
+                "find_files",
+                "read_file",
+                "search_text",
+                "file_info",
+                "git_status",
+                "git_diff",
+                "git_log",
+                "load_image",
+                "read_artifact",
+                "search_sessions",
+                "read_session",
+                "update_plan"
+              ],
+              "utf8_bytes": 16502
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:08.368752+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+          "input_tokens": 10,
+          "output_tokens": 2,
+          "input_prefix": {
+            "scope_id": "67ac1c4a3f9ef4b6",
+            "sequence": 1,
+            "model": "test",
+            "input_bytes": 17134,
+            "input_sha256": "c852524c7b1b0e0ee4c13ba920d4a03b1e6df4dff5596d2cc1d4960f5993a225",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:08.368752+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 0,
+          "error": null
+        }
+      },
+      {
+        "type": "tool_started",
+        "timestamp": "2026-11-02T14:02:08.374750+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+          "tool_call_id": "load",
+          "name": "load_image",
+          "arguments": "{\"path\": \"sample.bin\"}"
+        }
+      },
+      {
+        "type": "media_saved",
+        "timestamp": "2026-11-02T14:02:08.396719+00:00",
+        "payload": {
+          "media_id": "a628a33b899415cad7699d9fd9379340",
+          "source": {
+            "session_id": "ee694e7b",
+            "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+            "kind": "tool",
+            "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+            "tool_call_id": "load",
+            "tool_name": "load_image"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+          "created_at": "2026-11-02T14:02:08.392719+00:00",
+          "schema_version": 1
+        }
+      },
+      {
+        "type": "tool_finished",
+        "timestamp": "2026-11-02T14:02:08.402963+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+          "tool_call_id": "load",
+          "output": "{\"ok\": true, \"status\": \"loaded\", \"media\": {\"media_id\": \"a628a33b899415cad7699d9fd9379340\", \"source\": {\"session_id\": \"ee694e7b\", \"turn_id\": \"a5c63a907ba2d0868a6bdb89f8e3cab2\", \"kind\": \"tool\", \"request_id\": \"0f96e40347d64c8de9daf2f08646a7bf\", \"tool_call_id\": \"load\", \"tool_name\": \"load_image\"}, \"mime_type\": \"image/png\", \"size_bytes\": 157, \"version\": \"031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b\", \"created_at\": \"2026-11-02T14:02:08.392719+00:00\", \"schema_version\": 1}, \"image\": {\"format\": \"PNG\", \"width\": 64, \"height\": 48, \"orientation\": null, \"display_width\": 64, \"display_height\": 48}, \"model_input_attached\": false}"
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:08.420964+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "request_id": "ade9a7dba7d88ea9b1f6f73465069537",
+          "model": "test",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "runtime_state": {
+              "format": "runtime_state_v1",
+              "requests": {
+                "maximum": 8,
+                "used": 1,
+                "remaining": 7
+              },
+              "tools": {
+                "maximum": 16,
+                "used": 1,
+                "remaining": 15
+              },
+              "tokens": {
+                "maximum": 50000,
+                "known_used": 12,
+                "unknown_usage": false,
+                "reserved": 0,
+                "remaining": 49988
+              },
+              "failures": {
+                "consecutive": 0,
+                "fingerprint": null
+              },
+              "environment": {
+                "workspace": "G:\\Myself\\Adam2\\.cache\\c062-sequence\\question-2",
+                "mode": "act"
+              },
+              "pending_agents": []
+            },
+            "execution_mode": "act",
+            "memory": {
+              "strategy": "keyword_v1",
+              "status": "no_match",
+              "query": "Load original image only",
+              "records": [],
+              "warning": ""
+            },
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [],
+            "estimated_input_tokens": 6065,
+            "original_history_tokens": 0,
+            "tool_schema": {
+              "names": [
+                "read_pdf",
+                "code_structure",
+                "find_definitions",
+                "find_references",
+                "create_file",
+                "replace_text",
+                "replace_span",
+                "run_command",
+                "list_directory",
+                "find_files",
+                "read_file",
+                "search_text",
+                "file_info",
+                "git_status",
+                "git_diff",
+                "git_log",
+                "load_image",
+                "read_artifact",
+                "search_sessions",
+                "read_session",
+                "update_plan"
+              ],
+              "utf8_bytes": 16502
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:08.428995+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "request_id": "ade9a7dba7d88ea9b1f6f73465069537",
+          "input_tokens": 10,
+          "output_tokens": 2,
+          "input_prefix": {
+            "scope_id": "67ac1c4a3f9ef4b6",
+            "sequence": 2,
+            "model": "test",
+            "input_bytes": 18090,
+            "input_sha256": "523eda2ebe445b413cbbf3e875a603409dcd7c63a2ac2df57c2f778d81599f53",
+            "previous_sequence": 1,
+            "previous_bytes": 17134,
+            "previous_sha256": "c852524c7b1b0e0ee4c13ba920d4a03b1e6df4dff5596d2cc1d4960f5993a225",
+            "common_prefix_bytes": 16617,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:08.428995+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "request_id": "ade9a7dba7d88ea9b1f6f73465069537",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 0,
+          "error": null
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.437993+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "message": {
+            "role": "user",
+            "content": "Load original image only"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.437993+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "message": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "load",
+                "type": "function",
+                "function": {
+                  "name": "load_image",
+                  "arguments": "{\"path\": \"sample.bin\"}"
+                }
+              }
+            ],
+            "reasoning_content": "provider field"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.437993+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "message": {
+            "role": "tool",
+            "tool_call_id": "load",
+            "content": "{\"ok\": true, \"status\": \"loaded\", \"media\": {\"media_id\": \"a628a33b899415cad7699d9fd9379340\", \"source\": {\"session_id\": \"ee694e7b\", \"turn_id\": \"a5c63a907ba2d0868a6bdb89f8e3cab2\", \"kind\": \"tool\", \"request_id\": \"0f96e40347d64c8de9daf2f08646a7bf\", \"tool_call_id\": \"load\", \"tool_name\": \"load_image\"}, \"mime_type\": \"image/png\", \"size_bytes\": 157, \"version\": \"031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b\", \"created_at\": \"2026-11-02T14:02:08.392719+00:00\", \"schema_version\": 1}, \"image\": {\"format\": \"PNG\", \"width\": 64, \"height\": 48, \"orientation\": null, \"display_width\": 64, \"display_height\": 48}, \"model_input_attached\": false}"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.437993+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "message": {
+            "role": "assistant",
+            "content": "loaded, not viewed"
+          }
+        }
+      },
+      {
+        "type": "turn_completed",
+        "timestamp": "2026-11-02T14:02:08.437993+00:00",
+        "payload": {
+          "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 94,
+          "error": null
+        }
+      },
+      {
+        "type": "turn_started",
+        "timestamp": "2026-11-02T14:02:08.480690+00:00",
+        "payload": {
+          "turn_id": "14c772fa51ca5a8c714138e24efba6f3",
+          "user_text": "Name the dominant solid color. Answer one word: red, green, blue, yellow, or unknown.",
+          "media": [
+            {
+              "media_id": "a628a33b899415cad7699d9fd9379340",
+              "source": {
+                "session_id": "ee694e7b",
+                "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+                "kind": "tool",
+                "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+                "tool_call_id": "load",
+                "tool_name": "load_image"
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+              "created_at": "2026-11-02T14:02:08.392719+00:00",
+              "schema_version": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:08.490695+00:00",
+        "payload": {
+          "turn_id": "14c772fa51ca5a8c714138e24efba6f3",
+          "request_id": "4515877f2a4db1865318d28dc9e32708",
+          "model": "adam-vision",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [
+              "a5c63a907ba2d0868a6bdb89f8e3cab2"
+            ],
+            "estimated_input_tokens": 8511,
+            "original_history_tokens": 362,
+            "image_question": {
+              "version": 1,
+              "backend": "llama_cpp",
+              "images": [
+                {
+                  "media_id": "a628a33b899415cad7699d9fd9379340",
+                  "source": {
+                    "session_id": "ee694e7b",
+                    "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+                    "kind": "tool",
+                    "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+                    "tool_call_id": "load",
+                    "tool_name": "load_image"
+                  },
+                  "mime_type": "image/png",
+                  "size_bytes": 157,
+                  "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+                  "created_at": "2026-11-02T14:02:08.392719+00:00",
+                  "schema_version": 1
+                }
+              ],
+              "cost": null,
+              "currency": null,
+              "cost_status": "unpriced"
+            },
+            "tool_schema": {
+              "names": [],
+              "utf8_bytes": 2
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:08.663121+00:00",
+        "payload": {
+          "turn_id": "14c772fa51ca5a8c714138e24efba6f3",
+          "request_id": "4515877f2a4db1865318d28dc9e32708",
+          "input_tokens": 112,
+          "output_tokens": 2,
+          "cache_usage": {
+            "format": "chat_completions_cache_v1",
+            "hit_tokens": 94,
+            "miss_tokens": null
+          },
+          "input_prefix": {
+            "scope_id": "a29ec06572ecfbab",
+            "sequence": 1,
+            "model": "adam-vision",
+            "input_bytes": 961,
+            "input_sha256": "1fe9d6c49d475cc4cb98ee4a7cc64401a2430b445e5c1cf9ca91443e2785d25c",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:08.663121+00:00",
+        "payload": {
+          "turn_id": "14c772fa51ca5a8c714138e24efba6f3",
+          "request_id": "4515877f2a4db1865318d28dc9e32708",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 156,
+          "error": null
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.675152+00:00",
+        "payload": {
+          "turn_id": "14c772fa51ca5a8c714138e24efba6f3",
+          "message": {
+            "role": "user",
+            "content": "Name the dominant solid color. Answer one word: red, green, blue, yellow, or unknown.",
+            "media": [
+              {
+                "media_id": "a628a33b899415cad7699d9fd9379340",
+                "source": {
+                  "session_id": "ee694e7b",
+                  "turn_id": "a5c63a907ba2d0868a6bdb89f8e3cab2",
+                  "kind": "tool",
+                  "request_id": "0f96e40347d64c8de9daf2f08646a7bf",
+                  "tool_call_id": "load",
+                  "tool_name": "load_image"
+                },
+                "mime_type": "image/png",
+                "size_bytes": 157,
+                "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+                "created_at": "2026-11-02T14:02:08.392719+00:00",
+                "schema_version": 1
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.675152+00:00",
+        "payload": {
+          "turn_id": "14c772fa51ca5a8c714138e24efba6f3",
+          "message": {
+            "role": "assistant",
+            "content": "red"
+          }
+        }
+      },
+      {
+        "type": "turn_completed",
+        "timestamp": "2026-11-02T14:02:08.675152+00:00",
+        "payload": {
+          "turn_id": "14c772fa51ca5a8c714138e24efba6f3",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 187,
+          "error": null
+        }
+      }
+    ]
+  },
+  {
+    "index": 3,
+    "frame": {
+      "pts": 900,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.9,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "83364275acb0c5edc2eff93217987b05",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+        "created_at": "2026-11-02T14:02:05.195367+00:00",
+        "schema_version": 1
+      }
+    },
+    "loaded_reference": {
+      "media_id": "c5e402965e373d6ec999c6f190422d26",
+      "source": {
+        "session_id": "10305284",
+        "turn_id": "9220f75be7a966edf035b270034a159b",
+        "kind": "tool",
+        "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+        "tool_call_id": "load",
+        "tool_name": "load_image"
+      },
+      "mime_type": "image/png",
+      "size_bytes": 157,
+      "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+      "created_at": "2026-11-02T14:02:08.779438+00:00",
+      "schema_version": 1
+    },
+    "answer": {
+      "text": "yellow",
+      "images": [
+        {
+          "media_id": "c5e402965e373d6ec999c6f190422d26",
+          "source": {
+            "session_id": "10305284",
+            "turn_id": "9220f75be7a966edf035b270034a159b",
+            "kind": "tool",
+            "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+            "tool_call_id": "load",
+            "tool_name": "load_image"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+          "created_at": "2026-11-02T14:02:08.779438+00:00",
+          "schema_version": 1
+        }
+      ],
+      "session_id": "10305284",
+      "turn_id": "6d72a70df1ff1dde5d977aaa696feef6",
+      "request_id": "ffdd83b53edf3aecba6a0ba3a564e202"
+    },
+    "meaning": {
+      "frame": {
+        "media_id": "83364275acb0c5edc2eff93217987b05",
+        "source": {
+          "session_id": "b54c72ef",
+          "turn_id": "e6cc6deed959c8ae4ebe5741da73549f",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+        "created_at": "2026-11-02T14:02:05.195367+00:00",
+        "schema_version": 1
+      },
+      "label": "yellow",
+      "uncertain": false,
+      "source": "session=10305284;turn=6d72a70df1ff1dde5d977aaa696feef6;request=ffdd83b53edf3aecba6a0ba3a564e202"
+    },
+    "events": [
+      {
+        "type": "session_meta",
+        "timestamp": "2026-11-02T14:02:08.715152+00:00",
+        "payload": {
+          "version": 4,
+          "id": "10305284",
+          "title": "Load original image only",
+          "system_prompt": "system constraint"
+        }
+      },
+      {
+        "type": "turn_started",
+        "timestamp": "2026-11-02T14:02:08.723121+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "user_text": "Load original image only"
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:08.745160+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+          "model": "test",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "runtime_state": {
+              "format": "runtime_state_v1",
+              "requests": {
+                "maximum": 8,
+                "used": 0,
+                "remaining": 8
+              },
+              "tools": {
+                "maximum": 16,
+                "used": 0,
+                "remaining": 16
+              },
+              "tokens": {
+                "maximum": 50000,
+                "known_used": 0,
+                "unknown_usage": false,
+                "reserved": 0,
+                "remaining": 50000
+              },
+              "failures": {
+                "consecutive": 0,
+                "fingerprint": null
+              },
+              "environment": {
+                "workspace": "G:\\Myself\\Adam2\\.cache\\c062-sequence\\question-3",
+                "mode": "act"
+              },
+              "pending_agents": []
+            },
+            "execution_mode": "act",
+            "memory": {
+              "strategy": "keyword_v1",
+              "status": "no_match",
+              "query": "Load original image only",
+              "records": [],
+              "warning": ""
+            },
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [],
+            "estimated_input_tokens": 5729,
+            "original_history_tokens": 0,
+            "tool_schema": {
+              "names": [
+                "read_pdf",
+                "code_structure",
+                "find_definitions",
+                "find_references",
+                "create_file",
+                "replace_text",
+                "replace_span",
+                "run_command",
+                "list_directory",
+                "find_files",
+                "read_file",
+                "search_text",
+                "file_info",
+                "git_status",
+                "git_diff",
+                "git_log",
+                "load_image",
+                "read_artifact",
+                "search_sessions",
+                "read_session",
+                "update_plan"
+              ],
+              "utf8_bytes": 16502
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:08.749732+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+          "input_tokens": 10,
+          "output_tokens": 2,
+          "input_prefix": {
+            "scope_id": "8f24321b33a4e0b5",
+            "sequence": 1,
+            "model": "test",
+            "input_bytes": 17134,
+            "input_sha256": "ae59efbfde3f7418e5832d0523c1a23b83cd88671cfc59ce60a6ae14d8b5a9b2",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:08.749732+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 0,
+          "error": null
+        }
+      },
+      {
+        "type": "tool_started",
+        "timestamp": "2026-11-02T14:02:08.759408+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+          "tool_call_id": "load",
+          "name": "load_image",
+          "arguments": "{\"path\": \"sample.bin\"}"
+        }
+      },
+      {
+        "type": "media_saved",
+        "timestamp": "2026-11-02T14:02:08.783437+00:00",
+        "payload": {
+          "media_id": "c5e402965e373d6ec999c6f190422d26",
+          "source": {
+            "session_id": "10305284",
+            "turn_id": "9220f75be7a966edf035b270034a159b",
+            "kind": "tool",
+            "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+            "tool_call_id": "load",
+            "tool_name": "load_image"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+          "created_at": "2026-11-02T14:02:08.779438+00:00",
+          "schema_version": 1
+        }
+      },
+      {
+        "type": "tool_finished",
+        "timestamp": "2026-11-02T14:02:08.789406+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+          "tool_call_id": "load",
+          "output": "{\"ok\": true, \"status\": \"loaded\", \"media\": {\"media_id\": \"c5e402965e373d6ec999c6f190422d26\", \"source\": {\"session_id\": \"10305284\", \"turn_id\": \"9220f75be7a966edf035b270034a159b\", \"kind\": \"tool\", \"request_id\": \"77e25cd4dbdd9323acf2e2c850120f14\", \"tool_call_id\": \"load\", \"tool_name\": \"load_image\"}, \"mime_type\": \"image/png\", \"size_bytes\": 157, \"version\": \"9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da\", \"created_at\": \"2026-11-02T14:02:08.779438+00:00\", \"schema_version\": 1}, \"image\": {\"format\": \"PNG\", \"width\": 64, \"height\": 48, \"orientation\": null, \"display_width\": 64, \"display_height\": 48}, \"model_input_attached\": false}"
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:08.809437+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "request_id": "a26caab799c391e99bd547b3a67b41b2",
+          "model": "test",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "runtime_state": {
+              "format": "runtime_state_v1",
+              "requests": {
+                "maximum": 8,
+                "used": 1,
+                "remaining": 7
+              },
+              "tools": {
+                "maximum": 16,
+                "used": 1,
+                "remaining": 15
+              },
+              "tokens": {
+                "maximum": 50000,
+                "known_used": 12,
+                "unknown_usage": false,
+                "reserved": 0,
+                "remaining": 49988
+              },
+              "failures": {
+                "consecutive": 0,
+                "fingerprint": null
+              },
+              "environment": {
+                "workspace": "G:\\Myself\\Adam2\\.cache\\c062-sequence\\question-3",
+                "mode": "act"
+              },
+              "pending_agents": []
+            },
+            "execution_mode": "act",
+            "memory": {
+              "strategy": "keyword_v1",
+              "status": "no_match",
+              "query": "Load original image only",
+              "records": [],
+              "warning": ""
+            },
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [],
+            "estimated_input_tokens": 6065,
+            "original_history_tokens": 0,
+            "tool_schema": {
+              "names": [
+                "read_pdf",
+                "code_structure",
+                "find_definitions",
+                "find_references",
+                "create_file",
+                "replace_text",
+                "replace_span",
+                "run_command",
+                "list_directory",
+                "find_files",
+                "read_file",
+                "search_text",
+                "file_info",
+                "git_status",
+                "git_diff",
+                "git_log",
+                "load_image",
+                "read_artifact",
+                "search_sessions",
+                "read_session",
+                "update_plan"
+              ],
+              "utf8_bytes": 16502
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:08.818440+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "request_id": "a26caab799c391e99bd547b3a67b41b2",
+          "input_tokens": 10,
+          "output_tokens": 2,
+          "input_prefix": {
+            "scope_id": "8f24321b33a4e0b5",
+            "sequence": 2,
+            "model": "test",
+            "input_bytes": 18090,
+            "input_sha256": "44d672f389b47eab0a75f3fb2a16aac7fcdfb5ebdad1e3120e53718a9e816484",
+            "previous_sequence": 1,
+            "previous_bytes": 17134,
+            "previous_sha256": "ae59efbfde3f7418e5832d0523c1a23b83cd88671cfc59ce60a6ae14d8b5a9b2",
+            "common_prefix_bytes": 16617,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:08.818440+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "request_id": "a26caab799c391e99bd547b3a67b41b2",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 0,
+          "error": null
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.826437+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "message": {
+            "role": "user",
+            "content": "Load original image only"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.826437+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "message": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "load",
+                "type": "function",
+                "function": {
+                  "name": "load_image",
+                  "arguments": "{\"path\": \"sample.bin\"}"
+                }
+              }
+            ],
+            "reasoning_content": "provider field"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.826437+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "message": {
+            "role": "tool",
+            "tool_call_id": "load",
+            "content": "{\"ok\": true, \"status\": \"loaded\", \"media\": {\"media_id\": \"c5e402965e373d6ec999c6f190422d26\", \"source\": {\"session_id\": \"10305284\", \"turn_id\": \"9220f75be7a966edf035b270034a159b\", \"kind\": \"tool\", \"request_id\": \"77e25cd4dbdd9323acf2e2c850120f14\", \"tool_call_id\": \"load\", \"tool_name\": \"load_image\"}, \"mime_type\": \"image/png\", \"size_bytes\": 157, \"version\": \"9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da\", \"created_at\": \"2026-11-02T14:02:08.779438+00:00\", \"schema_version\": 1}, \"image\": {\"format\": \"PNG\", \"width\": 64, \"height\": 48, \"orientation\": null, \"display_width\": 64, \"display_height\": 48}, \"model_input_attached\": false}"
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:08.826437+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "message": {
+            "role": "assistant",
+            "content": "loaded, not viewed"
+          }
+        }
+      },
+      {
+        "type": "turn_completed",
+        "timestamp": "2026-11-02T14:02:08.826437+00:00",
+        "payload": {
+          "turn_id": "9220f75be7a966edf035b270034a159b",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 93,
+          "error": null
+        }
+      },
+      {
+        "type": "turn_started",
+        "timestamp": "2026-11-02T14:02:08.872410+00:00",
+        "payload": {
+          "turn_id": "6d72a70df1ff1dde5d977aaa696feef6",
+          "user_text": "Name the dominant solid color. Answer one word: red, green, blue, yellow, or unknown.",
+          "media": [
+            {
+              "media_id": "c5e402965e373d6ec999c6f190422d26",
+              "source": {
+                "session_id": "10305284",
+                "turn_id": "9220f75be7a966edf035b270034a159b",
+                "kind": "tool",
+                "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+                "tool_call_id": "load",
+                "tool_name": "load_image"
+              },
+              "mime_type": "image/png",
+              "size_bytes": 157,
+              "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+              "created_at": "2026-11-02T14:02:08.779438+00:00",
+              "schema_version": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "request_started",
+        "timestamp": "2026-11-02T14:02:08.884459+00:00",
+        "payload": {
+          "turn_id": "6d72a70df1ff1dde5d977aaa696feef6",
+          "request_id": "ffdd83b53edf3aecba6a0ba3a564e202",
+          "model": "adam-vision",
+          "context": {
+            "strategy": "recent_turns_v1",
+            "layout_version": "stable_prefix_v1",
+            "summary_id": null,
+            "pruned_tools": [],
+            "selected_turn_ids": [],
+            "omitted_turn_ids": [
+              "9220f75be7a966edf035b270034a159b"
+            ],
+            "estimated_input_tokens": 8511,
+            "original_history_tokens": 362,
+            "image_question": {
+              "version": 1,
+              "backend": "llama_cpp",
+              "images": [
+                {
+                  "media_id": "c5e402965e373d6ec999c6f190422d26",
+                  "source": {
+                    "session_id": "10305284",
+                    "turn_id": "9220f75be7a966edf035b270034a159b",
+                    "kind": "tool",
+                    "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+                    "tool_call_id": "load",
+                    "tool_name": "load_image"
+                  },
+                  "mime_type": "image/png",
+                  "size_bytes": 157,
+                  "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+                  "created_at": "2026-11-02T14:02:08.779438+00:00",
+                  "schema_version": 1
+                }
+              ],
+              "cost": null,
+              "currency": null,
+              "cost_status": "unpriced"
+            },
+            "tool_schema": {
+              "names": [],
+              "utf8_bytes": 2
+            }
+          }
+        }
+      },
+      {
+        "type": "request_usage",
+        "timestamp": "2026-11-02T14:02:09.055633+00:00",
+        "payload": {
+          "turn_id": "6d72a70df1ff1dde5d977aaa696feef6",
+          "request_id": "ffdd83b53edf3aecba6a0ba3a564e202",
+          "input_tokens": 112,
+          "output_tokens": 2,
+          "cache_usage": {
+            "format": "chat_completions_cache_v1",
+            "hit_tokens": 94,
+            "miss_tokens": null
+          },
+          "input_prefix": {
+            "scope_id": "10b6cea710b202ee",
+            "sequence": 1,
+            "model": "adam-vision",
+            "input_bytes": 961,
+            "input_sha256": "b2e19b99566c99a2530a8a8e1cc716d01168ee6f9da994f1e9d633188aaa0069",
+            "previous_sequence": null,
+            "previous_bytes": null,
+            "previous_sha256": null,
+            "common_prefix_bytes": null,
+            "layout_version": "chat_completions_input_v1"
+          }
+        }
+      },
+      {
+        "type": "request_finished",
+        "timestamp": "2026-11-02T14:02:09.055633+00:00",
+        "payload": {
+          "turn_id": "6d72a70df1ff1dde5d977aaa696feef6",
+          "request_id": "ffdd83b53edf3aecba6a0ba3a564e202",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 156,
+          "error": null
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:09.067659+00:00",
+        "payload": {
+          "turn_id": "6d72a70df1ff1dde5d977aaa696feef6",
+          "message": {
+            "role": "user",
+            "content": "Name the dominant solid color. Answer one word: red, green, blue, yellow, or unknown.",
+            "media": [
+              {
+                "media_id": "c5e402965e373d6ec999c6f190422d26",
+                "source": {
+                  "session_id": "10305284",
+                  "turn_id": "9220f75be7a966edf035b270034a159b",
+                  "kind": "tool",
+                  "request_id": "77e25cd4dbdd9323acf2e2c850120f14",
+                  "tool_call_id": "load",
+                  "tool_name": "load_image"
+                },
+                "mime_type": "image/png",
+                "size_bytes": 157,
+                "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+                "created_at": "2026-11-02T14:02:08.779438+00:00",
+                "schema_version": 1
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "message",
+        "timestamp": "2026-11-02T14:02:09.067659+00:00",
+        "payload": {
+          "turn_id": "6d72a70df1ff1dde5d977aaa696feef6",
+          "message": {
+            "role": "assistant",
+            "content": "yellow"
+          }
+        }
+      },
+      {
+        "type": "turn_completed",
+        "timestamp": "2026-11-02T14:02:09.067659+00:00",
+        "payload": {
+          "turn_id": "6d72a70df1ff1dde5d977aaa696feef6",
+          "status": "succeeded",
+          "reason": "completed",
+          "duration_ms": 188,
+          "error": null
+        }
+      }
+    ]
+  }
+]
