@@ -75,6 +75,33 @@ def plan_create(path: Path, content: str, max_bytes: int) -> CreatePlan:
     return CreatePlan(path, candidate, _diff(path, "", text, creating=True))
 
 
+def plan_span_edit(
+    snapshot: TextSnapshot,
+    start_text: str,
+    end_text: str,
+    new_text: str,
+    expected_version: str,
+    max_bytes: int,
+) -> EditPlan:
+    """用两个唯一锚点定位替换段，包含首尾锚点，输出原EditPlan；不读写磁盘。
+
+    锚点各自必须非空、最多4096字符，并在LF归一化全文中恰好出现一次且不重叠。
+    版本不符先报冲突；逆序、歧义、无变化、混合换行或候选超限均拒绝。
+    new_text为空表示删除选中段；BOM、原换行及完整差异仍由plan_edit处理。
+    """
+    if snapshot.version != expected_version:
+        raise EditConflictError("文件已变化，请重新读取后提出修改。", version=snapshot.version)
+    text = _normalize(snapshot.text)
+    start, end = _normalize(start_text), _normalize(end_text)
+    first = _unique_anchor(text, start, "首")
+    last = _unique_anchor(text, end, "尾")
+    if last < first + len(start):
+        raise ToolError("首尾锚点不能逆序或重叠，请使用相互独立的边界。")
+    # 只将宿主已读取的完整选中段交给原规划器；模型不必重复输出数百行旧内容。
+    old_text = text[first : last + len(end)]
+    return plan_edit(snapshot, old_text, new_text, expected_version, max_bytes)
+
+
 def plan_restore(snapshot: TextSnapshot, checkpoint: EditCheckpoint) -> EditPlan | DeletePlan:
     """从当前版本与检查点生成恢复字节或删除计划；路径/版本不符时拒绝更改外部修改。"""
     if snapshot.path != checkpoint.path or snapshot.version != checkpoint.target_version:
@@ -99,6 +126,16 @@ def plan_restore(snapshot: TextSnapshot, checkpoint: EditCheckpoint) -> EditPlan
         _diff(snapshot.path, _normalize(snapshot.text), _normalize(original)),
         snapshot.raw,
     )
+
+
+def _unique_anchor(text: str, anchor: str, label: str) -> int:
+    """按精确子串匹配并检测重叠出现，不猜测模型想选哪一处。"""
+    if not anchor or len(anchor) > 4096:
+        raise ToolError(f"{label}锚点必须为1～4096字符。")
+    index = text.find(anchor)
+    if index < 0 or text.find(anchor, index + 1) >= 0:
+        raise ToolError(f"{label}锚点必须恰好匹配一处，请增加边界上下文。")
+    return index
 
 
 def _diff(

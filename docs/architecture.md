@@ -2,13 +2,25 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B22.3.2 独立宿主发布竞争和创建/撤销强杀恢复。
+本次核对范围：B23.1 prepare_span与plan_span_edit，唯一锚点转换为原EditPlan。
 
-核对结论：架构无变化，独立测试宿主复用真实build_application、EditTools、SessionStore及UndoService，仅暂停实际文件/记录边界并由父进程强杀。原图保留；恢复仍由原JSONL投影处理，已知消费不因文件未知而丢失，不新增自动重跑或清理机制。新增测试说明区分屏障与伪造日志，原源码注释未改。
+核对结论：EditTools新增无副作用prepare_span，复用原写权限和完整快照；纯plan_span_edit核对版本/唯一边界后将完整旧段交给plan_edit。沿用原候选/diff/字节契约，不新增执行或存储链路；模型入口待B23.2。原注释无删除，新增说明明确包含锚点、唯一/顺序及版本边界。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B23.1 首尾锚点规划
+
+~~~mermaid
+flowchart LR
+    SP_PREP["EditTools.prepare_span / 仅规划"] --> SP_POLICY["原PathPolicy.resolve_write"]
+    SP_PREP --> SP_SNAPSHOT["read_snapshot / 完整字节与版本"]
+    SP_PREP --> SP_PLAN["plan_span_edit / 唯一非重叠首尾"]
+    SP_PLAN --> SP_EXISTING["plan_edit / 原EditPlan与完整diff"]
+~~~
+
+本阶段不批准、不执行、不注册模型工具。具体范围及书稿取舍见 [首尾编辑](span-editing.md)。
 
 ## B22.3.1 生产创建工具
 

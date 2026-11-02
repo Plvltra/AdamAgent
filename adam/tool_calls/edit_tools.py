@@ -13,7 +13,13 @@ from adam.config.settings import ToolLimits
 from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import ToolError
 from adam.contracts.models import CreatePlan, DeletePlan, EditPlan, FileChangePlan
-from adam.tool_calls.edit_plan import EditConflictError, plan_create, plan_edit, plan_restore
+from adam.tool_calls.edit_plan import (
+    EditConflictError,
+    plan_create,
+    plan_edit,
+    plan_restore,
+    plan_span_edit,
+)
 from adam.tool_calls.file_evidence import FileResult, FileStateError
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.text_file import read_snapshot
@@ -52,6 +58,24 @@ class EditTools:
         """检查目标缺失与独立写权限，固定创建候选和diff；不批准、不写入。"""
         path = self.policy.resolve_create(args["path"])
         return plan_create(path, args["content"], self.limits.max_text_file_bytes)
+
+    def prepare_span(self, args: dict[str, Any]) -> EditPlan:
+        """按当前写权限完整读取，再用唯一首尾规划；不批准、不写入，错误保留已读版本。"""
+        path = self.policy.resolve_write(args["path"])
+        snapshot = read_snapshot(path, self.limits.max_text_file_bytes)
+        try:
+            return plan_span_edit(
+                snapshot,
+                args["start_text"],
+                args["end_text"],
+                args["new_text"],
+                args["expected_version"],
+                self.limits.max_text_file_bytes,
+            )
+        except FileStateError:
+            raise
+        except ToolError as error:
+            raise FileStateError(str(error), version=snapshot.version) from error
 
     def confirm_create(self, plan: CreatePlan) -> bool:
         """展示固定创建计划，并在批准前后复核权限、父目录与目标缺失；不写入。
