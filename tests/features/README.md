@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C03.1 Windows 观察 | 4项真实媒体/版本/坐标/取消；独立测试窗移动、切换和1.25倍控件缩放另留真实证据 | [自动场景](test_desktop_observation.py)、[实机记录](../../docs/desktop-observation.md) |
 | C04.4 真实质量对照 | 2项评分边界；真实五类 OCR 字错0/150、定位15/15，视觉严格4/5，失败保留 | [评分](test_ocr_evaluation.py)、[真实记录](../../docs/ocr.md#c044-固定五类真实对照) |
 | C04.3 本地 OCR | 3 项真实后端：图片、混合 PDF 文本层/扫描页和原字节证据、模型缺失无媒体 | [test_ocr_input.py](test_ocr_input.py) |
 | C08.4 固定对照 | 3项：十次请求/失败保留/源更新/防覆盖、实际评分复核、缺引拒绝；真实五题文本1/5、图4/5完整通过 | [test_graph_evaluation.py](test_graph_evaluation.py) |

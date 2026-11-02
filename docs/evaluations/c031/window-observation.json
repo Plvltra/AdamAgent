@@ -1,0 +1,682 @@
+{
+  "initial": {
+    "identity": {
+      "handle": 1250238,
+      "process_id": 45564,
+      "runtime_id": [
+        42,
+        1250238
+      ]
+    },
+    "title": "Adam C03 Test",
+    "rect": [
+      200,
+      180,
+      800,
+      540
+    ],
+    "dpi": 96,
+    "width": 600,
+    "height": 360,
+    "controls": [
+      {
+        "parent": null,
+        "runtime_id": [
+          42,
+          1250238
+        ],
+        "name": "Adam C03 Test",
+        "control_type": "Window",
+        "automation_id": "",
+        "rect": [
+          200,
+          180,
+          800,
+          540
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 0,
+        "runtime_id": [
+          42,
+          4922356
+        ],
+        "name": "Adam C03 observation acceptance",
+        "control_type": "Text",
+        "automation_id": "4922356",
+        "rect": [
+          238,
+          241,
+          434,
+          258
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 0,
+        "runtime_id": [
+          42,
+          9440848
+        ],
+        "name": "Adam C03 observation acceptance",
+        "control_type": "Edit",
+        "automation_id": "9440848",
+        "rect": [
+          238,
+          286,
+          628,
+          307
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 0,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          0
+        ],
+        "name": "",
+        "control_type": "TitleBar",
+        "automation_id": "",
+        "rect": [
+          224,
+          183,
+          792,
+          211
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483646,
+          45564,
+          13570540,
+          0
+        ],
+        "name": "系统",
+        "control_type": "MenuBar",
+        "automation_id": "MenuBar",
+        "rect": [
+          208,
+          188,
+          230,
+          210
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          2
+        ],
+        "name": "最小化",
+        "control_type": "Button",
+        "automation_id": "",
+        "rect": [
+          653,
+          181,
+          700,
+          211
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          3
+        ],
+        "name": "最大化",
+        "control_type": "Button",
+        "automation_id": "",
+        "rect": [
+          700,
+          181,
+          746,
+          211
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          5
+        ],
+        "name": "关闭",
+        "control_type": "Button",
+        "automation_id": "",
+        "rect": [
+          746,
+          181,
+          793,
+          211
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 4,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483646,
+          45564,
+          13570540,
+          1
+        ],
+        "name": "系统",
+        "control_type": "MenuItem",
+        "automation_id": "",
+        "rect": [
+          208,
+          188,
+          230,
+          210
+        ],
+        "enabled": true
+      }
+    ],
+    "hash": "b4ce97a0905343c1d882599da066ea2be8f8cf919e1f9c6c0a0d11f985e15563",
+    "point_mapping": {
+      "image": [
+        300,
+        180
+      ],
+      "screen": [
+        500,
+        360
+      ]
+    }
+  },
+  "moved": {
+    "identity": {
+      "handle": 1250238,
+      "process_id": 45564,
+      "runtime_id": [
+        42,
+        1250238
+      ]
+    },
+    "title": "Adam C03 Test",
+    "rect": [
+      350,
+      270,
+      1070,
+      690
+    ],
+    "dpi": 96,
+    "width": 720,
+    "height": 420,
+    "controls": [
+      {
+        "parent": null,
+        "runtime_id": [
+          42,
+          1250238
+        ],
+        "name": "Adam C03 Test",
+        "control_type": "Window",
+        "automation_id": "",
+        "rect": [
+          350,
+          270,
+          1070,
+          690
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 0,
+        "runtime_id": [
+          42,
+          4922356
+        ],
+        "name": "Adam C03 observation acceptance",
+        "control_type": "Text",
+        "automation_id": "4922356",
+        "rect": [
+          388,
+          331,
+          584,
+          348
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 0,
+        "runtime_id": [
+          42,
+          9440848
+        ],
+        "name": "Adam C03 observation acceptance",
+        "control_type": "Edit",
+        "automation_id": "9440848",
+        "rect": [
+          388,
+          376,
+          778,
+          397
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 0,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          0
+        ],
+        "name": "",
+        "control_type": "TitleBar",
+        "automation_id": "",
+        "rect": [
+          374,
+          273,
+          1062,
+          301
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483646,
+          45564,
+          13570540,
+          0
+        ],
+        "name": "系统",
+        "control_type": "MenuBar",
+        "automation_id": "MenuBar",
+        "rect": [
+          358,
+          278,
+          380,
+          300
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          2
+        ],
+        "name": "最小化",
+        "control_type": "Button",
+        "automation_id": "",
+        "rect": [
+          923,
+          271,
+          970,
+          301
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          3
+        ],
+        "name": "最大化",
+        "control_type": "Button",
+        "automation_id": "",
+        "rect": [
+          970,
+          271,
+          1016,
+          301
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          5
+        ],
+        "name": "关闭",
+        "control_type": "Button",
+        "automation_id": "",
+        "rect": [
+          1016,
+          271,
+          1063,
+          301
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 4,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483646,
+          45564,
+          13570540,
+          1
+        ],
+        "name": "系统",
+        "control_type": "MenuItem",
+        "automation_id": "",
+        "rect": [
+          358,
+          278,
+          380,
+          300
+        ],
+        "enabled": true
+      }
+    ],
+    "hash": "f037bbdcd9729a71eee7a1d7cebd229658dad2a923dbe1017ee7c34c98853d5d",
+    "point_mapping": {
+      "image": [
+        360,
+        210
+      ],
+      "screen": [
+        710,
+        480
+      ]
+    }
+  },
+  "focus_rejection": "Target is not authorized visible foreground window",
+  "restored": {
+    "identity": {
+      "handle": 1250238,
+      "process_id": 45564,
+      "runtime_id": [
+        42,
+        1250238
+      ]
+    },
+    "title": "Adam C03 Test",
+    "rect": [
+      350,
+      270,
+      1070,
+      690
+    ],
+    "dpi": 96,
+    "width": 720,
+    "height": 420,
+    "controls": [
+      {
+        "parent": null,
+        "runtime_id": [
+          42,
+          1250238
+        ],
+        "name": "Adam C03 Test",
+        "control_type": "Window",
+        "automation_id": "",
+        "rect": [
+          350,
+          270,
+          1070,
+          690
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 0,
+        "runtime_id": [
+          42,
+          4922356
+        ],
+        "name": "Adam C03 observation acceptance",
+        "control_type": "Text",
+        "automation_id": "4922356",
+        "rect": [
+          388,
+          331,
+          584,
+          348
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 0,
+        "runtime_id": [
+          42,
+          9440848
+        ],
+        "name": "Adam C03 observation acceptance",
+        "control_type": "Edit",
+        "automation_id": "9440848",
+        "rect": [
+          388,
+          376,
+          778,
+          397
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 0,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          0
+        ],
+        "name": "",
+        "control_type": "TitleBar",
+        "automation_id": "",
+        "rect": [
+          374,
+          273,
+          1062,
+          301
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483646,
+          45564,
+          13570540,
+          0
+        ],
+        "name": "系统",
+        "control_type": "MenuBar",
+        "automation_id": "MenuBar",
+        "rect": [
+          358,
+          278,
+          380,
+          300
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          2
+        ],
+        "name": "最小化",
+        "control_type": "Button",
+        "automation_id": "",
+        "rect": [
+          923,
+          271,
+          970,
+          301
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          3
+        ],
+        "name": "最大化",
+        "control_type": "Button",
+        "automation_id": "",
+        "rect": [
+          970,
+          271,
+          1016,
+          301
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 3,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483647,
+          1250238,
+          -2,
+          5
+        ],
+        "name": "关闭",
+        "control_type": "Button",
+        "automation_id": "",
+        "rect": [
+          1016,
+          271,
+          1063,
+          301
+        ],
+        "enabled": true
+      },
+      {
+        "parent": 4,
+        "runtime_id": [
+          42,
+          1250238,
+          3,
+          -2147483646,
+          45564,
+          13570540,
+          1
+        ],
+        "name": "系统",
+        "control_type": "MenuItem",
+        "automation_id": "",
+        "rect": [
+          358,
+          278,
+          380,
+          300
+        ],
+        "enabled": true
+      }
+    ],
+    "hash": "43d3b52e4dfce913184e85da56f9d3bc7f683d28a442f6dd952955a6ddc14cc9",
+    "point_mapping": {
+      "image": [
+        360,
+        210
+      ],
+      "screen": [
+        710,
+        480
+      ]
+    }
+  },
+  "parameterized_mapping_only": [
+    {
+      "dpi": 96,
+      "screen_point": [
+        450,
+        350
+      ]
+    },
+    {
+      "dpi": 120,
+      "screen_point": [
+        450,
+        350
+      ]
+    },
+    {
+      "dpi": 144,
+      "screen_point": [
+        450,
+        350
+      ]
+    },
+    {
+      "dpi": 192,
+      "screen_point": [
+        450,
+        350
+      ]
+    }
+  ],
+  "real_dpi_limit": "Actual monitor DPI only; alternative DPI values are model checks, not real monitor tests."
+}
