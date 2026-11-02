@@ -68,3 +68,16 @@ image_only、no_extractable_text 和含文字但有未识别图片的 unread_ima
 [页级索引业务验收](../tests/features/test_pdf_indexing.py) 使用真实 PDF 文件和解析器，覆盖超过单次读取页数的全文、相同文字不同页、混合扫描件、只扫描页的 no_match 提示、JSONL 与无源文件重放、知识目录/语境/候选、错绑页码、同大小同mtime修改、删除、加密/损坏/页数/字符限额、撤权/取消/协作期限、未授权根、缓存格式、TOML 和评估命中身份。远端聊天仅模拟 HTTP，不代表真实模型引用质量或视觉效果；没有调用付费 API。提交前还核对注释迁移与架构，主线门禁执行全量 pytest。
 
 21项新增场景通过；两组相关回归分别143项（26.59秒）和227项（99.35秒）通过，Ruff、521个文件格式与 Pyright 通过。首次新测试错误地用文本匹配嵌套 JSON、随后误把持久 Message 当字典，均已改为解析实际 Message.content 并核对来源；修正后包含完整重放验收。注释差异已逐项核对，旧解析错误说明迁移到共用 _open_pdf，其他关键契约保留并补充 PDF 位置语义。
+
+
+## B17.3.1 图片分析扩展 API
+
+[ImageAnalyzer](../adam/contracts/perception.py) 定义 ImageRequest 和 ImageReply；[inspect_image](../adam/documents/image_analysis.py) 接收调用方已经授权读取的原字节、MIME 声明和问题，计算真实字节版本与问题摘要，至多调用一次显式注入的分析器。默认没有分析器，返回 status=unavailable、reason=image_backend_not_configured，不打开网络或进程，也不从文件名猜测画面。
+
+本步是供后续集成的 API，**没有注册聊天图片工具，没有内置视觉模型后端，也没有完成 OCR、图片解码或 PDF 页面渲染**。MIME 声明只允许 PNG/JPEG/WebP，不证明字节是合法图片；具体后端须验证解码格式和资源。不能把这个接口的完成描述为 Adam 已能看图。未来连接收费模型时，还必须使用已有请求日志、共享额度、取消和未知用量停止机制，不能直接在普通文件工具中偷发一条未记账的 HTTP 请求。
+
+原字节默认最多1 MiB、可显式设到8 MiB；问题最多2000字符，分析文本默认最多4000、上限8000字符。模型身份和输入/输出 token 必须格式有效；未知用量保持 None，不补零。错误、超长或无法保存的文本明确失败，不交付部分描述或自动重试。原预算、存储及取消异常保持原语义，未分类后端异常不回显远端正文。
+
+返回 ImageInspection 不包含图片字节，保留 source_version、size_bytes、mime_type、question_sha256 和分析来源。independently_verified 始终为 false：模型分析不是可直接核验的原文，也不自动标成正确事实。请求对象隐藏字节的 repr 仅避免调试输出误打印，不是脱敏存储机制。
+
+[24项契约场景](../tests/features/test_image_analysis_contract.py) 覆盖无后端时零网络/进程、原字节及哈希传递、单次调用、未知用量、输入/输出边界、模型身份、编码失败、预算/保存故障和调用前后取消。连同 PDF 三组场景及架构共97项通过（7.15秒）。测试使用不透明合成字节和预设分析器，明确不验证实际像素理解；未调用付费 API。B17.3.2 继续进行文本 PDF 的组合验收并记录真实模型/视觉待验收范围。

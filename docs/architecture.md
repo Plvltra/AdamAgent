@@ -2,11 +2,27 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B17.2.2 PDF 全文有界提取、逐页索引及搜索/知识/语境/评估来源。
+本次核对范围：B17.3.1 独立图片分析扩展契约与未配置能力结果；三级验证与手动全量测试门禁。
 
-核对结论：DocumentSource 复用 PdfSnapshot 及 PDF 解析边界，extract_pdf_all 一次解析全文；DocumentIndex 按页分块并保存 DocumentNotice。页码贯穿搜索、目录、语境生成、引用审计和评估，source_coverage 在无匹配时仍可见。缓存格式独立于知识持久范围，纯文本来源身份保持。原页码、失败、权限及取消说明保留并迁移到共用解析入口。
+核对结论：contracts.perception 新增字节请求、分析回复及注入接口；documents.image_analysis 只做来源与调用边界，不打开路径或组装网络客户端。生产尚未注入图片分析器，未注册图片聊天工具，默认明确 unavailable。PDF 读取与索引流程保持原样；原注释未删除，新增说明明确扩展接口不等于视觉能力。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B17.3.1 图片分析扩展契约
+
+~~~mermaid
+flowchart LR
+    IMAGE_CALL["调用者已授权读取的有限字节与问题"] --> IMAGE_API["documents.image_analysis / inspect_image"]
+    IMAGE_API --> IMAGE_SOURCE["原字节 SHA、问题摘要、输入与输出上限"]
+    IMAGE_API --> IMAGE_NONE["未注入后端 / unavailable"]
+    IMAGE_API -. 显式注入 .-> IMAGE_PORT["contracts.perception / ImageAnalyzer"]
+    IMAGE_PORT --> IMAGE_REPLY["ImageReply / 模型身份、文本及真实或未知用量"]
+    IMAGE_REPLY --> IMAGE_CHECK["格式/限额/取消校验 / 不自动重试"]
+    IMAGE_CHECK --> IMAGE_RESULT["ImageInspection / independently_verified=false"]
+    IMAGE_SOURCE --> IMAGE_RESULT
+~~~
+
+此图是已实现的扩展 API；生产没有视觉模型后端或图片聊天工具。实际后端集成还需接原请求日志、共享预算与未知用量处理，见 [PDF/图片能力范围](pdf-perception.md)。
 
 ## B17 PDF 读取与提取
 
