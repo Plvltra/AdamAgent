@@ -351,7 +351,9 @@ class AgentApplication:
                 try:
                     self._on_interrupt()
                 except Exception:
-                    error.add_note("附属后台任务或交互资源清理失败；原始中断保留，请检查任务记录与残留进程。")
+                    error.add_note(
+                        "附属后台任务或交互资源清理失败；原始中断保留，请检查任务记录与残留进程。"
+                    )
             raise
 
     @contextmanager

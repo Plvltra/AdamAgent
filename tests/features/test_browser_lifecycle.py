@@ -251,7 +251,9 @@ def test_last_tab_close_requires_explicit_open_with_new_identity(lifecycle_site)
             browser.observe()
         second = browser.open(origin)
         assert first.browser_id == second.browser_id and first.tab_id != second.tab_id
-        assert len(requests) == 2
+        # Chrome可能独立请求站点图标；只把目标页面请求计为显式打开。
+        assert requests.count("/") == 2
+        assert set(requests) <= {"/", "/favicon.ico"}
 
 
 @pytest.mark.parametrize("limit", ["tabs", "contexts"])

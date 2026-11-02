@@ -113,11 +113,25 @@ def test_focus_guard_latches_loss_until_explicit_observation(monkeypatch):
     assert not worker.is_alive()
 
 
-def test_interruption_between_tools_closes_desktop_resource(tmp_path):
+@pytest.mark.parametrize("background_failure", [False, True])
+def test_interruption_between_tools_closes_desktop_resource(
+    tmp_path, monkeypatch, background_failure
+):
+    from adam.application.background import BackgroundService
     from tests.features.test_browser_actions import application
     from tests.features.test_desktop_actions import config
     from tests.features.test_subagents import call
     from tests.features.test_tool_loop import tool_response
+
+    stopped = []
+
+    def cancel_background(service, session_id):
+        """模拟后台回收边界故障，确认不跳过桌面清理或覆盖原始中断。"""
+        stopped.append(session_id)
+        if background_failure:
+            raise RuntimeError("injected background cleanup failure")
+
+    monkeypatch.setattr(BackgroundService, "cancel_owner", cancel_background)
 
     class ClosingBackend(Actions):
         closed = 0
@@ -135,6 +149,7 @@ def test_interruption_between_tools_closes_desktop_resource(tmp_path):
     with application(tmp_path, respond, config(tmp_path), desktop_backend=backend) as (app, _, _):
         with pytest.raises(RequestInterrupted):
             app.send("observe then interrupt")
+        assert stopped == [app.session.session_id]
         assert backend.closed == 1
         assert backend.actions == []
 

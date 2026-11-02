@@ -69,8 +69,8 @@ from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.background_jobs import BackgroundJobs
 from adam.tool_calls.background_tools import BackgroundTools
-from adam.tool_calls.command_tools import CommandTools
 from adam.tool_calls.browser_tools import register_browser
+from adam.tool_calls.command_tools import CommandTools
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers, register_progress
 from adam.tool_calls.desktop_tools import register_desktop
@@ -585,6 +585,7 @@ def build_application(
 
         if observe_conversation:
             observe_conversation(conversation)
+
         def interrupt_resources() -> None:
             """中断时尝试回收后台与交互资源；一项失败不跳过另一项清理。"""
             with ExitStack() as cleanup:

@@ -2,9 +2,9 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C03.4 正式应用读取字段、填写/保存、中断清理及独立文件读回证据；原应用 → DesktopTools → WindowsDesktop → SessionMedia 关系保持，架构无变化。C03局部22项通过（7.78秒）。
+本次核对范围：私有C分支同步固定main 0bf79c2（B27.2.2）；保留C03实机证据及全部既有模块图，整合后台/浏览器/桌面中断清理、运行输入及媒体保护。
 
-本次同步验证：LLMClient 同时使用 ChatInputEncoder、Messages 适配器和 StreamWatch；没有移除双方协议/取消契约。相关双协议、多模态和流式停止51项通过（18.06秒），Ruff/Pyright通过。架构关系与双方实现一致，无重复标题或冲突标记；未跑全量。
+本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
 此前同步229b4fb的结论：架构关系保持，组装入口保留 FileChangePlan 与浏览器/桌面批准参数；Conversation 和录制同时保留诊断与媒体输入，日志同时校验诊断与视觉来源。合并双方契约说明，移除重复架构段落。验证：相关重放、多模态、消费、桌面动作与诊断选择共 85 项通过；Ruff、Pyright 通过，本次不重复运行全量。
 
@@ -2312,6 +2312,237 @@ flowchart LR
 ```
 
 delegation_dispatch由宿主显式提供，模型不能上传策略代码；未提供保持原spawn行为。回调在真实工具阶段执行，避免在远端请求尚未结算时查询主账本。对照入口只批准读取，不批准文件修改或命令；简单任务拒绝新增子任务，可拆分任务在额度内派发。收尾关闭应用并检查子任务终态，报告合计主子请求和共享已知token；未知总量记null，失败样本保留。具体结果与范围见[预算委派对照](delegation-comparison.md)。
+[PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B19.2.3 隔离命令工具
+
+~~~mermaid
+flowchart LR
+    ICT_CFG["command_isolation / 默认关闭"] --> ICT_BOOT["bootstrap / 只向主 Agent 注入"]
+    ICT_BOOT --> ICT_TOOL["tool_calls.isolated_commands / 原 ToolRegistry、模式、Hook、预算"]
+    ICT_BOOT --> ICT_BACK["isolation.commands / IsolatedCommands"]
+    ICT_TOOL --> ICT_INPUT["原 PathPolicy / capture_inputs 与批准后 verify"]
+    ICT_TOOL --> ICT_CLI["CommandRequest / CLI 环境、argv、来源与版本批准"]
+    ICT_TOOL --> ICT_PORT["contracts.command_execution / CommandRunner"]
+    ICT_BACK -.实现.-> ICT_PORT
+    ICT_TOOL --> ICT_LOG["原 ToolInvocation / command_started、finished、denied"]
+    ICT_LOG --> ICT_CHECK["session.command_log / 环境与来源不可改写"]
+    ICT_CHECK --> ICT_FACT["执行报告、计划证据、反思 / 真实状态与退出码"]
+    ICT_TOOL --> ICT_RESULT["原附件与重复失败预览 / 保留环境、原因与引用"]
+~~~
+
+B19.3.1 补充 invalid_utf8 解码事实：后端 → 结果契约 → 隔离工具 → 原附件完整性与命令日志；不新增执行权限。与下图真实后端通过窄契约连接；原宿主命令明确显示执行环境，失败不自动改走另一条路径。说明见 [隔离命令](runtime-isolation.md)。
+
+## B19.2.1 原生命令隔离 API
+
+~~~mermaid
+flowchart LR
+    IC_SELECT["显式虚拟名到源路径映射"] --> IC_CAPTURE["tool_calls.command_inputs / 原 PathPolicy 与有界读取"]
+    IC_CAPTURE --> IC_FILES["contracts.command_inputs / 不可变字节与 SHA"]
+    IC_CAPTURE --> IC_SOURCE["CapturedInputs.sources / 宿主来源及批准后 verify"]
+    IC_FILES --> IC_API
+    IC_CALL["显式 API 调用者 / 有界 argv"] --> IC_API["isolation.commands / IsolatedCommands"]
+    IC_API --> IC_WIRE["command_protocol / 固定策略、请求与结果"]
+    IC_WIRE --> IC_WSL["指定 WSL / linux_command 外部看守"]
+    IC_WSL --> IC_TMP["全部数据校验 / 私有临时快照"]
+    IC_TMP --> IC_BWRAP["原 Bubblewrap / 只读快照、namespace、seccomp"]
+    IC_BWRAP --> IC_GUARD["linux_command_guard / 资源硬限额与 Landlock"]
+    IC_GUARD --> IC_ELF["选定原生 ELF / 单进程、无网络"]
+    IC_ELF --> IC_WSL
+    IC_WSL --> IC_RESULT["有界双流、真实退出与停止原因"]
+    IC_RESULT --> IC_API
+~~~
+
+B19.2.3 已通过上图接入主 Agent 工具与批准；原 CommandTools 宿主路径仍明确独立。见 [隔离策略与实测](runtime-isolation.md)。
+
+## B18 命令输出
+
+~~~mermaid
+flowchart LR
+    CMD_RUN["CommandTools / 原确认与进程启动"] --> CMD_PIPES["stdout 与 stderr / 各自排空线程"]
+    CMD_PIPES --> CMD_BUFFER["command_output.OutputCapture / 固定头部与滚动尾部"]
+    CMD_BUFFER --> CMD_SNAPSHOT["CapturedOutput / 一致计数、EOF、UTF-8与头尾"]
+    CMD_SNAPSHOT --> CMD_RESULT["原命令结果与有界 command_finished"]
+    CMD_RESULT --> CMD_ART["ToolArtifacts / 原附件先保存"]
+    CMD_RUN --> CMD_CANCEL["取消 / 原进程树清理 / 捕获快照"]
+    CMD_CANCEL --> CMD_INTERRUPTED["command_finished 留证后抛出原中断"]
+    CMD_RESULT --> CMD_PREVIEW["result_preview / 实际 JSON 预算与两端文本"]
+    CMD_ART --> CMD_PREVIEW
+    CMD_PROGRESS["progress_output / 原结果文本与宿主重复失败观察"] --> CMD_PREVIEW
+    CMD_PREVIEW --> CMD_FINAL["同一最终工具消息 / JSONL 与模型输入"]
+~~~
+
+宿主 CommandTools 的源头和最终预览保留头尾；极小额度可省略全部正文并明确计数。字符省略与原字节省略分开，附件完整性保持原义；见 [输出契约](command-output.md)。
+
+## B17.3.1 图片分析扩展契约
+
+~~~mermaid
+flowchart LR
+    IMAGE_CALL["调用者已授权读取的有限字节与问题"] --> IMAGE_API["documents.image_analysis / inspect_image"]
+    IMAGE_API --> IMAGE_SOURCE["原字节 SHA、问题摘要、输入与输出上限"]
+    IMAGE_API --> IMAGE_NONE["未注入后端 / unavailable"]
+    IMAGE_API -. 显式注入 .-> IMAGE_PORT["contracts.perception / ImageAnalyzer"]
+    IMAGE_PORT --> IMAGE_REPLY["ImageReply / 模型身份、文本及真实或未知用量"]
+    IMAGE_REPLY --> IMAGE_CHECK["格式/限额/取消校验 / 不自动重试"]
+    IMAGE_CHECK --> IMAGE_RESULT["ImageInspection / independently_verified=false"]
+    IMAGE_SOURCE --> IMAGE_RESULT
+~~~
+
+此图是 B17 图片扩展 API；C04 的视觉/OCR 后端通过独立入口接入原请求日志、共享预算与未知用量处理，未直接实现该 B17 扩展端口，见 [PDF/图片能力范围](pdf-perception.md)。
+
+
+[PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B22.3.1 生产创建工具
+
+~~~mermaid
+flowchart LR
+    FC_MODEL["原工具发现 / create_file说明"] --> FC_REG["factory / editing与EDIT_FILE"]
+    FC_REG --> FC_GATE["原参数、模式、路径、前置Hook"]
+    FC_GATE --> FC_CREATE["EditTools.create_file / 固定创建计划"]
+    FC_CREATE --> FC_EXEC["原execute_plan / 批准、日志和发布"]
+    FC_EXEC --> FC_AFTER["原后置Hook / 版本化诊断"]
+    FC_AFTER --> FC_DIAG["match_edit / FILE_EDIT_TOOLS与来源核对"]
+    FC_REG --> FC_CHILD["子Agent / approval_required"]
+~~~
+
+模型读取实际版本后可继续替换，用户通过原undo恢复原内容再撤销创建；离线重放不重建或修改源文件。三个仓库Hook示例纳入创建，用户自己的脚本不会自动修改。见 [创建边界与验收](file-creation.md)。
+
+## B22.2.3.2 撤销创建
+
+~~~mermaid
+flowchart LR
+    FC_UNDO["UndoService / 最近成功编辑"] --> FC_UNDO_CP["SessionStore / 核对创建检查点"]
+    FC_UNDO --> FC_RESTORE_PLAN["EditTools.prepare_restore / 当前权限与版本"]
+    FC_RESTORE_PLAN --> FC_DELETE["DeletePlan / 缺失目标与完整删除diff"]
+    FC_UNDO --> FC_DELETE_APPROVE["CLI / 明确删除批准"]
+    FC_UNDO --> FC_RESTORE["apply_restore / 复核后unlink或原apply"]
+    FC_UNDO --> FC_UNDO_LOG["原undo_* / 保存失败保持unknown"]
+~~~
+
+没有模型通用删除工具；版本检查与unlink并非跨进程比较删除事务。见 [撤销边界](file-creation.md)。
+
+## B22.2.3.1 创建记录接入
+
+~~~mermaid
+flowchart LR
+    FC_EXEC["EditTools.execute_plan / CreatePlan"] --> FC_CONFIRM["confirm_create / 原批准回调"]
+    FC_EXEC --> FC_ACTION["ToolInvocation / 原动作记录回调"]
+    FC_ACTION --> FC_SESSION_STORE["SessionStore / 父工具、操作与版本"]
+    FC_SESSION_STORE --> FC_CHECKPOINT_STORE["CheckpointStore / create缺失状态"]
+    FC_EXEC --> FC_APPLY["apply_create / 原子发布"]
+~~~
+
+创建由生产工具工厂注册，执行和留痕复用原链路；成功创建可通过原UndoService批准撤销。
+
+## B22.2.2 新文件原子发布
+
+~~~mermaid
+flowchart LR
+    FC_APPLY["EditTools.apply_create / 已批准候选"] --> FC_RECHECK["PathPolicy.resolve_create / 前后复核"]
+    FC_APPLY --> FC_TEMP["同目录临时文件 / 写完整、flush、fsync"]
+    FC_TEMP --> FC_LINK["os.link / 已有目标失败"]
+    FC_LINK --> FC_UNLINK["只清理临时名字 / 不改共享属性"]
+~~~
+
+apply_create由原execute_plan在批准与开始记录后调用，调用方仍负责批准与执行日志。实际文件系统支持和边界见 [文件创建](file-creation.md)。
+
+## B22.2.1 缺失状态检查点
+
+~~~mermaid
+flowchart LR
+    FC_SNAPSHOT["EditCheckpoint / create与null原状态"] --> FC_STORE["CheckpointStore / v2创建与v1替换"]
+    FC_LEDGER["EditLog / 创建纯事件投影"] --> FC_UNKNOWN["无结束仍unknown / 快照不证明成功"]
+    FC_SESSION["SessionLog / 父工具类型校验"] --> FC_LEDGER
+~~~
+
+创建计划已经接入SessionStore写入链；plan_restore将缺失快照转换为DeletePlan，避免将原缺失错误恢复为空文件。
+
+## B22.1 新文件规划与批准
+
+~~~mermaid
+flowchart LR
+    FC_PREP["EditTools.prepare_create / 仅规划"] --> FC_PATH["PathPolicy.resolve_create / 写权限、父目录、缺失检查"]
+    FC_PREP --> FC_PLAN["plan_create / UTF-8与完整diff"]
+    FC_PLAN --> FC_CONTRACT["CreatePlan / 缺失状态与不可变候选"]
+    FC_CONFIRM["EditTools.confirm_create"] --> FC_PATH
+    FC_CONFIRM --> FC_UI["FileChangePlan回调 / CLI完整diff确认"]
+    FC_CONTRACT --> FC_CONFIRM
+~~~
+
+创建批准已连接生产工具与发布；批准不锁定路径，不能代替发布时的不覆盖保证。见 [创建契约](file-creation.md)。
+
+## B21.2 显式正则搜索
+
+~~~mermaid
+flowchart LR
+    RX_QUERY["FileQueries / 显式regex与剩余期限"] --> RX_API["match_lines / 校验、取消、期限与结果复核"]
+    RX_API --> RX_FILES["有界临时请求/结果文件"]
+    RX_API --> RX_PROCESS["独立 Python -I -S / regex_worker"]
+    RX_PROCESS --> RX_FILES
+~~~
+
+原search_text入口已接入显式mode，字面方式仍在原进程处理；固定脚本只接收授权文件快照，不读取项目路径、不执行模型代码。见 [资源及验收边界](file-search.md)。
+
+## B21.1 文件查询与分页
+
+~~~mermaid
+flowchart LR
+    FQ_TOOLS["FileTools / 原三类查询入口"] --> FQ_QUERY["FileQueries / 扫描、页面与版本复核"]
+    FQ_QUERY --> FQ_SCAN["capture_inventory / 受限稳定扫描"]
+    FQ_QUERY --> FQ_TEXT["read_snapshot / 有界字节与SHA-256"]
+    FQ_SCAN --> FQ_POLICY["PathPolicy / 每次路径授权"]
+    FQ_SCAN --> FQ_INVENTORY["QueryInventory / 元数据版本"]
+    FQ_INVENTORY --> FQ_CONTRACT["contracts.file_query / 摘要与游标"]
+~~~
+
+原工具注册与并发适配器仍调用 FileTools，页面保留结构交给原日志/模型/录制路径。新max_scan_bytes约束总读取，旧AST查询不变。见 [查询范围与验收](file-search.md)。
+
+## B20.2.2 诊断进入请求
+
+~~~mermaid
+flowchart LR
+    DQ_BOOT["bootstrap / 主与子各自权限和存储"] --> DQ_READER["DiagnosticContextReader"]
+    DQ_CHAT["Conversation / 实际普通请求"] --> DQ_READER
+    DQ_CHAT --> DQ_BUILD["ContextBuilder / 独立消息及预算"]
+    DQ_BUILD --> DQ_REQUEST["RequestRunner / 原请求记录与调用"]
+    DQ_REQUEST --> DQ_LOG["SessionLog / 诊断来源核对"]
+    DQ_READER --> DQ_CONTRACT["DiagnosticSelection / 观察与原报告"]
+    DQ_CAPTURE["CaptureRuntime / context diagnostics"] --> DQ_READER
+    DQ_REPLAY["离线 DiagnosticReader / 原观察"] --> DQ_CHAT
+~~~
+
+真实查询按轮次重新观察文件版本，重放只用原记录；旧轨迹缺少版本标记就不新增观察。子任务不能借查询获得编辑权。见 [完整调用与失败语义](edit-diagnostics.md)。
+
+## B20.2.1 诊断选择与版本观察
+
+~~~mermaid
+flowchart LR
+    DG_READER["application.diagnostics / DiagnosticContextReader"] --> DG_STORE["SessionStore.load_hooks / 本会话事实"]
+    DG_READER --> DG_SELECTION["contracts.diagnostic_context / 有界选择及来源"]
+    DG_READER --> DG_CHECK["注入 VersionCheck"]
+    DG_CHECK --> DG_FILES["tool_calls.diagnostic_files / DiagnosticFiles"]
+    DG_FILES --> DG_POLICY["原 PathPolicy 与 read_snapshot"]
+~~~
+
+查询本身不运行检查器、不改日志、不请求模型；B20.2.2 在真实请求构造时调用。消息只显示当前版本问题，完整证据保留原报告。见 [诊断范围与验证](edit-diagnostics.md)。
+
+## B20.1 修改后诊断
+
+~~~mermaid
+flowchart LR
+    DG_EDIT["原专用编辑 / applied 与 after_version"] --> DG_TOOL["ToolInvocation / tool_finished 已保存"]
+    DG_TOOL --> DG_HOOK["原 ToolHooks / 后置检查"]
+    DG_HOOK --> DG_RUN["HookRunner / 原有界进程"]
+    DG_RUN --> DG_EX["显式用户检查器 / 新 Python 语法示例"]
+    DG_RUN --> DG_PARSE["contracts.hooks.parse_response / v1 或 v2"]
+    DG_PARSE --> DG_DATA["contracts.diagnostics / 报告及编辑来源校验"]
+    DG_HOOK --> DG_LOG["HookLog / 绑定原工具结果与来源"]
+    DG_LOG --> DG_DATA
+~~~
+
+检查状态不改写编辑事实；B20.2 在上层加入独立模型观察。契约与验证见 [修改后诊断](edit-diagnostics.md)。
+
 主线 B19 同步核对：
 本次核对范围：B19.3.2 真实用户进程的取消、宿主强杀、全部 Linux 身份回收与持锁恢复。
 
@@ -2494,3 +2725,5 @@ flowchart LR
 时序模块只依赖原帧值对象及contracts，视觉SDK由宿主端口隔离。起止是观测时间，不推断采样间的精确事件边界；失败/取消不重问。新增中文契约与不确定性边界已核对，原注释未删除。规则局部5项通过，真实结果见 [视频输入](video-input.md#c062-带证据的时序事件)。
 
 C06.2实际核对：原C04图问4次真实请求保留来源/用量，时序对照复用已记录语义，模型颜色仅2/4正确。正常标签序已知不代表标签准确，倒序/缺帧不确定性正确；原报告见 [真实时序](video-input.md#c062-带证据的时序事件)。生产关系未另改。
+
+同步注释审查：原媒体权限、输入安全点、取消和资源所有权说明均保留；原_interruption_cleanup并入_interrupt_scope，保留正常轮次不回收及清理失败不覆盖中断的行为。全部原架构章节保留，仅新增B26生产接入/B27关系；没有全量pytest。
