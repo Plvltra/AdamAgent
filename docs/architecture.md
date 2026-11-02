@@ -2,13 +2,29 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B20.2.1 诊断选择契约、当前轮次最新报告、路径权限和版本观察。
+本次核对范围：B20.2.2 主/子装配、实际请求独立诊断、预算、来源日志及离线重放。
 
-核对结论：application.diagnostics 通过窄 VersionCheck 查询当前状态，contracts.diagnostic_context 保留有界选择和来源，tool_calls.diagnostic_files 复用原读取权限。新增独立API，尚未接入 Conversation/模型请求。原检查事实、工具输出和日志保持；新增说明已经对照失败和容量行为审查。
+核对结论：bootstrap 按 Hook 配置为每个执行器组装窄诊断查询，Conversation 交给 ContextBuilder 作为独立资料并计入预算；SessionLog 核对已落盘来源，录制/重放冻结观察。原工具输出和聊天历史保持，预览不读诊断文件。历史覆盖契约注释保留，原测试的阶段说明已更新。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B20.2.2 诊断进入请求
+
+~~~mermaid
+flowchart LR
+    DQ_BOOT["bootstrap / 主与子各自权限和存储"] --> DQ_READER["DiagnosticContextReader"]
+    DQ_CHAT["Conversation / 实际普通请求"] --> DQ_READER
+    DQ_CHAT --> DQ_BUILD["ContextBuilder / 独立消息及预算"]
+    DQ_BUILD --> DQ_REQUEST["RequestRunner / 原请求记录与调用"]
+    DQ_REQUEST --> DQ_LOG["SessionLog / 诊断来源核对"]
+    DQ_READER --> DQ_CONTRACT["DiagnosticSelection / 观察与原报告"]
+    DQ_CAPTURE["CaptureRuntime / context diagnostics"] --> DQ_READER
+    DQ_REPLAY["离线 DiagnosticReader / 原观察"] --> DQ_CHAT
+~~~
+
+真实查询按轮次重新观察文件版本，重放只用原记录；旧轨迹缺少版本标记就不新增观察。子任务不能借查询获得编辑权。见 [完整调用与失败语义](edit-diagnostics.md)。
 
 ## B20.2.1 诊断选择与版本观察
 
@@ -21,7 +37,7 @@ flowchart LR
     DG_FILES --> DG_POLICY["原 PathPolicy 与 read_snapshot"]
 ~~~
 
-查询不运行检查器、不改日志、不请求模型；尚未接入 Conversation。消息只显示当前版本问题，完整证据保留原报告。见 [诊断范围与验证](edit-diagnostics.md)。
+查询本身不运行检查器、不改日志、不请求模型；B20.2.2 在真实请求构造时调用。消息只显示当前版本问题，完整证据保留原报告。见 [诊断范围与验证](edit-diagnostics.md)。
 
 ## B20.1 修改后诊断
 
@@ -37,7 +53,7 @@ flowchart LR
     DG_LOG --> DG_DATA
 ~~~
 
-检查状态不改写编辑事实，此阶段尚未接入独立模型观察。契约与验证见 [修改后诊断](edit-diagnostics.md)。
+检查状态不改写编辑事实；B20.2 在上层加入独立模型观察。契约与验证见 [修改后诊断](edit-diagnostics.md)。
 
 ## B19.2.3 隔离命令工具
 

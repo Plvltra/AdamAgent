@@ -16,6 +16,7 @@ from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.config.settings import AgentConfig, ContextConfig, PlanningConfig, ReflectionConfig
 from adam.contracts.delegation import RequestAccount
+from adam.contracts.diagnostic_context import DIAGNOSTIC_CONTEXT_VERSION
 from adam.contracts.history import validate_compaction_version, validate_context_layout
 from adam.contracts.models import ModelOutput
 from adam.contracts.ports import ToolRunner
@@ -28,6 +29,7 @@ from adam.recording.environment import (
     ObservedReview,
     ObservedRules,
     decode_skill,
+    diagnostic_reader,
     memory_provider,
     mode_provider,
     state_reader,
@@ -83,6 +85,11 @@ class CaptureRuntime:
             "mode": conversation.mode_provider is not None,
             "skills": list(conversation.skills),
             **(
+                {"diagnostic_context_version": DIAGNOSTIC_CONTEXT_VERSION}
+                if conversation.diagnostic_reader
+                else {}
+            ),
+            **(
                 {"compaction_version": conversation.compaction_version}
                 if conversation.compaction_version is not None
                 else {}
@@ -111,6 +118,10 @@ class CaptureRuntime:
                 previous_observer(text, selection)
 
         conversation.observe_input = observe
+        if conversation.diagnostic_reader:
+            conversation.diagnostic_reader = diagnostic_reader(
+                self.exchange, conversation.diagnostic_reader
+            )
         if conversation.state_reader:
             conversation.state_reader = state_reader(self.exchange, conversation.state_reader)
         if conversation.memory_provider:
@@ -243,7 +254,13 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
     }
     if (
         not isinstance(boot, dict)
-        or boot.keys() - {"context_layout", "runtime_state_version", "compaction_version"}
+        or boot.keys()
+        - {
+            "context_layout",
+            "runtime_state_version",
+            "compaction_version",
+            "diagnostic_context_version",
+        }
         != flags | {"skills"}
         or any(type(boot[key]) is not bool for key in flags)
         or not isinstance(arguments, dict)
@@ -253,6 +270,11 @@ def runtime_start(recording: Recording) -> tuple[dict[str, Any], dict[str, Any]]
         raise RecordingError("录制运行资料的字段或输入无效。")
     try:
         validate_context_layout(boot.get("context_layout"))
+        if "diagnostic_context_version" in boot and (
+            boot["diagnostic_context_version"] != DIAGNOSTIC_CONTEXT_VERSION
+            or not boot.get("context_layout")
+        ):
+            raise ValueError("诊断观察版本或布局无效。")
         validate_compaction_version(boot.get("compaction_version"))
         if "compaction_version" in boot and boot["compaction_version"] is None:
             raise ValueError("missing compaction version")
@@ -313,6 +335,9 @@ def build_replay(
         accounting=account if boot["accounting"] else None,
         skills=tuple(boot["skills"]),
         state_reader=state_reader(exchange) if "runtime_state_version" in boot else None,
+        diagnostic_reader=diagnostic_reader(exchange)
+        if "diagnostic_context_version" in boot
+        else None,
     )
 
     def observe(text: str, selection: SkillSelection | None) -> None:

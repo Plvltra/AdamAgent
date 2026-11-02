@@ -9,6 +9,7 @@ from pathlib import Path
 import httpx
 
 from adam.application.conversation import Conversation
+from adam.application.diagnostics import DiagnosticContextReader
 from adam.application.facade import AgentApplication
 from adam.application.memories import MemoryService
 from adam.application.modes import ModeController
@@ -49,6 +50,7 @@ from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers
+from adam.tool_calls.diagnostic_files import DiagnosticFiles
 from adam.tool_calls.discovery_tools import register_discovery
 from adam.tool_calls.document_tools import register_documents
 from adam.tool_calls.edit_tools import EditTools
@@ -354,6 +356,15 @@ def build_application(
             mode_provider=modes.current,
             skills=skills.summaries() if skills else (),
             rules=rules,
+            diagnostic_reader=DiagnosticContextReader(
+                store,
+                DiagnosticFiles(
+                    PathPolicy(workspace, config.permissions, protected_dirs=protected_dirs),
+                    config.tool_limits.max_text_file_bytes,
+                ),
+            )
+            if config.hooks.enabled and config.hooks.after_tool is not None
+            else None,
             state_reader=RuntimeStateReader(
                 store,
                 workspace,
@@ -563,6 +574,29 @@ def _open_child(
             mode_provider=lambda: mode,
             skills=skills.summaries() if skills else (),
             rules=rules,
+            diagnostic_reader=DiagnosticContextReader(
+                store,
+                DiagnosticFiles(
+                    PathPolicy(
+                        Path(agent.workspace),
+                        PermissionConfig(
+                            additional_read_dirs=tuple(Path(p) for p in agent.read_dirs)
+                        ),
+                        protected_dirs=(
+                            memories_dir,
+                            documents_dir,
+                            checkpoints_dir,
+                            artifacts_dir,
+                            knowledge_dir,
+                            mcp_media_dir,
+                        ),
+                    ),
+                    config.tool_limits.max_text_file_bytes,
+                    cancel,
+                ),
+            )
+            if config.hooks.enabled and config.hooks.after_tool is not None
+            else None,
             state_reader=RuntimeStateReader(
                 store,
                 Path(agent.workspace),

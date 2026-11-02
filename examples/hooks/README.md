@@ -46,4 +46,4 @@ T11.2 的 apply_proposal 在 Hook 前核对 path 与真实候选完全一致，�
 
 ## B20.1 新的结构化示例
 
-[after_python_diagnostics.py](after_python_diagnostics.py) 使用后置响应v2，将语法问题正常交付为有文件版本和位置的诊断；原 after_python_syntax.py 保留其v1/非零退出教学行为。显式替换用户配置的 after_tool.argv 才会使用新示例，不自动改用户配置。新报告目前保存在 Hook 日志，模型回传待B20.2；字段、范围和测试见 [修改后诊断](../../docs/edit-diagnostics.md)。
+[after_python_diagnostics.py](after_python_diagnostics.py) 使用后置响应v2，将语法问题正常交付为有文件版本和位置的诊断；原 after_python_syntax.py 保留其v1/非零退出教学行为。显式替换用户配置的 after_tool.argv 才会使用新示例，不自动改用户配置。新报告保存在 Hook 日志，并经B20.2的版本观察独立回传模型；字段、范围和测试见 [修改后诊断](../../docs/edit-diagnostics.md)。

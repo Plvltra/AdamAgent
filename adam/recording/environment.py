@@ -5,6 +5,11 @@ from pathlib import Path
 from typing import Any
 
 from adam.contracts.delegation import Delegation
+from adam.contracts.diagnostic_context import (
+    DiagnosticReader,
+    DiagnosticSelection,
+    decode_selection,
+)
 from adam.contracts.execution import ExecutionMode
 from adam.contracts.memory import MemorySelection, decode_record, validate_selection
 from adam.contracts.ports import ReviewParticipant
@@ -13,6 +18,24 @@ from adam.contracts.runtime import CountState, RuntimeState, StateReader, decode
 from adam.contracts.skills import SkillListing, SkillSelection, validate_skill_selection
 
 Exchange = Callable[[str, str, dict[str, Any], Callable[[], Any]], Any]
+
+
+def diagnostic_reader(exchange: Exchange, live: DiagnosticReader | None = None) -> DiagnosticReader:
+    """录制文件版本观察；离线只读记录，不打开源文件或重新执行检查器。"""
+
+    def read(session_id: str, turn_id: str) -> DiagnosticSelection:
+        value = exchange(
+            "context",
+            "diagnostics",
+            {"session_id": session_id, "turn_id": turn_id},
+            lambda: live(session_id, turn_id).to_record() if live else None,
+        )
+        result = decode_selection(value)
+        if result.session_id != session_id or result.turn_id != turn_id:
+            raise ValueError("诊断观察不属于当前会话与轮次。")
+        return result
+
+    return read
 
 
 def state_reader(exchange: Exchange, live: StateReader | None = None) -> StateReader:

@@ -7,6 +7,7 @@ from typing import Any
 
 from adam.config.settings import ContextConfig
 from adam.context.pruning import prune_history
+from adam.contracts.diagnostic_context import DiagnosticSelection, decode_selection
 from adam.contracts.errors import BudgetError, FailureCode
 from adam.contracts.execution import ExecutionMode, mode_instructions
 from adam.contracts.history import (
@@ -36,6 +37,7 @@ class ContextEstimate:
     skill_tokens: int = 0
     rules_tokens: int = 0
     runtime_tokens: int = 0
+    diagnostics_tokens: int = 0
 
     @property
     def input_tokens(self) -> int:
@@ -50,6 +52,7 @@ class ContextEstimate:
             + self.skill_tokens
             + self.rules_tokens
             + self.runtime_tokens
+            + self.diagnostics_tokens
         )
 
 
@@ -79,6 +82,7 @@ class RequestContext:
     execution_mode: ExecutionMode | None = None
     layout_version: str | None = CONTEXT_LAYOUT_VERSION
     runtime_state: RuntimeState | None = None
+    diagnostics: DiagnosticSelection | None = None
 
     @property
     def candidate_input_tokens(self) -> int:
@@ -95,6 +99,7 @@ class RequestContext:
             "strategy": "recent_turns_v1",
             **({"layout_version": self.layout_version} if self.layout_version else {}),
             **({"runtime_state": self.runtime_state.as_record()} if self.runtime_state else {}),
+            **({"diagnostics": self.diagnostics.to_record()} if self.diagnostics else {}),
             **(
                 {"execution_mode": self.execution_mode.value}
                 if self.execution_mode is not None
@@ -164,6 +169,7 @@ class ContextBuilder:
         rules: RuleSelection | None = None,
         execution_mode: ExecutionMode | None = None,
         runtime_state: RuntimeState | None = None,
+        diagnostics: DiagnosticSelection | None = None,
     ) -> RequestContext:
         """返回独立的输入副本及组成估算；保留顺序、工具配对和服务商推理字段。
 
@@ -178,9 +184,17 @@ class ContextBuilder:
         execution_mode 为程序的实际模式，说明计入受保护系统预算，不复制进历史。
         runtime_instructions 是本轮运行提示和审查资料；新布局置于历史之后，不提升为系统指令。
         runtime_state 为构造输入时的程序快照，采用有界表示、计入运行资料预算并独立留痕。
+        diagnostics 是本轮检查观察，独立放在完整工具链之后，整体计入预算，不复制进历史。
         系统与模式、Skill 目录位于历史之前；改变模式或目录会使相应前缀变化。
         预算覆盖完整工具 JSON Schema，不包含认证头、URL 或密钥。
         """
+        diagnostic_messages = []
+        if diagnostics is not None:
+            if self.layout_version is None:
+                raise ValueError("诊断观察需使用当前上下文布局。")
+            diagnostics = decode_selection(diagnostics.to_record())
+            diagnostic_messages = diagnostics.messages()
+        diagnostics_tokens = sum(estimate_json_tokens(m) for m in diagnostic_messages)
         if runtime_state is not None:
             if self.layout_version is None or runtime_state.mode != execution_mode:
                 raise ValueError("运行状态需使用当前布局，且模式必须与实际输入一致。")
@@ -240,6 +254,7 @@ class ContextBuilder:
             + skill_tokens
             + rules_tokens
             + runtime_tokens
+            + diagnostics_tokens
             + sum(sizes)
             + self.limits.safety_margin_tokens
         )
@@ -264,6 +279,7 @@ class ContextBuilder:
             - skill_tokens
             - rules_tokens
             - runtime_tokens
+            - diagnostics_tokens
         )
         start = len(history)
         protected_start = max(0, len(history) - self.limits.retain_recent_turns)
@@ -287,6 +303,7 @@ class ContextBuilder:
             skill_tokens,
             rules_tokens,
             runtime_tokens,
+            diagnostics_tokens,
         )
         if self.layout_version is None:
             arranged = (
@@ -313,6 +330,7 @@ class ContextBuilder:
                 + rule_messages
                 + runtime_messages
                 + current_turn
+                + diagnostic_messages
             )
         return RequestContext(
             model=model,
@@ -338,6 +356,7 @@ class ContextBuilder:
             execution_mode=execution_mode,
             layout_version=self.layout_version,
             runtime_state=runtime_state,
+            diagnostics=diagnostics,
         )
 
 

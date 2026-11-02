@@ -5,6 +5,8 @@ from dataclasses import replace
 
 import pytest
 
+from adam.config.settings import ContextConfig
+from adam.context.builder import ContextBuilder, estimate_json_tokens
 from adam.contracts.diagnostic_context import (
     MAX_CONTEXT_BYTES,
     DiagnosticObservation,
@@ -14,6 +16,8 @@ from adam.contracts.diagnostic_context import (
     validate_sources,
 )
 from adam.contracts.diagnostics import parse_diagnostics
+from adam.contracts.errors import BudgetError
+from adam.contracts.history import HistoryTurn
 from tests.test_diagnostics import report
 
 
@@ -132,3 +136,49 @@ def test_uncheckable_report_never_claims_current_diagnostics(status):
         decode_selection(value)
     observation["freshness"] = "not_checked"
     assert decode_selection(value).reports[0].freshness == "not_checked"
+
+
+def test_diagnostics_are_separate_protected_budget_and_only_whole_old_history_is_removed():
+    current = [{"role": "user", "content": "edit"}]
+    previous = HistoryTurn(
+        "old",
+        [{"role": "user", "content": "previous"}, {"role": "assistant", "content": "response"}],
+    )
+    diagnostics = selection()
+    arguments = dict(
+        model="test",
+        system_prompt="system",
+        history=[previous],
+        current_turn=current,
+        tools=[],
+        diagnostics=diagnostics,
+    )
+    limits = ContextConfig(safety_margin_tokens=0, retain_recent_turns=0, prune_tool_results=False)
+    full = ContextBuilder(limits, 4096).build(**arguments)
+    assert full.estimate.diagnostics_tokens == sum(
+        estimate_json_tokens(m) for m in diagnostics.messages()
+    )
+    assert full.messages[-2:] == current + diagnostics.messages()
+    capacity = full.estimate.input_tokens - full.estimate.history_tokens
+    exact = ContextBuilder(replace(limits, max_input_tokens=capacity), 4096).build(**arguments)
+    exact.ensure_within_budget()
+    assert exact.selected_turn_ids == () and exact.omitted_turn_ids == ("old",)
+    assert exact.messages[-2:] == current + diagnostics.messages()
+    assert exact.selection_record()["diagnostics"] == diagnostics.to_record()
+    with pytest.raises(BudgetError):
+        replace(
+            exact, limits=replace(exact.limits, max_input_tokens=capacity - 1)
+        ).ensure_within_budget()
+    assert current == [{"role": "user", "content": "edit"}]
+
+
+def test_old_layout_rejects_new_diagnostic_observations():
+    with pytest.raises(ValueError, match="当前上下文布局"):
+        ContextBuilder(ContextConfig(), 4096, layout_version=None).build(
+            model="test",
+            system_prompt="",
+            history=[],
+            current_turn=[],
+            tools=[],
+            diagnostics=selection(),
+        )

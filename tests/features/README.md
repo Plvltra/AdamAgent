@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B20.2.2 诊断请求与重放 | 11项HTTP/实际编辑/日志/来源/预算/旧录制及2项契约新增；相关153项通过 | [业务场景](test_diagnostic_request.py)、[上下文边界](../test_diagnostic_context.py) |
 | B20.2.1 诊断选择与版本观察 | 7项真实编辑/版本/权限/容量/故障与16项契约；相关100项通过，模型接入待下一步 | [业务场景](test_diagnostic_selection.py)、[契约](../test_diagnostic_context.py) |
 | B20.1 编辑诊断协议 | 6项实际编辑/检查、版本变化、超限、来源伪造及重启，22项协议边界；相关126项 | [业务场景](test_edit_diagnostics.py)、[契约边界](../test_diagnostics.py) |
 | B19.3.2 实际执行中断与恢复 | 真实取消/强杀各确认4个 Linux 身份回收，命令未知与用量已知分别保留，重启幂等；相关89项回归 | [真实验收入口](../../scripts/isolated_command_fault_acceptance.py)、[实际报告](../../docs/evaluations/b19-command-faults.json) |

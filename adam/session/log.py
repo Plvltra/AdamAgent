@@ -5,6 +5,7 @@ from itertools import groupby
 from typing import Any
 
 from adam.contracts.artifacts import ArtifactRef, decode_artifact_reference
+from adam.contracts.diagnostic_context import decode_selection, validate_sources
 from adam.contracts.execution import CODE_TOOL_NAME, COMMAND_TOOLS, FILE_EDIT_TOOLS
 from adam.contracts.history import (
     HistoryTurn,
@@ -333,7 +334,7 @@ class SessionLog:
         request.update(encode_observations(cache, prefix))
 
     def _validate_context(self, context: object, turn_id: str) -> None:
-        """校验摘要覆盖前缀、连续历史后缀、模式或反思反馈快照；旧请求可没有选择及模式字段。"""
+        """校验摘要覆盖前缀、连续历史后缀、模式、反思及诊断来源；旧请求可没有选择和新增观察字段。"""
         if isinstance(context, dict) and "tool_schema" in context:
             validate_tool_schema_record(context["tool_schema"])
         if isinstance(context, dict) and context.get("strategy") == "reflection_v1":
@@ -359,6 +360,15 @@ class SessionLog:
         if not isinstance(context, dict) or context.get("strategy") != "recent_turns_v1":
             raise ValueError("invalid context strategy")
         validate_context_layout(context.get("layout_version"))
+        if "diagnostics" in context:
+            diagnostics = decode_selection(context["diagnostics"])
+            if (
+                context.get("layout_version") is None
+                or diagnostics.session_id != self.metadata["id"]
+                or diagnostics.turn_id != turn_id
+            ):
+                raise ValueError("diagnostic context source or layout mismatch")
+            validate_sources(diagnostics, self.hooks.records.values())
         if "runtime_state" in context:
             state = decode_runtime_state(context["runtime_state"])
             if context.get("layout_version") is None or state.mode.value != context.get(

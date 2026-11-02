@@ -1,6 +1,5 @@
 """B20.1：真实编辑和检查进程产生版本化诊断，原工具事实与重启记录保持。"""
 
-import json
 import sys
 from dataclasses import replace
 from hashlib import sha256
@@ -13,6 +12,7 @@ from adam.contracts.errors import HookLogError
 from adam.session.storage import SessionStore
 from tests.features.test_hook_acceptance import edit_model, example_hooks
 from tests.features.test_hook_process import checker
+from tests.features.test_subagents import outputs
 from tests.features.test_tool_hooks import hooked_app
 
 SCRIPT = Path(__file__).resolve().parents[2] / "examples/hooks/after_python_diagnostics.py"
@@ -55,8 +55,8 @@ def test_real_edit_and_checker_keep_distinct_outcomes_and_original_version(
             assert diagnostic["items"][0]["severity"] == "error"
         else:
             assert not diagnostic["items"]
-        # B20.1 只落检查事实；下一请求的独立观察在 B20.2 接入，不能提前宣称模型已经看到。
-        output = json.loads(bodies[-1]["messages"][-1]["content"])
+        # B20.2 独立观察追加在工具链后，原工具回包仍保留编辑事实，不混入检查状态。
+        output = outputs(bodies[-1])[-1]
         assert output["status"] == "applied" and "diagnostics" not in output
         frozen = store.load_events(sid)
     with SessionStore(tmp_path / "sessions") as reopened:

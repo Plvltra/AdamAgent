@@ -14,6 +14,7 @@ from adam.context.builder import ContextBuilder, RequestContext
 from adam.context.compaction import CompactionService
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import Delegation, RequestAccount
+from adam.contracts.diagnostic_context import DiagnosticReader, DiagnosticSelection
 from adam.contracts.errors import (
     BudgetError,
     FailureCode,
@@ -80,11 +81,13 @@ class Conversation:
         mode_provider: Callable[[], ExecutionMode] | None = None,
         state_reader: StateReader | None = None,
         compaction_version: str | None = COMPACTION_VERSION,
+        diagnostic_reader: DiagnosticReader | None = None,
     ) -> None:
         """注入会话依赖；context_layout 仅供旧录制重放，默认使用当前排列。
 
         state_reader 由宿主提供窄状态查询；缺省保持不注入，旧排列也不新增状态。
         compaction_version=None 让旧录制保持当时的摘要输入与估算。
+        diagnostic_reader 仅在真实请求构造时观察本轮检查；预览与历史不会自动读文件。
         """
         validate_compaction_version(compaction_version)
         self.compaction_version = compaction_version
@@ -109,6 +112,7 @@ class Conversation:
         self.rules = rules
         self.mode_provider = mode_provider
         self.state_reader = state_reader
+        self.diagnostic_reader = diagnostic_reader
         self.planning = planning
         self.reflection, self.review = reflection, review
         self.requests = RequestRunner(
@@ -358,6 +362,9 @@ class Conversation:
             selected_skill=progress.selected_skill,
             tool_turn_id=turn_id,
             runtime_state=self._runtime_state(session, turn_id, progress),
+            diagnostics=self.diagnostic_reader(session.session_id, turn_id)
+            if self.diagnostic_reader
+            else None,
         )
         # 受保护部分本身放不下时，先停止，避免花费一次无法解决问题的摘要请求。
         context.ensure_within_budget()
@@ -411,6 +418,9 @@ class Conversation:
                     selected_skill=progress.selected_skill,
                     tool_turn_id=turn_id,
                     runtime_state=self._runtime_state(session, turn_id, progress),
+                    diagnostics=self.diagnostic_reader(session.session_id, turn_id)
+                    if self.diagnostic_reader
+                    else None,
                 )
                 self.notify("上下文> 已自动更新历史摘要；原始日志保留。")
                 progress.pruning_announced = True
@@ -481,6 +491,7 @@ class Conversation:
         selected_skill: SkillSelection | None = None,
         tool_turn_id: str | None = None,
         runtime_state: RuntimeState | None = None,
+        diagnostics: DiagnosticSelection | None = None,
     ) -> RequestContext:
         """读取成功历史并委托构造；稳定约束与运行提示分开，预览和请求共享预算及模式。
 
@@ -516,6 +527,7 @@ class Conversation:
             rules=self.rules.snapshot(preview=rules_preview) if self.rules else None,
             execution_mode=self.mode_provider() if self.mode_provider is not None else None,
             runtime_state=runtime_state,
+            diagnostics=diagnostics,
         )
 
     def _check_session_budget(self, session_id: str) -> None:
