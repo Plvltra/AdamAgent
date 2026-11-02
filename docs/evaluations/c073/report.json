@@ -1,0 +1,32 @@
+{
+  "attempts": 1,
+  "started": 1793635062.8422859,
+  "answer": "The exact media_id is `a2ca25d9594ec682fad93d2afae79ae1` and the version is `c0958036f49221b48cf04cde6822edfaefc6bd7b1003b2c94370c666ba3098f6`. The cost is unknown.",
+  "turn_seconds": 116.3289999999979,
+  "session_id": "aac83f02",
+  "readback": {
+    "reference": {
+      "media_id": "a2ca25d9594ec682fad93d2afae79ae1",
+      "source": {
+        "session_id": "aac83f02",
+        "turn_id": "12da21a410a1351a466a9226ca9caf49",
+        "kind": "tool",
+        "request_id": "35761b546125b89d983ffb63e9024113",
+        "tool_call_id": "LXcz5iDopK8OXzIjWEFvwct51AyFZ5lp",
+        "tool_name": "generate_media"
+      },
+      "mime_type": "image/png",
+      "size_bytes": 366633,
+      "version": "c0958036f49221b48cf04cde6822edfaefc6bd7b1003b2c94370c666ba3098f6",
+      "created_at": "2026-11-02T15:58:50.899832+00:00",
+      "schema_version": 1
+    },
+    "bytes": 366633,
+    "sha256": "c0958036f49221b48cf04cde6822edfaefc6bd7b1003b2c94370c666ba3098f6",
+    "path": "G:\\Myself\\Adam2\\.cache\\c073-generation\\readback.png"
+  },
+  "server_pid": 36932,
+  "server_returncode": 1,
+  "server_reaped": true,
+  "total_seconds": 130.83746790885925
+}

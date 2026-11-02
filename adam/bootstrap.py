@@ -51,6 +51,7 @@ from adam.contracts.terminals import TerminalRequest
 from adam.contracts.verification import TaskVerifier
 from adam.desktop.models import DesktopActionBackend
 from adam.documents.embedding import FastEmbedBackend
+from adam.generation.models import GenerationBackend, GenerationBudget
 from adam.hooks.runner import HookRunner
 from adam.isolation.backend import WslBubblewrap
 from adam.isolation.commands import IsolatedCommands
@@ -82,6 +83,7 @@ from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
 from adam.tool_calls.feedback_tools import SPECS as FEEDBACK_SPECS
 from adam.tool_calls.feedback_tools import handlers as feedback_handlers
+from adam.tool_calls.generation_tools import GenerationTools
 from adam.tool_calls.isolated_commands import register_isolated_commands
 from adam.tool_calls.mcp_tools import register_mcp
 from adam.tool_calls.orchestration_tools import register_orchestration
@@ -124,6 +126,8 @@ def build_application(
     confirm_desktop: Callable[[DesktopApproval], bool] | None = None,
     remote_policy: RemoteAgentPolicy | None = None,
     confirm_remote: Callable[[RemoteApproval], bool] | None = None,
+    generation_backends: dict[str, GenerationBackend] | None = None,
+    generation_budget: GenerationBudget | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,
@@ -153,6 +157,7 @@ def build_application(
     网页工具按次创建/关闭独立连接；禁用时不加载其后端。
     桌面仅由宿主显式注入目标及逐次批准，子任务不继承桌面或批准；默认不注册。
     远端工具同样仅由主宿主注入固定源/报价上限及批准；不传递本地工具权限。
+    生成仅由主宿主注入固定后端与共享C00额度，子任务不继承；默认不注册。
     浏览器按会话延迟创建，逐次确认确切动作；子任务不注册浏览器、不继承主审批。
     图片加载沿原主子读取范围，完整解码后发布各自媒体引用；不隐式发送给模型。
     启用子任务、MCP 或浏览器的调用方须在释放主会话锁前调用 application.close；
@@ -326,6 +331,17 @@ def build_application(
             PathPolicy(workspace, config.permissions, protected_dirs=protected_dirs),
             SessionMedia(store, MediaStore(media_dir, max_bytes=config.vision.max_bytes)),
         )
+        generation = None
+        if generation_backends is not None:
+            if generation_budget is None:
+                raise ValueError("generation requires an explicit shared unit budget")
+            generation = GenerationTools(
+                generation_backends,
+                generation_budget,
+                SessionMedia(store, MediaStore(media_dir, max_bytes=33554432)),
+                media_dir / "generation",
+            )
+            registry = generation.register(registry)
         if artifacts:
             registry = artifacts.register(registry)
         if config.session_search.enabled:
@@ -475,6 +491,8 @@ def build_application(
             terminal_tools.bind_source(link)
             if trigger_tools:
                 trigger_tools.bind_source(link)
+            if generation:
+                generation.bind_source(link)
             if remote:
                 remote.bind_source(link)
             if desktop:

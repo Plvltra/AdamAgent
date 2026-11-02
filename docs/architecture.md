@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C07.2独立SD-Turbo与MusicGen适配器、固定离线worker及准备脚本；沿用GenerationJobs、原媒体发布和C00单位计量，普通模型工具闭环仍待C07.3。
+本次核对范围：C07.3主宿主显式生成工具、真实来源绑定、受保护作业快照与恢复；沿用原Conversation、SessionMedia及宿主注入的C00额度。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2782,3 +2782,22 @@ flowchart LR
 ~~~
 
 下载脚本与生成入口分离，普通聊天未获得任意Python或模型目录参数。独立推理环境不加入主安装依赖，主generation额外依赖只含Pillow；worker只通过固定JSON与字节产物返回，取消/超时回收自己的进程。对应边界见 [本地生成](generation.md#c072-本地图片与音乐后端)。
+
+## C07.3 普通工具生成闭环
+
+~~~mermaid
+flowchart LR
+    GC_MODEL["原模型工具响应"] --> GC_EXEC["原ToolExecutor / 权限、Hook、来源"]
+    GC_EXEC --> GC_TOOLS["tool_calls.generation_tools / 生成与查询"]
+    GC_BOOT["bootstrap显式后端与C00额度 / 主宿主"] --> GC_TOOLS
+    GC_TOOLS --> GC_JOBS["GenerationJobs / 同ID单次派发"]
+    GC_TOOLS --> GC_RESTORE["GenerationJournal / 全模态恢复后准入"]
+    GC_RESTORE --> GC_DISK["受保护_media/generation / 原子JSON"]
+    GC_JOBS --> GC_DISK
+    GC_JOBS --> GC_BACK["固定SD-Turbo或MusicGen适配器"]
+    GC_JOBS --> GC_MEDIA["原SessionMedia / 校验工具来源、发布与读回"]
+    GC_MEDIA --> GC_REPLY["原MediaRef、实际用量、未知费用"]
+    GC_REPLY --> GC_MODEL
+~~~
+
+生成包保持只依赖自身和contracts，工具层显式依赖生成包并通过SessionMedia校验来源；Conversation不识别生成SDK。快照放在已保护的媒体目录内，主子文件/文档读取不获得额外访问权。默认无生成工具，子任务不继承主后端；启用宿主必须注入共享UnitBudget。重启先恢复本会话全部已配置模态，遗留running转unknown；已存但撤销后端或损坏记录阻止新派发，不凭缺失内存缓存重做。见[生成闭环](generation.md#c073-普通工具生成闭环)。

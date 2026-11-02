@@ -45,3 +45,17 @@ SDTurboBackend与MusicGenBackend是两个独立适配器，分别使用公开的
 两项均经过真实SessionStore来源、SessionMedia发布及原MediaRef读回，原子保存作业快照；实际输入token分别22/19，1张图片/3000ms音频，各1调用，费用未知。预留已释放、宿主退出0且无残留worker。完整参数、固定模型版本、哈希、原引用与质量限制见 [真实报告](evaluations/c072/report.json)，推理环境见 [依赖快照](evaluations/c072/requirements-freeze.txt)。原PNG/WAV保留在.cache/c072-generation，未将二进制加入仓库。
 
 相关14项测试通过（2.49秒），覆盖原作业故障与本地缺配置/参数边界、真实子进程超时和取消回收；Ruff、定向Pyright通过。新增函数契约、离线边界及失败处理注释已核对，无原关键说明删除。架构已同步，本小项不重复全量；C07.3仍待接入普通工具闭环。
+
+## C07.3 普通工具生成闭环
+
+build_application显式接收generation_backends与generation_budget，后者由宿主提供原C00 UnitBudget；两个本地适配器共享同一份生成额度，主聊天的token账本仍按原组装逻辑工作。本入口不会自动把注入额度改成主聊天的共享账本。默认不注册生成工具，子任务不继承后端、模型目录或Python路径。
+
+generate_media使用模型提供的kind、固定job_id、提示及少量整数参数，原ToolExecutor仍执行权限、Hook、工具日志和取消；真实来源由before_call绑定且派发前通过SessionStore验证。generation_result只读已有状态；成功交付原MediaRef及实际单位，费用未配置保持unknown/unpriced。引用由SessionMedia.read核对，宿主可按同一ID/version读取原PNG/WAV，不将内部媒体容器路径冒充可播放文件。
+
+作业快照保存于受保护的_media/generation/<session>/<kind>/<job>.json，使用同目录原子替换，沿用宿主持有的会话锁。同ID同参数的重复通知返回原结果；同ID改参数拒绝，均不重新生成。重启恢复全部模态的快照与消费后才准入，running转unknown不自动重提；坏快照、后端变化或撤销造成消费无法确认时停止。没有跨宿主并行调度或远端轮询。
+
+本地故障测试实际经过普通模型HTTP适配、原应用/工具/来源日志和媒体存储，只有模型响应与生成边界使用明确fixture。C07局部21项通过（8.25秒），新增7项覆盖生成→查询→重复→重启、超时未知、初始/最终快照写入失败、改参重复拒绝和坏快照；架构32项通过（0.65秒）。Ruff与定向Pyright通过，新增契约与原bootstrap说明已核对，无删除关键注释。真实模型生成工具验收另行记录，尚不以这些fixture证明模型选择或生成质量。
+
+真实闭环（2026-11-02夜间）：本地Qwen3-4B实际3次模型请求，generate_media与generation_result各1次，首次参数正确；模型原样交付媒体ID及版本并声明费用未知。原SessionMedia读回366633字节且SHA一致，实际生成512×512、1步、seed42，22输入token/1图/1调用。文本模型3次输入/输出分别5383/84、5877/30、6315/101，累计17790 token；与生成单位分开记录。业务116.329秒，总计130.837秒，自建服务已终止回收，没有重开挑答案。
+
+独立核图确认红色陶瓷茶壶、浅色桌面、柔光和无文字，但多余杯碟、把手形体歧义及桌面纹理使严格提示仅部分符合。真实产物交付不代表生成质量全通过；音频沿用C07.2真实解码证据，听感仍未验收。[完整报告](evaluations/c073/report.md)与原始响应、生成快照已归档，PNG留缓存。C07.3完成，C07局部回归复用上述21项；当前三个大项批次已满，下一次全量回归待记录。

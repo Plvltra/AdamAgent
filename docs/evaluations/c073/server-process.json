@@ -1,0 +1,30 @@
+{
+  "pid": 36932,
+  "arguments": [
+    "G:\\Myself\\Adam2\\.cache\\local-vision\\llama-b12032\\llama-server.exe",
+    "--model",
+    "G:\\Myself\\Adam2\\.cache\\local-text\\Qwen3-4B-Q4_K_M.gguf",
+    "--alias",
+    "adam-generation-eval",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "59868",
+    "--ctx-size",
+    "16384",
+    "--parallel",
+    "1",
+    "--n-gpu-layers",
+    "0",
+    "--threads",
+    "8",
+    "--temp",
+    "0",
+    "--seed",
+    "42",
+    "--no-cache-prompt",
+    "--reasoning",
+    "off",
+    "--no-webui"
+  ]
+}
