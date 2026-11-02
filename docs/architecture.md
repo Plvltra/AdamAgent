@@ -2,15 +2,26 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B23.3 固定三百行对照入口、实际报告和应用组合验收。
+本次核对范围：B24.1公共协议视图与最小实现范围。
 
-核对结论：生产架构无变化，新增离线对照入口只在新目录生成固定样本，复用原read_file、replace_text和replace_span实际执行。批准闭包只接受生成样本和预定结果，不进入聊天批准策略。原图保留；新增说明区分参数字节、完整diff、本地工作量与未验收模型效果。
+核对结论：contracts新增model_history，提取正文和工具身份并保留原始字典、扩展字段；不改写存储，不改变运行中的模型客户端。新增接口说明转换责任，未删除原生产注释。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
 [B23.3对照入口](../scripts/span_edit_eval.py)只生成独立教学样本，经同一工具工厂真实编辑并保存参数/文件版本；[实际结果](span-editing.md)不代表聊天质量或token成本。
+
+## B24.1 公共消息视图
+
+```mermaid
+flowchart LR
+    MH_RAW[原会话消息字典] --> MH_VIEW[contracts.model_history.message_view]
+    MH_VIEW --> MH_CORE[正文与工具调用身份]
+    MH_VIEW --> MH_EXT[原字段与协议扩展独立副本]
+```
+
+本阶段只有转换基础，实际双协议连接见后续B24.2；[能力边界](model-adapters.md)。
 
 ## B23.2 正式首尾工具
 
