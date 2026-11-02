@@ -92,6 +92,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
         ("web", {"web", "contracts"}),
         ("browser", {"browser", "contracts"}),
         ("vision", {"vision", "contracts"}),
+        ("video", {"video", "contracts"}),
         ("desktop", {"desktop", "contracts"}),
         ("interop", {"interop", "contracts"}),
         ("code_index", {"code_index", "contracts"}),

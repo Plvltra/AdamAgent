@@ -1,0 +1,91 @@
+{
+  "decoded_frames": 4,
+  "duration_seconds": 0.901,
+  "mime_type": "video/x-matroska",
+  "frames": [
+    {
+      "path": "G:\\Myself\\Adam2\\.cache\\c061-video\\frame-0-0ms.png",
+      "pts": 0,
+      "time_base": [
+        1,
+        1000
+      ],
+      "timestamp_seconds": 0.0,
+      "width": 64,
+      "height": 48,
+      "colors": [
+        [
+          3072,
+          [
+            255,
+            0,
+            0
+          ]
+        ]
+      ]
+    },
+    {
+      "path": "G:\\Myself\\Adam2\\.cache\\c061-video\\frame-1-100ms.png",
+      "pts": 100,
+      "time_base": [
+        1,
+        1000
+      ],
+      "timestamp_seconds": 0.1,
+      "width": 64,
+      "height": 48,
+      "colors": [
+        [
+          3072,
+          [
+            0,
+            128,
+            0
+          ]
+        ]
+      ]
+    },
+    {
+      "path": "G:\\Myself\\Adam2\\.cache\\c061-video\\frame-2-450ms.png",
+      "pts": 450,
+      "time_base": [
+        1,
+        1000
+      ],
+      "timestamp_seconds": 0.45,
+      "width": 64,
+      "height": 48,
+      "colors": [
+        [
+          3072,
+          [
+            0,
+            0,
+            255
+          ]
+        ]
+      ]
+    },
+    {
+      "path": "G:\\Myself\\Adam2\\.cache\\c061-video\\frame-3-900ms.png",
+      "pts": 900,
+      "time_base": [
+        1,
+        1000
+      ],
+      "timestamp_seconds": 0.9,
+      "width": 64,
+      "height": 48,
+      "colors": [
+        [
+          3072,
+          [
+            255,
+            255,
+            0
+          ]
+        ]
+      ]
+    }
+  ]
+}

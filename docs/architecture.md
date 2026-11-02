@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：私有 C 分支 rebase 到 main 已提交 e359b4f（B26.2.1）。保留 B23 首尾编辑、B24 双协议、B25 流式监控和 B26 后台输出游标，以及 C 多模态/远端工具。
+本次核对范围：C06.1 有界短视频解码、PTS时间轴与原媒体引用。新增video包，模型/会话编排保持。
 
 本次同步验证：LLMClient 同时使用 ChatInputEncoder、Messages 适配器和 StreamWatch；没有移除双方协议/取消契约。相关双协议、多模态和流式停止51项通过（18.06秒），Ruff/Pyright通过。架构关系与双方实现一致，无重复标题或冲突标记；未跑全量。
 
@@ -2459,3 +2459,19 @@ flowchart LR
 ~~~
 
 参考SDK仅在隔离验收环境，不进入生产公共端口或项目默认依赖。只在明确标记下延迟一次查询响应，不替换任务协议；保留官方取消回调的CancelledError限制。生产关系保持，新增脚本注释已核对，C09局部19项通过。见 [原始结果和支持子集](interop.md#c094-固定参考服务互操作)。
+
+
+## C06.1 有界视频帧
+
+~~~mermaid
+flowchart LR
+    VI_HOST["显式宿主 / 已授权字节与MediaSource"] --> VI_LOAD["video.service / VideoLoader"]
+    VI_LOAD --> VI_PORT["video.models / VideoDecoder"]
+    VI_PORT --> VI_AV["video.adapters.pyav / PyAV16.0.1"]
+    VI_AV --> VI_CHECK["字节 时长 像素 帧数 时间轴 / 完整有界遍历"]
+    VI_CHECK --> VI_FRAME["DecodedFrame / 原PTS与PNG"]
+    VI_FRAME --> VI_MEDIA["原SessionMedia.publish / 真实来源与版本"]
+    VI_MEDIA --> VI_RESULT["VideoFrames / 原片与帧引用"]
+~~~
+
+video只依赖自身和contracts；宿主注入媒体发布端口，不反向依赖SessionStore或视觉SDK。完整解码后发布，发布中失败可留下部分证据；不承诺原生硬取消。可选依赖及uv.lock同步，原关键注释未删除；8项真实视频场景通过，时间轴与独立核图见 [视频输入](video-input.md)。
