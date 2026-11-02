@@ -115,6 +115,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
                 "browser",
                 "vision",
                 "desktop",
+                "interop",
                 "skills",
                 "mcp",
                 "config",

@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C09.3 原主工具远端协作 | 6项真实HTTP+主工具批准/模式/预算/来源/重启查询/取消；与架构共36项通过 | [业务场景](test_remote_tools.py)、[费用与权限](../../docs/interop.md#c093-主-agent-工具与批准) |
 | C09.2 任务生命周期 | 5项真实HTTP完成/取消/失败/恢复/超时不重发，与C09.1共13项通过 | [业务场景](test_interop_tasks.py)、[支持范围](../../docs/interop.md#c092-任务生命周期) |
 | C09.1 独立文本 Agent | 8项真实双进程能力发现/文本计算、业务失败和范围拒绝；与架构共38项通过 | [业务场景](test_interop_text.py)、[独立宿主](support/interop_worker.py)、[协议子集](../../docs/interop.md) |
 | C03.3 输入租约与停止（实机恢复待验） | 10项跨进程互斥/异常释放/引用恢复/中断清理/会话状态，真实锁屏拒绝另留证据 | [自动场景](test_desktop_stopping.py)、[真实锁状态](../../docs/evaluations/c033-session-lock.json) |

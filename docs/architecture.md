@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C09.2 任务关联、查询/取消与终态。新增 interop.tasks 和 task_service；复用回环传输，未接入生产聊天。
+本次核对范围：C09.3 原主工具入口的远端任务、逐次批准与费用约定上限；不新增聊天循环或存储协议。
 
 本次同步结论：架构关系保持，组装入口保留 FileChangePlan 与浏览器/桌面批准参数；Conversation 和录制同时保留诊断与媒体输入，日志同时校验诊断与视觉来源。合并双方契约说明，移除重复架构段落。验证：相关重放、多模态、消费、桌面动作与诊断选择共 85 项通过；Ruff、Pyright 通过，本次不重复运行全量。
 
@@ -2425,3 +2425,20 @@ flowchart LR
 ~~~
 
 发送前保留关联，首次响应丢失不重新委派；已知ID时断连恢复只查原任务。同源快照恢复没有网络动作；服务内存状态不宣称持久化。取消仅在回调退出后标为 canceled；不撤销副作用。新增中文契约已核对，原服务回环/无访问正文说明保留并补充关闭责任。新增5项及文本回归共13项通过，静态检查通过；参考服务验收仍待C09.4。
+
+
+## C09.3 原工具入口的远端调度
+
+~~~mermaid
+flowchart LR
+    IR_HOST["bootstrap / 显式 RemoteAgentPolicy 与批准"] --> IR_TOOL["tool_calls.remote_tools / 主目录"]
+    IR_EXEC["原 ToolExecutor / 模式 Hook 额度 来源"] --> IR_TOOL
+    IR_TOOL --> IR_APPROVE["contracts.interop / 不可变 RemoteApproval"]
+    IR_APPROVE --> IR_CLIENT["原 TaskClient / 固定回环服务"]
+    IR_CLIENT --> IR_RESULT["远端状态与证据 / 实际费用未知"]
+    IR_RESULT --> IR_LOG["原 tool_finished JSONL"]
+    IR_LOG --> IR_RESTORE["同会话关联恢复 / 不重复派发"]
+    IR_RESTORE --> IR_TOOL
+~~~
+
+RemoteTools 仅借用本地存储，远端只收到文本或ID；不发送SessionStore/本地权限。每次按原submit开始保守计数，宿主报价上限与未知实际费用分开；恢复只认真实远端工具结果及原合同。原注释保留，新增契约明确取消/未知和回调责任；6项业务与架构共36项通过。固定参考服务互操作待C09.4，见 [支持范围](interop.md)。

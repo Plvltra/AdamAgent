@@ -40,6 +40,7 @@ from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.desktop import DesktopApproval
 from adam.contracts.execution import ExecutionMode, ToolCapability
+from adam.contracts.interop import RemoteAgentPolicy, RemoteApproval
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import CommandRequest, FileChangePlan
 from adam.contracts.planning import PlanReport
@@ -89,6 +90,7 @@ from adam.tool_calls.planning_tools import handlers as planning_handlers
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.proposal_tools import register_review as register_proposal_review
 from adam.tool_calls.proposal_tools import register_submission
+from adam.tool_calls.remote_tools import register_remote
 from adam.tool_calls.review_tools import SPECS as REVIEW_SPECS
 from adam.tool_calls.review_tools import handlers as review_handlers
 from adam.tool_calls.session_tools import SessionTools
@@ -120,6 +122,8 @@ def build_application(
     confirm_browser: Callable[[BrowserApproval], bool] | None = None,
     desktop_backend: DesktopActionBackend | None = None,
     confirm_desktop: Callable[[DesktopApproval], bool] | None = None,
+    remote_policy: RemoteAgentPolicy | None = None,
+    confirm_remote: Callable[[RemoteApproval], bool] | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,
@@ -148,6 +152,7 @@ def build_application(
     主子媒体预检各自只借用所属 SessionMedia，默认模型无视觉声明时明确拒绝。
     网页工具按次创建/关闭独立连接；禁用时不加载其后端。
     桌面仅由宿主显式注入目标及逐次批准，子任务不继承桌面或批准；默认不注册。
+    远端工具同样仅由主宿主注入固定源/报价上限及批准；不传递本地工具权限。
     浏览器按会话延迟创建，逐次确认确切动作；子任务不注册浏览器、不继承主审批。
     图片加载沿原主子读取范围，完整解码后发布各自媒体引用；不隐式发送给模型。
     启用子任务、MCP 或浏览器的调用方须在释放主会话锁前调用 application.close；
@@ -303,6 +308,9 @@ def build_application(
                 store, MediaStore(media_dir, max_bytes=config.browser.max_download_bytes)
             ),
         )
+        remote = None
+        if remote_policy is not None:
+            registry, remote = register_remote(registry, store, remote_policy, confirm_remote)
         desktop = None
         if desktop_backend is not None:
             registry, desktop = register_desktop(
@@ -467,6 +475,8 @@ def build_application(
             terminal_tools.bind_source(link)
             if trigger_tools:
                 trigger_tools.bind_source(link)
+            if remote:
+                remote.bind_source(link)
             if desktop:
                 desktop.bind_source(link)
             if browser:
