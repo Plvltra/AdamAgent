@@ -403,3 +403,5 @@ B35.3：test_failure_task_boundaries.py覆盖错误判据、无效/重复变体�
 B36.1：test_experience_evidence.py覆盖真实来源关联、正反证据、旧版本保持及来源/环境变化；1 passed（0.55秒）。
 
 B36.2：test_experience_validation.py验证新任务实际文件、错误答案、执行故障和提炼来源拒绝；1 passed（0.46秒）。
+
+B36.3：test_experience_regression.py覆盖实际文件对照、反例推翻、环境变化及真实E4接受；章末4 passed（2.47秒）。

@@ -18,10 +18,12 @@ def validate(
     execute: Callable[[PreparedTask, str], str],
     *,
     environment: str,
+    apply_lesson: bool = True,
 ) -> dict[str, Any]:
     """将经验作为建议交给显式执行器，再用宿主独立判据检验实际终态。
 
     仅接收标为holdout的固定任务集；拒绝重复任务、提炼来源和变化的环境/证据。
+    apply_lesson=False执行无经验基线，只保存报告，不更新经验最近状态。
     execute由宿主负责权限和额度，此入口不会自行调用API。异常记录为未知验证，
     不把执行器故障当作经验反例；每次要求全新output，旧验证和原始版本保留。
     """
@@ -51,7 +53,7 @@ def validate(
         error = None
         try:
             task = provider.prepare(output / case_id, case_id)
-            reply = execute(task, value["lesson"])
+            reply = execute(task, value["lesson"] if apply_lesson else "")
             verdict = provider.verify(task, reply, ())
             if type(verdict.get("passed")) is not bool:
                 raise ValueError("invalid independent verdict")
@@ -66,6 +68,7 @@ def validate(
     )
     report = {
         "status": status,
+        "arm": "with_lesson" if apply_lesson else "baseline",
         "environment": environment,
         "experience_revision": value["revision"],
         "task_provenance": provenance,
@@ -82,4 +85,34 @@ def validate(
         "environment": environment,
         "checked_at": report["checked_at"],
     }
-    return save_revision(directory, value)
+    return save_revision(directory, value) if apply_lesson else value
+
+
+def candidate_text(directory: Path, *, environment: str) -> str:
+    """生成供E4人工查看/改写的候选正文，不接受候选也不写记忆。
+
+    报告或来源变化、环境不符时明确降为stale；接受正文仍需走现有E4确认入口。
+    """
+    observed = inspect(directory, environment=environment)
+    validation = observed["validation"]
+    status = validation["status"]
+    stale = not observed["environment_matches"] or any(
+        e["source_status"] != "current" or not e["environment_matches"]
+        for e in observed["evidence"]
+    )
+    if "report" in validation:
+        try:
+            stale |= (
+                hashlib.sha256(Path(validation["report"]).read_bytes()).hexdigest()
+                != validation["sha256"]
+            )
+        except OSError:
+            stale = True
+    if stale:
+        status = "stale"
+    return (
+        f"{observed['lesson']}\n适用：{observed['applies_when']}\n例外：{observed['exceptions']}"
+        f"\n验证状态：{status}；仅限已测任务，不证明普遍有效。"
+        f"\n证据版本：{observed['revision']}；环境：{observed['environment']}"
+        "\n接受保存不等于验证成功。"
+    )
