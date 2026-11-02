@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C02.4 浏览器固定闭环 | 5 项真实 Chrome/HTTP/文件：查询、一次保存与回执、跳转和重新观察后旧引用、重复提交、提交前取消；真实本地模型单次成功另留证据 | [test_browser_acceptance.py](test_browser_acceptance.py)、[真实记录](../../docs/evaluations/c02-browser-acceptance.json) |
 | B32.1 首错报告 | 真实工具失败定位、成功后不误归因、工具成功但答案错误 | [首错验收](test_first_error.py) |
 | B31.3 消融报告 | 真实记忆选择开关、正常反例、缺失分母与配对 | [对照验收](test_task_eval_report.py) |
 | C01.4 真实五题评估器 | 新增 9 项：实际本地重定向/来源、两组普通问题零网络、未知用量停止、HTTP 失败不重试、固定批次/端点拒绝及引用范围不冒充语义；真实两组严格完整通过 0/5、2/5，各 1 项部分通过 | [test_web_evaluation.py](test_web_evaluation.py)、[真实记录](../../docs/evaluations/c01-web-comparison.json)、[限制](../../docs/web-reading.md#固定五题真实对照c014) |

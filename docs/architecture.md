@@ -2,9 +2,9 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C01.4 固定五题真实对照、独立本地评估入口与证据导出；私有 C 分支同步到固定主线 51be036 的 B16.1/2。核对主子语义发现注入与图片来源绑定、双媒体保护及 C00.4 共享消费，未复制 main 后续未提交评估内容。
+本次核对范围：C02.4 最小固定浏览器验收；同步 main 固定 446d767 的 B16.3。复用原主应用和浏览器，不改变生产 adam 调用；新增独立脚本、临时测试站点与结果记录。
 
-核对结论：新增 scripts.web_evaluation 独立评估入口与对应关系图；生产对话、网络和存储职责保持。主子文件、文档、规则、Skill、提案及图片读取同时保护 _media 和 _mcp_media。图片路径授权不依赖可选规则开关，真实子任务回归确认拒绝后无媒体来源/正文副作用。仅纳入 main 固定提交 51be036 的 B16.1/2，不复制工作区后续未提交改动。C00.4 新增 contracts.consumption、config.consumption、context.consumption、session.consumption_log 与 subagents.unit_budget；复用原请求/摘要事件和 token 账本，不新增消费文件。启用时实际请求冻结单价与各单位预留，成员刷新/恢复同时维护单位快照；录制只增加可选配置/决策快照，旧文本录制格式保持。当前消费者工程验收完成，不把音频账本当作语音能力。C04.2 新增 application.image_questions、config.vision、contracts.vision、llm.local_vision、cli.image_question；bootstrap 只在显式独立入口组装回环模型，复用 ContextBuilder/RequestRunner 与 SessionAccount/SharedTokenBudget，subagents.account.restore_account 恢复既有子日志，不生成新任务。SessionLog 验证可选 image_question 来源及未知费用，旧文本格式不变；默认聊天/DeepSeek/主子工具链不升级。真实视觉首批严格 2/4、最终复验 3/4，均非全通过，不能当通用可靠布局能力；详见 [视觉问答](visual-question-answering.md)。C04.1 新增 vision.models/service/adapters.pillow 与 tool_calls.vision_tools；bootstrap 按 VisionConfig 注入原路径策略及主子独立 SessionMedia，Conversation 不新增图片工具分支或 SDK 依赖，默认模型不获视觉能力。C00.3 新增 contracts.model_input、application.media_input、llm.message_encoding 与 recording.media；复用 C00.2，不新增上传/解码能力。媒体字节只在模型发送边界编码及录制旁路冻结，Conversation 只编排通用输入预检与引用，不认识具体图片 SDK；默认客户端仍无视觉声明。C01.3 新增 web.evidence 与 tool_calls.web_sources，复用原工具/JSONL 边界。B12.2.2 新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用；B12.2.3 已接入显式知识入口与主子目录保护，B12.3 已验收竞争/中断边界。B12.2.1 的独立状态、锁外回调与落盘前来源/修订复核，以及 B11.3 的原文审计和冻结证据说明保留；生产聊天流程不新增最终回答拦截，来源与逐字引用有效不能证明语义正确。
+核对结论：新增 scripts.web_evaluation 独立评估入口与对应关系图；生产对话、网络和存储职责保持。主子文件、文档、规则、Skill、提案及图片读取同时保护 _media 和 _mcp_media。图片路径授权不依赖可选规则开关，真实子任务回归确认拒绝后无媒体来源/正文副作用。当前同步 main 固定 446d767 的 B16.1～3；只读取已提交内容。C00.4 新增 contracts.consumption、config.consumption、context.consumption、session.consumption_log 与 subagents.unit_budget；复用原请求/摘要事件和 token 账本，不新增消费文件。启用时实际请求冻结单价与各单位预留，成员刷新/恢复同时维护单位快照；录制只增加可选配置/决策快照，旧文本录制格式保持。当前消费者工程验收完成，不把音频账本当作语音能力。C04.2 新增 application.image_questions、config.vision、contracts.vision、llm.local_vision、cli.image_question；bootstrap 只在显式独立入口组装回环模型，复用 ContextBuilder/RequestRunner 与 SessionAccount/SharedTokenBudget，subagents.account.restore_account 恢复既有子日志，不生成新任务。SessionLog 验证可选 image_question 来源及未知费用，旧文本格式不变；默认聊天/DeepSeek/主子工具链不升级。真实视觉首批严格 2/4、最终复验 3/4，均非全通过，不能当通用可靠布局能力；详见 [视觉问答](visual-question-answering.md)。C04.1 新增 vision.models/service/adapters.pillow 与 tool_calls.vision_tools；bootstrap 按 VisionConfig 注入原路径策略及主子独立 SessionMedia，Conversation 不新增图片工具分支或 SDK 依赖，默认模型不获视觉能力。C00.3 新增 contracts.model_input、application.media_input、llm.message_encoding 与 recording.media；复用 C00.2，不新增上传/解码能力。媒体字节只在模型发送边界编码及录制旁路冻结，Conversation 只编排通用输入预检与引用，不认识具体图片 SDK；默认客户端仍无视觉声明。C01.3 新增 web.evidence 与 tool_calls.web_sources，复用原工具/JSONL 边界。B12.2.2 新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用；B12.2.3 已接入显式知识入口与主子目录保护，B12.3 已验收竞争/中断边界。B12.2.1 的独立状态、锁外回调与落盘前来源/修订复核，以及 B11.3 的原文审计和冻结证据说明保留；生产聊天流程不新增最终回答拦截，来源与逐字引用有效不能证明语义正确。
 
 主线同步：recording.journal 提取 parse_recording，读取与导出复用原协议和残缺尾部规则；新增 redaction 与 sharing，仅处理本地数据。先识别敏感值再替换重复文本，报告不保存原文；同目录临时文件完成后排他发布，分享格式不当作录制格式。原注释及协议说明保持并补充同份字节来源约束。
 
@@ -30,7 +30,7 @@ B16.3 同步核对（固定主线 446d767）：生产架构无变化；新增离
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
-C 系列最近核对（2026-11-02）：C01.4 的 prepare/evaluate/run_case 复用正式主应用与原 JSONL，只在受控阅读页注入精确环回源，真实百科搜索工厂保持；citation_report 只校验保存来源和字符范围，语义质量独立判读。严格完整通过 2/5、另 1 项部分通过，不宣称可靠搜索。C00.3 已接入宿主 send 的当前会话固定媒体引用、能力与正文双重校验、摘要/反思媒体预算，以及完整字节旁路校验的离线重放；实际图片加载/解码由 C04.1 接入原工具/媒体边界，C04.2 显式本地问答已接通但真实烟测首批严格 2/4、最终复验 3/4，OCR 与综合质量仍为 C04.3～4。C01.3 把 search_web 与 read_web_source 接入主子原工具管线；web.evidence 先限长再绑定快照 ID/逐字范围，WebSources 只从当前所属 SessionStore 已保存 read_webpage 结果回查，搜索候选不成为正文证据。原 JSONL/录制格式保持，无新来源数据库或回答语义拦截。C01.2 新增独立 SearchBackend/SearchResult、WikipediaSearch 及搜索 CLI；open_search 按次创建 JSON 专用 HTTP 资源，复用原 DNS 固定/TLS/取消边界，候选与网页正文版本分开，独立后端本身不改变日志协议。C02.3 扩展每会话标签/弹窗/对话框及显式附件下载；浏览器保持窄端口，SDK 仅由适配器持有。bootstrap 把原执行来源和 SessionMedia 注入主浏览器工具，并向 facade 注入主轮次中断清理；字节经 C00.2 发布并提交来源后才交付引用，录制重放仅导入媒体事实、不重做动作。弹窗事件窗口从点击完成后计时，原标签丢失不自动创建重定向替代页；原逐次批准、_media 保护、文本附件与主线 B 关系保持，C02.4 真实模型质量仍待验收。主线文首与正文保留。
+C 系列最近核对（2026-11-02）：C01.4 的 prepare/evaluate/run_case 复用正式主应用与原 JSONL，只在受控阅读页注入精确环回源，真实百科搜索工厂保持；citation_report 只校验保存来源和字符范围，语义质量独立判读。严格完整通过 2/5、另 1 项部分通过，不宣称可靠搜索。C00.3 已接入宿主 send 的当前会话固定媒体引用、能力与正文双重校验、摘要/反思媒体预算，以及完整字节旁路校验的离线重放；实际图片加载/解码由 C04.1 接入原工具/媒体边界，C04.2 显式本地问答已接通但真实烟测首批严格 2/4、最终复验 3/4，OCR 与综合质量仍为 C04.3～4。C01.3 把 search_web 与 read_web_source 接入主子原工具管线；web.evidence 先限长再绑定快照 ID/逐字范围，WebSources 只从当前所属 SessionStore 已保存 read_webpage 结果回查，搜索候选不成为正文证据。原 JSONL/录制格式保持，无新来源数据库或回答语义拦截。C01.2 新增独立 SearchBackend/SearchResult、WikipediaSearch 及搜索 CLI；open_search 按次创建 JSON 专用 HTTP 资源，复用原 DNS 固定/TLS/取消边界，候选与网页正文版本分开，独立后端本身不改变日志协议。C02.3 扩展每会话标签/弹窗/对话框及显式附件下载；浏览器保持窄端口，SDK 仅由适配器持有。bootstrap 把原执行来源和 SessionMedia 注入主浏览器工具，并向 facade 注入主轮次中断清理；字节经 C00.2 发布并提交来源后才交付引用，录制重放仅导入媒体事实、不重做动作。弹窗事件窗口从点击完成后计时，原标签丢失不自动创建重定向替代页；原逐次批准、_media 保护、文本附件与主线 B 关系保持，C02.4 固定本地模型任务已完成一次真实查询/提交/回执，结果及限制另存。主线文首与正文保留。
 
 ## C00.4 多单位消费
 
@@ -792,6 +792,22 @@ flowchart LR
 ~~~
 
 [搜索契约](../adam/web/search_models.py) 不包含 SDK 或会话；[百科适配器](../adam/web/adapters/wikipedia.py) 借用窄网络端口，只从默认官方端点或可信本地验收端点构造候选。未配置后端先失败、不创建资源；API 重定向拒绝、无自动重试。标题/摘要/条数/响应字节有界，非法整批不作为空结果。`search_snippets` 的响应摘要不代表候选网页版本，独立 CLI 不经过模型请求或 JSONL；主子工具与来源片段闭环见下节。原 WebReader 类型、主子可选读取、权限/批准及 B 系列关系保持。接口、限制、真实 HTTP 与真实百科后端验证见 [网页与搜索](web-reading.md)。
+
+## C02.4 独立浏览器验收
+
+~~~mermaid
+flowchart LR
+    BA_RUN["scripts.browser_acceptance / 冻结任务与临时会话"] --> BA_APP["原 build_application / 工具、逐次批准、JSONL"]
+    BA_APP --> BA_MODEL["真实环回模型 / LLMClient SSE"]
+    BA_APP --> BA_BROWSER["原 BrowserTools / ChromiumDriver"]
+    BA_BROWSER --> BA_SITE["scripts.browser_fixture / 临时查询、表单、回执"]
+    BA_SITE --> BA_FILE["receipts.json / 仅实际 POST 保存"]
+    BA_FILE --> BA_CHECK["observables / 独立核对一次保存"]
+    BA_APP --> BA_TRACE["原请求与工具日志 / 真实观察"]
+    BA_TRACE --> BA_CHECK
+~~~
+
+生产浏览器图保持；脚本只运行一个固定测试闭环，不注册新的产品工具。真实模型单次通过，旧引用/重复/取消由独立业务场景验证，见 [浏览器验收](browser-observation.md#c024-固定任务验收)。
 
 ## C01.4 固定真实模型对照
 
