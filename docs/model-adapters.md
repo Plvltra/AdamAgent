@@ -4,7 +4,7 @@
 
 - [x] B24.1：公共消息、工具身份和原字段视图。
 - [x] B24.2：双协议客户端、TOML入口和安全切换限制。
-- [ ] B24.3：本地工具循环、切换及失败验收。
+- [x] B24.3：本地工具循环、切换及失败验收。
 
 [message_view](../adam/contracts/model_history.py) 提取角色、正文、工具ID、函数名、JSON参数和结果关联。原字段保存为独立副本，`to_raw()`可还原，包括`reasoning_content`及未知扩展；不会修改既有JSONL。视图只校验单条消息，原有完整轮次校验仍负责工具配对。
 
@@ -22,4 +22,12 @@ B24.1的[6项测试](../tests/features/test_model_protocol_view.py)验证工具�
 
 请求为一次非流式POST，连接未建立沿用原有限重试类别，HTTP失败和未知消费不自行重试。截断或未知块拒绝提交。输入总量包含非缓存输入、缓存读取与创建三项，任一缺失保持未知；本版未输出独立缓存细项。前缀观测仍是原会话字典的本地观察，不等同于远端缓存命中。
 
-协议依据：[DeepSeek Messages API](https://api-docs.deepseek.com/api/create-message/)、[兼容说明](https://api-docs.deepseek.com/guides/anthropic_api/)，2026-11-02核对。只用MockTransport替换远端；真实文件读取、工具执行、JSONL和重启恢复已跑通。11项新增、协议/工具/流式/配置/架构相关121项通过（10.28秒）；Ruff和Pyright通过。新增模块和改动注释已审查，complete原契约保留并补充协议范围；架构同步。主线按 AGENTS.md 三级验证规则执行。跨协议恢复、取消和未知消费恢复留B24.3，不宣称真实模型质量已验证。
+协议依据：[DeepSeek Messages API](https://api-docs.deepseek.com/api/create-message/)、[兼容说明](https://api-docs.deepseek.com/guides/anthropic_api/)，2026-11-02核对。只用MockTransport替换远端；真实文件读取、工具执行、JSONL和重启恢复已跑通。11项新增、协议/工具/流式/配置/架构相关121项通过（10.28秒）；Ruff和Pyright通过。新增模块和改动注释已审查，complete原契约保留并补充协议范围；架构同步。主线按 AGENTS.md 三级验证规则执行。跨协议恢复、取消和未知消费恢复已由B24.3补验，仍不宣称真实模型质量已验证。
+
+## B24.3 恢复与人工入口
+
+[三个恢复场景](../tests/features/test_model_protocol_recovery.py)使用真实Conversation、JSONL和read_file。先以Messages读取文件并完成回答，删除原文件，再重启为Chat Completions继续；历史仍包含原结果，工具开始记录只有一次。另在Messages HTTP边界注入KeyboardInterrupt和ReadTimeout，确认失败输入不进上下文、用量保持未知，重启换协议后仍在发送前停止。它们不是物理键盘、远端断网或真实模型效果测试。
+
+连同协议视图、适配、原工具循环、流式、配置和架构共124项通过（9.51秒）；格式和lint通过。生产代码未改，新增测试已全文审查，架构核对无结构变化。主线提交仍执行全量检查。
+
+真实模型手动验收：使用自己的临时配置和新会话，分别选择chat_completions与messages，输入同一简单问题，再要求读取工作目录中的小文本文件。确认文件内容进入最终回答且会话可恢复；两种协议使用各自文档规定的base_url。不要为验证自动迁移带私有推理的旧会话。本轮未执行这些付费请求，真实模型选工具、成本与网络取消体验保持待验证。

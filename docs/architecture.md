@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B24.2配置选择、Messages非流式适配与原工具循环。
+本次核对范围：B24.3协议切换、请求失败及重启验收，生产架构无变化。
 
-核对结论：LLMClient按LLMConfig.protocol分派，Messages模块负责转换、HTTP和用量，应用仍只依赖ModelClient。原JSONL及工具实现不变，未删除原complete契约。
+核对结论：生产架构无变化，保留B24.2调用图。新增测试经过原Conversation、SessionStore与真实文件工具，验证原历史和未知消费保护；新增说明已审查，没有删除生产注释。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
