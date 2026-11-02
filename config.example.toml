@@ -179,6 +179,9 @@ max_scan_entries = 5000
 max_text_file_bytes = 1048576
 # 一次文本查询的总读取字节；每次翻页重新受此限制。
 max_scan_bytes = 33554432
+# 显式正则的单文件字节与单进程期限；仍受整次scan_timeout_seconds约束。
+max_regex_file_bytes = 262144
+regex_timeout_seconds = 1
 # PDF 原字节上限与单次请求页数；解码和总页数仍受独立解析边界限制。
 max_pdf_file_bytes = 8388608
 max_pdf_read_pages = 20

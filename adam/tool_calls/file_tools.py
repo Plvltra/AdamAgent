@@ -73,7 +73,7 @@ class FileTools:
         return self._queries.run("find_files", path, args)
 
     def search_text(self, path: Path, args: dict[str, Any]) -> dict[str, Any]:
-        """字面查询带版本与行号的文本；跳过不可读文件计数，超限/取消不返回部分页。"""
+        """默认字面、显式正则查询；返回版本与行号，跳过文件计数，超限/取消不返回部分页。"""
         return self._queries.run("search_text", path, args)
 
     def _check_cancel(self) -> None:

@@ -214,7 +214,7 @@ V1.3 的状态、诊断和恢复已验收，V2.1/V2.2 基础工具闭环已实�
 ## 只读工具与循环
 
 工具模块提供 `list_directory`（分页列目录）、`find_files`（glob文件查找）、
-`read_file`（按行读取）、`search_text`（字面搜索）、`file_info`，以及
+`read_file`（按行读取）、`search_text`（默认字面、显式 `mode=regex` 逐行正则）、`file_info`，以及
 `git_status`、`git_diff`（含 staged 参数）、`git_log`（最多50条）。
 模型看到 JSON Schema；参数必须满足类型、必填字段与额外字段约束。
 未知工具、坏参数和文件错误作为 `role=tool` 的 JSON 错误返回，模型可修正。

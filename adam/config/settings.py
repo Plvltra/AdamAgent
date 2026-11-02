@@ -88,6 +88,8 @@ class ToolLimits:
     max_scan_entries: int = 5000
     max_text_file_bytes: int = 1048576
     max_scan_bytes: int = 33554432
+    max_regex_file_bytes: int = 262144
+    regex_timeout_seconds: int = 1
     max_pdf_file_bytes: int = 8388608
     max_pdf_read_pages: int = 20
     max_pdf_stream_bytes: int = 2097152
@@ -100,6 +102,8 @@ class ToolLimits:
         """PDF上限与解析器一致，查询字节保持有界；直接构造和TOML均不能关闭边界。"""
         for name, ceiling in (
             ("max_scan_bytes", 100000000),
+            ("max_regex_file_bytes", 262144),
+            ("regex_timeout_seconds", 30),
             ("max_pdf_file_bytes", 33554432),
             ("max_pdf_read_pages", 100),
             ("max_pdf_stream_bytes", 8388608),

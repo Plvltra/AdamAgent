@@ -2,24 +2,25 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B21.2.1 固定正则工作进程的独立API、输入输出和取消边界。
+本次核对范围：B21.2.2 显式regex模式、配置、共享扫描期限、游标与真实工具循环。
 
-核对结论：新增regex_match宿主接口和仅依赖标准库的regex_worker，通过临时文件传有界资料；取消/超时由宿主回收真实进程。目前尚未接入FileQueries，字面默认行为保持。新增说明已对照实际流程审查，无旧注释删除。
+核对结论：FileQueries按显式mode建立匹配器，regex调用match_lines固定进程并受剩余扫描期限限制；literal不启动进程。来源、完整页、原日志与重放路径保持。旧字面说明更新为默认行为，其余读取与失败解释保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
-## B21.2.1 正则进程基础
+## B21.2 显式正则搜索
 
 ~~~mermaid
 flowchart LR
-    RX_API["match_lines / 校验、取消、期限与结果复核"] --> RX_FILES["有界临时请求/结果文件"]
+    RX_QUERY["FileQueries / 显式regex与剩余期限"] --> RX_API["match_lines / 校验、取消、期限与结果复核"]
+    RX_API --> RX_FILES["有界临时请求/结果文件"]
     RX_API --> RX_PROCESS["独立 Python -I -S / regex_worker"]
     RX_PROCESS --> RX_FILES
 ~~~
 
-这是尚未接入模型工具的宿主API，固定脚本不读取项目路径、不执行模型代码。见 [资源及验收边界](file-search.md)。
+原search_text入口已接入显式mode，字面方式仍在原进程处理；固定脚本只接收授权文件快照，不读取项目路径、不执行模型代码。见 [资源及验收边界](file-search.md)。
 
 ## B21.1 文件查询与分页
 

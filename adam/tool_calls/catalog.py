@@ -121,11 +121,13 @@ SPECS = {
         ["path"],
     ),
     "search_text": schema(
-        "递归搜索字面文本，按路径/行号稳定分页，next_cursor可继续；来源变化须重查。"
+        "递归搜索文本，默认literal字面匹配，显式mode=regex才用逐行正则。"
+        "按路径/行号稳定分页，next_cursor可继续；来源或模式变化须重查。"
         "返回实际文件version，skipped_files表示未搜索文件数，不能据此声称整个目录没有匹配。",
         {
             "path": PATH,
-            "query": ("string", "字面文本，1～4096字符"),
+            "query": ("string", "字面文本1～4096字符；regex为Python正则，最多1024字符，不跨行"),
+            "mode": ("string", "literal（默认）或regex；正则有独立输入大小和期限限制"),
             "pattern": ("string", "文件glob，默认*，1～1024字符"),
             **FILE_PAGING,
         },

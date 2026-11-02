@@ -3,7 +3,7 @@
 import fnmatch
 import json
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -15,6 +15,7 @@ from adam.contracts.file_query import QueryCursor, decode_cursor, query_digest
 from adam.tool_calls.file_evidence import FileStateError
 from adam.tool_calls.policy import PathPolicy
 from adam.tool_calls.query_scan import QueryInventory, capture_inventory
+from adam.tool_calls.regex_match import match_lines
 from adam.tool_calls.text_file import TextSnapshot, read_snapshot
 
 
@@ -34,12 +35,15 @@ class FileQueries:
         """
         limit, offset = _paging(kind, args)
         pattern, query = args.get("pattern", "*"), args.get("query", "")
+        mode = args.get("mode", "literal")
+        if mode not in {"literal", "regex"}:
+            raise ToolError("mode只能为literal或regex，默认literal。")
         if not pattern or len(pattern) > 1024:
             raise ToolError("文件glob必须为1～1024个字符。")
         if kind == "search_text" and (not query or len(query) > 4096):
             raise ToolError("搜索文本必须为1～4096个字符。")
         query_key = query_digest(
-            {"kind": kind, "path": str(path), "pattern": pattern, "query": query, "mode": "literal"}
+            {"kind": kind, "path": str(path), "pattern": pattern, "query": query, "mode": mode}
         )
         try:
             cursor = decode_cursor(args["cursor"], query_key) if "cursor" in args else None
@@ -64,11 +68,12 @@ class FileQueries:
                 check=check,
             )
 
+        match = self._matcher(query, mode, deadline, check)
         initial = inventory()
         if kind == "list_directory" and initial.entries[0].kind != "directory":
             raise ToolError("list_directory的path必须是目录。")
         page = _Page(kind, query_key, offset, limit, self.limits.max_result_chars)
-        sources, skipped = self._collect(initial, kind, pattern, query, page, check)
+        sources, skipped = self._collect(initial, kind, pattern, match, page, check)
         if inventory().generation != initial.generation:
             raise ToolError("查询来源在扫描期间发生变化，请从第一页重试。")
         generation = query_digest({"inventory": initial.generation, "sources": sources})
@@ -82,7 +87,7 @@ class FileQueries:
         initial: QueryInventory,
         kind: str,
         pattern: str,
-        query: str,
+        match: Callable[[TextSnapshot], Iterator[tuple[int, str]]],
         page: "_Page",
         check: Callable[[], None],
     ) -> tuple[list[dict[str, Any]], int]:
@@ -112,20 +117,59 @@ class FileQueries:
             if snapshot is None:
                 skipped += 1
                 continue
+            for number, text in match(snapshot):
+                page.offer(
+                    {
+                        "path": relative,
+                        "line": number,
+                        "text": text[:500],
+                        "version": source["version"],
+                        "line_truncated": len(text) > 500,
+                    }
+                )
+        return sources, skipped
+
+    def _matcher(
+        self, query: str, mode: str, deadline: float, check: Callable[[], None]
+    ) -> Callable[[TextSnapshot], Iterator[tuple[int, str]]]:
+        """建立本次匹配方式；正则先校验语法，空目录也不能把坏表达式当成无匹配。
+
+        字面方式不创建进程；正则每文件独立执行，仍受整次扫描剩余期限约束。
+        正则失败不能被不可读文件的跳过规则吞掉。
+        """
+
+        def regex(text: str) -> tuple[int, ...]:
+            check()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ToolError("扫描达到时间上限，请缩小搜索目录。")
+            return match_lines(
+                query,
+                text,
+                timeout_seconds=min(self.limits.regex_timeout_seconds, remaining),
+                cancel=self.cancel,
+            )
+
+        if mode == "regex":
+            regex("")
+
+        def matches(snapshot: TextSnapshot) -> Iterator[tuple[int, str]]:
+            check()
+            selected: Iterator[int] | None = None
+            if mode == "regex":
+                if len(snapshot.raw) > self.limits.max_regex_file_bytes:
+                    raise ToolError("文件超过正则输入大小上限，请缩小范围或改用字面搜索。")
+                selected = iter(regex(snapshot.text))
+            next_match = next(selected, None) if selected is not None else None
             for number, line in enumerate(StringIO(snapshot.text, newline=None), 1):
                 check()
-                if query in line:
-                    text = line.rstrip("\r\n")
-                    page.offer(
-                        {
-                            "path": relative,
-                            "line": number,
-                            "text": text[:500],
-                            "version": source["version"],
-                            "line_truncated": len(text) > 500,
-                        }
-                    )
-        return sources, skipped
+                text = line.rstrip("\r\n")
+                if (selected is None and query in text) or number == next_match:
+                    yield number, text
+                    if selected is not None:
+                        next_match = next(selected, None)
+
+        return matches
 
     def _read(
         self, file: Path, observed_size: int, remaining: int
