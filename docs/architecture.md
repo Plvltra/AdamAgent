@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B31.3 单开关配置、生产记忆选择观察与只读配对报告；生产聊天架构无变化。
+本次核对范围：B32.1 只读首错报告及独立终态证据关联；生产聊天架构无变化。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2112,3 +2112,6 @@ flowchart LR
 ## B31.3 消融与证据报告
 
 scripts.task_eval_report生成单一enabled开关配置，并只读manifest和逐次试验JSON，按case/iteration配对；缺失结果不从分母移除。task_eval通过已有observe_conversation接口包装生产memory_provider，只记录其实际返回身份，不修改选择结果。报告区分离线工程和真实模型结果，不把配置相关性当作机制因果证据。
+## B32.1 首错证据
+
+scripts.first_error复用session.log校验完整JSONL，再按物理行序提取请求/轮次/工具明确失败；B31单次结果通过session_id关联独立终态验证。输出物理行、运行身份和哈希，不修改会话，不调用模型；主次候选与根因未证明分开。环境快照及新模型续跑待B32.2/3。
