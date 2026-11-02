@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B18.1 命令管道的头尾捕获、字节统计与一致快照。
+本次核对范围：B18.2 命令、附件及重复失败反馈的最终头尾预览。
 
-核对结论：CommandTools 将原前缀缓冲替换为 command_output.OutputCapture，两条管道各自保持头尾；CapturedOutput 携带已读/省略数量、EOF与编码状态。批准、启动和清理边界保持；原持续排空与编码说明迁到新模块。最终预览和附件接入仍使用原路径，B18.2继续改进。
+核对结论：新增 result_preview.encode_head_tail 供命令、ToolArtifacts 与 progress_output 共用。ToolInvocation 为反馈重编码提供宿主原文本，避免反复剪掉尾部；状态、来源和停止结论仍由原流程确定。附件保存先于预览，配额和原字节完整性语义保持。原不修改动作/正文及优先状态说明均保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -18,10 +18,14 @@ flowchart LR
     CMD_PIPES --> CMD_BUFFER["command_output.OutputCapture / 固定头部与滚动尾部"]
     CMD_BUFFER --> CMD_SNAPSHOT["CapturedOutput / 一致计数、EOF、UTF-8与头尾"]
     CMD_SNAPSHOT --> CMD_RESULT["原命令结果与有界 command_finished"]
-    CMD_RESULT --> CMD_ART["ToolArtifacts / 原附件和最终预览"]
+    CMD_RESULT --> CMD_ART["ToolArtifacts / 原附件先保存"]
+    CMD_RESULT --> CMD_PREVIEW["result_preview / 实际 JSON 预算与两端文本"]
+    CMD_ART --> CMD_PREVIEW
+    CMD_PROGRESS["progress_output / 原结果文本与宿主重复失败观察"] --> CMD_PREVIEW
+    CMD_PREVIEW --> CMD_FINAL["同一最终工具消息 / JSONL 与模型输入"]
 ~~~
 
-本步源头已保留尾部，最终预览仍待B18.2；见 [输出契约](command-output.md)。
+源头和最终预览均保留头尾，字符省略与原字节省略分开，附件完整性保持原义；见 [输出契约](command-output.md)。
 
 ## B17.3.1 图片分析扩展契约
 

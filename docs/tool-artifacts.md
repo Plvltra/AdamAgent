@@ -15,7 +15,7 @@ T8.1 提供 ArtifactSource、ArtifactRef、ArtifactPage 和 ArtifactStore。T8.2
 [artifacts] 默认开启，参数见下表及 config.example.toml；enabled=false 时不注册 read_artifact，也不扩大命令捕获范围。正文目录只在实际产生附件时创建。
 
 1. 工具结果 JSON 超过 tool_limits.max_result_chars 时尝试保存正文。
-2. 模型收到有界预览与 artifact：artifact_id、version、saved_chars、complete、format=json。命令仍保留退出码与状态；非零退出不会被描述为检查通过。
+2. 模型收到有界预览与 artifact：artifact_id、version、saved_chars、complete、format=json。命令仍保留退出码、状态及头尾预览，source_truncated 和 preview_omitted_chars 区分原结果与展示层省略；非零退出不会被描述为检查通过。
 3. read_artifact 接受 artifact_id、version，以及可选 offset/count；当前会话由宿主绑定，不接受 session_id 或文件路径。返回 text、offset、next_offset 和完整性。
 4. 分页同时服从 max_read_chars 与实际 JSON 编码后的 max_result_chars。转义导致进一步缩短时同步 next_offset，不跳过字符；读取内容进入原工具消息，因此继续受工具次数与上下文预算约束。
 5. 正文先发布，再追加 artifact_saved 来源事件，最后保存 tool_finished 和执行后置 Hook。事件核对正在进行的轮次、成功请求、实际工具名称与调用 ID；同一调用只保存一份引用。

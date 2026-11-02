@@ -12,6 +12,7 @@ from adam.session.artifacts import ArtifactStore
 from adam.session.storage import SessionStore
 from adam.tool_calls.catalog import schema
 from adam.tool_calls.registry import ToolRegistry
+from adam.tool_calls.result_preview import encode_head_tail
 
 _SPEC = schema(
     "按字符读取当前会话的工具结果附件。使用结果中的 artifact_id 和 version；"
@@ -123,8 +124,16 @@ class ToolArtifacts:
         return output
 
     def _preview(self, result: dict[str, Any], raw: str, metadata: dict[str, Any]) -> str:
-        """保留实际状态和退出码；预览缩短只改变展示，不改原结果或附件正文。"""
-        output: dict[str, Any] = {"ok": result.get("ok") is True, "truncated": True, **metadata}
+        """保留状态、退出码和头尾；展示层省略与原输出不完整分别标记。
+
+        预览不改原结果或附件正文；完整捕获元数据仍在命令事实日志和已保存正文中。
+        """
+        output: dict[str, Any] = {
+            "ok": result.get("ok") is True,
+            "truncated": True,
+            "source_truncated": result.get("truncated") is True,
+            **metadata,
+        }
         for key in ("status", "version", "exit_code", "timed_out", "elapsed_seconds"):
             value = result.get(key)
             if key in result and (
@@ -133,28 +142,19 @@ class ToolArtifacts:
                 or (isinstance(value, str) and len(json.dumps(value, ensure_ascii=False)) <= 130)
             ):
                 output[key] = value
-        texts = [key for key in ("stdout", "stderr") if isinstance(result.get(key), str)]
-        if texts:
-            output.update({key: result[key] for key in texts})
-        else:
-            texts = ["preview"]
-            output["preview"] = raw[: self.max_result_chars]
-        while True:
-            encoded = json.dumps(output, ensure_ascii=False)
-            if len(encoded) <= self.max_result_chars:
-                return encoded
-            key = max(texts, key=lambda item: len(output[item]))
-            if output[key]:
-                output[key] = output[key][: len(output[key]) // 2]
-                continue
-            # 极小上限优先保留动作状态、退出码和可用引用；其他原字段仍在附件中。
-            optional = next(
-                (item for item in ("elapsed_seconds", "version", "timed_out") if item in output),
-                None,
+        texts = {
+            key: result[key] for key in ("stdout", "stderr") if isinstance(result.get(key), str)
+        } or {"preview": raw}
+        # 极小上限优先保留动作状态、退出码和可用引用；其他原字段仍在附件中。
+        try:
+            return encode_head_tail(
+                output,
+                texts,
+                self.max_result_chars,
+                optional=("elapsed_seconds", "version", "timed_out"),
             )
-            if optional is None:
-                raise StorageError("工具结果上限不足以容纳附件引用。")
-            del output[optional]
+        except ToolError as error:
+            raise StorageError("工具结果上限不足以容纳附件引用与省略信息。") from error
 
 
 def _reference_preview(reference: ArtifactRef) -> dict[str, Any]:

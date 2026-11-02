@@ -15,6 +15,7 @@ from adam.contracts.errors import CommandLogError, ToolError
 from adam.contracts.models import CommandRequest, ExecutionRecorder
 from adam.tool_calls.command_output import OutputCapture
 from adam.tool_calls.processes import terminate_process
+from adam.tool_calls.result_preview import encode_head_tail
 
 
 class CommandTools:
@@ -71,16 +72,12 @@ class CommandTools:
 
         不修改后续附件需要的原捕获结果。
         """
-        output = dict(output)
-        encoded = json.dumps(output, ensure_ascii=False)
-        while len(encoded) > self.limits.max_result_chars:
-            key = "stdout" if len(output["stdout"]) >= len(output["stderr"]) else "stderr"
-            if not output[key]:
-                raise ToolError("结果上限不足以容纳命令状态。")
-            output[key] = output[key][: len(output[key]) // 2]
-            output["truncated"] = True
-            encoded = json.dumps(output, ensure_ascii=False)
-        return encoded
+        return encode_head_tail(
+            output,
+            {"stdout": output["stdout"], "stderr": output["stderr"]},
+            self.limits.max_result_chars,
+            optional=("elapsed_seconds",),
+        )
 
     def _prepare(self, args: dict[str, Any]) -> CommandRequest:
         """校验通用参数并解析执行路径；确认界面展示的参数即实际执行参数。"""

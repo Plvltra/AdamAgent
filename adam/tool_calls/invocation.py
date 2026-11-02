@@ -96,7 +96,9 @@ class ToolInvocation:
             else self.registry.encode(self.name, result)
         )
         if progress is not None:
-            output = encode_progress(output, progress, self.registry.limits.max_result_chars)
+            output = encode_progress(
+                output, progress, self.registry.limits.max_result_chars, original=result
+            )
         self.store.append_tool_event(
             self.session_id, "tool_finished", {**self._link(), "output": output}
         )

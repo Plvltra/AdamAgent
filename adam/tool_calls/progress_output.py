@@ -3,15 +3,23 @@
 import json
 from typing import Any
 
-from adam.contracts.errors import StorageError
+from adam.contracts.errors import StorageError, ToolError
 from adam.tool_calls.progress import ProgressAction, ProgressDecision
+from adam.tool_calls.result_preview import encode_head_tail
 
 
-def encode_progress(output: str, decision: ProgressDecision, max_chars: int) -> str:
+def encode_progress(
+    output: str,
+    decision: ProgressDecision,
+    max_chars: int,
+    *,
+    original: dict[str, Any] | None = None,
+) -> str:
     """添加有界 no_progress 字段，返回最终落日志且发送给模型的同一份 JSON。
 
     output 已经经过原工具/附件编码器；完整附件不改写。只在真实业务失败时附加观察，
     零计数直接返回。扩展不能以工具自带的同名字段控制结论，调用方须先移除该保留字段。
+    original 仅提供宿主原结果的文本，避免再次裁剪已带省略标记的预览；状态与引用仍取 output。
     """
     if not decision.consecutive_failures:
         return output
@@ -36,14 +44,14 @@ def encode_progress(output: str, decision: ProgressDecision, max_chars: int) -> 
         "truncated": True,
         "no_progress": observation,
     }
-    for key in ("status", "exit_code", "artifact", "artifact_unavailable"):
+    for key in ("status", "exit_code", "artifact", "artifact_unavailable", "source_truncated"):
         if key in data:
             preview[key] = data[key]
-    preview["preview"] = output
-    while True:
-        encoded = json.dumps(preview, ensure_ascii=False)
-        if len(encoded) <= max_chars:
-            return encoded
-        if not preview["preview"]:
-            raise StorageError("工具结果上限不足以容纳执行状态、附件引用与停止观察。")
-        preview["preview"] = preview["preview"][: len(preview["preview"]) // 2]
+    source = original if original is not None else data
+    texts = {
+        key: source[key] for key in ("stdout", "stderr") if isinstance(source.get(key), str)
+    } or {"preview": json.dumps(original, ensure_ascii=False) if original is not None else output}
+    try:
+        return encode_head_tail(preview, texts, max_chars)
+    except ToolError as error:
+        raise StorageError("工具结果上限不足以容纳执行状态、附件引用与停止观察。") from error

@@ -231,10 +231,15 @@ def test_nonzero_command_long_output_retains_feedback_and_original_artifact(tmp_
             app.send("run command")
         results = tool_outputs(store.load_events(app.session.session_id))
         assert len(approvals) == len(bodies) == 3
+        # 验收实际保存并发送的编码；重新 dumps 会添加不存在于请求中的空格。
+        assert all(
+            len(event["payload"]["output"]) <= 512
+            for event in store.load_events(app.session.session_id)
+            if event["type"] == "tool_finished"
+        )
         for index, result in enumerate(results, start=1):
             assert result["ok"] and result["exit_code"] == 9 and result["status"] == "completed"
             assert result["no_progress"]["repeats"] == index
-            assert len(json.dumps(result, ensure_ascii=False)) <= 512
             reference = store.load_artifact(
                 app.session.session_id, result["artifact"]["artifact_id"]
             )
