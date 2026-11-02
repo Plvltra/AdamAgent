@@ -1,0 +1,18 @@
+{
+  "live_test_processes": [],
+  "status": "passed",
+  "independent_uia": {
+    "value": "C032 literal {ENTER}",
+    "handle": 14031150,
+    "process_id": 34040,
+    "visible": true
+  },
+  "visual_review": "专用窗口标题、标签、文本框及保存按钮完整可见；文本框显示字面量 C032 literal {ENTER}；保存按钮拥有键盘焦点。",
+  "value": "C032 literal {ENTER}",
+  "approval_count": 3,
+  "screenshot": "G:\\Myself\\Adam2\\.cache\\c032-unlocked-final\\verified-window.png",
+  "changes": "仅专用窗启动时 button.Focus；生产代码及完整帧复检不变",
+  "scope": "真实 build_application；仅 MockTransport 模拟模型；fill、TAB、控件 click 保存已验证；坐标 click 未在本批实机验收",
+  "dispatch_count": 3,
+  "launch": "Visible Start-Process -WindowStyle Normal"
+}

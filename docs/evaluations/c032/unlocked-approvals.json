@@ -1,0 +1,29 @@
+[
+  {
+    "handle": 14031150,
+    "process_id": 34040,
+    "version": "b0a5ebc571574ec8c0c35bb8927a4c2aaaaf82eca585dbbc20c00223bdf2d51b:fc3f078b6c94406c8c3ba5a4bb762f26",
+    "operation": "fill",
+    "control": 2,
+    "value": "C032 literal {ENTER}",
+    "point": null
+  },
+  {
+    "handle": 14031150,
+    "process_id": 34040,
+    "version": "c0644e0da706db49813a7c695c072fb2af1c7b4fb8e313b3fcfe19cc147e67eb:0e0255e9705b43658baf309414e8755d",
+    "operation": "key",
+    "control": null,
+    "value": "TAB",
+    "point": null
+  },
+  {
+    "handle": 14031150,
+    "process_id": 34040,
+    "version": "6b4ca127dd6a70994c84981d1e63d92e81c1e97404d50189a5f84cb953151893:6d74056fbd3b42b8afefe67f11dddbd7",
+    "operation": "click",
+    "control": 3,
+    "value": null,
+    "point": null
+  }
+]
