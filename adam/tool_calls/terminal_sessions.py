@@ -60,8 +60,13 @@ class TerminalSessions:
         self._sessions: dict[str, _Terminal] = {}
         self._closed = False
 
-    def start(self, owner: str, args: dict[str, Any]) -> dict[str, Any]:
-        """批准完整argv/cwd/env后启动独立进程；最多2个活终端、32条运行记录。"""
+    def start(
+        self, owner: str, args: dict[str, Any], *, identifier: str | None = None
+    ) -> dict[str, Any]:
+        """批准完整argv/cwd/env后启动独立进程；最多2个活终端、32条运行记录。
+
+        identifier仅供宿主在启动前保存意图时预分配；不能复用已有ID。
+        """
         if self._closed or not owner:
             raise ToolError("终端管理器已关闭或缺少会话。")
         if (
@@ -86,7 +91,13 @@ class TerminalSessions:
             )
         ):
             raise ToolError("env必须为有界字符串映射。")
-        identity = secrets.token_hex(8)
+        identity = identifier or secrets.token_hex(8)
+        if (
+            len(identity) != 16
+            or any(c not in "0123456789abcdef" for c in identity)
+            or identity in self._sessions
+        ):
+            raise ToolError("终端ID无效或已存在。")
         request = TerminalRequest("start", identity, command, tuple(env.items()))
         if not self.confirm or not self.confirm(request):
             return {"ok": False, "status": "denied"}

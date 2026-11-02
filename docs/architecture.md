@@ -2,7 +2,7 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B30.1 独立管道终端API及可选stdin/env启动参数；默认命令行为不变。
+本次核对范围：B30.2.1 TerminalService持久意图、会话归属和恢复；聊天接入未完成。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2059,3 +2059,13 @@ flowchart LR
 ~~~
 
 每个ID单独持有进程、输入写线程和输出捕获；默认命令仍关闭stdin并使用白名单环境。该步仅宿主API，聊天工具与持久来源记录待B30.2。详见[终端范围](persistent-terminals.md)。
+## B30.2.1 终端持久协调
+
+~~~mermaid
+flowchart LR
+  Service[application.TerminalService] --> State[每会话锁与每终端JSON快照]
+  Service --> Live[tool_calls.TerminalSessions]
+  State --> Recovery[恢复旧观察 / 未结算输入unknown]
+~~~
+
+启动和输入先写意图，实时查询再保存有界观察。终端ID由协调层预分配；恢复无活进程映射，不按PID重连或重发输入。聊天工具与CLI审批接入待B30.2.2。
