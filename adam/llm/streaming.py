@@ -58,9 +58,14 @@ class StreamReply:
         self.message: dict[str, Any] = {"role": "assistant", "content": None}
         self.calls: dict[int, dict[str, Any]] = {}
         self.finish_reason: str | None = None
+        self.progressed = False
 
     def accept(self, event: str) -> str:
-        """消费一个 JSON 事件，返回本片正文；结构或结束顺序错误抛 ValueError。"""
+        """返回本片正文并标记有效增量；结构或结束顺序错误抛ValueError。
+
+        progressed只供成功解析后读取；空增量、角色和用量通知不算语义进展。
+        """
+        self.progressed = False
         data = json.loads(event)
         if not isinstance(data, dict) or "error" in data:
             raise ValueError("invalid event")
@@ -87,6 +92,7 @@ class StreamReply:
                 if not isinstance(value, str):
                     raise ValueError("invalid text")
                 self.message[key] = (self.message.get(key) or "") + value
+                self.progressed |= bool(value)
                 if key == "content":
                     text = value
         calls = delta.get("tool_calls") or []
@@ -133,3 +139,4 @@ class StreamReply:
                 if not isinstance(value, str):
                     raise ValueError("invalid tool fragment")
                 target[key] += value
+                self.progressed |= bool(value)

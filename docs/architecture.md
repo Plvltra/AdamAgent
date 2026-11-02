@@ -2,15 +2,25 @@
 
 最近核对：2026-11-02
 
-本次核对范围：按用户要求缩小验证和提交门禁。
+本次核对范围：B25.1单调时钟策略、有效增量标记和时限配置。
 
-核对结论：生产架构无变化。Ruff 仅检查提交中的 Python 文件，Pyright 与全量 pytest 改为手动；局部验证和耗时规则以 AGENTS.md 为准。
+核对结论：llm新增StreamWatch，StreamReply成功解析后提供progressed标记，LLMConfig/loader增加两项时限。HTTP读取尚未使用该策略；原解析和取消说明保留，accept契约补充进展标记。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
 [B23.3对照入口](../scripts/span_edit_eval.py)只生成独立教学样本，经同一工具工厂真实编辑并保存参数/文件版本；[实际结果](span-editing.md)不代表聊天质量或token成本。
+
+## B25.1 流式监控基础
+
+```mermaid
+flowchart LR
+    SW_CFG[LLMConfig / 空闲与总时限] --> SW_POLICY[StreamWatch / 单调时钟]
+    SW_PARSE[StreamReply.accept / 原SSE解析] --> SW_FLAG[progressed / 有效增量]
+```
+
+策略与标记已独立验收，HTTP连接待B25.2；[约束说明](stream-deadlines.md)。
 
 ## B24.2 双协议入口
 

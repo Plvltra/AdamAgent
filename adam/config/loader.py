@@ -67,6 +67,8 @@ def load_llm_config(path: Path) -> LLMConfig:
         "timeout_seconds",
         "stream",
         "protocol",
+        "semantic_idle_seconds",
+        "stream_total_seconds",
     }
     checked_section(section, allowed, "llm")
 
@@ -123,6 +125,8 @@ def load_llm_config(path: Path) -> LLMConfig:
         timeout_seconds=float(timeout),
         stream=stream,
         protocol=section.get("protocol", "chat_completions"),
+        semantic_idle_seconds=section.get("semantic_idle_seconds", 120),
+        stream_total_seconds=section.get("stream_total_seconds", 600),
     )
 
 

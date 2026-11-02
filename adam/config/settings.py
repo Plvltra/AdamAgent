@@ -20,6 +20,8 @@ class LLMConfig:
     timeout_seconds: float = 120
     stream: bool = True
     protocol: str = "chat_completions"
+    semantic_idle_seconds: float = 120
+    stream_total_seconds: float = 600
 
     def __post_init__(self) -> None:
         """协议在启动时确定；Messages首版要求显式关闭流式。"""
@@ -27,6 +29,10 @@ class LLMConfig:
             raise ConfigError("llm.protocol 必须是 chat_completions 或 messages。")
         if self.protocol == "messages" and self.stream:
             raise ConfigError("Messages首版需要 llm.stream=false。")
+        for name in ("semantic_idle_seconds", "stream_total_seconds"):
+            value = getattr(self, name)
+            if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+                raise ConfigError(f"llm.{name} 必须为有限正秒数。")
 
 
 @dataclass(frozen=True)

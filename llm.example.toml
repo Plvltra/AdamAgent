@@ -4,6 +4,9 @@ protocol = "chat_completions"
 base_url = "https://api.deepseek.com"
 model = "deepseek-flash"
 timeout_seconds = 120
+# SSE有效输出空闲上限与单次流式总时限（秒）；心跳不续期。
+semantic_idle_seconds = 120
+stream_total_seconds = 600
 # 默认增量显示回答；不支持 SSE 的服务可显式关闭。
 stream = true
 
