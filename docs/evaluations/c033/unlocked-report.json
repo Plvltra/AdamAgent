@@ -1,0 +1,1837 @@
+{
+  "steps": [
+    {
+      "step": "initial",
+      "approvals_before": 0,
+      "result": {
+        "ok": true,
+        "status": "observed",
+        "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:7fca5d67cd7b4c099d072a83c7f5af7e",
+        "window": {
+          "identity": {
+            "handle": 9244220,
+            "process_id": 51492,
+            "runtime_id": [
+              42,
+              9244220
+            ]
+          },
+          "title": "Adam C033 Recovery Test",
+          "rect": [
+            200,
+            180,
+            800,
+            540
+          ],
+          "dpi": 96,
+          "width": 600,
+          "height": 360,
+          "controls": [
+            {
+              "parent": null,
+              "runtime_id": [
+                42,
+                9244220
+              ],
+              "name": "Adam C033 Recovery Test",
+              "control_type": "Window",
+              "automation_id": "",
+              "rect": [
+                200,
+                180,
+                800,
+                540
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                17504428
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Text",
+              "automation_id": "17504428",
+              "rect": [
+                238,
+                241,
+                434,
+                258
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                2888338
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Edit",
+              "automation_id": "2888338",
+              "rect": [
+                238,
+                286,
+                628,
+                307
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                19601504
+              ],
+              "name": "Save synthetic value",
+              "control_type": "Button",
+              "automation_id": "19601504",
+              "rect": [
+                238,
+                331,
+                478,
+                354
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                0
+              ],
+              "name": "",
+              "control_type": "TitleBar",
+              "automation_id": "",
+              "rect": [
+                224,
+                183,
+                792,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                0
+              ],
+              "name": "系统",
+              "control_type": "MenuBar",
+              "automation_id": "MenuBar",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                2
+              ],
+              "name": "最小化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                653,
+                181,
+                700,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                3
+              ],
+              "name": "最大化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                700,
+                181,
+                746,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                5
+              ],
+              "name": "关闭",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                746,
+                181,
+                793,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 5,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                1
+              ],
+              "name": "系统",
+              "control_type": "MenuItem",
+              "automation_id": "",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            }
+          ]
+        },
+        "image": {
+          "media_id": "a6192f355db810d288973d5e52ae12e8",
+          "source": {
+            "session_id": "724975c6",
+            "turn_id": "ae77bfa6d40f63786d12a8a919621474",
+            "kind": "tool",
+            "request_id": "323368d83a37df000c71d14841f2fc0c",
+            "tool_call_id": "check-1",
+            "tool_name": "desktop_observe"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 8018,
+          "version": "5b68b351e75645909775bb77e4b3e252b35f4fedee963ba474547f1e7a9e76e4",
+          "created_at": "2026-11-02T14:12:47.257104+00:00",
+          "schema_version": 1
+        }
+      },
+      "approvals_after": 0,
+      "save_exists": false,
+      "guard_invalidated": false
+    },
+    {
+      "step": "lost-focus-refused",
+      "approvals_before": 0,
+      "error": "ToolError: Desktop focus was lost; a new explicit observation is required",
+      "approvals_after": 1,
+      "save_exists": false,
+      "guard_invalidated": true
+    },
+    {
+      "step": "returned-old-refused",
+      "approvals_before": 1,
+      "error": "ToolError: Stale desktop observation; observe again",
+      "approvals_after": 1,
+      "save_exists": false,
+      "guard_invalidated": true
+    },
+    {
+      "step": "focus-renewed",
+      "approvals_before": 1,
+      "result": {
+        "ok": true,
+        "status": "observed",
+        "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:a63613a1d98f4f5ebb5423f3da7c8cb7",
+        "window": {
+          "identity": {
+            "handle": 9244220,
+            "process_id": 51492,
+            "runtime_id": [
+              42,
+              9244220
+            ]
+          },
+          "title": "Adam C033 Recovery Test",
+          "rect": [
+            200,
+            180,
+            800,
+            540
+          ],
+          "dpi": 96,
+          "width": 600,
+          "height": 360,
+          "controls": [
+            {
+              "parent": null,
+              "runtime_id": [
+                42,
+                9244220
+              ],
+              "name": "Adam C033 Recovery Test",
+              "control_type": "Window",
+              "automation_id": "",
+              "rect": [
+                200,
+                180,
+                800,
+                540
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                17504428
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Text",
+              "automation_id": "17504428",
+              "rect": [
+                238,
+                241,
+                434,
+                258
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                2888338
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Edit",
+              "automation_id": "2888338",
+              "rect": [
+                238,
+                286,
+                628,
+                307
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                19601504
+              ],
+              "name": "Save synthetic value",
+              "control_type": "Button",
+              "automation_id": "19601504",
+              "rect": [
+                238,
+                331,
+                478,
+                354
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                0
+              ],
+              "name": "",
+              "control_type": "TitleBar",
+              "automation_id": "",
+              "rect": [
+                224,
+                183,
+                792,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                0
+              ],
+              "name": "系统",
+              "control_type": "MenuBar",
+              "automation_id": "MenuBar",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                2
+              ],
+              "name": "最小化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                653,
+                181,
+                700,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                3
+              ],
+              "name": "最大化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                700,
+                181,
+                746,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                5
+              ],
+              "name": "关闭",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                746,
+                181,
+                793,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 5,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                1
+              ],
+              "name": "系统",
+              "control_type": "MenuItem",
+              "automation_id": "",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            }
+          ]
+        },
+        "image": {
+          "media_id": "2bc17e3ec37d78243caa6d0bfa6a4818",
+          "source": {
+            "session_id": "724975c6",
+            "turn_id": "ae77bfa6d40f63786d12a8a919621474",
+            "kind": "tool",
+            "request_id": "323368d83a37df000c71d14841f2fc0c",
+            "tool_call_id": "check-4",
+            "tool_name": "desktop_observe"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 8018,
+          "version": "5b68b351e75645909775bb77e4b3e252b35f4fedee963ba474547f1e7a9e76e4",
+          "created_at": "2026-11-02T14:12:49.003378+00:00",
+          "schema_version": 1
+        }
+      },
+      "approvals_after": 1,
+      "save_exists": false,
+      "guard_invalidated": false
+    },
+    {
+      "step": "focus-recovered-save",
+      "approvals_before": 1,
+      "result": {
+        "ok": true,
+        "status": "dispatched",
+        "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:07e8232022e34fa98b19c9a1ade2fa42",
+        "window": {
+          "identity": {
+            "handle": 9244220,
+            "process_id": 51492,
+            "runtime_id": [
+              42,
+              9244220
+            ]
+          },
+          "title": "Adam C033 Recovery Test",
+          "rect": [
+            200,
+            180,
+            800,
+            540
+          ],
+          "dpi": 96,
+          "width": 600,
+          "height": 360,
+          "controls": [
+            {
+              "parent": null,
+              "runtime_id": [
+                42,
+                9244220
+              ],
+              "name": "Adam C033 Recovery Test",
+              "control_type": "Window",
+              "automation_id": "",
+              "rect": [
+                200,
+                180,
+                800,
+                540
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                17504428
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Text",
+              "automation_id": "17504428",
+              "rect": [
+                238,
+                241,
+                434,
+                258
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                2888338
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Edit",
+              "automation_id": "2888338",
+              "rect": [
+                238,
+                286,
+                628,
+                307
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                19601504
+              ],
+              "name": "Save synthetic value",
+              "control_type": "Button",
+              "automation_id": "19601504",
+              "rect": [
+                238,
+                331,
+                478,
+                354
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                0
+              ],
+              "name": "",
+              "control_type": "TitleBar",
+              "automation_id": "",
+              "rect": [
+                224,
+                183,
+                792,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                0
+              ],
+              "name": "系统",
+              "control_type": "MenuBar",
+              "automation_id": "MenuBar",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                2
+              ],
+              "name": "最小化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                653,
+                181,
+                700,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                3
+              ],
+              "name": "最大化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                700,
+                181,
+                746,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                5
+              ],
+              "name": "关闭",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                746,
+                181,
+                793,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 5,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                1
+              ],
+              "name": "系统",
+              "control_type": "MenuItem",
+              "automation_id": "",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            }
+          ]
+        },
+        "image": {
+          "media_id": "76d4933c16ad25265a80b850076b8885",
+          "source": {
+            "session_id": "724975c6",
+            "turn_id": "ae77bfa6d40f63786d12a8a919621474",
+            "kind": "tool",
+            "request_id": "323368d83a37df000c71d14841f2fc0c",
+            "tool_call_id": "check-5",
+            "tool_name": "desktop_action"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 8018,
+          "version": "5b68b351e75645909775bb77e4b3e252b35f4fedee963ba474547f1e7a9e76e4",
+          "created_at": "2026-11-02T14:12:49.224596+00:00",
+          "schema_version": 1
+        }
+      },
+      "approvals_after": 2,
+      "save_exists": true,
+      "guard_invalidated": false
+    },
+    {
+      "step": "cancel-refused",
+      "approvals_before": 2,
+      "error": "RequestInterrupted: ",
+      "approvals_after": 2,
+      "save_exists": true,
+      "guard_invalidated": false
+    },
+    {
+      "step": "cancel-old-refused",
+      "approvals_before": 2,
+      "error": "ToolError: Stale desktop observation; observe again",
+      "approvals_after": 2,
+      "save_exists": true,
+      "guard_invalidated": false
+    },
+    {
+      "step": "cancel-renewed",
+      "approvals_before": 2,
+      "result": {
+        "ok": true,
+        "status": "observed",
+        "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:473899fe7a7a4d5383867546320d7e23",
+        "window": {
+          "identity": {
+            "handle": 9244220,
+            "process_id": 51492,
+            "runtime_id": [
+              42,
+              9244220
+            ]
+          },
+          "title": "Adam C033 Recovery Test",
+          "rect": [
+            200,
+            180,
+            800,
+            540
+          ],
+          "dpi": 96,
+          "width": 600,
+          "height": 360,
+          "controls": [
+            {
+              "parent": null,
+              "runtime_id": [
+                42,
+                9244220
+              ],
+              "name": "Adam C033 Recovery Test",
+              "control_type": "Window",
+              "automation_id": "",
+              "rect": [
+                200,
+                180,
+                800,
+                540
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                17504428
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Text",
+              "automation_id": "17504428",
+              "rect": [
+                238,
+                241,
+                434,
+                258
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                2888338
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Edit",
+              "automation_id": "2888338",
+              "rect": [
+                238,
+                286,
+                628,
+                307
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                19601504
+              ],
+              "name": "Save synthetic value",
+              "control_type": "Button",
+              "automation_id": "19601504",
+              "rect": [
+                238,
+                331,
+                478,
+                354
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                0
+              ],
+              "name": "",
+              "control_type": "TitleBar",
+              "automation_id": "",
+              "rect": [
+                224,
+                183,
+                792,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                0
+              ],
+              "name": "系统",
+              "control_type": "MenuBar",
+              "automation_id": "MenuBar",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                2
+              ],
+              "name": "最小化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                653,
+                181,
+                700,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                3
+              ],
+              "name": "最大化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                700,
+                181,
+                746,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                5
+              ],
+              "name": "关闭",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                746,
+                181,
+                793,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 5,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                1
+              ],
+              "name": "系统",
+              "control_type": "MenuItem",
+              "automation_id": "",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            }
+          ]
+        },
+        "image": {
+          "media_id": "040c5f02d4d1e4bbbe19d7d415369924",
+          "source": {
+            "session_id": "724975c6",
+            "turn_id": "ae77bfa6d40f63786d12a8a919621474",
+            "kind": "tool",
+            "request_id": "323368d83a37df000c71d14841f2fc0c",
+            "tool_call_id": "check-8",
+            "tool_name": "desktop_observe"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 8018,
+          "version": "5b68b351e75645909775bb77e4b3e252b35f4fedee963ba474547f1e7a9e76e4",
+          "created_at": "2026-11-02T14:12:49.395192+00:00",
+          "schema_version": 1
+        }
+      },
+      "approvals_after": 2,
+      "save_exists": true,
+      "guard_invalidated": false
+    },
+    {
+      "step": "cancel-recovered-save",
+      "approvals_before": 2,
+      "result": {
+        "ok": true,
+        "status": "dispatched",
+        "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:d810cd1fd358460f8d14644096420328",
+        "window": {
+          "identity": {
+            "handle": 9244220,
+            "process_id": 51492,
+            "runtime_id": [
+              42,
+              9244220
+            ]
+          },
+          "title": "Adam C033 Recovery Test",
+          "rect": [
+            200,
+            180,
+            800,
+            540
+          ],
+          "dpi": 96,
+          "width": 600,
+          "height": 360,
+          "controls": [
+            {
+              "parent": null,
+              "runtime_id": [
+                42,
+                9244220
+              ],
+              "name": "Adam C033 Recovery Test",
+              "control_type": "Window",
+              "automation_id": "",
+              "rect": [
+                200,
+                180,
+                800,
+                540
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                17504428
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Text",
+              "automation_id": "17504428",
+              "rect": [
+                238,
+                241,
+                434,
+                258
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                2888338
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Edit",
+              "automation_id": "2888338",
+              "rect": [
+                238,
+                286,
+                628,
+                307
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                19601504
+              ],
+              "name": "Save synthetic value",
+              "control_type": "Button",
+              "automation_id": "19601504",
+              "rect": [
+                238,
+                331,
+                478,
+                354
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                0
+              ],
+              "name": "",
+              "control_type": "TitleBar",
+              "automation_id": "",
+              "rect": [
+                224,
+                183,
+                792,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                0
+              ],
+              "name": "系统",
+              "control_type": "MenuBar",
+              "automation_id": "MenuBar",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                2
+              ],
+              "name": "最小化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                653,
+                181,
+                700,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                3
+              ],
+              "name": "最大化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                700,
+                181,
+                746,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                5
+              ],
+              "name": "关闭",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                746,
+                181,
+                793,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 5,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                1
+              ],
+              "name": "系统",
+              "control_type": "MenuItem",
+              "automation_id": "",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            }
+          ]
+        },
+        "image": {
+          "media_id": "5924bec4897abb0eb820885d5634b33a",
+          "source": {
+            "session_id": "724975c6",
+            "turn_id": "ae77bfa6d40f63786d12a8a919621474",
+            "kind": "tool",
+            "request_id": "323368d83a37df000c71d14841f2fc0c",
+            "tool_call_id": "check-9",
+            "tool_name": "desktop_action"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 8018,
+          "version": "5b68b351e75645909775bb77e4b3e252b35f4fedee963ba474547f1e7a9e76e4",
+          "created_at": "2026-11-02T14:12:49.660754+00:00",
+          "schema_version": 1
+        }
+      },
+      "approvals_after": 3,
+      "save_exists": true,
+      "guard_invalidated": false
+    },
+    {
+      "step": "closed-old-refused",
+      "approvals_before": 3,
+      "error": "ToolError: Stale desktop observation; observe again",
+      "approvals_after": 3,
+      "save_exists": true,
+      "guard_invalidated": true
+    },
+    {
+      "step": "closed-renewed",
+      "approvals_before": 3,
+      "result": {
+        "ok": true,
+        "status": "observed",
+        "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:f975361aea5a4f86856495229f445430",
+        "window": {
+          "identity": {
+            "handle": 9244220,
+            "process_id": 51492,
+            "runtime_id": [
+              42,
+              9244220
+            ]
+          },
+          "title": "Adam C033 Recovery Test",
+          "rect": [
+            200,
+            180,
+            800,
+            540
+          ],
+          "dpi": 96,
+          "width": 600,
+          "height": 360,
+          "controls": [
+            {
+              "parent": null,
+              "runtime_id": [
+                42,
+                9244220
+              ],
+              "name": "Adam C033 Recovery Test",
+              "control_type": "Window",
+              "automation_id": "",
+              "rect": [
+                200,
+                180,
+                800,
+                540
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                17504428
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Text",
+              "automation_id": "17504428",
+              "rect": [
+                238,
+                241,
+                434,
+                258
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                2888338
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Edit",
+              "automation_id": "2888338",
+              "rect": [
+                238,
+                286,
+                628,
+                307
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                19601504
+              ],
+              "name": "Save synthetic value",
+              "control_type": "Button",
+              "automation_id": "19601504",
+              "rect": [
+                238,
+                331,
+                478,
+                354
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                0
+              ],
+              "name": "",
+              "control_type": "TitleBar",
+              "automation_id": "",
+              "rect": [
+                224,
+                183,
+                792,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                0
+              ],
+              "name": "系统",
+              "control_type": "MenuBar",
+              "automation_id": "MenuBar",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                2
+              ],
+              "name": "最小化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                653,
+                181,
+                700,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                3
+              ],
+              "name": "最大化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                700,
+                181,
+                746,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                5
+              ],
+              "name": "关闭",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                746,
+                181,
+                793,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 5,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                1
+              ],
+              "name": "系统",
+              "control_type": "MenuItem",
+              "automation_id": "",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            }
+          ]
+        },
+        "image": {
+          "media_id": "126df0e96f48277f1ff880f3843c8f9e",
+          "source": {
+            "session_id": "724975c6",
+            "turn_id": "ae77bfa6d40f63786d12a8a919621474",
+            "kind": "tool",
+            "request_id": "323368d83a37df000c71d14841f2fc0c",
+            "tool_call_id": "check-11",
+            "tool_name": "desktop_observe"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 8018,
+          "version": "5b68b351e75645909775bb77e4b3e252b35f4fedee963ba474547f1e7a9e76e4",
+          "created_at": "2026-11-02T14:12:49.808010+00:00",
+          "schema_version": 1
+        }
+      },
+      "approvals_after": 3,
+      "save_exists": true,
+      "guard_invalidated": false
+    },
+    {
+      "step": "closed-recovered-save",
+      "approvals_before": 3,
+      "result": {
+        "ok": true,
+        "status": "dispatched",
+        "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:9652eb3b5fea4518b1edf3acfa814d58",
+        "window": {
+          "identity": {
+            "handle": 9244220,
+            "process_id": 51492,
+            "runtime_id": [
+              42,
+              9244220
+            ]
+          },
+          "title": "Adam C033 Recovery Test",
+          "rect": [
+            200,
+            180,
+            800,
+            540
+          ],
+          "dpi": 96,
+          "width": 600,
+          "height": 360,
+          "controls": [
+            {
+              "parent": null,
+              "runtime_id": [
+                42,
+                9244220
+              ],
+              "name": "Adam C033 Recovery Test",
+              "control_type": "Window",
+              "automation_id": "",
+              "rect": [
+                200,
+                180,
+                800,
+                540
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                17504428
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Text",
+              "automation_id": "17504428",
+              "rect": [
+                238,
+                241,
+                434,
+                258
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                2888338
+              ],
+              "name": "Adam C03 observation acceptance",
+              "control_type": "Edit",
+              "automation_id": "2888338",
+              "rect": [
+                238,
+                286,
+                628,
+                307
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                19601504
+              ],
+              "name": "Save synthetic value",
+              "control_type": "Button",
+              "automation_id": "19601504",
+              "rect": [
+                238,
+                331,
+                478,
+                354
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 0,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                0
+              ],
+              "name": "",
+              "control_type": "TitleBar",
+              "automation_id": "",
+              "rect": [
+                224,
+                183,
+                792,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                0
+              ],
+              "name": "系统",
+              "control_type": "MenuBar",
+              "automation_id": "MenuBar",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                2
+              ],
+              "name": "最小化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                653,
+                181,
+                700,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                3
+              ],
+              "name": "最大化",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                700,
+                181,
+                746,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 4,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483647,
+                9244220,
+                -2,
+                5
+              ],
+              "name": "关闭",
+              "control_type": "Button",
+              "automation_id": "",
+              "rect": [
+                746,
+                181,
+                793,
+                211
+              ],
+              "enabled": true
+            },
+            {
+              "parent": 5,
+              "runtime_id": [
+                42,
+                9244220,
+                3,
+                -2147483646,
+                51492,
+                206246889,
+                1
+              ],
+              "name": "系统",
+              "control_type": "MenuItem",
+              "automation_id": "",
+              "rect": [
+                208,
+                188,
+                230,
+                210
+              ],
+              "enabled": true
+            }
+          ]
+        },
+        "image": {
+          "media_id": "ff2a4e58d4b2de312d380df67ab662d1",
+          "source": {
+            "session_id": "724975c6",
+            "turn_id": "ae77bfa6d40f63786d12a8a919621474",
+            "kind": "tool",
+            "request_id": "323368d83a37df000c71d14841f2fc0c",
+            "tool_call_id": "check-12",
+            "tool_name": "desktop_action"
+          },
+          "mime_type": "image/png",
+          "size_bytes": 8018,
+          "version": "5b68b351e75645909775bb77e4b3e252b35f4fedee963ba474547f1e7a9e76e4",
+          "created_at": "2026-11-02T14:12:50.083218+00:00",
+          "schema_version": 1
+        }
+      },
+      "approvals_after": 4,
+      "save_exists": true,
+      "guard_invalidated": false
+    },
+    {
+      "step": "finished",
+      "watcher_stopped": true
+    }
+  ],
+  "approvals": [
+    {
+      "handle": 9244220,
+      "process_id": 51492,
+      "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:7fca5d67cd7b4c099d072a83c7f5af7e",
+      "operation": "click",
+      "control": 3,
+      "value": null,
+      "point": null
+    },
+    {
+      "handle": 9244220,
+      "process_id": 51492,
+      "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:a63613a1d98f4f5ebb5423f3da7c8cb7",
+      "operation": "click",
+      "control": 3,
+      "value": null,
+      "point": null
+    },
+    {
+      "handle": 9244220,
+      "process_id": 51492,
+      "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:473899fe7a7a4d5383867546320d7e23",
+      "operation": "click",
+      "control": 3,
+      "value": null,
+      "point": null
+    },
+    {
+      "handle": 9244220,
+      "process_id": 51492,
+      "version": "278a80c4b92089d2b47a2e164f3ea71185ce3abd14356dbdfd34ad42da298c2a:f975361aea5a4f86856495229f445430",
+      "operation": "click",
+      "control": 3,
+      "value": null,
+      "point": null
+    }
+  ],
+  "dispatched": 3
+}

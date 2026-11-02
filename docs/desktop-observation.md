@@ -55,3 +55,11 @@ Windows10+ 先查询 WTSInfoEx，必须明确活动且解锁，再查询线程�
 生产代码及完整帧复检未修改；测试窗初始焦点设为按钮。之前两轮分别因帧变化和 Codex 前台遮挡拒绝，没有成功派发或保存；失败仍保留缓存。本批自建窗口/后台均已退出。坐标 click 已有自动测试，本批没有实机验证；C03.3 的失焦/取消恢复及 C03.4 故障闭环仍待验，不由本次成功替代。
 
 证据：[结果与视觉文字报告](evaluations/c032/unlocked-report.json)、[三次批准](evaluations/c032/unlocked-approvals.json)、[独立读回](evaluations/c032/unlocked-readback.json)。保存文件和原图保留 `.cache/c032-unlocked-final/`，主代理未读取图片。C03.2 现勾选完成，前文未通过状态为历史记录。本次仅同步验收文档，无 Python 改动，不重复运行已有测试。
+
+### C03.3 解锁后恢复验收完成
+
+2026-11-02 用户再次确认解锁后，真实 DesktopTools 与 WindowsDesktop 在独立测试窗口完成失焦、取消及 close 生命周期恢复。次窗口遮挡并夺走焦点后，动作在批准后复检拒绝，未保存；返回主窗口仍拒绝旧观察，显式观察后才恢复保存。已取消令牌拒绝动作且保存时间不变，旧观察不能复用，重新观察后恢复。close 停止看守并使旧引用失效，重新观察后可继续。
+
+本批共4次批准、3次实际派发；独立 UIA ValuePattern 与文件均为 Only synthetic test data 12345，恢复后保存时间更新。独立视觉代理核图确认遮挡及最终测试窗口完整可见。自建窗口已退出、看守已停止。批准由已授权脚本回调确认，没有测试人工批准界面；close 指工具生命周期，不是销毁重建窗口；本次未主动锁屏，锁屏拒绝沿用此前真实证据。
+
+证据：[逐步记录](evaluations/c033/unlocked-report.json)、[独立读回](evaluations/c033/unlocked-readback.json)。原图、脚本及真实会话保留于 .cache/c033-unlocked-retry/。C03.3 完成，前文待验文字为历史状态；C03.4 综合验收仍单独待办。本次仅归档实机证据与文档，无 Python 改动，不重复运行 pytest；注释无需变更，架构已核对无结构变化。
