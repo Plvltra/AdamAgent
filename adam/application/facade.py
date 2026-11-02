@@ -1,7 +1,7 @@
 """面向界面的应用操作；隐藏存储访问与模型目录策略，沿用公共错误契约。"""
 
-from collections.abc import Callable
-from contextlib import nullcontext
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -42,11 +42,14 @@ class AgentApplication:
         memories: MemoryService | None = None,
         *,
         close_resources: Callable[[], None] | None = None,
+        on_interrupt: Callable[[], None] | None = None,
+        on_session_selected: Callable[[str], None] | None = None,
         skills: SkillProvider | None = None,
         modes: ModeController | None = None,
         undo: UndoService | None = None,
     ) -> None:
         self._close_resources = close_resources
+        self._on_interrupt, self._on_session_selected = on_interrupt, on_session_selected
         self._conversation = conversation
         self._store = store
         self._models_client = models
@@ -108,8 +111,14 @@ class AgentApplication:
         return self._conversation.new(title)
 
     def resume(self, session_id: str) -> Session:
-        """恢复已保存会话；切换失败时保留原会话。"""
-        return self._conversation.resume(session_id)
+        """恢复已保存会话；主会话切换失败时保留原会话。
+
+        切换成功后恢复附属任务；附属记录故障会报错，但不回滚已选中的会话。
+        """
+        session = self._conversation.resume(session_id)
+        if self._on_session_selected:
+            self._on_session_selected(session_id)
+        return session
 
     def list_sessions(self) -> list[Session]:
         """列出已有会话，不改变当前选择。"""
@@ -239,7 +248,10 @@ class AgentApplication:
         skill_id 由用户显式选择，正文只作用于本轮；读取失败不提交轮次或请求模型。
         已绑定模式时固定到本轮及子任务收尾结束，异常也会释放占用。
         """
-        with self._modes.turn() if self._modes is not None else nullcontext():
+        with (
+            self._interrupt_scope(),
+            self._modes.turn() if self._modes is not None else nullcontext(),
+        ):
             if skill_id is not None:
                 self._conversation.clear_execution_report()
                 if self._skills is None:
@@ -275,7 +287,10 @@ class AgentApplication:
             raise AgentError("当前尚无会话，没有可撤销的文件编辑。")
         if self._undo is None:
             raise AgentError("当前应用没有配置撤销服务，请使用标准启动入口。")
-        with self._modes.turn() if self._modes is not None else nullcontext():
+        with (
+            self._interrupt_scope(),
+            self._modes.turn() if self._modes is not None else nullcontext(),
+        ):
             return self._undo.undo(self.session.session_id)
 
     def compact(self) -> Summary | None:
@@ -285,3 +300,16 @@ class AgentApplication:
     def preview_context(self, query: str = "") -> RequestContext:
         """查看基础上下文；可提供假设问题预览相关记忆，不提交消息或请求模型。"""
         return self._conversation.preview_context(query)
+
+    @contextmanager
+    def _interrupt_scope(self) -> Iterator[None]:
+        """用户中断时回收当前会话附属任务；清理失败不覆盖原始中断。"""
+        try:
+            yield
+        except (KeyboardInterrupt, EOFError) as error:
+            if self._on_interrupt:
+                try:
+                    self._on_interrupt()
+                except Exception:
+                    error.add_note("附属后台任务清理或保存失败，请检查任务记录。")
+            raise

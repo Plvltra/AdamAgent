@@ -8,6 +8,7 @@ from pathlib import Path
 
 import httpx
 
+from adam.application.background import BackgroundService
 from adam.application.conversation import Conversation
 from adam.application.diagnostics import DiagnosticContextReader
 from adam.application.facade import AgentApplication
@@ -48,6 +49,9 @@ from adam.rules.tracker import RuleTracker
 from adam.session.artifacts import ArtifactStore
 from adam.session.storage import SessionStore
 from adam.tool_calls.artifact_tools import ToolArtifacts
+from adam.tool_calls.background_jobs import BackgroundJobs
+from adam.tool_calls.background_tools import BackgroundTools
+from adam.tool_calls.command_tools import CommandTools
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers
 from adam.tool_calls.diagnostic_files import DiagnosticFiles
@@ -106,12 +110,14 @@ def build_application(
         checkpoints_dir = store.root / "_checkpoints"
         artifacts_dir = store.root / "_artifacts"
         mcp_media_dir = store.root / "_mcp_media"
+        background_dir = store.root / "_background"
         protected_dirs = (
             documents_dir,
             checkpoints_dir,
             artifacts_dir,
             knowledge_dir,
             mcp_media_dir,
+            background_dir,
         )
         artifacts = _artifact_tools(
             config.artifacts, store, artifacts_dir, config.tool_limits.max_result_chars
@@ -132,6 +138,13 @@ def build_application(
             protected_dirs=protected_dirs,
             command_output_bytes=config.artifacts.max_bytes if config.artifacts.enabled else None,
         )
+        background_service = BackgroundService(
+            background_dir,
+            BackgroundJobs(CommandTools(workspace, config.tool_limits, confirm_command)),
+        )
+        resources.callback(background_service.close)
+        background = BackgroundTools(background_service.start, background_service.query, store)
+        registry = background.register(registry)
         if config.command_isolation.enabled:
             registry = register_isolated_commands(
                 registry,
@@ -153,7 +166,7 @@ def build_application(
             document_config,
             documents_dir,
             config.permissions,
-            (checkpoints_dir, artifacts_dir, mcp_media_dir),
+            (checkpoints_dir, artifacts_dir, mcp_media_dir, background_dir),
             knowledge_dir=knowledge_dir,
         )
         registry, skills = register_skills(
@@ -304,6 +317,7 @@ def build_application(
 
         def bind_source(link: dict[str, str]) -> None:
             """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
+            background.bind_source(link)
             if manager:
                 manager.bind_source(link)
             if planner:
@@ -383,6 +397,8 @@ def build_application(
             client,
             memories,
             close_resources=resources.pop_all().close,
+            on_interrupt=lambda: background_service.cancel_owner(store.active_session_id),
+            on_session_selected=background_service.recover,
             skills=skills,
             modes=modes,
             undo=UndoService(
@@ -452,6 +468,7 @@ def _open_child(
                 artifacts_dir,
                 knowledge_dir,
                 mcp_media_dir,
+                checkpoints_dir.parent / "_background",
             ),
         )
         registry = register_documents(
@@ -460,7 +477,13 @@ def _open_child(
             document_config,
             documents_dir,
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
-            (memories_dir, checkpoints_dir, artifacts_dir, mcp_media_dir),
+            (
+                memories_dir,
+                checkpoints_dir,
+                artifacts_dir,
+                mcp_media_dir,
+                checkpoints_dir.parent / "_background",
+            ),
             check_cancel=cancel.check,
             knowledge_dir=knowledge_dir,
             allow_knowledge_proposals=False,
@@ -478,6 +501,7 @@ def _open_child(
                 artifacts_dir,
                 knowledge_dir,
                 mcp_media_dir,
+                checkpoints_dir.parent / "_background",
             ),
         )
         rules = (
@@ -493,6 +517,7 @@ def _open_child(
                     artifacts_dir,
                     knowledge_dir,
                     mcp_media_dir,
+                    checkpoints_dir.parent / "_background",
                 ),
             )
             if config.rules.enabled
@@ -519,6 +544,7 @@ def _open_child(
                         artifacts_dir,
                         knowledge_dir,
                         mcp_media_dir,
+                        checkpoints_dir.parent / "_background",
                     ),
                 ),
                 config.tool_limits,
@@ -589,6 +615,7 @@ def _open_child(
                             artifacts_dir,
                             knowledge_dir,
                             mcp_media_dir,
+                            checkpoints_dir.parent / "_background",
                         ),
                     ),
                     config.tool_limits.max_text_file_bytes,

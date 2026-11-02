@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B26.2.1 后台输出游标。架构无变化；BackgroundJobs.read_output委托现有OutputCapture.read_since，复用有界头尾，不增加存储模块。后台显式启用及时读取，同步命令默认行为保持。
+本次核对范围：B26.2.2 模型后台工具、任务持久服务、恢复与中断清理。
 
-核对结论：新增BackgroundJobs，批准在调用线程，后台线程仅采集输出/终态；CommandTools公开prepare并与后台共用start_command。原环境白名单说明迁入processes，没有删除原权限与回收约束。生产工具/会话持久化待B26.2。
+核对结论：bootstrap组装BackgroundTools与BackgroundService，通过回调保持工具层不依赖应用层；独立任务记录与锁由服务协调，后台线程仍不访问SessionStore。附属任务恢复/中断回调由应用门面触发。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -1943,4 +1943,17 @@ flowchart LR
     BJ --> TP[terminate_process / 取消与超时]
 ```
 
-当前为显式宿主API，没有模型或存储连线；见[后台任务范围](background-jobs.md)。
+生产接入关系如下；见[后台任务范围](background-jobs.md)。
+
+```mermaid
+flowchart LR
+    Boot[bootstrap] --> BT[BackgroundTools]
+    Boot --> BS[BackgroundService]
+    EX[ToolExecutor / 来源与工具事件] --> BT
+    BT -->|注入的启动/查询回调| BS
+    BS --> BJ[BackgroundJobs]
+    BS --> Disk[_background / 任务JSON与独立锁]
+    App[AgentApplication] -->|恢复/中断/退出回调| BS
+```
+
+任务JSON记录已观察状态，不代替会话JSONL中的工具调用轨迹；启动意图早于实际进程，崩溃后的未知结果保持中断。工具层不导入应用服务实现，子Agent没有后台执行入口。内部任务目录加入主/子文件、文档及规则读取保护；批准的通用命令仍是宿主权限，不是沙箱。
