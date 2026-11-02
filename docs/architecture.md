@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B32.2 新增离线 DecisionCapture → 请求/工作区快照 → restore / choose_next → 动作集合验收；脚本复用 ModelClient 和 recording.first_difference，生产聊天架构无变化。
+本次核对范围：B32.3 离线 DecisionCapture → 请求/工作区及响应快照 → restore / choose_next / replay_fixed → 动作集合验收；复现前检查历史工具的可恢复范围；脚本复用 ModelClient 和 recording.first_difference，生产聊天架构无变化。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 

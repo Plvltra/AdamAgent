@@ -36,6 +36,7 @@ class DecisionCapture:
             raise ValueError("snapshot directory must be outside workspace")
         self.output.mkdir(parents=True, exist_ok=False)
         self.snapshots: list[SnapshotRef] = []
+        self.responses: list[SnapshotRef] = []
 
     def list_models(self) -> dict[str, str | None]:
         """目录查询不属于决策前缀，直接透传。"""
@@ -69,9 +70,23 @@ class DecisionCapture:
             stream.flush()
         reference = SnapshotRef(path, hashlib.sha256(raw).hexdigest())
         self.snapshots.append(reference)
-        return self.client.complete(
+        completion = self.client.complete(
             messages, model=model, tools=tools, max_tokens=max_tokens, on_output=on_output
         )
+        response_path = path.with_suffix(".response.json")
+        response_raw = json.dumps(
+            {
+                "snapshot_sha256": reference.sha256,
+                "message": completion.message,
+                "usage": completion.usage,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode("utf-8")
+        with response_path.open("xb") as stream:
+            stream.write(response_raw)
+        self.responses.append(SnapshotRef(response_path, hashlib.sha256(response_raw).hexdigest()))
+        return completion
 
 
 def restore(reference: SnapshotRef, destination: Path) -> dict[str, Any]:
@@ -96,6 +111,7 @@ def choose_next(
 ) -> dict[str, Any]:
     """用冻结请求重新选择一步，再按动作集合验收；只调用一次模型，绝不执行所选工具。"""
     value = load(reference)
+    _require_recoverable(value)
     completion = client.complete(**value["request"])
     return {
         "mode": "new_decision",
@@ -176,3 +192,39 @@ def _matches(action: dict[str, Any], rule: dict[str, Any]) -> bool:
         key in action["arguments"] and first_difference(value, action["arguments"][key]) is None
         for key, value in rule.get("arguments", {}).items()
     )
+
+
+def replay_fixed(
+    reference: SnapshotRef,
+    response: SnapshotRef,
+    allowed: tuple[dict[str, Any], ...],
+    forbidden: tuple[dict[str, Any], ...] = (),
+) -> dict[str, Any]:
+    """验收原样记录的响应，不请求模型；响应必须绑定同一个未变前缀。
+
+    这只能验证历史动作，不证明模型会重新选对，也不重放工具副作用。
+    """
+    value = load(reference)
+    _require_recoverable(value)
+    raw = response.path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != response.sha256:
+        raise ValueError("recorded response changed")
+    recorded = json.loads(raw)
+    if recorded.get("snapshot_sha256") != reference.sha256:
+        raise ValueError("response belongs to another prefix")
+    return {
+        "mode": "fixed_response",
+        "snapshot_sha256": reference.sha256,
+        "response": recorded["message"],
+        "usage": recorded["usage"],
+        "verification": verify_actions(recorded["message"], allowed, forbidden),
+    }
+
+
+def _require_recoverable(value: dict[str, Any]) -> None:
+    """首版只承认工作区只读前缀；命令、写入及未知工具的外部状态不能靠文件副本恢复。"""
+    read_only = {"read_file", "list_directory", "search_text"}
+    for message in value["request"]["messages"]:
+        for call in message.get("tool_calls", []):
+            if call["function"]["name"] not in read_only:
+                raise ValueError("prefix contains unsupported side effects or external state")
