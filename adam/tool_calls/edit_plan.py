@@ -77,6 +77,8 @@ def plan_create(path: Path, content: str, max_bytes: int) -> CreatePlan:
 
 def plan_restore(snapshot: TextSnapshot, checkpoint: EditCheckpoint) -> EditPlan:
     """从当前版本和原始副本生成逆向计划；版本或路径不符时拒绝覆盖外部修改。"""
+    if checkpoint.original is None:
+        raise ToolError("该检查点的原目标不存在，不能按已有文件恢复；需要创建撤销流程。")
     if snapshot.path != checkpoint.path or snapshot.version != checkpoint.target_version:
         raise EditConflictError(
             "文件与该次修改后的版本不一致，不能撤销；请先核对外部改动。", version=snapshot.version

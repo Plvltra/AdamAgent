@@ -629,6 +629,10 @@ class SessionLog:
             raise ValueError("invalid edit parent")
         edit_id = self._identifier(payload, "edit_id")
         if kind == "edit_planned":
+            # 原编辑与提案不能宣称目标原本缺失；创建来源必须属于专门的创建工具。
+            expected_operation = "create" if tool["name"] == "create_file" else "replace"
+            if payload.get("operation", "replace") != expected_operation:
+                raise ValueError("edit operation does not match parent tool")
             if tool.get("edit_id") is not None:
                 raise ValueError("duplicate edit for tool")
             if tool["name"] == "apply_proposal":

@@ -33,12 +33,17 @@ class CheckpointStore:
         超限、磁盘和锁故障均阻止调用方继续编辑。临时文件不会作为可用快照，
         发布前失败保留旧文件；本方法不写 JSONL，也不宣称编辑已完成。
         """
-        if len(checkpoint.original) > self.max_bytes:
+        if checkpoint.original is not None and len(checkpoint.original) > self.max_bytes:
             raise StorageError("编辑检查点超过文件字节上限，未保存。")
         payload = asdict(checkpoint)
         payload["path"] = str(checkpoint.path)
-        payload["original"] = base64.b64encode(checkpoint.original).decode("ascii")
-        encoded = json.dumps({"version": 1, **payload}, ensure_ascii=False).encode("utf-8")
+        version = 2 if checkpoint.operation == "create" else 1
+        if checkpoint.original is not None:
+            payload["original"] = base64.b64encode(checkpoint.original).decode("ascii")
+        # 既有替换快照保持v1字节契约；创建使用v2明确操作和null，不能伪造为空文件副本。
+        if version == 1:
+            del payload["operation"]
+        encoded = json.dumps({"version": version, **payload}, ensure_ascii=False).encode("utf-8")
         if len(encoded) > self._encoded_limit:
             raise StorageError("编辑检查点元数据过大，未保存。")
         with self._locked(checkpoint.session_id, checkpoint.edit_id) as path:
@@ -50,7 +55,7 @@ class CheckpointStore:
             self._publish(path, encoded)
 
     def load(self, session_id: str, edit_id: str) -> EditCheckpoint:
-        """读取并校验原字节与身份；缺失或损坏抛出 StorageError，不跳过或推断成功。"""
+        """校验原字节或缺失标记与身份；缺失/损坏抛StorageError，不跳过或推断成功。"""
         with self._locked(session_id, edit_id) as path:
             return self._read(path, session_id, edit_id)
 
@@ -85,17 +90,32 @@ class CheckpointStore:
             if len(encoded) > self._encoded_limit:
                 raise ValueError("oversized checkpoint")
             payload = json.loads(encoded.decode("utf-8"), object_pairs_hook=_unique_fields)
-            keys = {field.name for field in fields(EditCheckpoint)} | {"version"}
-            if not isinstance(payload, dict) or payload.keys() != keys:
-                raise ValueError("invalid checkpoint fields")
-            version = payload.pop("version")
-            if type(version) is not int or version != 1:
+            if not isinstance(payload, dict):
+                raise ValueError("invalid checkpoint object")
+            version = payload.get("version")
+            if type(version) is not int or version not in (1, 2):
                 raise ValueError("unsupported checkpoint version")
-            if any(not isinstance(value, str) for value in payload.values()):
+            keys = {field.name for field in fields(EditCheckpoint)} | {"version"}
+            if version == 1:
+                keys -= {"operation"}
+            if payload.keys() != keys:
+                raise ValueError("invalid checkpoint fields")
+            del payload["version"]
+            common = payload.keys() - {"original", "before_version"}
+            if any(not isinstance(payload[key], str) for key in common):
                 raise ValueError("invalid checkpoint values")
-            payload["original"] = base64.b64decode(payload["original"], validate=True)
-            if len(payload["original"]) > self.max_bytes:
-                raise ValueError("oversized original")
+            if version == 1:
+                if not isinstance(payload["original"], str):
+                    raise ValueError("invalid original bytes")
+                payload["original"] = base64.b64decode(payload["original"], validate=True)
+                if len(payload["original"]) > self.max_bytes:
+                    raise ValueError("oversized original")
+            elif (
+                payload["operation"] != "create"
+                or payload["original"] is not None
+                or payload["before_version"] is not None
+            ):
+                raise ValueError("invalid create checkpoint")
             payload["path"] = Path(payload["path"])
             checkpoint = EditCheckpoint(**payload)
             if checkpoint.session_id != session_id or checkpoint.edit_id != edit_id:

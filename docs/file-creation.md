@@ -23,6 +23,16 @@
 
 [12项批准场景](../tests/features/test_file_creation_approval.py)验证原文展示、默认/显式拒绝、EOF、取消、回调故障，以及批准前后同名出现、父目录删除和宿主撤销写权限。连同创建规划、原编辑闭环、撤销与架构共105项通过（27.76秒）；Ruff、580文件格式和Pyright通过。五处已有源码的注释/类型差异和新增测试全文已审查，原批准范围、非y拒绝和取消说明仍保留。主线按 AGENTS.md 三级验证规则执行。
 
+## B22.2.1 原目标缺失的检查点
+
+[EditCheckpoint](../adam/contracts/checkpoints.py)增加operation：原replace必须保留真实字节与对应哈希，create则必须同时使用`original=None`、`before_version=None`。目标版本仍是预期候选的SHA-256，即使候选为空也不能把原状态写成空文件摘要。
+
+[CheckpointStore](../adam/session/checkpoints.py)将create保存为明确带operation和null的v2记录；原replace继续写入和读取原v1，不改既有快照格式。相同ID内容不同仍拒绝覆盖，读取仍核对身份/字段/来源，临时文件和保存失败不能变成可用检查点；存储不会读取或创建目标文件。
+
+[EditLog](../adam/session/edit_log.py)支持纯创建事件投影，开始但未完成仍unknown，不能靠快照猜成功；操作类型不允许中途切换。SessionLog额外核对操作与父工具，原replace_text/apply_proposal不能伪造create。当前创建工具尚未注册，也尚未接入SessionStore保存链。原plan_restore明确拒绝缺失快照，防止把创建撤销错做成写入空文件；实际安全删除将在B22.2.3实现。
+
+[17项检查点场景](../tests/features/test_creation_checkpoints.py)覆盖真实保存/重启/幂等、旧v1与空字节区别、损坏/歧义拒绝、发布故障、纯创建/逆向日志及真实会话父来源拒绝。相关106项通过（28.68秒），Ruff、581文件格式和Pyright通过。新增测试全文、五处源码差异和注释已审查；字节保真、来源、unknown以及保存不代表完成的说明保留。主线按 AGENTS.md 三级验证规则执行。
+
 ## 验证与下一步
 
 [15项业务场景](../tests/features/test_file_creation_plan.py) 使用真实临时目录验证UTF-8/LF和完整diff、候选固定、缺失/空文件区别、内容和字节上限、已存在目标/目录、父目录不自动生成、读写权限独立、凭据/保留路径和Windows特殊名称。规划不会调用确认回调，也不生成占位或临时文件。
@@ -32,6 +42,9 @@
 - [x] B22.1.1：缺失状态、纯候选/diff与权限规划。
 - [x] B22.1.2：统一批准对象和创建前状态复核。
 - [ ] B22.2：原子创建、日志、检查点及撤销；批准后竞态出现文件不得覆盖。
+  - [x] B22.2.1：缺失状态快照与纯创建日志契约。
+  - [ ] B22.2.2：原子发布，不覆盖竞态目标。
+  - [ ] B22.2.3：真实创建留痕和版本匹配的批准撤销。
 - [ ] B22.3：真实工具闭环、拒绝、权限、同名竞争、写失败和撤销验收。
 
 进度见 [完整路线](agent-book-practice-plan.md)，调用关系统一见 [当前架构](architecture.md)。

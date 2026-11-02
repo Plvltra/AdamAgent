@@ -11,8 +11,9 @@ from typing import Literal
 class EditCheckpoint:
     """修改前的可靠副本；target_version 是预期结果，成功事实仍以编辑日志为准。
 
-    path 仅为来源元数据，本契约不读取目标文件。original 保留 BOM、换行和末尾字节，
-    before_version 必须对应这些字节；无效来源或版本在构造时抛出 ValueError。
+    path 仅为来源元数据，本契约不读取目标文件。replace的original保留BOM、换行和末尾
+    字节，before_version必须匹配；create的两者必须为None，明确原目标缺失。
+    无效来源、操作或版本在构造时抛出ValueError；快照不授权删除或写入目标。
     """
 
     session_id: str
@@ -21,9 +22,10 @@ class EditCheckpoint:
     request_id: str
     tool_call_id: str
     path: Path
-    original: bytes
-    before_version: str
+    original: bytes | None
+    before_version: str | None
     target_version: str
+    operation: Literal["replace", "create"] = "replace"
 
     def __post_init__(self) -> None:
         validate_checkpoint_ids(self.session_id, self.edit_id)
@@ -45,10 +47,18 @@ class EditCheckpoint:
             or len(str(self.path).encode("utf-8")) > 32768
         ):
             raise ValueError("invalid checkpoint target path")
-        for version in (self.before_version, self.target_version):
+        if self.operation not in ("replace", "create"):
+            raise ValueError("invalid checkpoint operation")
+        versions = (self.target_version,)
+        if self.operation == "replace":
+            versions += (self.before_version,)
+        for version in versions:
             if not isinstance(version, str) or re.fullmatch(r"[0-9a-f]{64}", version) is None:
                 raise ValueError("invalid checkpoint version")
-        if (
+        if self.operation == "create":
+            if self.original is not None or self.before_version is not None:
+                raise ValueError("create checkpoint must preserve missing original")
+        elif (
             not isinstance(self.original, bytes)
             or hashlib.sha256(self.original).hexdigest() != self.before_version
             or self.before_version == self.target_version

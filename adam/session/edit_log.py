@@ -23,7 +23,15 @@ class EditLog:
                 or not payload["path"]
             ):
                 raise ValueError("invalid edit plan")
-            for field in ("before_version", "target_version"):
+            operation = payload.get("operation", "replace")
+            if operation not in ("replace", "create"):
+                raise ValueError("invalid edit operation")
+            version_fields = ("before_version", "target_version")
+            if operation == "create":
+                if "before_version" not in payload or payload["before_version"] is not None:
+                    raise ValueError("create plan must preserve missing state")
+                version_fields = ("target_version",)
+            for field in version_fields:
                 if (
                     not isinstance(payload.get(field), str)
                     or re.fullmatch("[0-9a-f]{64}", payload[field]) is None
@@ -47,6 +55,8 @@ class EditLog:
             return
         if kind != "edit_finished":
             raise ValueError("unknown edit event")
+        if "operation" in payload and payload["operation"] != previous.get("operation", "replace"):
+            raise ValueError("edit operation changed")
         for field in ("path", "before_version", "target_version", "diff", "proposal"):
             if field in payload and payload[field] != previous.get(field):
                 raise ValueError("edit plan changed")

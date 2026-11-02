@@ -2,13 +2,24 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B22.1.2 FileChangePlan统一批准对象、终端展示和创建批准前后复核。
+本次核对范围：B22.2.1 EditCheckpoint缺失状态、CheckpointStore v2及EditLog创建投影。
 
-核对结论：bootstrap和factory传递FileChangePlan批准回调，CLI按创建/修改展示。EditTools.confirm_create在回调前后复核缺失目标及当前策略；无回调默认拒绝，取消传播。原替换/撤销执行不变，模型创建和磁盘发布尚未连接；原批准语义说明保留并扩展。
+核对结论：原检查点可表达create/null缺失，存储以v2保存且原replace保持v1；EditLog独立验证创建类型，SessionLog阻止原替换工具伪造创建来源。已有文件恢复明确拒绝缺失快照。无实际创建/删除或模型新工具，原成功/unknown与快照分离契约保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B22.2.1 缺失状态检查点
+
+~~~mermaid
+flowchart LR
+    FC_SNAPSHOT["EditCheckpoint / create与null原状态"] --> FC_STORE["CheckpointStore / v2创建与v1替换"]
+    FC_LEDGER["EditLog / 创建纯事件投影"] --> FC_UNKNOWN["无结束仍unknown / 快照不证明成功"]
+    FC_SESSION["SessionLog / 父工具类型校验"] --> FC_LEDGER
+~~~
+
+本步可显式保存缺失快照，但尚未把创建计划接入SessionStore写入链或模型工具。原plan_restore拒绝将缺失快照恢复为空文件，创建撤销待后续。
 
 ## B22.1 新文件规划与批准
 
