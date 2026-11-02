@@ -3,12 +3,30 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 MAX_FILES = 16
 MAX_FILE_BYTES = 1048576
 MAX_TOTAL_BYTES = 2097152
+MAX_ARGV_BYTES = 65536
+
+
+def validate_argv(value: object) -> list[str]:
+    """只接受有界参数列表；首版没有 shell 拼接、宿主路径或挂载参数。"""
+    if (
+        not isinstance(value, (tuple, list))
+        or not 1 <= len(value) <= 128
+        or any(not isinstance(part, str) or "\0" in part for part in value)
+        or not value[0].strip()
+        or any(len(part.encode("utf-8")) > 32768 for part in value)
+    ):
+        raise ValueError("invalid_command_argv")
+    result = list(value)
+    if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > MAX_ARGV_BYTES - 256:
+        raise ValueError("command_argv_too_large")
+    return result
 
 
 @dataclass(frozen=True)

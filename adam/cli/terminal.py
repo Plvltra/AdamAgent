@@ -188,6 +188,7 @@ def show_execution_report(
         "unknown": "结果未知，需人工核对",
         "completed": "进程已结束",
         "timed_out": "超时，未正常完成",
+        "output_limited": "输出超限，已停止",
         "start_failed": "启动失败",
         "interrupted": "已中断，可能有部分副作用",
     }

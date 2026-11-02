@@ -6,28 +6,12 @@ import base64
 import json
 
 from adam.contracts.command_inputs import CommandInput, validate_inputs
+from adam.contracts.command_inputs import validate_argv as validate_argv
 
 POLICY = "bubblewrap-native-single-process-v1"
-MAX_ARGV_BYTES = 65536
 MAX_REQUEST_BYTES = 3145728
 MAX_RESPONSE_BYTES = 524288
 MAX_OUTPUT_BYTES = 65536
-
-
-def validate_argv(value: object) -> list[str]:
-    """只接受有界参数列表；首版没有 shell 拼接、宿主路径或挂载参数。"""
-    if (
-        not isinstance(value, (tuple, list))
-        or not 1 <= len(value) <= 128
-        or any(not isinstance(part, str) or "\0" in part for part in value)
-        or not value[0].strip()
-        or any(len(part.encode("utf-8")) > 32768 for part in value)
-    ):
-        raise ValueError("invalid_command_argv")
-    result = list(value)
-    if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > MAX_ARGV_BYTES - 256:
-        raise ValueError("command_argv_too_large")
-    return result
 
 
 def request(argv: object, timeout: object, inputs: tuple[CommandInput, ...] = ()) -> bytes:

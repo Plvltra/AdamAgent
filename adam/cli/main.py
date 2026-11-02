@@ -176,7 +176,19 @@ def confirm_command(
     """展示本次完整执行计划；仅明确输入 y 批准，其他输入或 EOF 拒绝；Ctrl+C 取消当前轮次。"""
     write(f"工作目录> {command.cwd}")
     write("命令参数> " + json.dumps(command.argv, ensure_ascii=False))
-    write(f"超时> {command.timeout_seconds} 秒；执行能力由当前账户权限决定。")
+    if command.environment == "isolated":
+        write(f"执行环境> WSL/{command.distribution} 隔离；只读输入、无网络、单进程。")
+        for item in command.input_files:
+            write(
+                "输入快照> "
+                + json.dumps(
+                    {"name": item.name, "source": item.source, "version": item.version},
+                    ensure_ascii=False,
+                )
+            )
+    else:
+        write("执行环境> 宿主；执行能力由当前账户权限决定。")
+    write(f"超时> {command.timeout_seconds} 秒。")
     try:
         return read("允许本次执行？[y/N] ").strip().lower() == "y"
     except EOFError:

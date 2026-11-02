@@ -7,6 +7,8 @@ from adam.contracts.errors import BudgetError, FailureCode, ToolModeError
 
 FILE_EDIT_TOOLS = frozenset({"replace_text", "apply_proposal"})
 CODE_TOOL_NAME = "execute_code"
+ISOLATED_COMMAND_TOOL = "run_isolated_command"
+COMMAND_TOOLS = frozenset({"run_command", ISOLATED_COMMAND_TOOL})
 
 
 @dataclass

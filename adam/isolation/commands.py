@@ -3,10 +3,10 @@
 import asyncio
 import json
 import os
-from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 
 from adam.contracts.cancellation import CancellationToken
+from adam.contracts.command_execution import CommandIsolationResult as CommandIsolationResult
 from adam.contracts.command_inputs import CommandInput
 from adam.contracts.errors import IsolationError
 from adam.isolation.backend import WslBubblewrap
@@ -48,19 +48,6 @@ CHECKS = frozenset(
         "memfd_denied",
     }
 )
-
-
-@dataclass(frozen=True)
-class CommandIsolationResult:
-    """真实退出事实；非零、停止原因及截断分别保留，不推断业务成功。"""
-
-    exit_code: int
-    reason: str
-    stdout: str
-    stderr: str
-    captured_bytes: int
-    duration_ms: int
-    policy: str = POLICY
 
 
 class IsolatedCommands:

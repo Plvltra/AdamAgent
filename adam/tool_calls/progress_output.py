@@ -44,7 +44,16 @@ def encode_progress(
         "truncated": True,
         "no_progress": observation,
     }
-    for key in ("status", "exit_code", "artifact", "artifact_unavailable", "source_truncated"):
+    for key in (
+        "status",
+        "exit_code",
+        "environment",
+        "reason",
+        "policy",
+        "artifact",
+        "artifact_unavailable",
+        "source_truncated",
+    ):
         if key in data:
             preview[key] = data[key]
     source = original if original is not None else data
@@ -52,6 +61,20 @@ def encode_progress(
         key: source[key] for key in ("stdout", "stderr") if isinstance(source.get(key), str)
     } or {"preview": json.dumps(original, ensure_ascii=False) if original is not None else output}
     try:
-        return encode_head_tail(preview, texts, max_chars)
-    except ToolError as error:
-        raise StorageError("工具结果上限不足以容纳执行状态、附件引用与停止观察。") from error
+        return encode_head_tail(preview, texts, max_chars, optional=("policy",))
+    except ToolError:
+        # 极小额度优先保留执行环境、停止原因、反馈和可读引用；正文全部省略也明确计数。
+        # 不缩短版本摘要或失败指纹，原正文与完整元数据仍在附件和命令事实日志中。
+        compact = {key: value for key, value in preview.items() if key != "policy"}
+        reference = compact.get("artifact")
+        if isinstance(reference, dict):
+            compact["artifact"] = {
+                key: value
+                for key, value in reference.items()
+                if key not in {"saved_chars", "format"}
+            }
+        compact["preview_omitted_chars"] = {key: len(value) for key, value in texts.items()}
+        try:
+            return encode_head_tail(compact, {}, max_chars)
+        except ToolError as error:
+            raise StorageError("工具结果上限不足以容纳执行状态、附件引用与停止观察。") from error

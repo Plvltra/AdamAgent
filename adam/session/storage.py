@@ -484,7 +484,7 @@ class SessionStore:
         """独立保存命令开始、结束或拒绝事件，不依赖本轮模型最终回答成功。
 
         payload 包含 turn_id、request_id、execution_id 和 tool_call_id；
-        必须关联已开始的 run_command 工具，同一执行只能结束一次。
+        必须关联已开始的宿主或隔离命令工具，同一执行只能结束一次。
         写入失败必须停止执行流程，调用方不能将其当普通工具错误继续。
         """
         if kind not in {"command_started", "command_finished", "command_denied"}:

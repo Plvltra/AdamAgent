@@ -35,6 +35,7 @@ from adam.contracts.proposals import ProposalOwner
 from adam.documents.embedding import FastEmbedBackend
 from adam.hooks.runner import HookRunner
 from adam.isolation.backend import WslBubblewrap
+from adam.isolation.commands import IsolatedCommands
 from adam.isolation.rpc import IsolatedOrchestrator
 from adam.llm.client import LLMClient
 from adam.llm.http_transport import InterruptibleTransport
@@ -55,6 +56,7 @@ from adam.tool_calls.executor import ToolExecutor
 from adam.tool_calls.factory import create_tool_registry
 from adam.tool_calls.feedback_tools import SPECS as FEEDBACK_SPECS
 from adam.tool_calls.feedback_tools import handlers as feedback_handlers
+from adam.tool_calls.isolated_commands import register_isolated_commands
 from adam.tool_calls.mcp_tools import register_mcp
 from adam.tool_calls.orchestration_tools import register_orchestration
 from adam.tool_calls.planning_tools import SPECS as PLANNING_SPECS
@@ -128,6 +130,21 @@ def build_application(
             protected_dirs=protected_dirs,
             command_output_bytes=config.artifacts.max_bytes if config.artifacts.enabled else None,
         )
+        if config.command_isolation.enabled:
+            registry = register_isolated_commands(
+                registry,
+                IsolatedCommands(config.command_isolation.distribution),
+                PathPolicy(
+                    workspace,
+                    config.permissions,
+                    protected_dirs=(
+                        *protected_dirs,
+                        config.memories_dir or store.root / "_memories",
+                    ),
+                ),
+                config.command_isolation.distribution,
+                confirm=confirm_command,
+            )
         registry = register_documents(
             registry,
             workspace,

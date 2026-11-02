@@ -467,16 +467,32 @@ class OrchestrationConfig:
 
     def __post_init__(self) -> None:
         """只接收发行版名称，不接收可执行文件、启动命令或环境变量。"""
-        if type(self.enabled) is not bool:
-            raise ConfigError("orchestration.enabled 必须是布尔值。")
-        if (
-            not isinstance(self.distribution, str)
-            or not 1 <= len(self.distribution) <= 64
-            or not self.distribution[0].isascii()
-            or not self.distribution[0].isalnum()
-            or any(not c.isascii() or not (c.isalnum() or c in "_.-") for c in self.distribution)
-        ):
-            raise ConfigError("orchestration.distribution 必须是有效的 WSL 发行版名称。")
+        _validate_wsl_selection(self.enabled, self.distribution, "orchestration")
+
+
+@dataclass(frozen=True)
+class CommandIsolationConfig:
+    """独立启用只读原生命令工具；不改变宿主命令，也不接收任意挂载和启动程序。"""
+
+    enabled: bool = False
+    distribution: str = "Ubuntu"
+
+    def __post_init__(self) -> None:
+        _validate_wsl_selection(self.enabled, self.distribution, "command_isolation")
+
+
+def _validate_wsl_selection(enabled: bool, distribution: str, section: str) -> None:
+    """两种隔离策略只共用发行版名称校验，不共享是否启用或执行权限。"""
+    if type(enabled) is not bool:
+        raise ConfigError(f"{section}.enabled 必须是布尔值。")
+    if (
+        not isinstance(distribution, str)
+        or not 1 <= len(distribution) <= 64
+        or not distribution[0].isascii()
+        or not distribution[0].isalnum()
+        or any(not c.isascii() or not (c.isalnum() or c in "_.-") for c in distribution)
+    ):
+        raise ConfigError(f"{section}.distribution 必须是有效的 WSL 发行版名称。")
 
 
 @dataclass(frozen=True)
@@ -508,3 +524,4 @@ class AppConfig:
     session_search: SessionSearchConfig = field(default_factory=SessionSearchConfig)
     knowledge_dir: Path | None = None
     orchestration: OrchestrationConfig = field(default_factory=OrchestrationConfig)
+    command_isolation: CommandIsolationConfig = field(default_factory=CommandIsolationConfig)

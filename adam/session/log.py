@@ -5,7 +5,7 @@ from itertools import groupby
 from typing import Any
 
 from adam.contracts.artifacts import ArtifactRef, decode_artifact_reference
-from adam.contracts.execution import CODE_TOOL_NAME, FILE_EDIT_TOOLS
+from adam.contracts.execution import CODE_TOOL_NAME, COMMAND_TOOLS, FILE_EDIT_TOOLS
 from adam.contracts.history import (
     HistoryTurn,
     validate_compaction_version,
@@ -19,6 +19,7 @@ from adam.contracts.runtime import decode_runtime_state
 from adam.contracts.skills import validate_catalog, validate_skill_selection
 from adam.contracts.tool_catalog import validate_tool_schema_record
 from adam.contracts.usage import decode_observations, encode_observations
+from adam.session.command_log import validate_finish, validate_start
 from adam.session.compaction_log import CompactionLog
 from adam.session.edit_log import EditLog
 from adam.session.feedback_log import FeedbackLog, feedback_context
@@ -640,11 +641,11 @@ class SessionLog:
         self.undos.apply(kind, payload, self.edits.operations, self.executions)
 
     def _apply_command(self, kind: str, payload: dict[str, Any]) -> None:
-        """命令事件属于已开始的 run_command 工具；缺少结束事件时保持 unknown。"""
+        """命令事件属于已开始的宿主/隔离命令工具；缺少结束事件时保持 unknown。"""
         self._require_turn(payload)
         self._require_request(payload)
         tool = self._require_tool(payload)
-        if tool["name"] != "run_command" or tool["finished"]:
+        if tool["name"] not in COMMAND_TOOLS or tool["finished"]:
             raise ValueError("invalid command parent")
         execution_id = self._identifier(payload, "execution_id")
         if kind in {"command_started", "command_denied"}:
@@ -659,6 +660,7 @@ class SessionLog:
                 raise ValueError("invalid command")
             if kind == "command_denied" and payload.get("status") != "denied":
                 raise ValueError("invalid denial")
+            validate_start(tool["name"], payload)
             self.executions[execution_id] = {
                 **payload,
                 "status": "unknown" if kind == "command_started" else "denied",
@@ -672,10 +674,7 @@ class SessionLog:
             payload.get(key) != previous[key] for key in ("turn_id", "request_id", "tool_call_id")
         ):
             raise ValueError("mismatched command parent")
-        if payload.get("status") not in {"completed", "timed_out", "start_failed", "interrupted"}:
-            raise ValueError("invalid command status")
-        if payload.get("exit_code") is not None and type(payload["exit_code"]) is not int:
-            raise ValueError("invalid exit code")
+        validate_finish(previous, payload)
         self.executions[execution_id] = {**previous, **payload}
 
     def _apply_message(self, kind: str, payload: dict[str, Any]) -> None:

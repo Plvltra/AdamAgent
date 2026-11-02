@@ -3,6 +3,7 @@
 import json
 from typing import Any
 
+from adam.contracts.execution import COMMAND_TOOLS
 from adam.contracts.reflection import Feedback, decode_feedback
 
 
@@ -23,9 +24,9 @@ def failure_signal(tool: dict[str, Any], executions: dict[str, dict[str, Any]]) 
         return False
     if output.get("ok") is False:
         return True  # 参数校验等失败可能尚未启动进程，不能要求有命令执行记录。
-    if tool["name"] == "run_command":
+    if tool["name"] in COMMAND_TOOLS:
         execution = executions.get(tool.get("execution_id") or "", {})
-        return execution.get("status") in {"timed_out", "start_failed"} or (
+        return execution.get("status") in {"timed_out", "start_failed", "output_limited"} or (
             execution.get("status") == "completed" and execution.get("exit_code") not in {None, 0}
         )
     if tool["name"] == "wait_agents":

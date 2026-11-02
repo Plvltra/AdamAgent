@@ -1,0 +1,55 @@
+{
+  "checked_at": "2026-11-01T15:07:11.989871+00:00",
+  "distribution": "Ubuntu",
+  "real_backend": true,
+  "model_transport": "httpx.MockTransport",
+  "paid_requests": 0,
+  "production_bootstrap": true,
+  "cases": [
+    {
+      "name": "read",
+      "status": "completed",
+      "exit_code": 0,
+      "reason": "exited",
+      "input_version_verified": true,
+      "host_source_unchanged": true,
+      "restart_verified": true,
+      "replay_after_source_removed": "matched",
+      "http_requests": 2
+    },
+    {
+      "name": "nonzero",
+      "status": "completed",
+      "exit_code": 1,
+      "reason": "exited",
+      "input_version_verified": true,
+      "host_source_unchanged": true,
+      "restart_verified": true,
+      "replay_after_source_removed": "matched",
+      "http_requests": 2
+    },
+    {
+      "name": "readonly",
+      "status": "completed",
+      "exit_code": 1,
+      "reason": "exited",
+      "input_version_verified": true,
+      "host_source_unchanged": true,
+      "restart_verified": true,
+      "replay_after_source_removed": "matched",
+      "http_requests": 2
+    },
+    {
+      "name": "denied",
+      "status": "denied",
+      "exit_code": null,
+      "reason": null,
+      "input_version_verified": true,
+      "host_source_unchanged": true,
+      "restart_verified": true,
+      "replay_after_source_removed": "matched",
+      "http_requests": 1
+    }
+  ],
+  "limits": "验证生产工具集成；真实执行中强杀和 PID 清理由 B19.3 单独验收。"
+}

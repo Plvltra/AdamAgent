@@ -2,13 +2,32 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B19.2.2 显式授权输入快照、来源复查和 Linux 只读数据目录。
+本次核对范围：B19.2.3 主 Agent 隔离命令入口、快照批准、命令事实与有界预览。
 
-核对结论：tool_calls.command_inputs 依赖原 PathPolicy，经 contracts.command_inputs 将字节交给 isolation；工具层没有反向导入 OS 实现。Linux 端验证后建立私有临时快照，再只读绑定 /work；B14 默认参数和权限边界保持。尚未接 ToolRegistry/批准，原不挂宿主目录及清理说明保留并补充快照契约。
+核对结论：bootstrap 通过 contracts.command_execution 注入后端，工具层只协调原授权、批准和快照；会话层新增 command_log 校验，执行报告/计划/反思识别两种命令。配置默认关闭，子 Agent 不注册新入口。原先记开始、无降级、取消保持未知等解释已保留，argv 校验及结果契约说明随实现迁移。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B19.2.3 隔离命令工具
+
+~~~mermaid
+flowchart LR
+    ICT_CFG["command_isolation / 默认关闭"] --> ICT_BOOT["bootstrap / 只向主 Agent 注入"]
+    ICT_BOOT --> ICT_TOOL["tool_calls.isolated_commands / 原 ToolRegistry、模式、Hook、预算"]
+    ICT_BOOT --> ICT_BACK["isolation.commands / IsolatedCommands"]
+    ICT_TOOL --> ICT_INPUT["原 PathPolicy / capture_inputs 与批准后 verify"]
+    ICT_TOOL --> ICT_CLI["CommandRequest / CLI 环境、argv、来源与版本批准"]
+    ICT_TOOL --> ICT_PORT["contracts.command_execution / CommandRunner"]
+    ICT_BACK -.实现.-> ICT_PORT
+    ICT_TOOL --> ICT_LOG["原 ToolInvocation / command_started、finished、denied"]
+    ICT_LOG --> ICT_CHECK["session.command_log / 环境与来源不可改写"]
+    ICT_CHECK --> ICT_FACT["执行报告、计划证据、反思 / 真实状态与退出码"]
+    ICT_TOOL --> ICT_RESULT["原附件与重复失败预览 / 保留环境、原因与引用"]
+~~~
+
+与下图真实后端通过窄契约连接；原宿主命令明确显示执行环境，失败不自动改走另一条路径。说明见 [隔离命令](runtime-isolation.md)。
 
 ## B19.2.1 原生命令隔离 API
 
@@ -30,7 +49,7 @@ flowchart LR
     IC_RESULT --> IC_API
 ~~~
 
-此阶段没有模型工具接入，原 CommandTools 宿主路径保持；文件输入已支持只读快照，批准将在后续小步接入。见 [隔离策略与实测](runtime-isolation.md)。
+B19.2.3 已通过上图接入主 Agent 工具与批准；原 CommandTools 宿主路径仍明确独立。见 [隔离策略与实测](runtime-isolation.md)。
 
 ## B18 命令输出
 
@@ -49,7 +68,7 @@ flowchart LR
     CMD_PREVIEW --> CMD_FINAL["同一最终工具消息 / JSONL 与模型输入"]
 ~~~
 
-源头和最终预览均保留头尾，字符省略与原字节省略分开，附件完整性保持原义；见 [输出契约](command-output.md)。
+宿主 CommandTools 的源头和最终预览保留头尾；极小额度可省略全部正文并明确计数。字符省略与原字节省略分开，附件完整性保持原义；见 [输出契约](command-output.md)。
 
 ## B17.3.1 图片分析扩展契约
 

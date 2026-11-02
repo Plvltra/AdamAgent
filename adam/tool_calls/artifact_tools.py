@@ -134,7 +134,16 @@ class ToolArtifacts:
             "source_truncated": result.get("truncated") is True,
             **metadata,
         }
-        for key in ("status", "version", "exit_code", "timed_out", "elapsed_seconds"):
+        for key in (
+            "status",
+            "version",
+            "exit_code",
+            "environment",
+            "reason",
+            "policy",
+            "timed_out",
+            "elapsed_seconds",
+        ):
             value = result.get(key)
             if key in result and (
                 value is None
@@ -151,7 +160,7 @@ class ToolArtifacts:
                 output,
                 texts,
                 self.max_result_chars,
-                optional=("elapsed_seconds", "version", "timed_out"),
+                optional=("elapsed_seconds", "version", "timed_out", "policy"),
             )
         except ToolError as error:
             raise StorageError("工具结果上限不足以容纳附件引用与省略信息。") from error

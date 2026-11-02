@@ -67,7 +67,8 @@ SPECS = {
         ["path", "old_text", "new_text", "expected_version"],
     ),
     "run_command": {
-        "description": "执行通用程序及参数，需用户逐次确认。支持脚本、Git、构建等命令；"
+        "description": "在宿主账户权限下执行通用程序，需用户逐次确认，不提供操作系统隔离。"
+        "支持脚本、Git、构建等命令；"
         "不隐式解释 shell 语法。读取 exit_code/stdout/stderr 判断结果，拒绝后不要重复请求。",
         "parameters": {
             "type": "object",

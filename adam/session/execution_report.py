@@ -2,7 +2,7 @@
 
 import json
 
-from adam.contracts.execution import FILE_EDIT_TOOLS
+from adam.contracts.execution import COMMAND_TOOLS, FILE_EDIT_TOOLS
 from adam.contracts.models import ActionFact, ExecutionReport
 from adam.session.log import SessionLog
 
@@ -18,9 +18,9 @@ def build_execution_report(log: SessionLog, turn_id: str) -> ExecutionReport:
     actions = []
     for tool in tools:
         name = tool["name"]
-        if name not in {"run_command", *FILE_EDIT_TOOLS}:
+        if name not in {*COMMAND_TOOLS, *FILE_EDIT_TOOLS}:
             continue
-        if name == "run_command":
+        if name in COMMAND_TOOLS:
             record = log.executions.get(tool["execution_id"])
         else:
             edit_id = tool.get("edit_id")
@@ -36,8 +36,23 @@ def build_execution_report(log: SessionLog, turn_id: str) -> ExecutionReport:
             )
             continue
         target = (
-            json.dumps({"argv": record["argv"], "cwd": record["cwd"]}, ensure_ascii=False)
-            if name == "run_command"
+            json.dumps(
+                {
+                    "argv": record["argv"],
+                    "cwd": record["cwd"],
+                    **(
+                        {
+                            "environment": "isolated",
+                            "distribution": record["distribution"],
+                            "reason": record.get("reason"),
+                        }
+                        if record.get("environment") == "isolated"
+                        else {}
+                    ),
+                },
+                ensure_ascii=False,
+            )
+            if name in COMMAND_TOOLS
             else json.dumps(record["path"], ensure_ascii=False)
         )
         actions.append(

@@ -48,7 +48,7 @@ python -m scripts.isolation_acceptance --distribution Ubuntu --output isolation-
 
 ## B19.2.1 原生命令后端
 
-[IsolatedCommands](../adam/isolation/commands.py) 提供独立的 `probe()` 和 `run(argv)` API。它可以启动发行版中的原生 ELF 程序，例如 echo、ls 和 Python。此阶段尚未接入模型工具、终端批准或项目文件；原 run_command 仍在宿主执行，不能因新增 API 就称其已受沙箱保护。B19.2.2 已完成下节的授权输入快照；B19.2.3 工具接入仍待完成。
+[IsolatedCommands](../adam/isolation/commands.py) 提供独立的 `probe()` 和 `run(argv)` API。它可以启动发行版中的原生 ELF 程序，例如 echo、ls 和 Python。此阶段尚未接入模型工具、终端批准或项目文件；原 run_command 仍在宿主执行，不能因新增 API 就称其已受沙箱保护。B19.2.2 已完成下节的授权输入快照；B19.2.3 已完成下文的独立工具、批准与日志接入。
 
 新策略名为 `bubblewrap-native-single-process-v1`。它沿用固定 Bubblewrap 命名空间、只读运行时、空 `/work` 和 seccomp 拒绝项，保留 256 MiB 地址空间、2 秒 CPU、0 字节文件写入、32 个 FD；墙钟允许 1～5 秒，合计输出最多 64 KiB。命令必须是数组，不拼接 shell。可显式调用原生 shell 的内置操作，但 fork/线程仍禁止，普通构建和多进程命令不在此策略能力内。脚本文件不能直接作为入口，可显式用受支持解释器运行参数中的脚本。没有网络，没有项目挂载，不自动安装程序。
 
@@ -70,7 +70,7 @@ python -m scripts.isolated_command_acceptance --distribution Ubuntu --output nat
 
 报告的取消仅证明取消了“探测或命令”操作并返回中断，没有在该例确认用户 worker 已经启动或逐一核对 Linux PID。B19.3 仍须补执行中取消、强杀宿主、真实越界及进程身份清理验收。宿主路径案例因为 `/mnt` 不存在而拒绝，不冒称实际 PE 文件的执行白名单检验；PE/FD 入口组合留在 B19.3。
 
-[宿主业务测试](../tests/features/test_isolated_commands.py) 新增21项，使用真实管道子进程验证成功/非零、原输出不冒充协议、拒绝降级、参数限额、故障、取消及回收；[辅助启动器](../tests/features/support/isolated_command_launcher.py) 仅代替通信端，不能证明 OS 隔离。相关隔离、编排清理和架构共75项通过。Ruff、Pyright 和文档链接需随阶段检查，主线按 AGENTS.md 三级验证规则执行，B19结束后全量回归。所有验收付费模型请求为0。
+[宿主业务测试](../tests/features/test_isolated_commands.py) 新增21项，使用真实管道子进程验证成功/非零、原输出不冒充协议、拒绝降级、参数限额、故障、取消及回收；[辅助启动器](../tests/features/support/isolated_command_launcher.py) 仅代替通信端，不能证明 OS 隔离。相关隔离、编排清理和架构共75项通过。Ruff、Pyright 和文档链接需随阶段检查，主线按 AGENTS.md 三级验证规则执行。所有验收付费模型请求为0。
 
 
 ## B19.2.2 授权文件快照
@@ -81,7 +81,7 @@ python -m scripts.isolated_command_acceptance --distribution Ubuntu --output nat
 
 宿主向可信 Linux 启动器发送受限 base64 数据和摘要，最大协议帧3MiB。Linux 端独立校验全部名称、摘要和配额后，才在自己的私有临时目录构造普通文件，只读绑定到 `/work`。没有宿主项目路径、符号链接、挂载参数或目录树传入；命令不能写回原文件。进程回收后才清理该次临时目录。B14 不传这个内部临时目录参数，保持原空工作目录和禁止再次执行的策略。
 
-此阶段还是 API：`IsolatedCommands.run(argv, inputs=captured.files)`。聊天工具、批准展示和持久日志由 B19.2.3 接入，调用者不能把自己构造的 CommandInput 当作授权。
+底层 API 为 `IsolatedCommands.run(argv, inputs=captured.files)`。B19.2.3 已接入下文的聊天工具、批准展示和持久日志；调用者不能把自己构造的 CommandInput 当作授权。
 
 [业务验收](../tests/features/test_command_input_snapshots.py) 新增25项：字节/来源版本、权限和撤权、虚拟逃逸、受保护文件、前缀冲突、数量/单文件/总量、读取变化、取消及损坏数据拒绝；相关后端、编排和架构117项通过。实际 [快照验收入口](../scripts/isolated_input_acceptance.py) 和 [报告](evaluations/b19-inputs.json) 验证中文及 Windows CRLF 原字节、只出现选中文件、写入拒绝和宿主不可见、源变化拒绝，以及2MiB二进制边界摘要一致；没有调用模型。
 
@@ -89,4 +89,35 @@ python -m scripts.isolated_command_acceptance --distribution Ubuntu --output nat
 python -m scripts.isolated_input_acceptance --distribution Ubuntu --output isolated-input-result.json
 ```
 
-首轮实际验收揭示了测试夹具把 Windows 换行假定为 LF，已改为比较捕获字节；后端本来就保留 CRLF，没有为测试更改输出。Ruff、545个文件格式、Pyright 和链接均须核对；本次主线25项专项通过，按 AGENTS.md 三级验证规则继续。
+首轮实际验收揭示了测试夹具把 Windows 换行假定为 LF，已改为比较捕获字节；后端本来就保留 CRLF，没有为测试更改输出。Ruff、545个文件格式、Pyright 和链接均须核对；主线按 AGENTS.md 三级验证规则执行。
+
+
+## B19.2.3 主 Agent 隔离命令工具
+
+`run_isolated_command` 是独立入口，默认关闭。原 `run_command` 的说明与批准界面明确标为宿主执行；二者不会自动互相回退。下面配置只注册工具，启动应用时不探测 WSL；每次获批准的实际动作才核对后端能力。
+
+```toml
+[command_isolation]
+enabled = true
+distribution = "Ubuntu"
+```
+
+模型传 `argv`、可选 `inputs` 和1～5秒 `timeout_seconds`。例如 `argv=["cat","src/note.txt"]`、`inputs={"src/note.txt":"note.txt"}`。虚拟工作目录固定 `/work`，不接受 cwd、挂载、环境变量、启动器或放宽策略的参数。输入最多16个、单个1MiB、合计2MiB，沿用原额外读取授权、凭据和程序数据目录保护。主应用还显式保护项目记忆目录。子 Agent 不注册该入口，需要把命令方案交回主 Agent。
+
+[工具适配器](../adam/tool_calls/isolated_commands.py) 先经原参数/模式/规则/Hook 检查，再捕获授权文件快照。批准界面显示 Linux 环境、完整 argv、期限，以及虚拟名、宿主来源和 SHA256；显示用 JSON 转义。批准后重新授权并比较原文件版本，变化就拒绝本次旧批准，不重新捕获内容继续执行。用户拒绝沿原规则停止该轮，既不启动能力探测也不执行命令。
+
+工具只依赖 [CommandRunner 契约](../adam/contracts/command_execution.py)，[bootstrap](../adam/bootstrap.py) 注入真实 IsolatedCommands；工具层不导入 isolation。共享 argv 校验迁到兼容 Linux Python 3.8 的 command_inputs，原协议导出保留，Linux 端没有反向引入宿主取消和错误模块。
+
+批准及版本检查通过后先保存 command_started，再调用后端。开始事件记录 environment、distribution、输入来源/版本和原请求关联；command_finished 保留真实状态、退出码及 reason。正常结束为 completed，墙钟停止为 timed_out，输出硬限额为 output_limited；completed 或 ok=true 仅代表进程正常结束，非零仍是业务失败线索，不能完成计划步骤。执行报告、计划证据、反思和待审查动作限制均识别两种命令。日志校验拒绝结束事件改写批准时的环境与输入。
+
+取消时后端没有交付可靠完整结果，记录 interrupted、未知退出码和 truncated=true，再抛出原中断。隔离能力/通信故障停止本轮，已写开始但没有可靠结束的执行保持 unknown；开始日志失败不启动，结束日志失败不重试。重启读取原事实，不自动重发；录制重放不重新运行命令或读取原输入。原工具数/token预算、拒绝、Hook 和共享执行器保持。
+
+有界命令预览与原附件机制保留环境、退出码、停止原因。512字符等极小额度下，连续失败反馈可省略全部正文，并明确 preview_omitted_chars；附件预览可省略 saved_chars/format 展示字段，但保留完整版本和读取凭据、complete 及失败指纹。原正文、完整来源仍在附件/命令日志中。隔离后端达到64KiB时硬停止，只能称已捕获片段，不能套用宿主 CommandTools 持续读取后的最终尾部保证。
+
+[33项新业务场景](../tests/features/test_isolated_command_flow.py) 验证按需发现、真实 HTTP 工具循环、批准/变更/保留目录、模式/Hook/预算、保存失败、取消/未知状态、计划证据、重启与零执行重放、配置、子任务限制及512字符失败停止。此组替换 OS 后端，不能据此声称验证了内核隔离；真实证据见下面入口和报告。命令、编排、计划、反思、模式、配置及架构合计230项通过（60.52秒）；Ruff、550个文件格式、Pyright、注释与架构单独核对。主线按 AGENTS.md 三级验证规则执行。
+
+```powershell
+python -m scripts.isolated_chat_acceptance --distribution Ubuntu --output isolated-chat-result.json
+```
+
+[真实入口](../scripts/isolated_chat_acceptance.py) 使用生产组装和真实 WSL，模拟模型 HTTP；[结果](evaluations/b19-command-chat.json) 记录授权 CRLF/中文原字节读取、真实非零退出、只读目录拒写、用户拒绝，以及日志重启和删除源文件后的离线重放。首次路径断言未考虑 Windows 临时目录规范化，已改为比较解析后的路径；受限执行环境的 WSL E_ACCESSDENIED 也没有绕过，获原授权运行后通过。付费请求为0。实际执行中取消、强杀与 Linux PID 身份清理继续留在 B19.3。

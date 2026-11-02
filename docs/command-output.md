@@ -52,3 +52,8 @@ ToolArtifacts 在预览之前将取得的原结果交给原 ArtifactStore：单�
 [独立宿主](../tests/features/support/command_output_worker.py) 和 [实际长输出任务](../tests/features/support/command_output_task.py) 都有明确用途，测试不向 pytest 主进程投递中断。SIGINT 走 Python 实际中断处理路径，不声称测试了物理键盘；超时和清理使用生产实现。只在最后报错、多字节、双流、配额及保存故障的前两阶段场景继续复用。
 
 相关源头/预览/命令和架构71项通过（19.25秒），已有命令/批准取消、附件及重复失败26项通过（31.21秒）。Ruff、534个文件格式与 Pyright 通过，新增文件全文和生产差异已审查；原“终止进程树与回收”说明保留并补中断快照契约。主线按 AGENTS.md 三级验证规则执行。B18 工程验收完成，下一步 B19.2 命令隔离后端接入；没有调用付费模型。
+
+
+## B19.2.3 隔离命令的差别
+
+新隔离命令共用最终预览与附件，但 Linux 后端输出达到64KiB就停止，保留的是实际取得片段，不能称为进程最终尾部。模型预览和重复失败反馈保留 environment、reason 与 exit_code；极小额度的反馈可只返回状态、完整失败指纹、附件读取凭据/完整性和 preview_omitted_chars，正文全部省略。此时可省略附件的 saved_chars/format 展示字段及重复 policy，完整值仍在附件或命令事实日志。33项 [接入验收](../tests/features/test_isolated_command_flow.py) 包含512字符的非零退出、超时、输出停止和连续失败最终停止；原宿主命令捕获与预览场景继续回归。

@@ -31,7 +31,7 @@ session_id：一个会话，对应一个 JSONL 文件
 | tool_started | turn_id、request_id、tool_call_id、name、arguments；嵌套时加 parent_tool_call_id | 即将进入工具处理；arguments 为模型或 worker 提交的 JSON 参数 |
 | tool_finished | turn_id、request_id、tool_call_id、output；嵌套时保留同一 parent_tool_call_id | 已取得返回值；output 为实际回传模型或 worker 的有界 JSON 字符串 |
 | hook_started / hook_finished | 父轮次/请求/工具、hook_id、event、execution_mode、result | T5 工具前后检查；独立诊断按轮次输出 hooks，结果与工具输出独立，详见 [Hooks 契约](lifecycle-hooks.md) |
-| command_started / command_finished / command_denied | 上述三个关联 ID、execution_id 及命令细节 | run_command 的审批和进程执行记录 |
+| command_started / command_finished / command_denied | 上述三个关联 ID、execution_id 及命令细节 | run_command / run_isolated_command 的批准和进程执行记录；隔离入口另存环境与输入来源版本 |
 | edit_planned / edit_started / edit_finished | 父轮次/请求/工具、edit_id、路径、版本与状态 | 计划、批准后写入边界及实际结果，详情见下文 |
 | undo_requested / undo_prepared / undo_started / undo_finished | undo_id、原 edit_id、逆向版本、source_* 来源及结果 | T7.2 用户独立撤销，顶层诊断输出 undos，不伪造模型轮次 |
 | proposal_submitted | proposal_id、owner、子轮次/请求/提交调用、read、edit、target_version | T11.1 不可变候选；核对实际读取和提交参数，不代表批准或应用，见 [修改提案](edit-proposals.md) |
@@ -197,7 +197,7 @@ Conversation.send 负责轮次异常收尾，_run_turn 保留模型与工具循�
 检查以下结果：
 
 - 第一次请求返回 read_file，第二次失败，原始输入、两次请求和读取结果仍可从日志关联。
-- run_command 的通用工具记录与命令事件指向同一轮次、请求和调用。
+- run_command 与 run_isolated_command 的通用工具记录和命令事件指向同一轮次、请求和调用。隔离开始事件保留 environment/distribution/input_files，结束不能改写；completed、timed_out、output_limited 与实际 reason 对应，非零不能作为计划成功证据。取消或通信故障保留未知结果，见 [隔离命令](runtime-isolation.md)。
 - 成功链沿用输入时的 turn_id；失败输入不会混入后续有效上下文。
 - 有效请求成功与整轮成功分开，未知用量仍保持未知；请求/工具阶段中断与程序错误有不同终态。
 - 保存失败只结束轮次，不抹去请求成功；失败日志再次写入失败不掩盖原始异常。

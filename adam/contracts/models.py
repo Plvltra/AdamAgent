@@ -3,9 +3,10 @@
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
+from adam.contracts.command_execution import CommandInputPreview
 from adam.contracts.usage import CacheUsage, InputPrefix
 
 
@@ -42,11 +43,17 @@ class Completion:
 
 @dataclass(frozen=True)
 class CommandRequest:
-    """用户确认的不可变执行计划，argv 使用参数列表，不经过 shell。"""
+    """用户确认的不可变执行计划；argv 不拼接 shell，environment 明确区分宿主与隔离。
+
+    隔离 cwd 固定为 /work，input_files 仅供展示已授权快照来源和版本，不授予路径权限。
+    """
 
     argv: tuple[str, ...]
-    cwd: Path
+    cwd: Path | PurePosixPath
     timeout_seconds: int
+    environment: Literal["host", "isolated"] = "host"
+    distribution: str | None = None
+    input_files: tuple[CommandInputPreview, ...] = ()
 
 
 @dataclass(frozen=True)

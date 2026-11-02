@@ -3,7 +3,7 @@
 import json
 from typing import Any
 
-from adam.contracts.execution import CODE_TOOL_NAME, FILE_EDIT_TOOLS
+from adam.contracts.execution import CODE_TOOL_NAME, COMMAND_TOOLS, FILE_EDIT_TOOLS
 from adam.contracts.planning import PlanSnapshot
 
 
@@ -53,7 +53,7 @@ def successful(
         return all(
             child["finished"] and successful(child, executions, edits, tools) for child in children
         )
-    if tool["name"] == "run_command":
+    if tool["name"] in COMMAND_TOOLS:
         execution = executions.get(tool.get("execution_id") or "", {})
         return execution.get("status") == "completed" and execution.get("exit_code") == 0
     if tool["name"] in FILE_EDIT_TOOLS:

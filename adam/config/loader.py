@@ -15,6 +15,7 @@ from adam.config.settings import (
     AgentConfig,
     AppConfig,
     ArtifactConfig,
+    CommandIsolationConfig,
     ContextConfig,
     DocumentConfig,
     LLMConfig,
@@ -147,6 +148,7 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
             "no_progress",
             "session_search",
             "orchestration",
+            "command_isolation",
         },
         "主配置",
     )
@@ -330,6 +332,13 @@ def load_config(path: Path, llm_path: Path | None = None) -> AppConfig:
                 data.get("no_progress", {}),
                 {item.name for item in fields(NoProgressConfig)},
                 "no_progress",
+            )
+        ),
+        command_isolation=CommandIsolationConfig(
+            **checked_section(
+                data.get("command_isolation", {}),
+                {item.name for item in fields(CommandIsolationConfig)},
+                "command_isolation",
             )
         ),
         orchestration=OrchestrationConfig(

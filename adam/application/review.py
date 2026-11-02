@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from adam.config.settings import ReviewConfig, ToolLimits
 from adam.contracts.errors import StorageError, ToolError
-from adam.contracts.execution import FILE_EDIT_TOOLS
+from adam.contracts.execution import COMMAND_TOOLS, FILE_EDIT_TOOLS
 from adam.contracts.review import validate_request, validate_result
 from adam.session.storage import SessionStore
 from adam.tool_calls.policy import PathPolicy
@@ -51,7 +51,7 @@ class ReviewService:
         """审查中保留只读与收集能力，防止检查过程中修改被审对象。"""
         if self.pending() and name in {
             *FILE_EDIT_TOOLS,
-            "run_command",
+            *COMMAND_TOOLS,
             "spawn_agent",
             "send_message",
         }:

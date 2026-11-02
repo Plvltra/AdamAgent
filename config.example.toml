@@ -166,6 +166,12 @@ semantic_min_score = 0.5
 enabled = false
 distribution = "Ubuntu"
 
+# 独立的只读 Linux 命令工具；启用仅注册入口，执行前仍需逐次批准。
+# 不挂载宿主项目、不联网、不派生进程；输入文件须显式选择并通过原路径授权。
+[command_isolation]
+enabled = false
+distribution = "Ubuntu"
+
 [tool_limits]
 max_read_lines = 200
 max_result_chars = 8000
