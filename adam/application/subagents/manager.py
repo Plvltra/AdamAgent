@@ -11,14 +11,13 @@ from pathlib import Path
 from typing import Any
 
 from adam.application.conversation import Conversation
-from adam.application.event_queue import EventQueue
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
+from adam.application.subagents.mailbox import RunMailbox
 from adam.config.settings import PermissionConfig, SubagentConfig
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.errors import AgentError, StorageError, ToolError
-from adam.contracts.events import EventKind
 from adam.contracts.execution import ExecutionMode
 from adam.contracts.memory import MemorySelection
 from adam.contracts.proposals import EditProposal, ProposalOwner
@@ -34,6 +33,7 @@ ChildOpener = Callable[
         SharedTokenBudget,
         Callable[[str], None],
         MemorySelection,
+        Callable[[str, str], dict[str, Any]],
     ],
     AbstractContextManager[Conversation],
 ]
@@ -69,7 +69,7 @@ class SubagentManager:
         self._budget = SharedTokenBudget(token_limit)
         self._pool: ThreadPoolExecutor | None = None
         self._active: dict[str, tuple[Future[None], CancellationToken]] = {}
-        self._mailboxes: dict[str, EventQueue] = {}
+        self._mailboxes: dict[str, RunMailbox] = {}
         self._delivered: set[str] = set()
         self._announced: set[str] = set()
         self._turn_id = ""
@@ -160,19 +160,21 @@ class SubagentManager:
             raise ToolError("独立审查者不接受运行中补充，请重新发起审查。")
         if not active or not agent.runs or agent.runs[-1].run_id != run_id or active[1].cancelled:
             raise ToolError("目标run_id已结束、被取消或不属于当前活任务，未启动新任务。")
-        queue = self._mailboxes[run_id]
-        try:
-            receipt = queue.put(EventKind.AGENT_MESSAGE, "parent", message_id, text)
-        except ValueError as error:
-            raise ToolError(f"子任务补充未接受：{error}") from error
-        return {
-            "agent_id": agent_id,
-            "run_id": run_id,
-            "message_id": message_id,
-            "sequence": receipt.sequence,
-            "duplicate": receipt.duplicate,
-            "status": "accepted",
-        }
+        receipt = self._mailboxes[run_id].receive(message_id, text, self._source)
+        return {"agent_id": agent_id, "run_id": run_id, "message_id": message_id, **receipt}
+
+    def collect_progress(self, agent_id: str, run_id: str, cursor: int = 0) -> dict[str, Any]:
+        """读取指定运行的一条自报进展；不把进展收集当成最终结果已交付。"""
+        self._poll()
+        agent = self._get(agent_id)
+        if not any(run.run_id == run_id for run in agent.runs):
+            raise ToolError("进展run_id不属于该子Agent。")
+        mailbox = self._mailboxes.get(run_id)
+        if mailbox is None:
+            mailbox = RunMailbox(
+                self._index_required().root / "mailboxes", agent_id, run_id, create=False
+            )
+        return mailbox.collect(cursor, max_chars=self.result_limit)
 
     def list_agents(self) -> dict[str, Any]:
         """查询当前主会话成员，不读取正在写入的子会话文件或展开回复。"""
@@ -341,6 +343,12 @@ class SubagentManager:
                 tokens, unknown = children.usage(agent.agent_id)
                 budget.update(str(children.root / agent.agent_id), tokens, unknown)
                 self._recover_runs(index, children, agent)
+                for run in index.get(agent.agent_id).runs:
+                    path = index.root / "mailboxes" / agent.agent_id / f"{run.run_id}.json"
+                    if path.exists():
+                        RunMailbox(
+                            index.root / "mailboxes", agent.agent_id, run.run_id, create=False
+                        ).finish(run.status)
         self._index, self._budget, self._session_id = index, budget, session_id
         self._delivered = set()
         self._announced = {run.run_id for agent in index.agents() for run in agent.runs}
@@ -411,13 +419,13 @@ class SubagentManager:
                 max_workers=self.limits.max_concurrent, thread_name_prefix="adam-child"
             )
         token = CancellationToken()
-        self._mailboxes[run.run_id] = EventQueue(
-            run.run_id, capacity=32, max_events=64, max_chars=8192
+        self._mailboxes[run.run_id] = RunMailbox(
+            self._index_required().root / "mailboxes", agent.agent_id, run.run_id
         )
         try:
             future = self._pool.submit(self._work, agent, run, token, self._memory)
         except BaseException:
-            self._mailboxes.pop(run.run_id).close()
+            self._mailboxes.pop(run.run_id).finish("failed")
             self._index_required().update_run(
                 agent.agent_id, run.run_id, status="failed", error="子线程未启动。"
             )
@@ -431,6 +439,8 @@ class SubagentManager:
     ) -> None:
         """工作线程只写自己的会话和线程安全索引；不打印、不读终端、不扩张权限。"""
         index, budget = self._index_required(), self._budget
+        mailbox = self._mailboxes[run.run_id]
+        outcome = "failed"
 
         def started(turn_id: str) -> None:
             index.update_run(agent.agent_id, run.run_id, child_turn_id=turn_id)
@@ -438,12 +448,13 @@ class SubagentManager:
         try:
             token.check()
             with self.open_child(
-                self._children_root(), agent, run, token, budget, started, memory
+                self._children_root(), agent, run, token, budget, started, memory, mailbox.publish
             ) as conversation:
                 conversation.input_owner = run.run_id
-                conversation.input_provider = lambda _: self._mailboxes[run.run_id]
+                conversation.input_provider = lambda _: mailbox.queue
                 reply = conversation.send(run.task)
             index.update_run(agent.agent_id, run.run_id, status="completed", reply=reply)
+            outcome = "completed"
         except BaseException as error:
             status = (
                 "interrupted" if isinstance(error, (KeyboardInterrupt, SystemExit)) else "failed"
@@ -457,9 +468,10 @@ class SubagentManager:
                     else "子任务内部错误；请检查日志。"
                 )
             )
+            outcome = status
             index.update_run(agent.agent_id, run.run_id, status=status, error=message)
         finally:
-            self._mailboxes[run.run_id].close()
+            mailbox.finish(outcome)
 
     def _poll(self) -> None:
         for agent_id, (future, _) in list(self._active.items()):

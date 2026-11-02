@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B28.1 父到子运行邮箱与安全点。
+本次核对范围：B28.2 双向进展工具与RunMailbox持久化。
 
-核对结论：主模型message_agent经DelegationTools协议进入SubagentManager，按run_id路由EventQueue；子Conversation由宿主绑定input_owner，在安全点消费来源明确的AGENT_MESSAGE。原send_message续聊保持，工具层仍不导入应用实现。
+核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -2005,4 +2005,18 @@ flowchart LR
     C --> H[成功子历史 / 来源标记正文]
 ```
 
-父工具轨迹保存消息参数与回执；子运行未消费的邮箱独立持久状态待B28.2，当前不绘制未实现存储关系。权限不因父消息扩大，reviewer不接受运行中补充。[功能范围](subagent-messages.md)。
+父工具轨迹保存消息参数与回执；B28.2已补充独立持久快照，见下图。权限不因父消息扩大，reviewer不接受运行中补充。[功能范围](subagent-messages.md)。
+## B28.2 双向消息与持久化
+
+```mermaid
+flowchart LR
+    M[SubagentManager] --> R[RunMailbox / run_id]
+    R --> Q[EventQueue / 父到子]
+    Q -->|接受/确认回调| R
+    CT[子report_progress] -->|宿主绑定publish| R
+    PT[父collect_agent_progress] --> M
+    R --> D[mailboxes / 原子JSON快照]
+    H[恢复后的子日志与运行索引] -->|结算终态| R
+```
+
+进展collected不会替代wait_agents的最终结果交付；邮箱恢复不重新入队。主/子读文件和资料工具保护内部子会话目录，子线程不共享主SessionStore。实际强杀验收待B28.3。

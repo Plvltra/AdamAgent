@@ -5,6 +5,7 @@ from contextlib import AbstractContextManager, ExitStack, contextmanager
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -54,7 +55,7 @@ from adam.tool_calls.background_jobs import BackgroundJobs
 from adam.tool_calls.background_tools import BackgroundTools
 from adam.tool_calls.command_tools import CommandTools
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
-from adam.tool_calls.delegation_tools import encode_results, handlers
+from adam.tool_calls.delegation_tools import encode_results, handlers, register_progress
 from adam.tool_calls.diagnostic_files import DiagnosticFiles
 from adam.tool_calls.discovery_tools import register_discovery
 from adam.tool_calls.document_tools import register_documents
@@ -125,6 +126,7 @@ def build_application(
             mcp_media_dir,
             background_dir,
             store.root / "_inputs",
+            store.root / "_subagents",
         )
         artifacts = _artifact_tools(
             config.artifacts, store, artifacts_dir, config.tool_limits.max_result_chars
@@ -174,7 +176,14 @@ def build_application(
             document_config,
             documents_dir,
             config.permissions,
-            (checkpoints_dir, artifacts_dir, mcp_media_dir, background_dir, store.root / "_inputs"),
+            (
+                checkpoints_dir,
+                artifacts_dir,
+                mcp_media_dir,
+                background_dir,
+                store.root / "_inputs",
+                store.root / "_subagents",
+            ),
             knowledge_dir=knowledge_dir,
         )
         registry, skills = register_skills(
@@ -462,6 +471,7 @@ def _open_child(
     budget: SharedTokenBudget,
     started: Callable[[str], None],
     memory: MemorySelection,
+    publish_progress: Callable[[str, str], dict[str, Any]],
 ) -> Iterator[Conversation]:
     """在子线程中管理独立资源，继承派发时的模式与主轮次记忆快照。
 
@@ -496,6 +506,7 @@ def _open_child(
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
                 checkpoints_dir.parent / "_inputs",
+                checkpoints_dir.parent / "_subagents",
             ),
         )
         registry = register_documents(
@@ -511,6 +522,7 @@ def _open_child(
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
                 checkpoints_dir.parent / "_inputs",
+                checkpoints_dir.parent / "_subagents",
             ),
             check_cancel=cancel.check,
             knowledge_dir=knowledge_dir,
@@ -531,6 +543,7 @@ def _open_child(
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
                 checkpoints_dir.parent / "_inputs",
+                checkpoints_dir.parent / "_subagents",
             ),
         )
         rules = (
@@ -548,6 +561,7 @@ def _open_child(
                     mcp_media_dir,
                     checkpoints_dir.parent / "_background",
                     checkpoints_dir.parent / "_inputs",
+                    checkpoints_dir.parent / "_subagents",
                 ),
             )
             if config.rules.enabled
@@ -576,12 +590,14 @@ def _open_child(
                         mcp_media_dir,
                         checkpoints_dir.parent / "_background",
                         checkpoints_dir.parent / "_inputs",
+                        checkpoints_dir.parent / "_subagents",
                     ),
                 ),
                 config.tool_limits,
                 cancel,
             )
             registry = register_submission(registry, submission)
+            registry = register_progress(registry, publish_progress)
         if config.orchestration.enabled:
             registry = register_orchestration(
                 registry,
@@ -648,6 +664,7 @@ def _open_child(
                             mcp_media_dir,
                             checkpoints_dir.parent / "_background",
                             checkpoints_dir.parent / "_inputs",
+                            checkpoints_dir.parent / "_subagents",
                         ),
                     ),
                     config.tool_limits.max_text_file_bytes,
