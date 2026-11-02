@@ -22,7 +22,7 @@ from adam.session.diagnostics import read_report
 from adam.session.storage import SessionStore
 from scripts.injection_capture import write_record
 from scripts.phase_timing import PhaseTiming
-from scripts.task_eval_assets import CASES, PreparedTask, prepare_task, verify_task
+from scripts.task_eval_assets import CASES, PreparedTask, TaskProvider, prepare_task, verify_task
 from scripts.task_eval_report import ablation_configs
 
 
@@ -36,15 +36,20 @@ def run_suite(
     transport_factory: Callable[[PreparedTask, str, int], httpx.MockTransport] | None = None,
     max_known_tokens: int = 100000,
     prices_cny_per_million: tuple[float, float] | None = None,
+    task_provider: TaskProvider | None = None,
 ) -> dict[str, Any]:
     """在独立目录运行配置×任务×重复次数；未知用量或达到总额度后明确记not_run。
 
+    task_provider由宿主提供固定任务/独立判据，缺省保留B31题集。
     transport_factory仅用于离线HTTP工程验收；真实运行须live=True。不批准命令，
     文件编辑仅批准试验workspace内路径，不继承用户存储、扩展服务或额外目录权限。
     """
     if live == (transport_factory is not None):
         raise ValueError("choose explicit live API or injected mock HTTP")
-    selected = cases if cases is not None else tuple(c.case_id for c in CASES)
+    provider = task_provider or TaskProvider(
+        tuple(c.case_id for c in CASES), prepare_task, verify_task, {"suite": "B31_fixed"}
+    )
+    selected = cases if cases is not None else provider.cases
     if (
         not configs
         or len(configs) > 8
@@ -53,7 +58,8 @@ def run_suite(
         or not 1 <= repeats <= 10
         or not selected
         or len(set(selected)) != len(selected)
-        or set(selected) - {c.case_id for c in CASES}
+        or set(selected) - set(provider.cases)
+        or any(not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", c) for c in selected)
         or type(max_known_tokens) is not int
         or max_known_tokens <= 0
     ):
@@ -84,6 +90,7 @@ def run_suite(
         {
             "format": "adam_task_evaluation_v1",
             "mode": mode,
+            "task_provenance": provider.provenance,
             "runs": matrix,
             "max_known_tokens": max_known_tokens,
             "prices_cny_per_million": prices_cny_per_million,
@@ -129,6 +136,7 @@ def run_suite(
                     configs[planned["config"]],
                     transport_factory,
                     prices_cny_per_million,
+                    provider,
                 ),
             }
             spent += result["known_tokens"]
@@ -162,6 +170,7 @@ def _run_trial(
     base: AppConfig,
     transport_factory: Callable[[PreparedTask, str, int], httpx.MockTransport] | None,
     prices: tuple[float, float] | None,
+    provider: TaskProvider,
 ) -> dict[str, Any]:
     """每次重新组装真实应用，故障仍保留日志；费用只是显式单价的估算。"""
     started, reply, tools, identity = time.monotonic(), "", [], None
@@ -193,7 +202,7 @@ def _run_trial(
         conversation.memory_provider = select
 
     try:
-        task = prepare_task(root, planned["case"])
+        task = provider.prepare(root, planned["case"])
         config = AppConfig(
             base.llm,
             task.sessions,
@@ -237,7 +246,7 @@ def _run_trial(
     except (Exception, KeyboardInterrupt) as failure:
         error = type(failure).__name__  # 不把HTTP正文、密钥或用户配置写入错误报告。
     check = (
-        verify_task(task, reply, tuple(tools))
+        provider.verify(task, reply, tuple(tools))
         if task
         else {"passed": False, "reasons": ["fixture unavailable"]}
     )

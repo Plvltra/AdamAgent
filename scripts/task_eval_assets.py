@@ -3,6 +3,7 @@
 import ast
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -175,3 +176,13 @@ def _files(workspace: Path) -> dict[str, str]:
                 path.read_bytes()
             ).hexdigest()
     return result
+
+
+@dataclass(frozen=True)
+class TaskProvider:
+    """宿主注入的固定任务集及来源；验证器不暴露给模型工作区。"""
+
+    cases: tuple[str, ...]
+    prepare: Callable[[Path, str], PreparedTask]
+    verify: Callable[[PreparedTask, str, tuple[str, ...]], dict[str, Any]]
+    provenance: dict[str, Any]

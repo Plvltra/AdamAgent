@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B35.1 新增独立 failure_tasks：构造失败 → 源轨迹哈希 → Blueprint变体 → 全新目录prepare/实际文件verify；尚未接入B31，生产聊天架构无变化。
+本次核对范围：B35.2 failure_suite 校验数据集并提供 TaskProvider → B31 run_suite；宿主持有独立判据和来源，模型仅见工作区输入；默认B31任务和生产聊天架构不变。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 

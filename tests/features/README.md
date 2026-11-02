@@ -395,3 +395,5 @@ B34.2：test_phase_report.py验收CLI、分布、缓存费用和未知；加真�
 B34.3：test_phase_comparison.py覆盖两组重复、实际缓存日志、缺失/重叠和截断；B34章末及B31直接受影响入口/报告共8 passed（12.59秒）。
 
 B35.1：test_failure_tasks.py覆盖三条构造失败来源、六个变体实际文件验证及额外产物拒绝；1 passed（31.77秒）。
+
+B35.2：test_failure_suite.py验证整族隔离、新目录重置及B31实际应用；含默认入口兼容共2 passed（3.77秒）。
