@@ -7,7 +7,7 @@ from typing import Any
 from adam.config.settings import PermissionConfig, ToolLimits
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.execution import ToolCapability
-from adam.contracts.models import CommandRequest, EditPlan, ExecutionRecorder
+from adam.contracts.models import CommandRequest, ExecutionRecorder, FileChangePlan
 from adam.tool_calls.catalog import SPECS
 from adam.tool_calls.code_tools import CodeTools, encode_result
 from adam.tool_calls.command_tools import CommandTools
@@ -27,7 +27,7 @@ def create_tool_registry(
     limits: ToolLimits | None = None,
     *,
     confirm_command: Callable[[CommandRequest], bool] | None = None,
-    confirm_edit: Callable[[EditPlan], bool] | None = None,
+    confirm_edit: Callable[[FileChangePlan], bool] | None = None,
     delegated: bool = False,
     protected_dirs: tuple[Path, ...] = (),
     command_output_bytes: int | None = None,

@@ -23,7 +23,7 @@ from adam.cli.terminal import (
 )
 from adam.config.loader import adam_home
 from adam.contracts.errors import AgentError
-from adam.contracts.models import CommandRequest, EditPlan, valid_session_id
+from adam.contracts.models import CommandRequest, CreatePlan, FileChangePlan, valid_session_id
 
 
 def show_session(application: AgentApplication, write: Callable[[str], None]) -> None:
@@ -195,12 +195,15 @@ def confirm_command(
         return False
 
 
-def confirm_edit(plan: EditPlan, read: Callable[[str], str], write: Callable[[str], None]) -> bool:
-    """展示已规划的完整 diff；只批准当前计划，非 y 输入拒绝，Ctrl+C 取消当前轮次。"""
-    write(f"修改文件> {plan.path}")
+def confirm_edit(
+    plan: FileChangePlan, read: Callable[[str], str], write: Callable[[str], None]
+) -> bool:
+    """展示创建或修改的完整diff；只批准当前计划，非y拒绝，Ctrl+C取消当前轮次。"""
+    action = "创建" if isinstance(plan, CreatePlan) else "修改"
+    write(f"{action}文件> {plan.path}")
     write(plan.diff)
     try:
-        return read("允许本次文件修改？[y/N] ").strip().lower() == "y"
+        return read(f"允许本次文件{action}？[y/N] ").strip().lower() == "y"
     except EOFError:
         return False
 

@@ -12,7 +12,7 @@ from typing import Any
 from adam.config.settings import ToolLimits
 from adam.contracts.checkpoints import EditCheckpoint
 from adam.contracts.errors import ToolError
-from adam.contracts.models import CreatePlan, EditPlan
+from adam.contracts.models import CreatePlan, EditPlan, FileChangePlan
 from adam.tool_calls.edit_plan import EditConflictError, plan_create, plan_edit, plan_restore
 from adam.tool_calls.file_evidence import FileResult, FileStateError
 from adam.tool_calls.policy import PathPolicy
@@ -26,7 +26,7 @@ class EditTools:
         self,
         policy: PathPolicy,
         limits: ToolLimits,
-        confirm: Callable[[EditPlan], bool] | None = None,
+        confirm: Callable[[FileChangePlan], bool] | None = None,
     ) -> None:
         self.policy, self.limits, self.confirm = policy, limits, confirm
 
@@ -52,6 +52,18 @@ class EditTools:
         """检查目标缺失与独立写权限，固定创建候选和diff；不批准、不写入。"""
         path = self.policy.resolve_create(args["path"])
         return plan_create(path, args["content"], self.limits.max_text_file_bytes)
+
+    def confirm_create(self, plan: CreatePlan) -> bool:
+        """展示固定创建计划，并在批准前后复核权限、父目录与目标缺失；不写入。
+
+        没有回调或明确拒绝时返回False；批准期间发生路径变化则抛ToolError。
+        True只批准当前候选，不锁定路径，也不代表创建成功；发布时仍须原子拒绝覆盖。
+        """
+        self._check_create_target(plan)
+        if self.confirm is None or not self.confirm(plan):
+            return False
+        self._check_create_target(plan)
+        return True
 
     def prepare_restore(self, checkpoint: EditCheckpoint) -> EditPlan:
         """按当前写入权限读取修改后版本，生成恢复原字节的计划；不执行写入。"""
@@ -150,6 +162,11 @@ class EditTools:
                     temporary.unlink()
                 except OSError:
                     pass
+
+    def _check_create_target(self, plan: CreatePlan) -> None:
+        """每次按当前策略检查缺失目标；返回后仍可能出现同名目录项，不充当写锁。"""
+        if self.policy.resolve_create(str(plan.path)) != plan.path:
+            raise EditConflictError("创建目标路径已经变化，请重新生成并确认计划。")
 
     def _check_current(self, plan: EditPlan) -> None:
         """批准后的目标仍须是同一路径、同一版本，不能覆盖外部编辑。"""

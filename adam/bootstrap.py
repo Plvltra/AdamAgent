@@ -29,7 +29,7 @@ from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
 from adam.contracts.execution import ExecutionMode, ToolCapability
 from adam.contracts.memory import MemorySelection
-from adam.contracts.models import CommandRequest, EditPlan
+from adam.contracts.models import CommandRequest, FileChangePlan
 from adam.contracts.planning import PlanReport
 from adam.contracts.ports import ModelClient, ToolRunner
 from adam.contracts.proposals import ProposalOwner
@@ -81,7 +81,7 @@ def build_application(
     workspace: Path,
     *,
     confirm_command: Callable[[CommandRequest], bool] | None = None,
-    confirm_edit: Callable[[EditPlan], bool] | None = None,
+    confirm_edit: Callable[[FileChangePlan], bool] | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,
@@ -644,7 +644,7 @@ def open_application(
     workspace: Path,
     *,
     confirm_command: Callable[[CommandRequest], bool] | None = None,
-    confirm_edit: Callable[[EditPlan], bool] | None = None,
+    confirm_edit: Callable[[FileChangePlan], bool] | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,

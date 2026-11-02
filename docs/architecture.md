@@ -2,24 +2,27 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B22.1.1 CreatePlan、纯创建规划与PathPolicy缺失目标检查。
+本次核对范围：B22.1.2 FileChangePlan统一批准对象、终端展示和创建批准前后复核。
 
-核对结论：EditTools新增prepare_create，经原PathPolicy独立写根检查后生成CreatePlan；缺失状态用None，diff与候选固定。原替换/撤销流程不变，本步没有模型工具、批准或写入连线。diff说明扩展到创建并保留末尾换行与字节契约。
+核对结论：bootstrap和factory传递FileChangePlan批准回调，CLI按创建/修改展示。EditTools.confirm_create在回调前后复核缺失目标及当前策略；无回调默认拒绝，取消传播。原替换/撤销执行不变，模型创建和磁盘发布尚未连接；原批准语义说明保留并扩展。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
 
-## B22.1.1 新文件规划
+## B22.1 新文件规划与批准
 
 ~~~mermaid
 flowchart LR
     FC_PREP["EditTools.prepare_create / 仅规划"] --> FC_PATH["PathPolicy.resolve_create / 写权限、父目录、缺失检查"]
     FC_PREP --> FC_PLAN["plan_create / UTF-8与完整diff"]
     FC_PLAN --> FC_CONTRACT["CreatePlan / 缺失状态与不可变候选"]
+    FC_CONFIRM["EditTools.confirm_create"] --> FC_PATH
+    FC_CONFIRM --> FC_UI["FileChangePlan回调 / CLI完整diff确认"]
+    FC_CONTRACT --> FC_CONFIRM
 ~~~
 
-尚未连接批准、创建发布或模型工具；路径观察不能代替发布时的不覆盖保证。见 [创建契约](file-creation.md)。
+宿主可显式调用创建批准，尚未连接创建发布或模型工具；批准不锁定路径，不能代替发布时的不覆盖保证。见 [创建契约](file-creation.md)。
 
 ## B21.2 显式正则搜索
 

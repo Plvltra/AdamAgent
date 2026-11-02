@@ -107,6 +107,10 @@ class CreatePlan:
     original: None = field(default=None, init=False)
 
 
+# 两种计划共享批准展示；缺失和已有内容仍由各自契约区分。
+FileChangePlan = EditPlan | CreatePlan
+
+
 @dataclass(frozen=True)
 class ModelOutput:
     """模型展示事件；response_end 只表示输出边界，不表示轮次已保存。"""
