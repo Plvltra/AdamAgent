@@ -2,6 +2,8 @@
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 import pytest
 
@@ -62,3 +64,37 @@ def test_save_failure_does_not_publish_winner(tmp_path, monkeypatch):
         group.submit("a", "r1", evidence)
     assert group.snapshot()["winner"] is None
     assert json.loads(group.path.read_text())["winner"] is None
+
+
+def test_simultaneous_success_has_one_winner_and_corrupt_snapshot_is_rejected(tmp_path):
+    source = tmp_path / "source.txt"
+    source.write_bytes(b"needle")
+    proof = json.dumps(
+        {
+            "path": "source.txt",
+            "line": 1,
+            "content": "needle",
+            "sha256": hashlib.sha256(b"needle").hexdigest(),
+        }
+    )
+    group = ExplorationGroup(
+        tmp_path / "group.json",
+        (("a", "1"), ("b", "2")),
+        CitationVerifier(tmp_path, ("source.txt",), "needle"),
+    )
+    barrier = Barrier(2)
+
+    def submit(member):
+        barrier.wait(5)
+        return group.submit(*member, proof)
+
+    with ThreadPoolExecutor(2) as pool:
+        results = list(pool.map(submit, [("a", "1"), ("b", "2")]))
+    assert results[0] == results[1]
+    assert len(group.snapshot()["checks"]) == 1
+    assert ExplorationGroup.restore(group.path).snapshot() == group.snapshot()
+    corrupted = group.snapshot()
+    corrupted["checks"] = []
+    group.path.write_text(json.dumps(corrupted))
+    with pytest.raises(StorageError):
+        ExplorationGroup.restore(group.path)

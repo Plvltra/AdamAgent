@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B39.2 SubagentManager 接入探索组，复用原取消、结果收集和预算路径。
+本次核对范围：B39.3 探索组恢复、唯一winner证据校验及取消/完成竞态；原共享预算不变。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2152,6 +2152,10 @@ flowchart LR
     Citation[CitationVerifier] -. 实现 .-> Contract
     Citation --> Files[明确允许的文件 / 行内容 / SHA256]
     Group --> Snapshot[原子 JSON 快照 / 唯一 winner]
+    Manager --> Restore[恢复原索引终态 / 不重发或重新验收]
+    Restore --> Snapshot
 ```
 
 任务组成员固定为已派发的 agent_id/run_id。宿主提交真实已完成回复，独立判据通过且快照保存成功才发布 winner；恢复只读取记录，不重发任务。一个成员只验收一次，失败不阻断其他成员。宿主用 create_exploration 绑定本轮运行及可信判据，wait_exploration 收集；SubagentManager._poll 验收后取消同组兄弟，原工作线程清理后才记录 completed/interrupted/failed，取消信号本身不算结束。预算仍由原共享账户结算。模型没有注册或替换判据的工具入口。文件匹配只证明当时定位有效，不代表任意语义任务成功，也不保证未来文件保持不变。
+
+B39.3：恢复要求 winner 有唯一通过记录，坏记录报错；先恢复既有子会话，再用索引刷新组内终态。恢复的组不绑定验收器、不重新验收旧回复；没有 winner 的旧组不会自行变成成功。若成员已有新运行，旧组等待入口拒绝等待新轮，原快照仍保留。

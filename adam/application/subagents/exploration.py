@@ -20,7 +20,7 @@ class ExplorationGroup:
     """
 
     def __init__(
-        self, path: Path, members: tuple[tuple[str, str], ...], verifier: TaskVerifier
+        self, path: Path, members: tuple[tuple[str, str], ...], verifier: TaskVerifier | None
     ) -> None:
         if not members or len(set(members)) != len(members):
             raise ValueError("group requires distinct members")
@@ -47,11 +47,29 @@ class ExplorationGroup:
                     or (saved["winner"] is not None and saved["winner"] not in saved["members"])
                 ):
                     raise ValueError("invalid exploration snapshot")
+                self._validate_saved(saved)
                 self._state = saved
             else:
                 self._save(self._state)
         except (OSError, ValueError) as error:
             raise StorageError("探索任务组无法读取；未重发任务。") from error
+
+    @classmethod
+    def restore(cls, path: Path) -> "ExplorationGroup":
+        """恢复快照但不重新验收或发起任务；旧 winner 仍只是当时通过的证据。"""
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            members = data["members"]
+            if not isinstance(members, list) or any(
+                not isinstance(member, list)
+                or len(member) != 2
+                or any(not isinstance(value, str) or not value for value in member)
+                for member in members
+            ):
+                raise ValueError("invalid group members")
+            return cls(path, tuple((member[0], member[1]) for member in members), None)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            raise StorageError("探索任务组损坏；未重发任务。") from error
 
     def snapshot(self) -> dict[str, Any]:
         """返回独立副本；winner 表示当时通过验收，不保证文件以后不会变化。"""
@@ -71,6 +89,8 @@ class ExplorationGroup:
                 check["member"] == member for check in self._state["checks"]
             ):
                 return self.snapshot()
+            if self.verifier is None:
+                raise ValueError("restored groups cannot automatically verify new results")
             result = self.verifier.check(reply)
             changed = self.snapshot()
             changed["checks"].append({"member": member, "verification": asdict(result)})
@@ -89,6 +109,35 @@ class ExplorationGroup:
             changed["states"] = dict(states)
             self._save(changed)
             self._state = changed
+
+    @staticmethod
+    def _validate_saved(state: dict[str, Any]) -> None:
+        """拒绝没有通过证据的 winner 与重复验收，损坏记录不能当成成功恢复。"""
+        checked = []
+        passed = []
+        for check in state["checks"]:
+            if not isinstance(check, dict) or set(check) != {"member", "verification"}:
+                raise ValueError("invalid group check")
+            member, verification = check["member"], check["verification"]
+            if (
+                member not in state["members"]
+                or member in checked
+                or not isinstance(verification, dict)
+            ):
+                raise ValueError("invalid checked member")
+            checked.append(member)
+            if verification.get("status") not in {"passed", "failed", "unknown"}:
+                raise ValueError("invalid verification status")
+            if verification["status"] == "passed":
+                passed.append(member)
+        if passed != ([state["winner"]] if state["winner"] is not None else []):
+            raise ValueError("winner has no unique passing evidence")
+        runs = {member[1] for member in state["members"]}
+        if not isinstance(state["states"], dict) or any(
+            run not in runs or status not in {"running", "completed", "failed", "interrupted"}
+            for run, status in state["states"].items()
+        ):
+            raise ValueError("invalid member states")
 
     def _save(self, state: dict[str, Any]) -> None:
         """先落盘再替换快照；不把部分写入或替换失败当成 winner 已提交。"""

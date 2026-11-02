@@ -238,7 +238,10 @@ class SubagentManager:
         if group_id not in self._groups:
             raise ToolError("探索组不属于当前会话。")
         group = self._groups[group_id]
-        ids = [member[0] for member in group.snapshot()["members"]]
+        members = group.snapshot()["members"]
+        if any(self._get(agent_id).runs[-1].run_id != run_id for agent_id, run_id in members):
+            raise ToolError("探索成员已被续聊；请读取原任务组快照，不等待新的运行。")
+        ids = [member[0] for member in members]
         results = self.wait(ids, timeout_seconds)
         return {"group_id": group_id, **group.snapshot(), "results": results}
 
@@ -385,11 +388,23 @@ class SubagentManager:
                         RunMailbox(
                             index.root / "mailboxes", agent.agent_id, run.run_id, create=False
                         ).finish(run.status)
-        self._groups.clear()
+        restored = {}
+        for path in (index.root / "groups").glob("*.json"):
+            group = ExplorationGroup.restore(path)
+            for agent_id, run_id in group.snapshot()["members"]:
+                try:
+                    agent = index.get(agent_id)
+                except KeyError:
+                    raise StorageError("探索组成员不存在。") from None
+                if not any(run.run_id == run_id for run in agent.runs):
+                    raise StorageError("探索组运行不存在。")
+            restored[path.stem] = group
+        self._groups = restored
         self._index, self._budget, self._session_id = index, budget, session_id
         self._delivered = set()
         self._announced = {run.run_id for agent in index.agents() for run in agent.runs}
         self._budget.update(str(self.store.root / session_id), *self.store.usage(session_id))
+        self._poll_groups()
 
     @staticmethod
     def _recover_runs(index: DelegationStore, children: SessionStore, agent: ChildAgent) -> None:
@@ -537,7 +552,7 @@ class SubagentManager:
                 run = next(item for item in agent.runs if item.run_id == run_id)
                 active = self._active.get(agent_id) if agent.runs[-1].run_id == run_id else None
                 states[run_id] = "running" if active else run.status
-                if not active and run.status == "completed":
+                if not active and run.status == "completed" and group.verifier is not None:
                     state = group.submit(agent_id, run_id, run.reply)
             if state["winner"] is not None:
                 for agent_id, run_id in state["members"]:
