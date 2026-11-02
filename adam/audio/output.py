@@ -30,15 +30,23 @@ class SpeechOutput:
         self.root, self.backend, self.budget = root, backend, budget
 
     def speak(
-        self, session_id: str, turn_id: str, text: str, *, cancel: CancellationToken
+        self,
+        session_id: str,
+        turn_id: str,
+        text: str,
+        *,
+        cancel: CancellationToken,
+        playback_id: str | None = None,
     ) -> dict[str, Any]:
-        """宿主传入已成功回答；先占用身份再合成，单独持久化失败/取消和真实时长。"""
+        """宿主传入已成功回答及可选播放身份；先占用再合成，独立保存失败/取消和时长。"""
         if any(
             re.fullmatch(r"[A-Za-z0-9_-]{1,128}", item) is None for item in (session_id, turn_id)
         ):
             raise ValueError("invalid speech source")
         if not text.strip() or len(text) > 1500:
             raise ValueError("speech text must contain 1..1500 characters")
+        if playback_id is not None and re.fullmatch(r"[0-9a-f]{32}", playback_id) is None:
+            raise ValueError("invalid playback identity")
         root = self.root / session_id
         path = root / (turn_id + ".json")
         digest = sha256(text.encode()).hexdigest()
@@ -52,7 +60,7 @@ class SpeechOutput:
         value: dict[str, Any] = dict(
             session_id=session_id,
             turn_id=turn_id,
-            playback_id=secrets.token_hex(16),
+            playback_id=playback_id or secrets.token_hex(16),
             text_sha256=digest,
             model_state="succeeded",
             state="synthesizing",
