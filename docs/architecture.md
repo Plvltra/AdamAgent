@@ -2,7 +2,7 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B31.1 固定任务资产和独立终态验证；聊天生产架构无变化。
+本次核对范围：B31.2 独立评估矩阵runner、应用组装与逐次报告；生产聊天架构无变化。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2095,3 +2095,17 @@ flowchart LR
 ~~~
 
 验证器不执行模型生成代码，不读取模型自报成功字段。标准答案留在宿主，不放入workspace；旧评估产物不覆盖。runner与真实模型入口待B31.2。[范围](task-evaluation.md)。
+## B31.2 评估运行矩阵
+
+~~~mermaid
+flowchart LR
+  Runner[scripts.task_eval / 显式live或MockTransport] --> Prepare[prepare_task / 独立试验目录]
+  Runner --> Bootstrap[build_application / 固定隔离配置]
+  Bootstrap --> Loop[真实Conversation与工具循环]
+  Runner --> Verify[verify_task / 独立终态]
+  Runner --> Diagnostics[session.diagnostics / 请求用量]
+  Verify --> Results[逐次JSON与累计报告]
+  Diagnostics --> Results
+~~~
+
+模型调用在应用中执行，评估脚本不自造成功或用量。未知用量停止后续矩阵项，失败和未运行留在计划分母；真实质量与离线工程证据明确区分。

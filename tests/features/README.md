@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B31.2 评估矩阵 | 独立多配置/重复、错误答案分母、未知用量停止、显式live | [矩阵验收](test_task_eval_runner.py) |
 | B31.1 固定任务 | 独立重置、实际文件终态、记忆来源、普通问题不调用工具 | [资产验收](test_task_eval_assets.py) |
 | B30.3 真实shell与强杀 | 连续cwd/env、双shell隔离、非零退出、输入未知不重发 | [真实验收](test_terminal_acceptance.py) |
 | B30.2.2 终端聊天 | 真实进程与CLI批准、输入拒绝、关闭和来源关联 | [聊天验收](test_terminal_chat.py) |
