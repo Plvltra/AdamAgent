@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C06.3 RealtimePlayback通过原帧引用和分析端口进行有界实时播放；新增单槽供帧、过期丢弃和实际延迟报告，媒体与模型日志关系保持。
+本次核对范围：C07.1 generation.models/service显式宿主作业契约；复用原取消、UnitBudget和媒体发布，后端与快照存储通过注入端口连接，普通聊天尚未注册生成工具。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2745,3 +2745,20 @@ flowchart LR
 video仍只依赖自身及contracts。已解码帧按真实时钟播放，分析不持有供帧锁；退出回收线程，失败不重问。摄像头尚未接入；此图不宣称实时设备或桌面联动。时钟与取消契约见 [连续观察](video-input.md#c063-按pts实时播放与丢帧)。
 
 C06.3核对结果：新增live模块只依赖video/contracts；20项大项局部通过（2.79秒），Ruff及定向Pyright通过。真实短片离线8请求、实时3请求及5帧丢弃完整留证，模型误识别未修正；取消与回收说明保持，原关键注释未删除。摄像头仍待办。
+
+## C07.1 生成作业契约
+
+~~~mermaid
+flowchart LR
+    GN_HOST["已授权宿主 / GenerationSpec和MediaSource"] --> GN_JOBS["generation.service / GenerationJobs"]
+    GN_JOBS --> GN_PLAN["GenerationBackend.prepare / 本地校验和原ConsumptionPlan"]
+    GN_JOBS --> GN_BUDGET["GenerationBudget端口 / 原UnitBudget预留及终态快照"]
+    GN_JOBS --> GN_SAVE["宿主save回调 / 原子身份快照"]
+    GN_JOBS --> GN_BACK["GenerationBackend.generate / 单次协作取消"]
+    GN_BACK --> GN_DATA["GeneratedMedia / 字节、实际用量、种子"]
+    GN_DATA --> GN_PUBLISH["注入原SessionMedia.publish / 来源及版本"]
+    GN_PUBLISH --> GN_JOB["GenerationJob / 状态与原MediaRef"]
+    GN_JOBS --> GN_UNKNOWN["未知保留 / 同ID禁止重提"]
+~~~
+
+generation仅依赖自身与contracts；UnitBudget和SessionMedia通过宿主注入，不反向导入应用或存储。图中的后端/快照为显式端口，真实生成适配器留C07.2、普通工具与持久化组装留C07.3。9项真实本地存储/额度业务与1项包边界通过（2.13秒），不把WAV fixture当作生成能力；Ruff和定向Pyright通过，新增说明已核对。见 [作业边界](generation.md)。
