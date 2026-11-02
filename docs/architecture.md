@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B19.3.1 Linux 输出解码事实、宿主协议、附件完整性与实际隔离边界验收。
+本次核对范围：B19.3.2 真实用户进程的取消、宿主强杀、全部 Linux 身份回收与持锁恢复。
 
-核对结论：模块关系保持，图形无结构变化。linux_command 将 invalid_utf8 传给 CommandIsolationResult，原工具/附件流程据此标记不完整；command_log 校验损失不能与完整声明并存。新增真实边界验收脚本；原权限、批准、清理和未知状态解释保留，结果契约补充有损解码语义。
+核对结论：生产架构无变化，保留图形与原注释。新增显式验收脚本，真实路径仍为原工具 → IsolatedCommands → Linux 看守/Bubblewrap/用户命令。宿主断线由看守清理，存储恢复不会推断命令结果或重新执行；修正旧隔离前置段落的阶段状态。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -271,7 +271,7 @@ flowchart LR
     IS_RESULT --> IS_HOST
 ~~~
 
-B14.2 已复用此后端进行计算与窄 RPC；run_command 本身接入 OS 隔离仍待 B19.2。详见 [固定策略与真实证据](runtime-isolation.md)。
+B14.2 已复用计算后端进行窄 RPC；B19.2/3 的独立 run_isolated_command 使用原生命令策略并已验收故障清理，run_command 仍明确在宿主运行。详见 [固定策略与真实证据](runtime-isolation.md)。
 
 ## B13.2 分享命令与来源核对
 

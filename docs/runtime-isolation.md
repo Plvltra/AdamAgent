@@ -1,6 +1,6 @@
 # B19：固定策略的 WSL 隔离后端
 
-本阶段完成 B14 的前置：提供 [WslBubblewrap](../adam/isolation/backend.py) 独立 API 和实际能力探测。尚未接入 run_command，也没有改变已有命令的宿主执行方式；命令接入、批准、取消和清理属于 B19.2，组合故障验收属于 B19.3。不能把 B19 整体视为完成。
+B19 工程任务已完成：[WslBubblewrap](../adam/isolation/backend.py) 供 B14 计算编排使用，独立 run_isolated_command 提供原生单进程执行、只读输入、批准及日志。原 run_command 继续明确在宿主执行；两者不会自动互相回退。以下分别保留能力边界与真实验收证据。
 
 当前只实现一个后端：Windows → 显式选择的 WSL 2 发行版 → Bubblewrap。已在本机 `Ubuntu` 上验证；另一个 `Ubuntu-24.04` 未安装所需隔离工具，不自动切换、安装依赖或更改系统策略。宿主 Python 仍需 3.11+，发行版内的独立启动器只用标准库，兼容实际安装的 Python 3.8。
 
@@ -68,7 +68,7 @@ python -m scripts.isolated_command_acceptance --distribution Ubuntu --output nat
 
 [真实报告](evaluations/b19-native-commands.json) 保留 11 项实际命令结果：原生成功、空工作目录、非零退出、脚本入口拒绝、宿主路径隐藏、普通/关闭双流后的墙钟停止、CPU、内存、输出上限和环境过滤。能力探针另实际检查写入、网络、fork、其他程序执行和 memfd 拒绝。CPU 案例核对实际退出码及耗时，内存案例核对 MemoryError；不是把任何非零退出都当成资源限额有效。
 
-报告的取消仅证明取消了“探测或命令”操作并返回中断，没有在该例确认用户 worker 已经启动或逐一核对 Linux PID。B19.3 仍须补执行中取消、强杀宿主、真实越界及进程身份清理验收。宿主路径案例因为 `/mnt` 不存在而拒绝，不冒称实际 PE 文件的执行白名单检验；PE/FD 入口组合留在 B19.3。
+报告的取消仅证明取消了“探测或命令”操作并返回中断，没有在该例确认用户 worker 已经启动或逐一核对 Linux PID。B19.3.1/2 已补充下文的真实越界和执行中故障验收。宿主路径案例因为 `/mnt` 不存在而拒绝，不冒称实际 PE 文件的执行白名单检验；PE/FD 入口的独立组合证据见 B19.3.1。
 
 [宿主业务测试](../tests/features/test_isolated_commands.py) 新增21项，使用真实管道子进程验证成功/非零、原输出不冒充协议、拒绝降级、参数限额、故障、取消及回收；[辅助启动器](../tests/features/support/isolated_command_launcher.py) 仅代替通信端，不能证明 OS 隔离。相关隔离、编排清理和架构共75项通过。Ruff、Pyright 和文档链接需随阶段检查，主线按 AGENTS.md 三级验证规则执行。所有验收付费模型请求为0。
 
@@ -120,7 +120,7 @@ distribution = "Ubuntu"
 python -m scripts.isolated_chat_acceptance --distribution Ubuntu --output isolated-chat-result.json
 ```
 
-[真实入口](../scripts/isolated_chat_acceptance.py) 使用生产组装和真实 WSL，模拟模型 HTTP；[结果](evaluations/b19-command-chat.json) 记录授权 CRLF/中文原字节读取、真实非零退出、只读目录拒写、用户拒绝，以及日志重启和删除源文件后的离线重放。首次路径断言未考虑 Windows 临时目录规范化，已改为比较解析后的路径；受限执行环境的 WSL E_ACCESSDENIED 也没有绕过，获原授权运行后通过。付费请求为0。实际执行中取消、强杀与 Linux PID 身份清理继续留在 B19.3。
+[真实入口](../scripts/isolated_chat_acceptance.py) 使用生产组装和真实 WSL，模拟模型 HTTP；[结果](evaluations/b19-command-chat.json) 记录授权 CRLF/中文原字节读取、真实非零退出、只读目录拒写、用户拒绝，以及日志重启和删除源文件后的离线重放。首次路径断言未考虑 Windows 临时目录规范化，已改为比较解析后的路径；受限执行环境的 WSL E_ACCESSDENIED 也没有绕过，获原授权运行后通过。付费请求为0。实际执行中取消、强杀与 Linux PID 身份清理另见 B19.3.2。
 
 
 ## B19.3.1 真实边界与输出编码
@@ -137,4 +137,21 @@ python -m scripts.isolated_chat_acceptance --distribution Ubuntu --output isolat
 python -m scripts.isolated_boundary_acceptance --distribution Ubuntu --output isolated-boundaries.json
 ```
 
-实际执行中取消和强杀后的进程身份回收留在 B19.3.2，本小项不把整章标为完成。
+本小项的边界检查与下方 B19.3.2 故障清理分别留证。
+
+
+## B19.3.2 执行中取消与强杀
+
+[真实验收入口](../scripts/isolated_command_fault_acceptance.py) 用独立 Windows 宿主、生产组装、原工具/批准/日志和真实 WSL，模型 HTTP 使用替身。先在 Linux /proc 中按唯一 argv 项确认用户 Python 已启动，再记录用户进程、两个 Bubblewrap 进程和可信看守的 PID/starttime。没有用 command_started 代替实际进程证据，也没有以已消失或复用的 PID 判断清理成功。
+
+[结果](evaluations/b19-command-faults.json)：取消和强杀后各4个已确认身份全部消失，分别耗时0.922秒和0.391秒，显著早于5秒墙钟停止。取消通过原 CancellationToken 传入，不模拟终端按键；强杀针对测试自己的 Windows 宿主进程。异常兜底清理只针对同 PID/starttime 的测试进程，执行兜底后不会生成通过结论。
+
+两例重启均只有1次模型请求，旧成功历史保持，失败输入不进入有效历史。取消记录 interrupted；强杀恢复轮次为 interrupted/restart_recovery，未收到的命令退出码仍为未知、命令状态 unknown。模型请求在工具执行前已经可靠结算，12 token 保持已知，不因为命令未知而伪造模型用量未知。再次持锁打开不产生新事件，也不重发模型或命令。
+
+```powershell
+python -m scripts.isolated_command_fault_acceptance --distribution Ubuntu --output isolated-faults.json
+```
+
+此次生产代码无需变更。相关89项自动化回归通过（27.93秒），真实两例单独运行并保存证据；Ruff、553个文件格式、脚本类型检查和注释已核对。按 AGENTS.md 三级验证规则，本章结束执行局部与全量回归。该结果只覆盖当前 Windows/WSL 后端，不推广为其他系统或任意程序的隔离证明。
+
+2026-11-02 主线重新运行真实取消和强杀两例，均通过；见[主线故障报告](evaluations/b19-command-faults-main-20261102.json)。

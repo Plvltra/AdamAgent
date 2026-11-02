@@ -1,0 +1,108 @@
+{
+  "checked_at": "2026-11-01T15:38:50.437067+00:00",
+  "distribution": "Ubuntu",
+  "real_backend": true,
+  "model_transport": "httpx.MockTransport",
+  "paid_requests": 0,
+  "cases": [
+    {
+      "phase": "cancel",
+      "requests": 1,
+      "turn_status": "interrupted",
+      "reason": "interrupted",
+      "command_status": "interrupted",
+      "command_exit_code": null,
+      "model_usage": {
+        "tokens": 12,
+        "unknown": false
+      },
+      "tracked_processes": [
+        {
+          "pid": 29,
+          "parent": 28,
+          "start": 854,
+          "state": "R",
+          "age_seconds": 0.04,
+          "role": "worker"
+        },
+        {
+          "pid": 28,
+          "parent": 27,
+          "start": 853,
+          "state": "S",
+          "age_seconds": 0.05,
+          "role": "bubblewrap"
+        },
+        {
+          "pid": 27,
+          "parent": 26,
+          "start": 853,
+          "state": "S",
+          "age_seconds": 0.05,
+          "role": "bubblewrap"
+        },
+        {
+          "pid": 26,
+          "parent": 25,
+          "start": 838,
+          "state": "S",
+          "age_seconds": 0.2,
+          "role": "supervisor"
+        }
+      ],
+      "all_reaped": true,
+      "stop_and_reap_seconds": 0.922,
+      "restart_idempotent": true
+    },
+    {
+      "phase": "kill",
+      "requests": 1,
+      "turn_status": "interrupted",
+      "reason": "restart_recovery",
+      "command_status": "unknown",
+      "command_exit_code": null,
+      "model_usage": {
+        "tokens": 12,
+        "unknown": false
+      },
+      "tracked_processes": [
+        {
+          "pid": 47,
+          "parent": 46,
+          "start": 1238,
+          "state": "S",
+          "age_seconds": 0.04,
+          "role": "worker"
+        },
+        {
+          "pid": 46,
+          "parent": 45,
+          "start": 1238,
+          "state": "S",
+          "age_seconds": 0.04,
+          "role": "bubblewrap"
+        },
+        {
+          "pid": 45,
+          "parent": 44,
+          "start": 1238,
+          "state": "S",
+          "age_seconds": 0.04,
+          "role": "bubblewrap"
+        },
+        {
+          "pid": 44,
+          "parent": 43,
+          "start": 1226,
+          "state": "S",
+          "age_seconds": 0.16,
+          "role": "supervisor"
+        }
+      ],
+      "all_reaped": true,
+      "stop_and_reap_seconds": 0.391,
+      "restart_idempotent": true
+    }
+  ],
+  "limits": "取消用文件信号注入原 CancellationToken；强杀为 Windows 宿主进程。仅通过前记录本次 Linux 身份全部消失，不模拟按键，不证明其他 OS。"
+}
