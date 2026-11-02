@@ -423,3 +423,5 @@ B39.1：test_exploration_group.py 覆盖错误先到、真实证据胜出、重�
 B39.2：test_exploration_dispatch.py 经模拟HTTP、真实子线程和取消令牌核验 winner 与 interrupted 状态；连同组基础3 passed（25.84秒）。
 
 B39.3：扩展test_exploration_group.py与test_exploration_dispatch.py覆盖并发唯一winner、损坏快照、错误先到、取消/完成竞争和重启预算；加既有委派章末13 passed（14.10秒）。
+
+B40.1：test_private_workspaces.py 使用两个实际Git副本验证主项目不变、规则/记忆身份、权限收窄、脏源拒绝及清理路径篡改；2 passed（8.80秒）。
