@@ -105,6 +105,34 @@ class BackgroundJobs:
             "truncated": out.truncated or err.truncated,
         }
 
+    def read_output(
+        self,
+        owner: str,
+        identifier: str,
+        *,
+        stdout_cursor: int = 0,
+        stderr_cursor: int = 0,
+        max_bytes: int = 4096,
+    ) -> dict[str, Any]:
+        """分别续读 stdout/stderr，不消费其他读者的位置；两流不承诺全局时间顺序。
+
+        每条流最多返回 max_bytes 原始字节；调用方保存各自 next_cursor。
+        非法或超前游标报 ToolError，查询不会重启进程或申请批准。
+        """
+        job = self._owned(owner, identifier)
+        try:
+            out = job.stdout.read_since(stdout_cursor, max_bytes)
+            err = job.stderr.read_since(stderr_cursor, max_bytes)
+        except ValueError as error:
+            raise ToolError(str(error)) from error
+        return {
+            "ok": True,
+            "task_id": identifier,
+            "status": job.status if job.done.is_set() else "running",
+            "stdout": out,
+            "stderr": err,
+        }
+
     def cancel(self, owner: str, identifier: str) -> None:
         """请求停止所属任务；实际回收完成前snapshot仍显示running，不伪造终态。"""
         self._owned(owner, identifier).cancel.set()
@@ -139,8 +167,8 @@ class BackgroundJobs:
         """排空两条管道并结算一次终态；超时、取消及异常均先回收直接子进程。"""
         assert job.process.stdout is not None and job.process.stderr is not None
         readers = [
-            threading.Thread(target=job.stdout.drain, args=(job.process.stdout,), daemon=True),
-            threading.Thread(target=job.stderr.drain, args=(job.process.stderr,), daemon=True),
+            threading.Thread(target=job.stdout.drain, args=(job.process.stdout, True), daemon=True),
+            threading.Thread(target=job.stderr.drain, args=(job.process.stderr, True), daemon=True),
         ]
         try:
             for reader in readers:

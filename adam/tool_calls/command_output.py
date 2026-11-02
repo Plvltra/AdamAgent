@@ -44,11 +44,13 @@ class OutputCapture:
         self._eof = False
         self._lock = Lock()
 
-    def drain(self, stream: BinaryIO) -> None:
-        """排空已启动进程的管道；读取失败保留已有证据，eof 仍为 false。"""
+    def drain(self, stream: BinaryIO, live: bool = False) -> None:
+        """排空已启动进程的管道；live 启用及时读取；失败保留证据，eof 仍为 false。"""
         try:
             with stream:
-                while chunk := stream.read(4096):
+                # read1 返回当前可读数据，避免短输出一直等到缓冲区满或进程退出。
+                read = getattr(stream, "read1", stream.read) if live else stream.read
+                while chunk := read(4096):
                     self._append(chunk)
                 with self._lock:
                     self._eof = True
@@ -77,6 +79,53 @@ class OutputCapture:
         omitted += pending + boundary
         text = f"{prefix}\n[...省略 {omitted} 字节...]\n{suffix}"
         return CapturedOutput(text, total, omitted, eof, head_invalid or tail_invalid)
+
+    def read_since(self, cursor: int = 0, max_bytes: int = 4096) -> dict[str, str | int | bool]:
+        """按字节游标续读一个保留段；丢失量明确返回，末尾半个 UTF-8 字符留待下次。
+
+        cursor 使用上次 next_cursor，属于当前捕获流。头尾间的缺口在跨越时报告；
+        eof 只表示管道结束，has_more 表示本次快照还有尚未消费的字节。
+        """
+        if type(cursor) is not int or cursor < 0:
+            raise ValueError("output cursor must be a nonnegative integer")
+        if type(max_bytes) is not int or not 4 <= max_bytes <= 65536:
+            raise ValueError("output page size must be between 4 and 65536 bytes")
+        with self._lock:
+            head, tail = bytes(self._head), bytes(self._tail)
+            total, eof = self._read_bytes, self._eof
+        if cursor > total:
+            raise ValueError("output cursor exceeds captured bytes")
+        tail_start = total - len(tail)
+        if tail_start == len(head):
+            start, available = cursor, (head + tail)[cursor:]
+        elif cursor < len(head):
+            start, available = cursor, head[cursor:]
+        else:
+            start = max(cursor, tail_start)
+            available = tail[start - tail_start :]
+        # 缺口后的尾段可能从字符中间开始；该残片也算丢失字节。
+        if start > cursor:
+            while available and 0x80 <= available[0] <= 0xBF:
+                start += 1
+                available = available[1:]
+        raw = available[:max_bytes]
+        decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        text = decoder.decode(raw, final=eof and start + len(raw) == total)
+        consumed = len(raw) - len(decoder.getstate()[0])
+        # 保留头部后面是永久缺口时，半个字符无法补全，跳过并报告。
+        lost_boundary = 0
+        if start + len(raw) == len(head) < tail_start:
+            lost_boundary = len(raw) - consumed
+            consumed = len(raw)
+        next_cursor = start + consumed
+        return {
+            "text": text,
+            "next_cursor": next_cursor,
+            "dropped_bytes": start - cursor + lost_boundary,
+            "has_more": next_cursor < total,
+            "eof": eof,
+            "invalid_utf8": _decode(raw[: consumed - lost_boundary])[1],
+        }
 
     def _append(self, chunk: bytes) -> None:
         """每批只保存尚缺的头部和最近尾部；计数包含全部已读字节。"""

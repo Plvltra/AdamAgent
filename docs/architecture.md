@@ -2,7 +2,7 @@
 
 最近核对：2026-11-02
 
-本次核对范围：验证与提交频率规则、路线批次记录。架构无变化；保留 B26.1 模块关系与下述实现说明。
+本次核对范围：B26.2.1 后台输出游标。架构无变化；BackgroundJobs.read_output委托现有OutputCapture.read_since，复用有界头尾，不增加存储模块。后台显式启用及时读取，同步命令默认行为保持。
 
 核对结论：新增BackgroundJobs，批准在调用线程，后台线程仅采集输出/终态；CommandTools公开prepare并与后台共用start_command。原环境白名单说明迁入processes，没有删除原权限与回收约束。生产工具/会话持久化待B26.2。
 
