@@ -1,0 +1,21 @@
+{
+  "arguments": {
+    "path": "sample.py",
+    "expected_version": "7ab1f60558ffc33658b645e8f249ea0709e781f76754486a19999c247db93538",
+    "new_text": "answer = 42\n",
+    "start_text": "# BEGIN obsolete block\n",
+    "end_text": "# END obsolete block\n"
+  },
+  "result": {
+    "tool": "replace_span",
+    "arguments_chars": 209,
+    "arguments_utf8_bytes": 209,
+    "input_version": "7ab1f60558ffc33658b645e8f249ea0709e781f76754486a19999c247db93538",
+    "output_version": "0a62cb10bdbe2df72798d7f71373eb21c8dfdcb2d8f6246276518ba32244d600",
+    "status": "applied",
+    "ok": true,
+    "matches_expected": true,
+    "approvals": 1,
+    "approved_diff_chars": 6093
+  }
+}

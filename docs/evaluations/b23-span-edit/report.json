@@ -1,0 +1,36 @@
+{
+  "format": "span_edit_comparison_v1",
+  "selected_lines": 300,
+  "source_lines": 302,
+  "expected_version": "0a62cb10bdbe2df72798d7f71373eb21c8dfdcb2d8f6246276518ba32244d600",
+  "rows": [
+    {
+      "tool": "replace_text",
+      "arguments_chars": 6043,
+      "arguments_utf8_bytes": 6043,
+      "input_version": "7ab1f60558ffc33658b645e8f249ea0709e781f76754486a19999c247db93538",
+      "output_version": "0a62cb10bdbe2df72798d7f71373eb21c8dfdcb2d8f6246276518ba32244d600",
+      "status": "applied",
+      "ok": true,
+      "matches_expected": true,
+      "approvals": 1,
+      "approved_diff_chars": 6093
+    },
+    {
+      "tool": "replace_span",
+      "arguments_chars": 209,
+      "arguments_utf8_bytes": 209,
+      "input_version": "7ab1f60558ffc33658b645e8f249ea0709e781f76754486a19999c247db93538",
+      "output_version": "0a62cb10bdbe2df72798d7f71373eb21c8dfdcb2d8f6246276518ba32244d600",
+      "status": "applied",
+      "ok": true,
+      "matches_expected": true,
+      "approvals": 1,
+      "approved_diff_chars": 6093
+    }
+  ],
+  "same_result": true,
+  "passed": true,
+  "saved_argument_bytes": 5834,
+  "limits": "固定生成300行旧代码，两路均真实编辑且保留完整diff；无模型请求，不统计token、费用或模型选边界的成功率。读取、diff、快照和其他消息成本不包含在参数字节内。"
+}

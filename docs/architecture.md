@@ -2,13 +2,15 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B23.2 replace_span生产注册、原编辑事实/额度和Hook来源。
+本次核对范围：B23.3 固定三百行对照入口、实际报告和应用组合验收。
 
-核对结论：factory新增replace_span说明/EDIT_FILE能力和路径选择，EditTools经prepare_span返回原execute_plan。FILE_EDIT_TOOLS同时驱动编辑额度、日志来源、执行报告、计划证据和诊断；三个独立Hook示例同步。原UndoService和录制链不变，子任务仍不能编辑；原注释保留，新增入口说明复用原事务。
+核对结论：生产架构无变化，新增离线对照入口只在新目录生成固定样本，复用原read_file、replace_text和replace_span实际执行。批准闭包只接受生成样本和预定结果，不进入聊天批准策略。原图保留；新增说明区分参数字节、完整diff、本地工作量与未验收模型效果。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+[B23.3对照入口](../scripts/span_edit_eval.py)只生成独立教学样本，经同一工具工厂真实编辑并保存参数/文件版本；[实际结果](span-editing.md)不代表聊天质量或token成本。
 
 ## B23.2 正式首尾工具
 
