@@ -29,12 +29,14 @@ def create_tool_registry(
     confirm_command: Callable[[CommandRequest], bool] | None = None,
     confirm_edit: Callable[[FileChangePlan], bool] | None = None,
     delegated: bool = False,
+    private_edits: bool = False,
     protected_dirs: tuple[Path, ...] = (),
     command_output_bytes: int | None = None,
     cancel: CancellationToken | None = None,
 ) -> ToolRegistry:
     """创建内置工具；工作目录无效时失败，未提供确认回调时命令及编辑默认拒绝。
 
+    private_edits仅由宿主用于独立副本：允许已限制路径的编辑，仍禁止子任务命令。
     protected_dirs 是程序保留目录，即使位于已授权根内，文件及 Git diff 工具也拒绝读取。
     已批准命令不受路径策略约束；子任务的命令入口始终拒绝执行。
     command_output_bytes 只控制管道捕获，不改变单次回传上限；附件在外层保存。
@@ -53,11 +55,12 @@ def create_tool_registry(
     handlers["create_file"] = edits.create_file
     handlers["replace_span"] = edits.replace_span
     if delegated:
-        # 不调用审批回调，也不构造修改计划或启动程序；将需要人工授权的工作交回主 Agent。
+        # 普通委派不申请审批；私有副本仅放行受限编辑，命令仍交回主任务。
         handlers["run_command"] = _needs_parent
-        handlers["replace_text"] = _needs_parent
-        handlers["create_file"] = _needs_parent
-        handlers["replace_span"] = _needs_parent
+        if not private_edits:
+            handlers["replace_text"] = _needs_parent
+            handlers["create_file"] = _needs_parent
+            handlers["replace_span"] = _needs_parent
     return ToolRegistry(
         SPECS,
         handlers,
@@ -91,10 +94,10 @@ def create_tool_registry(
         },
         path_selectors={
             **{name: lambda args: (Path(args["path"]),) for name in readers},
-            # 子任务的写入/命令始终交回主任务，不为不会执行的动作发现额外路径。
+            # 只有会执行的编辑发现目标规则；普通子任务不因拒绝动作扩展规则范围。
             **(
                 {}
-                if delegated
+                if delegated and not private_edits
                 else {
                     "replace_text": lambda args: (Path(args["path"]),),
                     "create_file": lambda args: (Path(args["path"]),),

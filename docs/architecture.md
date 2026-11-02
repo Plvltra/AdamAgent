@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B40.1 新增独立 Git 副本生命周期管理，尚未接入子任务提案合并。
+本次核对范围：B40.2 子任务私有副本编辑、原项目规则映射和审批合并验收。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2171,4 +2171,24 @@ flowchart LR
     Private --> Identity[PrivateCopy / 原规则根与记忆身份 / 收窄权限]
 ```
 
-副本根目录与原仓库分离；只克隆已提交内容，首版拒绝脏工作区、子模块、符号链接和外部 Git filter。禁用全局 Git 配置及 hooks，去掉 origin；外部读范围保留，额外写目录不继承。宿主等待子任务停止后按登记 ID 清理，清理前检查路径不跳转、目标属于自有目录；重启取得会话锁后可显式清理遗留副本，保留 manifest。规则和记忆标识属于原项目，工具工作文件属于副本；B40.2负责将这些身份接入子任务运行及主项目审批合并。
+副本根目录与原仓库分离；只克隆已提交内容，首版拒绝脏工作区、子模块、符号链接和外部 Git filter。禁用全局 Git 配置及 hooks，去掉 origin；外部读范围保留，额外写目录不继承。宿主等待子任务停止后按登记 ID 清理，清理前检查路径不跳转、目标属于自有目录；重启取得会话锁后可显式清理遗留副本，保留 manifest。规则和记忆标识属于原项目，工具工作文件属于副本；宿主开启 private_children 后，SubagentManager 创建副本并将 source_workspace 保存进委派索引；子规则把实际目标映射回原项目读取，记忆继续继承主轮快照。默认普通委派仍只读。
+
+## B40.2 私有子任务与主项目合并
+
+```mermaid
+flowchart LR
+    Bootstrap[bootstrap / private_children] --> Manager[SubagentManager]
+    Manager --> Copy[PrivateWorkspaces / ChildAgent source_workspace]
+    Copy --> Child[_open_child / 独立上下文与原共享预算]
+    Child --> Rules[原项目规则映射 / 主记忆快照]
+    Child --> Edit[仅副本内文件编辑 / 不运行命令]
+    Manager --> Identity[已结束运行的 private_workspace]
+    Identity --> Merge[PrivateMerge / 实际基线与差异]
+    Merge --> Approval[原 EditTools / 当前权限 / 文件版本 / 逐项批准]
+    Approval --> Verify[宿主 TaskVerifier / 跨文件验收]
+    Merge --> Record[proposal.json / 部分结果与验证状态]
+```
+
+当前是宿主编排入口，没有自动开启 CLI 私有模式。副本允许受限文件编辑，不运行通用命令，不改 AGENTS.md；普通辅助任务仍只读。任务不续聊，关闭/切换前须收集提案；停止后清理副本，保留生命周期与提案记录。主工具保护 `_private` 目录。规则来自原根，副本不能通过重写规则放宽约束。
+
+PrivateMerge 从实际副本提取最多16个 UTF-8 新建/修改文件，首版不合并删除、链接或规则文件。全组先核对主项目版本，再复用逐文件审批与原子写入；多文件不是原子事务，拒绝或后续故障记录 incomplete，已经应用的结果保留可查。只有宿主跨文件验收通过才记 verified；失败不自称成功、不自动回滚、不提交 Git。已经尝试的提案不能重复应用。子编辑有原 JSONL 记录，合并状态保存在独立 proposal.json，不伪造主模型工具调用。

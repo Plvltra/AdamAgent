@@ -425,3 +425,5 @@ B39.2：test_exploration_dispatch.py 经模拟HTTP、真实子线程和取消令
 B39.3：扩展test_exploration_group.py与test_exploration_dispatch.py覆盖并发唯一winner、损坏快照、错误先到、取消/完成竞争和重启预算；加既有委派章末13 passed（14.10秒）。
 
 B40.1：test_private_workspaces.py 使用两个实际Git副本验证主项目不变、规则/记忆身份、权限收窄、脏源拒绝及清理路径篡改；2 passed（8.80秒）。
+
+B40.2：test_private_merge.py 验证子HTTP→副本真实双文件编辑→主项目保持不变→逐文件批准合并→独立验收→关闭清理；1 passed（6.94秒），原委派权限场景1 passed（2.53秒）。

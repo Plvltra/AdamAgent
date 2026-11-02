@@ -94,7 +94,13 @@ class DelegationStore:
     @staticmethod
     def _decode(item: dict[str, Any]) -> ChildAgent:
         """拒绝不支持的索引结构和路径身份；不根据模型参数寻找任意文件。"""
-        if set(item) - {"role"} != {"agent_id", "name", "workspace", "read_dirs", "runs"}:
+        if set(item) - {"role", "source_workspace"} != {
+            "agent_id",
+            "name",
+            "workspace",
+            "read_dirs",
+            "runs",
+        }:
             raise ValueError("invalid agent fields")
         if item.get("role", "helper") not in {"helper", "reviewer"}:
             raise ValueError("invalid child role")
@@ -108,6 +114,9 @@ class DelegationStore:
             raise ValueError("invalid child scope")
         if not isinstance(item["runs"], list):
             raise ValueError("invalid child runs")
+        source = item.get("source_workspace")
+        if source is not None and (not isinstance(source, str) or not Path(source).is_absolute()):
+            raise ValueError("invalid source workspace")
         runs = [ChildRun(**run) for run in item["runs"]]
         if len({run.run_id for run in runs}) != len(runs):
             raise ValueError("duplicate child run")
@@ -139,4 +148,5 @@ class DelegationStore:
             item["read_dirs"],
             runs,
             item.get("role", "helper"),
+            source,
         )

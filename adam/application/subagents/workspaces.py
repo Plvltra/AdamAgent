@@ -141,7 +141,10 @@ class PrivateWorkspaces:
             raise ToolError("私有副本 Git 操作未完成。") from error
         if result.returncode:
             raise ToolError("私有副本 Git 操作失败；未自动重试。")
-        return result.stdout.decode("utf-8", errors="replace")
+        try:
+            return result.stdout.decode("utf-8")
+        except UnicodeError as error:
+            raise ToolError("私有副本仅支持 UTF-8 Git 输出与文本。") from error
 
     def _job(self, copy_id: str) -> Path:
         if len(copy_id) != 16 or any(char not in "0123456789abcdef" for char in copy_id):

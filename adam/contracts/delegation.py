@@ -26,7 +26,10 @@ class ChildRun:
 
 @dataclass
 class ChildAgent:
-    """可续聊的子会话；启动时固定工作目录和读取范围，runs 保留历次委派。"""
+    """子会话固定工作目录和读取范围；source_workspace 非空表示一次性私有副本。
+
+    普通任务可续聊，runs 保存历次委派；私有任务的规则与记忆身份仍属于原项目。
+    """
 
     agent_id: str
     name: str
@@ -34,6 +37,7 @@ class ChildAgent:
     read_dirs: list[str]
     runs: list[ChildRun] = field(default_factory=list)
     role: str = "helper"
+    source_workspace: str | None = None
 
 
 class RequestAccount(Protocol):

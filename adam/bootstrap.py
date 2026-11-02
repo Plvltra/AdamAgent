@@ -40,6 +40,7 @@ from adam.contracts.models import CommandRequest, FileChangePlan
 from adam.contracts.planning import PlanReport
 from adam.contracts.ports import ModelClient, ToolRunner
 from adam.contracts.proposals import ProposalOwner
+from adam.contracts.rules import RuleSelection
 from adam.contracts.terminals import TerminalRequest
 from adam.contracts.verification import TaskVerifier
 from adam.documents.embedding import FastEmbedBackend
@@ -105,6 +106,7 @@ def build_application(
     decorate_tools: Callable[[ToolRunner], ToolRunner] | None = None,
     observe_conversation: Callable[[Conversation], None] | None = None,
     verifier: TaskVerifier | None = None,
+    private_children: bool = False,
     live_input: bool = False,
     cancel: CancellationToken | None = None,
 ) -> AgentApplication:
@@ -116,6 +118,7 @@ def build_application(
     decorate_tools 供宿主显式装饰主轮次工具边界，例如录制；不从配置或模型加载执行代码。
     observe_conversation 在组装完成后安装宿主观察接口；不从配置或模型加载回调。
     verifier仅供宿主显式选择可信验收器，不继承给子Agent。
+    private_children由宿主显式开启辅助子任务私有副本编辑；命令仍禁止，主项目需另行审批合并。
     live_input显式启用运行中输入；cancel须与主HTTP适配器共享，默认聊天保持原路径。
     启用子任务或 MCP 的调用方须在释放主会话锁前调用 application.close；
     组装失败会回收已创建资源，主模型与主存储仍由调用方持有。
@@ -131,6 +134,7 @@ def build_application(
         mcp_media_dir = store.root / "_mcp_media"
         background_dir = store.root / "_background"
         protected_dirs = (
+            store.root / "_private",
             documents_dir,
             checkpoints_dir,
             artifacts_dir,
@@ -272,6 +276,7 @@ def build_application(
                 ),
                 on_notice or (lambda _: None),
                 mode_provider=modes.current,
+                private_children=private_children,
             )
             resources.callback(manager.close)
             registry = register_proposal_review(
@@ -535,7 +540,7 @@ def _open_child(
     知识仅经当前授权来源的查询接口读取；子任务不能保存候选、审查或发布。
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     Hooks 继承用户配置，使用子任务取消令牌；后置故障提示带子任务 ID。
-    辅助子任务可保存有读取依据的提案；审查者不注册此工具，所有子任务均不能应用。
+    普通辅助任务可保存读取提案但不能应用；宿主私有副本任务仅可直接编辑副本，命令仍禁止。
     """
     mode = ExecutionMode(run.execution_mode)
     with SessionStore(root) as store, client_factory(cancel) as client:
@@ -553,6 +558,10 @@ def _open_child(
             PermissionConfig(additional_read_dirs=tuple(Path(path) for path in agent.read_dirs)),
             config.tool_limits,
             delegated=True,
+            private_edits=agent.source_workspace is not None,
+            confirm_edit=(lambda plan: plan.path.name.casefold() != "agents.md")
+            if agent.source_workspace
+            else None,
             protected_dirs=(
                 memories_dir,
                 documents_dir,
@@ -632,11 +641,13 @@ def _open_child(
             else None
         )
         if rules:
+            if agent.source_workspace:
+                rules = _private_rules(Path(agent.workspace), Path(agent.source_workspace))
             registry = registry.guarded(rules.check)
         if artifacts:
             registry = artifacts.register(registry)
         submission = None
-        if agent.role == "helper":
+        if agent.role == "helper" and agent.source_workspace is None:
             submission = ProposalSubmission(
                 store,
                 ProposalOwner(root.parent.name, run.parent_turn_id, agent.agent_id, run.run_id),
@@ -771,6 +782,23 @@ def _artifact_tools(
         ),
         max_result_chars,
     )
+
+
+def _private_rules(workspace: Path, source: Path) -> RuleTracker:
+    """工具路径映射回原项目读取规则；副本中编辑的规则不能扩大执行授权。"""
+
+    class SourceRules(RuleCatalog):
+        def select(self, targets: tuple[Path, ...] = ()) -> RuleSelection:
+            mapped = tuple(
+                source / target.relative_to(workspace)
+                for target in targets
+                if target.is_relative_to(workspace)
+            )
+            return original.select(mapped)
+
+    policy = PathPolicy(source, PermissionConfig())
+    original = RuleCatalog(source, partial(policy.resolve, must_exist=False))
+    return RuleTracker(SourceRules(workspace, lambda value: Path(value)))
 
 
 def _project_rules(
