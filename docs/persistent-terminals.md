@@ -3,7 +3,7 @@
 - [x] B30.1：独立ID、cwd/env、持久进程和双向管道API。
 - [x] B30.2.1：终端会话归属、来源持久记录及恢复不重发。
 - [x] B30.2.2：聊天工具、批准展示、取消和关闭接入。
-- [ ] B30.3：真实shell连续cd/环境、交互、异常退出及组合验收。
+- [x] B30.3：真实shell连续cd/环境、交互、异常退出及组合验收。
 
 TerminalSessions仅供宿主协调线程调用，每个terminal_id对应独立进程。start先批准完整argv、初始cwd与显式env覆盖；send再批准每次原样UTF-8输入及eof。owner由宿主绑定，跨会话读写拒绝。默认无批准回调拒绝启动。最多2个活终端、32条记录，每次输入最多8192字节，最多一个写入在途。
 
@@ -30,3 +30,10 @@ CLI通过contracts.TerminalRequest展示terminal_id、启动argv、初始cwd（�
 read_terminal接受双流字节游标；close_terminal回收指定终端。退出应用在释放会话锁前回收全部；恢复只读旧观察，不重连。确认回调未配置的宿主默认拒绝执行。registry新增原生object参数类型，env内部键值仍由TerminalSessions校验。
 
 验收：模拟HTTP调用真实终端及CLI批准，输入接受与拒绝分支、输出续读、关闭和来源持久化通过；连同架构检查24 passed（3.76秒），定向Pyright通过。TerminalRequest从工具层迁至contracts，原有效说明迁移并补充初始cwd限制。
+## B30.3 真实shell与强杀验收
+
+Windows PowerShell管道模式实际连续执行Set-Location、环境覆盖和后续查询，第二shell保持原cwd/env；exit 7保留进程退出码并拒绝后续输入，不影响第二shell。B30.1/2的Python行交互与stdin EOF仍是独立场景，不用模拟shell状态代替真实操作。
+
+独立宿主在真实输入已经执行、accepted回执尚未保存时被强杀，另一宿主此前无法取得锁；锁释放后恢复为interrupted，原输入标为unknown、来源保留。恢复查询不变，拒绝重连与重发。测试用释放文件回收遗留测试子进程；这不宣称生产宿主强杀能自动回收全部进程。
+
+新增2项通过（2.33秒）；章末局部回归在本次小项提交后运行。未调用付费模型，TTY/全屏交互仍不在本章范围。

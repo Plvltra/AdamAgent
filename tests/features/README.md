@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B30.3 真实shell与强杀 | 连续cwd/env、双shell隔离、非零退出、输入未知不重发 | [真实验收](test_terminal_acceptance.py) |
 | B30.2.2 终端聊天 | 真实进程与CLI批准、输入拒绝、关闭和来源关联 | [聊天验收](test_terminal_chat.py) |
 | B30.2.1 终端持久 | 输入来源、关闭恢复不重发、保存失败阻止启动 | [持久验收](test_terminal_persistence.py) |
 | B30.1 持久终端 | 真实双进程cwd/env隔离、逐次拒绝、跨会话拒绝与单独取消 | [终端验收](test_terminal_sessions.py) |
