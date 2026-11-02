@@ -6,11 +6,18 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 from uuid import uuid4
 
+from adam.interop.task_service import TaskService
+
 MAX_BYTES = 262144
 
 
-def create_server(handler: Callable[[str], str], *, port: int = 0) -> HTTPServer:
-    """绑定 127.0.0.1，由宿主启动和关闭；仅供本机实验，不记录访问正文。"""
+def create_server(
+    handler: Callable[[str], str], *, port: int = 0, tasks: TaskService | None = None
+) -> HTTPServer:
+    """绑定 127.0.0.1，由宿主启动和关闭；仅供本机实验，不记录访问正文。
+
+    注入 tasks 时启用异步生命周期，宿主另须关闭 TaskService。
+    """
 
     class RequestHandler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: object) -> None:
@@ -64,6 +71,21 @@ def create_server(handler: Callable[[str], str], *, port: int = 0) -> HTTPServer
                     or isinstance(request_id, bool)
                 ):
                     raise ValueError("request")
+                if tasks is not None and data.get("method") in {"tasks/get", "tasks/cancel"}:
+                    task_id = data["params"]["id"]
+                    if not isinstance(task_id, str):
+                        raise ValueError("task id")
+                    try:
+                        result = (
+                            tasks.get(task_id)
+                            if data["method"] == "tasks/get"
+                            else tasks.cancel(task_id)
+                        )
+                    except KeyError:
+                        self._error(request_id, -32001, "Task not found")
+                        return
+                    self._reply({"jsonrpc": "2.0", "id": request_id, "result": result})
+                    return
                 if data.get("method") != "message/send":
                     self._error(request_id, -32601, "Method not supported")
                     return
@@ -91,7 +113,7 @@ def create_server(handler: Callable[[str], str], *, port: int = 0) -> HTTPServer
                 if (
                     not isinstance(config, dict)
                     or "pushNotificationConfig" in config
-                    or config.get("blocking", True) is not True
+                    or (tasks is None and config.get("blocking", True) is not True)
                     or "text/plain" not in config.get("acceptedOutputModes", ["text/plain"])
                 ):
                     raise ValueError("unsupported configuration")
@@ -100,6 +122,14 @@ def create_server(handler: Callable[[str], str], *, port: int = 0) -> HTTPServer
                     raise ValueError("text length")
             except (ValueError, KeyError, TypeError, AttributeError):
                 self._error(request_id, -32602, "Invalid text request")
+                return
+            if tasks is not None:
+                try:
+                    result = tasks.submit(text)
+                except ValueError:
+                    self._error(request_id, -32603, "Task capacity exceeded")
+                    return
+                self._reply({"jsonrpc": "2.0", "id": request_id, "result": result})
                 return
             try:
                 answer = handler(text)

@@ -11,3 +11,12 @@
 验收命令：`.cache/c-venv/Scripts/python.exe -m pytest tests/features/test_interop_text.py tests/test_architecture.py -q`。
 
 2026-11-02：8项互通/失败场景与30项架构检查，共38项通过。测试启动独立服务进程和独立客户端进程，真实 GET Card、POST JSON-RPC，断言双方运行 PID 不同以及真实词数结果；补充业务异常、不支持的方法、非文本输入和非回环地址拒绝。服务通过 stdin 结束指令协作 shutdown，避免 Windows Python 启动器 PID 与解释器 PID 不同造成残留。未使用 MockTransport，不把本服务自测当作 C09.4 参考互操作。
+
+
+## C09.2 任务生命周期
+
+新增 `TaskClient.submit(local_id, text)`、`query(local_id)`、`cancel(local_id)`，返回不可变 RemoteTask（源地址、本地关联、远端 task/context ID、状态、文本产物）。宿主可保存快照并用同源客户端 `attach` 恢复。首个发送响应丢失时远端 ID 未知，关联仍保留并拒绝再次派发；规范没有按 messageId 查询的标准方法，因此此情况不会伪造可恢复性。已知远端 ID 的查询失败保留最后已知状态，恢复后查询同一 ID。相同本地关联不能再次 submit，包括终态及未知状态。
+
+宿主显式注入 TaskService 后，回环服务支持非流式 `message/send` Task 返回、`tasks/get` 与 `tasks/cancel`。服务端生成 ID，完成结果存为文本 artifacts；失败返回 failed；取消是协作信号，回调退出前仍为 working，退出后才发布 canceled。取消不撤销已发生副作用，也不是原生强杀。服务端任务暂存内存、默认最多64个，不支持服务进程重启恢复或多轮 continuation；宿主负责先停止 HTTP 接收再关闭 TaskService。客户端恢复不等于服务端持久化。保持 streaming=false、pushNotifications=false。
+
+2026-11-02：新增5项真实HTTP场景：成功与客户端恢复、取消/失败终态、查询响应超时后按原ID恢复、首次发送响应丢失且禁止重复、异源恢复拒绝；与原双进程文本场景共13项通过，Ruff/Pyright通过。延迟注入的是服务响应边界，任务与回调真实运行；断连后断言实际业务只执行一次。本批未跑全量或重复提交门禁。C09.3 原工具/审批与 C09.4 固定参考服务尚未实现。

@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C03.2 解锁后真实输入、快捷键、控件保存与独立读回。架构无变化，原工具批准、Windows 适配器与媒体来源关系保持；仅新增实机文字证据，无 Python 注释改动。
+本次核对范围：C09.2 任务关联、查询/取消与终态。新增 interop.tasks 和 task_service；复用回环传输，未接入生产聊天。
 
 本次同步结论：架构关系保持，组装入口保留 FileChangePlan 与浏览器/桌面批准参数；Conversation 和录制同时保留诊断与媒体输入，日志同时校验诊断与视觉来源。合并双方契约说明，移除重复架构段落。验证：相关重放、多模态、消费、桌面动作与诊断选择共 85 项通过；Ruff、Pyright 通过，本次不重复运行全量。
 
@@ -2409,3 +2409,19 @@ flowchart LR
 ~~~
 
 新增 interop 仅依赖 contracts 与自身；HTTP 类型不进入公共结果契约。网络失败不自动重试，不从远端声明提升权限；未接入生产聊天或工具审批，生命周期待 C09.2。8项真实互通/失败场景与架构共38项通过。新增函数中文契约已核对，原有关键注释未删除。详见 [固定子集及使用边界](interop.md)。
+
+
+## C09.2 任务关联与生命周期
+
+~~~mermaid
+flowchart LR
+    IT_HOST["显式宿主 / 本地关联 ID"] --> IT_CLIENT["interop.tasks / TaskClient"]
+    IT_CLIENT --> IT_LINK["RemoteTask / 源与远端 ID / unknown"]
+    IT_CLIENT --> IT_HTTP["原回环 JSON-RPC / send get cancel"]
+    IT_HTTP --> IT_SERVICE["interop.task_service / TaskService"]
+    IT_SERVICE --> IT_WORK["独立任务线程 / 协作 CancellationToken"]
+    IT_WORK --> IT_STATE["working / completed / failed / canceled"]
+    IT_STATE --> IT_LINK
+~~~
+
+发送前保留关联，首次响应丢失不重新委派；已知ID时断连恢复只查原任务。同源快照恢复没有网络动作；服务内存状态不宣称持久化。取消仅在回调退出后标为 canceled；不撤销副作用。新增中文契约已核对，原服务回环/无访问正文说明保留并补充关闭责任。新增5项及文本回归共13项通过，静态检查通过；参考服务验收仍待C09.4。
