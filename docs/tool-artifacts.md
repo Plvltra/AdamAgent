@@ -20,7 +20,7 @@ T8.1 提供 ArtifactSource、ArtifactRef、ArtifactPage 和 ArtifactStore。T8.2
 4. 分页同时服从 max_read_chars 与实际 JSON 编码后的 max_result_chars。转义导致进一步缩短时同步 next_offset，不跳过字符；读取内容进入原工具消息，因此继续受工具次数与上下文预算约束。
 5. 正文先发布，再追加 artifact_saved 来源事件，最后保存 tool_finished 和执行后置 Hook。事件核对正在进行的轮次、成功请求、实际工具名称与调用 ID；同一调用只保存一份引用。
 
-命令每条流最多捕获 artifacts.max_bytes 个字节，再持续排空其余管道；单份与会话保存配额仍独立检查。UTF-8 解码替换、管道未完整读取或捕获截断均标为不完整。command_finished 只保存有界事实预览；扩大捕获不会把长输出再次写入 JSONL，也不修改供附件保存的原结果。
+命令每条流最多保留 artifacts.max_bytes 个头尾原字节，并持续排空全部管道；源头字节计数和编码边界见 [B18 输出捕获](command-output.md)。单份与会话保存配额仍独立检查。UTF-8 解码替换、管道未完整读取或捕获截断均标为不完整。command_finished 只保存有界事实预览；扩大捕获不会把长输出再次写入 JSONL，也不修改供附件保存的原结果。
 
 正文存储失败返回 artifact_unavailable，不提供虚假引用，保留动作实际状态且不重跑。正文已发布而来源日志失败时停止本轮；孤立文件不能凭文件存在直接读取。读取先查当前日志，再比较正文与记录中的完整引用，包括来源、版本、大小和完整性；丢失、篡改或旧版本只返回工具错误，不重做原命令。日志本身损坏或读取故障仍停止。
 

@@ -8,39 +8,13 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import Any
 
 from adam.config.settings import ToolLimits
 from adam.contracts.errors import CommandLogError, ToolError
 from adam.contracts.models import CommandRequest, ExecutionRecorder
+from adam.tool_calls.command_output import OutputCapture
 from adam.tool_calls.processes import terminate_process
-
-
-class _Output:
-    """持续排空管道，仅保留有界字节，防止大量输出阻塞子进程。"""
-
-    def __init__(self, limit: int) -> None:
-        self.limit = limit
-        self.data = bytearray()
-        self.truncated = False
-
-    def text(self) -> str:
-        """按 UTF-8 解码；替换非法字节时标记不完整，不宣称保留原始输出。"""
-        try:
-            return self.data.decode("utf-8")
-        except UnicodeError:
-            self.truncated = True
-            return self.data.decode("utf-8", errors="replace")
-
-    def drain(self, stream: BinaryIO) -> None:
-        try:
-            with stream:
-                while chunk := stream.read(4096):
-                    remaining = max(0, self.limit - len(self.data))
-                    self.data.extend(chunk[:remaining])
-                    self.truncated |= len(chunk) > remaining
-        except OSError:
-            self.truncated = True
 
 
 class CommandTools:
@@ -52,7 +26,7 @@ class CommandTools:
         *,
         capture_bytes: int | None = None,
     ) -> None:
-        """注入命令确认与每条输出流的字节捕获上限；回传字符上限仍由 limits 控制。"""
+        """注入命令确认与每条流的头尾字节容量；回传字符上限仍由 limits 控制。"""
         self.workspace = workspace
         self.limits = limits
         self.confirm = confirm
@@ -177,8 +151,8 @@ class CommandTools:
             return self._result("start_failed", started)
 
         assert process.stdout is not None and process.stderr is not None
-        stdout = _Output(self.capture_bytes)
-        stderr = _Output(self.capture_bytes)
+        stdout = OutputCapture(self.capture_bytes)
+        stderr = OutputCapture(self.capture_bytes)
         readers = [
             threading.Thread(target=stdout.drain, args=(process.stdout,), daemon=True),
             threading.Thread(target=stderr.drain, args=(process.stderr,), daemon=True),
@@ -205,12 +179,16 @@ class CommandTools:
         finally:
             for reader in readers:
                 reader.join(timeout=2)
-        result = self._result(status, started)
+        out, err = stdout.snapshot(), stderr.snapshot()
+        result = {
+            "output_capture": {"stdout": out.metadata(), "stderr": err.metadata()},
+            **self._result(status, started),
+        }
         result.update(
             exit_code=process.returncode,
-            stdout=stdout.text(),
-            stderr=stderr.text(),
-            truncated=stdout.truncated or stderr.truncated or any(r.is_alive() for r in readers),
+            stdout=out.text,
+            stderr=err.text,
+            truncated=out.truncated or err.truncated,
         )
         return result
 

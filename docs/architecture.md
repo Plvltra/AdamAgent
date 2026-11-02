@@ -2,13 +2,26 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B17.3.2 整本书稿验收入口及读取/索引的显式 PDF 流限制。
+本次核对范围：B18.1 命令管道的头尾捕获、字节统计与一致快照。
 
-核对结论：现有生产模块关系无变化，ToolLimits 与 DocumentConfig 向 PdfLimits 传递显式 max_pdf_stream_bytes，索引缓存包含该限制。scripts.pdf_acceptance 复用原 PDF、索引、搜索与工具，在临时副本完成更新验收；不增加生产模型或视觉链。原权限、协作期限和不完整内容说明保留，新增配置说明及真实失败记录。
+核对结论：CommandTools 将原前缀缓冲替换为 command_output.OutputCapture，两条管道各自保持头尾；CapturedOutput 携带已读/省略数量、EOF与编码状态。批准、启动和清理边界保持；原持续排空与编码说明迁到新模块。最终预览和附件接入仍使用原路径，B18.2继续改进。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B18 命令输出
+
+~~~mermaid
+flowchart LR
+    CMD_RUN["CommandTools / 原确认与进程启动"] --> CMD_PIPES["stdout 与 stderr / 各自排空线程"]
+    CMD_PIPES --> CMD_BUFFER["command_output.OutputCapture / 固定头部与滚动尾部"]
+    CMD_BUFFER --> CMD_SNAPSHOT["CapturedOutput / 一致计数、EOF、UTF-8与头尾"]
+    CMD_SNAPSHOT --> CMD_RESULT["原命令结果与有界 command_finished"]
+    CMD_RESULT --> CMD_ART["ToolArtifacts / 原附件和最终预览"]
+~~~
+
+本步源头已保留尾部，最终预览仍待B18.2；见 [输出契约](command-output.md)。
 
 ## B17.3.1 图片分析扩展契约
 
