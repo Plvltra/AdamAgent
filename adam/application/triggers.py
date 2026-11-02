@@ -1,5 +1,7 @@
 """宿主协调线程把一次性本地条件转成运行邮箱事件，不执行模型或命令。"""
 
+import math
+import time
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
@@ -54,6 +56,8 @@ class LocalTriggers:
 
         接受成功后再写delivered；保存失败向上抛出，不能继续模型请求。跨轮次条件过期。
         """
+        if owner not in self._stores and not (self.root / owner).exists():
+            return 0
         store = self._store(owner)
         for timer in store.list():
             if timer.status == "pending" and timer.task_id != queue.task_id:
@@ -84,6 +88,37 @@ class LocalTriggers:
             store.finish(timer.timer_id, "delivered")
             delivered += 1
         return delivered
+
+    def dispatch(self, owner: str, task_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        """处理宿主已绑定来源的模型参数；不允许模型提供会话或轮次ID。"""
+        action = args["action"]
+        if action == "timer":
+            delay = args["delay_seconds"]
+            if (
+                type(delay) not in (int, float)
+                or not math.isfinite(delay)
+                or not 0 <= delay <= 86400
+            ):
+                raise ValueError("delay_seconds must be 0..86400")
+            return self.schedule(owner, task_id, time.time() + delay, args["text"])
+        if action == "watch":
+            return self.watch(owner, task_id, args["job_id"], args["condition"])
+        if action == "cancel":
+            return self.cancel(owner, args["timer_id"])
+        if action == "list":
+            return {"timers": [asdict(item) for item in self.records(owner)]}
+        raise ValueError("unknown trigger action")
+
+    def recover(self, owner: str) -> None:
+        """取得主会话锁后把遗留pending标为过期，不查询后台任务或重发事件。"""
+        if not valid_session_id(owner):
+            raise ValueError("invalid trigger session")
+        if owner not in self._stores and not (self.root / owner).exists():
+            return
+        store = self._store(owner)
+        for timer in store.list():
+            if timer.status == "pending":
+                store.finish(timer.timer_id, "expired")
 
     def records(self, owner: str) -> tuple[Timer, ...]:
         """只读已登记状态，不触发条件或新建运行。"""

@@ -178,8 +178,12 @@ def _validate_record(record: object, session_id: str, turn_id: str) -> None:
             or type(event.get("sequence")) is not int
             or event["sequence"] != sequence
             or event.get("task_id") != turn_id
-            or event.get("kind") != "user_input"
-            or event.get("source") != "terminal"
+            or (event.get("kind"), event.get("source"))
+            not in {
+                ("user_input", "terminal"),
+                ("timer", "local_trigger"),
+                ("task_update", "local_trigger"),
+            }
             or event.get("state") not in {"accepted", "in_context", "unprocessed"}
             or not isinstance(event.get("text"), str)
             or not 1 <= len(event["text"]) <= 8192
@@ -187,9 +191,10 @@ def _validate_record(record: object, session_id: str, turn_id: str) -> None:
             or not 1 <= len(event["event_id"]) <= 128
         ):
             raise ValueError("invalid input event")
-        if event["event_id"] in seen:
+        identity = (event["source"], event["event_id"])
+        if identity in seen:
             raise ValueError("duplicate input event")
-        seen.add(event["event_id"])
+        seen.add(identity)
 
 
 def _write_record(path: Path, record: dict[str, Any]) -> None:

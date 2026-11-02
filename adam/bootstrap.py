@@ -1,5 +1,6 @@
 """真实执行应用的组装入口；加载配置，创建依赖并在退出或启动失败时释放资源。"""
 
+import time
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from dataclasses import replace
@@ -12,6 +13,7 @@ import httpx
 from adam.application.background import BackgroundService
 from adam.application.conversation import Conversation
 from adam.application.diagnostics import DiagnosticContextReader
+from adam.application.event_queue import EventQueue
 from adam.application.facade import AgentApplication
 from adam.application.memories import MemoryService
 from adam.application.modes import ModeController
@@ -25,6 +27,7 @@ from adam.application.runtime_state import RuntimeStateReader
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
 from adam.application.subagents.manager import SubagentManager
+from adam.application.triggers import LocalTriggers
 from adam.application.undo import UndoService
 from adam.config.loader import load_config
 from adam.config.settings import AppConfig, ArtifactConfig, DocumentConfig, PermissionConfig
@@ -76,6 +79,7 @@ from adam.tool_calls.review_tools import SPECS as REVIEW_SPECS
 from adam.tool_calls.review_tools import handlers as review_handlers
 from adam.tool_calls.session_tools import SessionTools
 from adam.tool_calls.skill_tools import register_skills
+from adam.tool_calls.trigger_tools import TriggerTools
 
 ChildClientFactory = Callable[[CancellationToken], AbstractContextManager[ModelClient]]
 
@@ -126,6 +130,7 @@ def build_application(
             mcp_media_dir,
             background_dir,
             store.root / "_inputs",
+            store.root / "_triggers",
             store.root / "_subagents",
         )
         artifacts = _artifact_tools(
@@ -155,6 +160,20 @@ def build_application(
         resources.callback(background_service.close)
         background = BackgroundTools(background_service.start, background_service.query, store)
         registry = background.register(registry)
+        triggers = LocalTriggers(store.root / "_triggers", background_service.query)
+        resources.callback(triggers.close)
+        trigger_tools = TriggerTools(triggers.dispatch, store) if inputs else None
+        if trigger_tools:
+            registry = trigger_tools.register(registry)
+
+        def input_queue(turn_id: str) -> EventQueue | None:
+            """仅在协调线程安全点观察本地条件，再交给原输入消费与持久化流程。"""
+            queue = inputs.queue(turn_id) if inputs else None
+            owner = store.active_session_id
+            if queue is not None and owner is not None:
+                triggers.poll(owner, queue, time.time())
+            return queue
+
         if config.command_isolation.enabled:
             registry = register_isolated_commands(
                 registry,
@@ -182,6 +201,7 @@ def build_application(
                 mcp_media_dir,
                 background_dir,
                 store.root / "_inputs",
+                store.root / "_triggers",
                 store.root / "_subagents",
             ),
             knowledge_dir=knowledge_dir,
@@ -335,6 +355,8 @@ def build_application(
         def bind_source(link: dict[str, str]) -> None:
             """把同一执行来源交给各协调服务，不覆盖原子任务绑定。"""
             background.bind_source(link)
+            if trigger_tools:
+                trigger_tools.bind_source(link)
             if manager:
                 manager.bind_source(link)
             if planner:
@@ -381,7 +403,7 @@ def build_application(
             on_turn_started=(lambda tid: inputs.begin(store.active_session_id, tid))
             if inputs
             else None,
-            input_provider=inputs.queue if inputs else None,
+            input_provider=input_queue if inputs else None,
             context_config=config.context,
             notify=on_notice,
             accounting=manager.account if manager else None,
@@ -416,6 +438,7 @@ def build_application(
         def recover_attached(session_id: str) -> None:
             """主会话锁已取得后恢复附属记录；即使关闭live-input也不遗漏旧输入。"""
             background_service.recover(session_id)
+            triggers.recover(session_id)
             if (store.root / "_inputs" / session_id).exists():
                 recover_inputs(
                     store.root / "_inputs",
@@ -505,6 +528,7 @@ def _open_child(
                 knowledge_dir,
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
+                checkpoints_dir.parent / "_triggers",
                 checkpoints_dir.parent / "_inputs",
                 checkpoints_dir.parent / "_subagents",
             ),
@@ -521,6 +545,7 @@ def _open_child(
                 artifacts_dir,
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
+                checkpoints_dir.parent / "_triggers",
                 checkpoints_dir.parent / "_inputs",
                 checkpoints_dir.parent / "_subagents",
             ),
@@ -542,6 +567,7 @@ def _open_child(
                 knowledge_dir,
                 mcp_media_dir,
                 checkpoints_dir.parent / "_background",
+                checkpoints_dir.parent / "_triggers",
                 checkpoints_dir.parent / "_inputs",
                 checkpoints_dir.parent / "_subagents",
             ),
@@ -560,6 +586,7 @@ def _open_child(
                     knowledge_dir,
                     mcp_media_dir,
                     checkpoints_dir.parent / "_background",
+                    checkpoints_dir.parent / "_triggers",
                     checkpoints_dir.parent / "_inputs",
                     checkpoints_dir.parent / "_subagents",
                 ),
@@ -589,6 +616,7 @@ def _open_child(
                         knowledge_dir,
                         mcp_media_dir,
                         checkpoints_dir.parent / "_background",
+                        checkpoints_dir.parent / "_triggers",
                         checkpoints_dir.parent / "_inputs",
                         checkpoints_dir.parent / "_subagents",
                     ),
@@ -663,6 +691,7 @@ def _open_child(
                             knowledge_dir,
                             mcp_media_dir,
                             checkpoints_dir.parent / "_background",
+                            checkpoints_dir.parent / "_triggers",
                             checkpoints_dir.parent / "_inputs",
                             checkpoints_dir.parent / "_subagents",
                         ),

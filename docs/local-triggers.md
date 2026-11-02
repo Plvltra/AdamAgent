@@ -2,20 +2,29 @@
 
 - [x] B29.1：一次性本地定时记录、取消、持久恢复。
 - [x] B29.2.1：后台输出/终态条件到B27邮箱的协调API、合并与去重。
-- [ ] B29.2.2：聊天工具注册和运行安全点接入。
+- [x] B29.2.2：聊天工具注册和运行安全点接入。
 - [ ] B29.3：真实时间边界、重复投递、取消和重启组合验收。
 
 LocalTimers 是宿主协调线程使用的 API，独占一个目录，不创建线程或常驻服务。schedule(task_id, due_at, text) 接受 UTC Unix 秒和固定运行 ID，due(now) 只读返回到期记录，cancel 取消未投递提醒，close 释放锁。最多128条记录，每条文本8192字符；调用方需管理目录生命周期。
 
 状态为 pending、delivered、cancelled、expired。delivered 仅表示事件被宿主接受，不表示模型已执行；B29.2负责投递成功后结算。查询不会改变状态，重启只读恢复，不自动发模型请求或执行命令，旧task_id不能自动映射到新轮次。
 
-快照临时文件fsync后替换，失败不更新内存状态；目录拒绝链接重定向，重复宿主打开失败。该小步尚未注册聊天工具或接入终端；后续接入点是B27事件队列与B26后台观察。
+快照临时文件fsync后替换，失败不更新内存状态；目录拒绝链接重定向，重复宿主打开失败。B29.1提供底层API；B29.2.2已接入live-input主聊天，见下节。
 
 验证：到期边界、取消、独占、重启读取，以及保存失败保留旧状态，两项通过（0.41秒）；定向Ruff/Pyright通过。只验证本地流程，不涉及付费模型。
 ## B29.2.1 条件协调
 
 LocalTriggers按会话持有LocalTimers，watch记录固定目标轮次和后台任务ID。output在观察到任一输出时触发（包括登记前已有输出）；completed表示进入终态，不代表退出码成功。一个轮次同后台任务同条件只登记一次，持续高频输出合并为一个提醒；不按输出行数轰炸模型。读取依赖B26 query接口，消息不携带可执行授权。
 
-poll(owner, queue, now)在宿主线程显式调用，定时投递TIMER，后台条件投递TASK_UPDATE，来源固定local_trigger。入队成功后才保存delivered，保存故障停止；重试沿用timer_id去重。满队列保留pending，旧运行记录过期，不转给新运行。恢复后台快照不当成新完成事件。该协调API尚未接入Conversation，生产工具和安全点消费待B29.2.2。
+poll(owner, queue, now)在宿主线程显式调用，定时投递TIMER，后台条件投递TASK_UPDATE，来源固定local_trigger。入队成功后才保存delivered，保存故障停止；重试沿用timer_id去重。满队列保留pending，旧运行记录过期，不转给新运行。恢复后台快照不当成新完成事件。该协调API已在B29.2.2接入Conversation安全点。
 
 验证：定时/条件合并、队列背压、原运行隔离与B29.1共4 passed（0.44秒），定向Pyright及Ruff通过。后台查询使用固定快照，真实进程组合验收留B29.3。
+## B29.2.2 主聊天接入
+
+使用现有 --live-input 开关启用 local_trigger；默认模式不注册，子Agent不注册。action=timer 接受 delay_seconds（整数0～86400）和text，watch接受job_id与condition，cancel接受timer_id，list返回登记状态。会话与轮次由执行器绑定，模型不能指定其他运行。
+
+bootstrap在输入安全点先调用LocalTriggers.poll，再由Conversation消费TIMER/TASK_UPDATE；事件标为“本地条件观察”，不是用户新授权，也不证明任务成功。完整工具结果配对保持。RunningInputs保存接受/消费状态并支持重启校验；取得会话锁后遗留pending提醒过期，不重发。内部_triggers目录受主/子文件与资料工具保护，批准的宿主命令仍不是沙箱。
+
+提醒仅在活轮次安全点检查，不阻塞等待未来时间，不在聊天空闲时自动启动模型。轮次已结束的pending状态在后续轮次或恢复时转为expired。无需常驻服务；更精细实时唤醒不在本版范围。
+
+验收：模拟HTTP经过真实工具、事件持久化、成功历史及重启读取，默认模式隔离也通过（2项，2.76秒）。此前原输入安全点和条件协调5项通过；修正工具schema为整数秒。定向Pyright通过，未调用付费模型。

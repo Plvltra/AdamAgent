@@ -2,7 +2,7 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B29.2.1 LocalTriggers条件协调API；聊天接入尚未完成。
+本次核对范围：B29.2.2 主聊天条件工具、安全点投递、输入恢复和受保护目录。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2033,4 +2033,17 @@ flowchart LR
   Triggers --> Queue[B27 EventQueue / 固定原轮次]
 ~~~
 
-LocalTriggers自身不执行模型、命令或常驻监听；只观察快照并投递带来源事件。满队列保持pending，跨轮次过期，delivered不等同于处理成功。宿主聊天安全点的调用尚未接入。
+LocalTriggers自身不执行模型、命令或常驻监听；只观察快照并投递带来源事件。满队列保持pending，跨轮次过期，delivered不等同于处理成功。宿主聊天安全点已于B29.2.2接入。
+## B29.2.2 条件消息进入主聊天
+
+~~~mermaid
+flowchart LR
+  Model[主模型：live-input启用] --> Tool[tool_calls.TriggerTools]
+  Tool --> Triggers[application.LocalTriggers]
+  Bootstrap[bootstrap.input_queue安全点] --> Triggers
+  Triggers --> Queue[B27 EventQueue]
+  Queue --> Log[RunningInputs接受和消费留痕]
+  Queue --> Conversation[Conversation：带来源观察消息]
+~~~
+
+默认模式与子Agent不注册条件工具；来源会话/轮次由真实工具执行器绑定。恢复在持有会话锁时使遗留pending过期，不查询条件、不自动重发。原完整工具批次配对和请求预算保持。
