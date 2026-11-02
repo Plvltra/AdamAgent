@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B27.1 运行事件队列 | 有界FIFO、去重/冲突、关闭保留、并发投递 | [队列契约](test_running_events.py) |
 | B26.3 真实后台故障 | 双进程输出隔离、独立取消、强杀宿主后恢复未知且不重跑 | [实际验收](test_background_acceptance.py) |
 | B26.2.2 生产后台工具 | 模型启动/等待真实进程、Ctrl+C、任务锁/恢复、意图保存失败无执行 | [持久任务](test_background_persistence.py) |
 | B26.2.1 输出游标 | 退出前短输出可读、独立续读、缺口与字符边界、会话所有权 | [输出游标](test_background_output_cursor.py) |

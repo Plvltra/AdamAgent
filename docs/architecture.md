@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B26.3 实际双进程及独立宿主强杀恢复验收。生产架构无变化；下述B26.2.2关系保持，63项局部回归通过。
+本次核对范围：B27.1 运行事件数据契约及内存队列。
 
-核对结论：bootstrap组装BackgroundTools与BackgroundService，通过回调保持工具层不依赖应用层；独立任务记录与锁由服务协调，后台线程仍不访问SessionStore。附属任务恢复/中断回调由应用门面触发。
+核对结论：新增contracts.events与application.event_queue，队列只管理有界事件、去重与确认，不依赖工具、模型或存储；CLI/Conversation尚未接入。原模块调用关系保持。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -1957,3 +1957,13 @@ flowchart LR
 ```
 
 任务JSON记录已观察状态，不代替会话JSONL中的工具调用轨迹；启动意图早于实际进程，崩溃后的未知结果保持中断。工具层不导入应用服务实现，子Agent没有后台执行入口。内部任务目录加入主/子文件、文档及规则读取保护；批准的通用命令仍是宿主权限，不是沙箱。
+
+## B27.1 运行事件基础
+
+```mermaid
+flowchart LR
+    EQ[application.EventQueue / 单次运行] --> EV[contracts.InputEvent / 类型来源序号]
+    EQ --> ER[contracts.EventReceipt / 入队与重复回执]
+```
+
+多个生产线程可投递，单个协调消费者peek后保存处理结果再ack；队列不做模型请求或持久写入。当前未连接CLI、Conversation和JSONL，接入在B27.2/3完成。[队列契约](running-events.md)描述容量、去重和关闭语义。
