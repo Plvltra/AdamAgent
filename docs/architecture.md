@@ -2,11 +2,24 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B16.3 二十工具候选评估脚本、失败环境与真实模型报告。
+本次核对范围：B17.1 documents.pdf 独立页级提取与锁定依赖。
 
-核对结论：生产架构无变化；新增离线评估入口复用真实注册目录、list_tools/discover_tools 和本地向量适配器，记录候选、Schema 字节、权限及耗时。教学工具不能执行，不增加聊天入口。原发现/执行和注释契约保留，新增脚本说明固定题目、降级和计量边界。
+核对结论：documents 新增独立 pdf 模块，接收已授权读取的字节，经上下文限定的 pypdf 返回 PdfExtract/PdfPage，复用 DocumentError。尚未连接模型工具或索引；没有更改现有文本扫描链路。新增说明明确页码、版本、截断、取消与资源约束，原模块注释未删除。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
+
+## B17.1 PDF 提取基础
+
+~~~mermaid
+flowchart LR
+    PDF_BYTES["调用方已授权读取的有界字节"] --> PDF_READ["documents.pdf.extract_pdf"]
+    PDF_LIMIT["PdfLimits / 字节、页、字符与解析边界"] --> PDF_READ
+    PDF_READ --> PDF_LIB["pypdf / ContextVar 配置与物理页"]
+    PDF_LIB --> PDF_RESULT["PdfExtract / PdfPage / 原 SHA、页码、截断与 OCR 提示"]
+    PDF_READ --> PDF_ERROR["DocumentError / 整次失败或原取消传播"]
+~~~
+
+此图是独立 API，尚未接到聊天或资料索引；调用方路径授权责任与资源限制见 [PDF 感知](pdf-perception.md)。
 
 ## B16 语义工具目录与运行时接入
 

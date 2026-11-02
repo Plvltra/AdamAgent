@@ -1,0 +1,37 @@
+{
+  "source_name": "深入理解 AI Agent.pdf",
+  "file_bytes": 11084397,
+  "version": "0b939175a49ba2cf9909477f7ff2df1dd8136385993ab8bdcf492fdcf0db9bd0",
+  "total_pages": 313,
+  "next_page": 125,
+  "layout_verified": false,
+  "pages": [
+    {
+      "page": 122,
+      "status": "text",
+      "extracted_chars": 1996,
+      "has_images": false,
+      "needs_ocr": false,
+      "truncated": false,
+      "contains_chinese": true
+    },
+    {
+      "page": 123,
+      "status": "text",
+      "extracted_chars": 1677,
+      "has_images": false,
+      "needs_ocr": false,
+      "truncated": false,
+      "contains_chinese": true
+    },
+    {
+      "page": 124,
+      "status": "text",
+      "extracted_chars": 1654,
+      "has_images": false,
+      "needs_ocr": false,
+      "truncated": false,
+      "contains_chinese": true
+    }
+  ]
+}
