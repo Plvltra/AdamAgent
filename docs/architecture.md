@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：私有C分支同步固定main 0bf79c2（B27.2.2）；保留C03实机证据及全部既有模块图，整合后台/浏览器/桌面中断清理、运行输入及媒体保护。
+本次核对范围：C06.3 RealtimePlayback通过原帧引用和分析端口进行有界实时播放；新增单槽供帧、过期丢弃和实际延迟报告，媒体与模型日志关系保持。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2727,3 +2727,21 @@ flowchart LR
 C06.2实际核对：原C04图问4次真实请求保留来源/用量，时序对照复用已记录语义，模型颜色仅2/4正确。正常标签序已知不代表标签准确，倒序/缺帧不确定性正确；原报告见 [真实时序](video-input.md#c062-带证据的时序事件)。生产关系未另改。
 
 同步注释审查：原媒体权限、输入安全点、取消和资源所有权说明均保留；原_interruption_cleanup并入_interrupt_scope，保留正常轮次不回收及清理失败不覆盖中断的行为。全部原架构章节保留，仅新增B26生产接入/B27关系；没有全量pytest。
+
+## C06.3 实时视频播放
+
+~~~mermaid
+flowchart LR
+    VP_INPUT["原 VideoFrames / PTS、来源"] --> VP_SOURCE["RealtimePlayback / 有界供帧线程"]
+    VP_SOURCE --> VP_SLOT["单个待处理帧 / 覆盖与过期留证"]
+    VP_SLOT --> VP_CALL["原帧分析回调 / 同步取消契约"]
+    VP_CALL --> VP_CACHE["实际分析结果 / 墙钟延迟"]
+    VP_CACHE --> VP_TIME["TemporalAnalyzer / 复用结果不重问"]
+    VP_SLOT --> VP_DROP["DroppedFrame / 原帧与原因"]
+    VP_TIME --> VP_REPORT["PlaybackReport / 缺帧不确定"]
+    VP_DROP --> VP_REPORT
+~~~
+
+video仍只依赖自身及contracts。已解码帧按真实时钟播放，分析不持有供帧锁；退出回收线程，失败不重问。摄像头尚未接入；此图不宣称实时设备或桌面联动。时钟与取消契约见 [连续观察](video-input.md#c063-按pts实时播放与丢帧)。
+
+C06.3核对结果：新增live模块只依赖video/contracts；20项大项局部通过（2.79秒），Ruff及定向Pyright通过。真实短片离线8请求、实时3请求及5帧丢弃完整留证，模型误识别未修正；取消与回收说明保持，原关键注释未删除。摄像头仍待办。

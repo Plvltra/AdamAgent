@@ -1,0 +1,214 @@
+{
+  "video": {
+    "media_id": "0978164754167ebfea07690ad99dca50",
+    "source": {
+      "session_id": "05131526",
+      "turn_id": "e880689c14fa996394c02eafcadf905a",
+      "kind": "input",
+      "request_id": null,
+      "tool_call_id": null,
+      "tool_name": null
+    },
+    "mime_type": "video/x-matroska",
+    "size_bytes": 1754,
+    "version": "fd9948020d52c1ba42634af924ad3ab944de768be6e4353233dd84cad3a6955d",
+    "created_at": "2026-11-02T14:54:46.124996+00:00",
+    "schema_version": 1
+  },
+  "duration_seconds": 0.561,
+  "decoded_frames": 8,
+  "frames": [
+    {
+      "pts": 0,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.0,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "8e2d9c0a872702dc264dfb692e190408",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+        "created_at": "2026-11-02T14:54:46.142509+00:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "pts": 80,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.08,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "e16f0255963dde99f0053b874d5184c2",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+        "created_at": "2026-11-02T14:54:46.165514+00:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "pts": 160,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.16,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "68f853b9d67594c98f098cc6823d43d4",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+        "created_at": "2026-11-02T14:54:46.189702+00:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "pts": 240,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.24,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "079914af9a7e603c6341cd10268cc3fb",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+        "created_at": "2026-11-02T14:54:46.217732+00:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "pts": 320,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.32,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "8e7f4e22957a379bf7795f8671db2e43",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+        "created_at": "2026-11-02T14:54:46.246681+00:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "pts": 400,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.4,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "30d555fbf69121415c006c7f5391e83f",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+        "created_at": "2026-11-02T14:54:46.279394+00:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "pts": 480,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.48,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "9612d9422fdfa0b61e39c5726d41db85",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+        "created_at": "2026-11-02T14:54:46.313502+00:00",
+        "schema_version": 1
+      }
+    },
+    {
+      "pts": 560,
+      "time_base_num": 1,
+      "time_base_den": 1000,
+      "timestamp_seconds": 0.56,
+      "width": 64,
+      "height": 48,
+      "media": {
+        "media_id": "7217d3d31037d9235b3681596b4c40b9",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+        "created_at": "2026-11-02T14:54:46.351009+00:00",
+        "schema_version": 1
+      }
+    }
+  ]
+}

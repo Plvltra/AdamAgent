@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C06.3 实时播放 | 新增7项单槽/过期/取消/失败边界，C06大项20项通过/2.79秒；真实8帧实时丢5帧，语义错误单列 | [场景](test_video_live.py)、[对照](../../docs/evaluations/c063/report.json) |
 | C03.4 综合实机 | 真实随机字段读取/填写保存、旧观察拒绝、保存前中断与恢复；遮挡复用C03.3；大项局部22项通过/7.78秒 | [报告](../../docs/evaluations/c034/report.json)、[范围](../../docs/desktop-observation.md#c034-综合实机验收) |
 | C06.2 时序分析 | 5项事件证据/乱序/缺帧/不确定/取消；真实4次视觉颜色仅2/4正确，失败完整保留 | [规则](test_video_temporal.py)、[实际对照](../../docs/evaluations/c062/visual-review.json) |
 | C06.1 有界视频解码 | 8项实际VFR时间轴/媒体来源、五类限额、损坏与取消，独立核图4帧完整 | [业务场景](test_video_input.py)、[实际证据](../../docs/video-input.md) |

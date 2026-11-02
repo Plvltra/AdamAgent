@@ -1,0 +1,130 @@
+{
+  "offline": {
+    "analyzed": 8,
+    "indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "correct": 5,
+    "accuracy": 0.625,
+    "elapsed_seconds": 3.0319999999992433,
+    "analyzed_rate_hz": 2.6385224274412917,
+    "mean_wall_latency_seconds": 0.37699999999949796,
+    "max_wall_latency_seconds": 0.46899999999732245,
+    "unobserved_frames": [],
+    "usage": {
+      "requests": 8,
+      "input_tokens": 896,
+      "output_tokens": 16,
+      "cost": null,
+      "currency": null,
+      "total_tokens": 912
+    },
+    "dropped": [],
+    "offered_rate_hz": null,
+    "offered_rate_note": "Offline has no timed producer; source cadence is 12.5 Hz."
+  },
+  "realtime": {
+    "analyzed": 3,
+    "indices": [
+      0,
+      4,
+      7
+    ],
+    "correct": 2,
+    "accuracy": 0.6666666666666666,
+    "elapsed_seconds": 1.1710000000020955,
+    "analyzed_rate_hz": 2.5619128949569867,
+    "mean_wall_latency_seconds": 0.4823333333357975,
+    "max_wall_latency_seconds": 0.6110000000044238,
+    "unobserved_frames": [
+      {
+        "index": 1,
+        "color": "green",
+        "start_seconds": 0.08,
+        "end_seconds": 0.16
+      },
+      {
+        "index": 2,
+        "color": "blue",
+        "start_seconds": 0.16,
+        "end_seconds": 0.24
+      },
+      {
+        "index": 3,
+        "color": "yellow",
+        "start_seconds": 0.24,
+        "end_seconds": 0.32
+      },
+      {
+        "index": 5,
+        "color": "green",
+        "start_seconds": 0.4,
+        "end_seconds": 0.48
+      },
+      {
+        "index": 6,
+        "color": "blue",
+        "start_seconds": 0.48,
+        "end_seconds": 0.56
+      }
+    ],
+    "offered_rate_hz": 12.499999999999998,
+    "dropped": [
+      {
+        "index": 1,
+        "reason": "superseded",
+        "age_seconds": 0.09100000000034925
+      },
+      {
+        "index": 2,
+        "reason": "superseded",
+        "age_seconds": 0.08999999999650754
+      },
+      {
+        "index": 3,
+        "reason": "superseded",
+        "age_seconds": 0.08800000000337604
+      },
+      {
+        "index": 5,
+        "reason": "superseded",
+        "age_seconds": 0.08399999999528518
+      },
+      {
+        "index": 6,
+        "reason": "superseded",
+        "age_seconds": 0.08199999999487773
+      }
+    ],
+    "usage": {
+      "requests": 3,
+      "input_tokens": 336,
+      "output_tokens": 6,
+      "cost": null,
+      "currency": null,
+      "total_tokens": 342
+    }
+  },
+  "total_real_requests": 11,
+  "script_seconds": 4.5310000000026776,
+  "cost": null,
+  "limitations": [
+    "Offline first warms realtime model",
+    "Offline latency is callback duration; realtime latency includes queue from PTS",
+    "Unobserved intervals use source frame indices, not semantic errors; last display extent is not asserted",
+    "Model answers retained without retry or correction; no artificial analysis sleep"
+  ],
+  "real_request_usage": {
+    "requests": 11,
+    "input_tokens": 1232,
+    "output_tokens": 22,
+    "total_tokens": 1254
+  }
+}

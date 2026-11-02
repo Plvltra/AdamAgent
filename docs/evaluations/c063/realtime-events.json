@@ -1,0 +1,368 @@
+{
+  "sequence": {
+    "video": {
+      "media_id": "0978164754167ebfea07690ad99dca50",
+      "source": {
+        "session_id": "05131526",
+        "turn_id": "e880689c14fa996394c02eafcadf905a",
+        "kind": "input",
+        "request_id": null,
+        "tool_call_id": null,
+        "tool_name": null
+      },
+      "mime_type": "video/x-matroska",
+      "size_bytes": 1754,
+      "version": "fd9948020d52c1ba42634af924ad3ab944de768be6e4353233dd84cad3a6955d",
+      "created_at": "2026-11-02T14:54:46.124996+00:00",
+      "schema_version": 1
+    },
+    "events": [
+      {
+        "label": "red",
+        "start_seconds": 0.0,
+        "end_seconds": 0.0,
+        "frames": [
+          {
+            "media_id": "8e2d9c0a872702dc264dfb692e190408",
+            "source": {
+              "session_id": "05131526",
+              "turn_id": "e880689c14fa996394c02eafcadf905a",
+              "kind": "input",
+              "request_id": null,
+              "tool_call_id": null,
+              "tool_name": null
+            },
+            "mime_type": "image/png",
+            "size_bytes": 157,
+            "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+            "created_at": "2026-11-02T14:54:46.142509+00:00",
+            "schema_version": 1
+          }
+        ],
+        "analysis_sources": [
+          "session=d3e3af7c;turn=c75f83815ca590860476403c02379f8b;request=b85a3998e86172ee4eb8b6373a14b172"
+        ],
+        "uncertain": true
+      },
+      {
+        "label": "red",
+        "start_seconds": 0.32,
+        "end_seconds": 0.32,
+        "frames": [
+          {
+            "media_id": "8e7f4e22957a379bf7795f8671db2e43",
+            "source": {
+              "session_id": "05131526",
+              "turn_id": "e880689c14fa996394c02eafcadf905a",
+              "kind": "input",
+              "request_id": null,
+              "tool_call_id": null,
+              "tool_name": null
+            },
+            "mime_type": "image/png",
+            "size_bytes": 157,
+            "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+            "created_at": "2026-11-02T14:54:46.246681+00:00",
+            "schema_version": 1
+          }
+        ],
+        "analysis_sources": [
+          "session=73a6277c;turn=b9c0192475a60bf17db82e2f24068a38;request=4996f081e998ff065be881e37e97f8df"
+        ],
+        "uncertain": true
+      },
+      {
+        "label": "blue",
+        "start_seconds": 0.56,
+        "end_seconds": 0.56,
+        "frames": [
+          {
+            "media_id": "7217d3d31037d9235b3681596b4c40b9",
+            "source": {
+              "session_id": "05131526",
+              "turn_id": "e880689c14fa996394c02eafcadf905a",
+              "kind": "input",
+              "request_id": null,
+              "tool_call_id": null,
+              "tool_name": null
+            },
+            "mime_type": "image/png",
+            "size_bytes": 157,
+            "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+            "created_at": "2026-11-02T14:54:46.351009+00:00",
+            "schema_version": 1
+          }
+        ],
+        "analysis_sources": [
+          "session=189be7c9;turn=2a2732e0d96c47dfb70c4a831a6efbb6;request=ec921291097460ae0299124c1c244fd4"
+        ],
+        "uncertain": true
+      }
+    ],
+    "order_known": false,
+    "issues": [
+      "missing_samples"
+    ],
+    "expected_samples": 8,
+    "analyzed_samples": 3,
+    "coverage": "sampled_frames_only"
+  },
+  "observations": [
+    {
+      "frame": {
+        "pts": 0,
+        "time_base_num": 1,
+        "time_base_den": 1000,
+        "timestamp_seconds": 0.0,
+        "width": 64,
+        "height": 48,
+        "media": {
+          "media_id": "8e2d9c0a872702dc264dfb692e190408",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+          "created_at": "2026-11-02T14:54:46.142509+00:00",
+          "schema_version": 1
+        }
+      },
+      "meaning": {
+        "frame": {
+          "media_id": "8e2d9c0a872702dc264dfb692e190408",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+          "created_at": "2026-11-02T14:54:46.142509+00:00",
+          "schema_version": 1
+        },
+        "label": "red",
+        "uncertain": false,
+        "source": "session=d3e3af7c;turn=c75f83815ca590860476403c02379f8b;request=b85a3998e86172ee4eb8b6373a14b172"
+      },
+      "queue_seconds": 0.0,
+      "analysis_seconds": 0.40600000000267755,
+      "latency_seconds": 0.40600000000267755
+    },
+    {
+      "frame": {
+        "pts": 320,
+        "time_base_num": 1,
+        "time_base_den": 1000,
+        "timestamp_seconds": 0.32,
+        "width": 64,
+        "height": 48,
+        "media": {
+          "media_id": "8e7f4e22957a379bf7795f8671db2e43",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+          "created_at": "2026-11-02T14:54:46.246681+00:00",
+          "schema_version": 1
+        }
+      },
+      "meaning": {
+        "frame": {
+          "media_id": "8e7f4e22957a379bf7795f8671db2e43",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+          "created_at": "2026-11-02T14:54:46.246681+00:00",
+          "schema_version": 1
+        },
+        "label": "red",
+        "uncertain": false,
+        "source": "session=73a6277c;turn=b9c0192475a60bf17db82e2f24068a38;request=4996f081e998ff065be881e37e97f8df"
+      },
+      "queue_seconds": 0.08600000000296859,
+      "analysis_seconds": 0.34399999999732245,
+      "latency_seconds": 0.43000000000029104
+    },
+    {
+      "frame": {
+        "pts": 560,
+        "time_base_num": 1,
+        "time_base_den": 1000,
+        "timestamp_seconds": 0.56,
+        "width": 64,
+        "height": 48,
+        "media": {
+          "media_id": "7217d3d31037d9235b3681596b4c40b9",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+          "created_at": "2026-11-02T14:54:46.351009+00:00",
+          "schema_version": 1
+        }
+      },
+      "meaning": {
+        "frame": {
+          "media_id": "7217d3d31037d9235b3681596b4c40b9",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+          "created_at": "2026-11-02T14:54:46.351009+00:00",
+          "schema_version": 1
+        },
+        "label": "blue",
+        "uncertain": false,
+        "source": "session=189be7c9;turn=2a2732e0d96c47dfb70c4a831a6efbb6;request=ec921291097460ae0299124c1c244fd4"
+      },
+      "queue_seconds": 0.1900000000023283,
+      "analysis_seconds": 0.4210000000020955,
+      "latency_seconds": 0.6110000000044238
+    }
+  ],
+  "dropped": [
+    {
+      "frame": {
+        "media_id": "e16f0255963dde99f0053b874d5184c2",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+        "created_at": "2026-11-02T14:54:46.165514+00:00",
+        "schema_version": 1
+      },
+      "reason": "superseded",
+      "age_seconds": 0.09100000000034925
+    },
+    {
+      "frame": {
+        "media_id": "68f853b9d67594c98f098cc6823d43d4",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+        "created_at": "2026-11-02T14:54:46.189702+00:00",
+        "schema_version": 1
+      },
+      "reason": "superseded",
+      "age_seconds": 0.08999999999650754
+    },
+    {
+      "frame": {
+        "media_id": "079914af9a7e603c6341cd10268cc3fb",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+        "created_at": "2026-11-02T14:54:46.217732+00:00",
+        "schema_version": 1
+      },
+      "reason": "superseded",
+      "age_seconds": 0.08800000000337604
+    },
+    {
+      "frame": {
+        "media_id": "30d555fbf69121415c006c7f5391e83f",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+        "created_at": "2026-11-02T14:54:46.279394+00:00",
+        "schema_version": 1
+      },
+      "reason": "superseded",
+      "age_seconds": 0.08399999999528518
+    },
+    {
+      "frame": {
+        "media_id": "9612d9422fdfa0b61e39c5726d41db85",
+        "source": {
+          "session_id": "05131526",
+          "turn_id": "e880689c14fa996394c02eafcadf905a",
+          "kind": "input",
+          "request_id": null,
+          "tool_call_id": null,
+          "tool_name": null
+        },
+        "mime_type": "image/png",
+        "size_bytes": 157,
+        "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+        "created_at": "2026-11-02T14:54:46.313502+00:00",
+        "schema_version": 1
+      },
+      "reason": "superseded",
+      "age_seconds": 0.08199999999487773
+    }
+  ],
+  "elapsed_seconds": 1.1710000000020955,
+  "offered_rate_hz": 12.499999999999998,
+  "analyzed_rate_hz": 2.5619128949569867,
+  "source_kind": "realtime_video_playback"
+}

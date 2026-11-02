@@ -1,0 +1,17 @@
+{
+  "local": {
+    "model": "adam-vision",
+    "endpoint": "http://127.0.0.1:8087/v1",
+    "timeout_seconds": 180,
+    "stream": true
+  },
+  "question": "Name the dominant solid color. Answer one word: red, green, blue, yellow, or unknown.",
+  "model": "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf",
+  "runtime": "llama-b12032 Vulkan",
+  "order": "offline first; realtime therefore warmed",
+  "max_age_seconds": 1,
+  "sample_seconds": 0.01,
+  "cost": null,
+  "mock_scope": "Only load_image tool selection; all image questions real independent requests",
+  "latency_definition": "callback includes C04 load, model request and original log persistence; realtime measured from original PTS due time"
+}

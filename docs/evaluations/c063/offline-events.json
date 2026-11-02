@@ -1,0 +1,243 @@
+{
+  "video": {
+    "media_id": "0978164754167ebfea07690ad99dca50",
+    "source": {
+      "session_id": "05131526",
+      "turn_id": "e880689c14fa996394c02eafcadf905a",
+      "kind": "input",
+      "request_id": null,
+      "tool_call_id": null,
+      "tool_name": null
+    },
+    "mime_type": "video/x-matroska",
+    "size_bytes": 1754,
+    "version": "fd9948020d52c1ba42634af924ad3ab944de768be6e4353233dd84cad3a6955d",
+    "created_at": "2026-11-02T14:54:46.124996+00:00",
+    "schema_version": 1
+  },
+  "events": [
+    {
+      "label": "Red",
+      "start_seconds": 0.0,
+      "end_seconds": 0.0,
+      "frames": [
+        {
+          "media_id": "8e2d9c0a872702dc264dfb692e190408",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+          "created_at": "2026-11-02T14:54:46.142509+00:00",
+          "schema_version": 1
+        }
+      ],
+      "analysis_sources": [
+        "session=33299c94;turn=73777f876eea49426b04d61e33b3e080;request=151a1df7ee0e5fa0d22a2b2b92a947c9"
+      ],
+      "uncertain": false
+    },
+    {
+      "label": "unknown",
+      "start_seconds": 0.08,
+      "end_seconds": 0.08,
+      "frames": [
+        {
+          "media_id": "e16f0255963dde99f0053b874d5184c2",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+          "created_at": "2026-11-02T14:54:46.165514+00:00",
+          "schema_version": 1
+        }
+      ],
+      "analysis_sources": [
+        "session=9b56bb14;turn=494971771c5c185cb70507dfc612bfd4;request=f0f7c1770ad447d150003a5cb20a5b82"
+      ],
+      "uncertain": true
+    },
+    {
+      "label": "blue",
+      "start_seconds": 0.16,
+      "end_seconds": 0.16,
+      "frames": [
+        {
+          "media_id": "68f853b9d67594c98f098cc6823d43d4",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+          "created_at": "2026-11-02T14:54:46.189702+00:00",
+          "schema_version": 1
+        }
+      ],
+      "analysis_sources": [
+        "session=b01b6e4f;turn=134e18e77ac06bc50669bf48a6a0e0de;request=4ef856b0ed790768695c05cffc2ee2c8"
+      ],
+      "uncertain": true
+    },
+    {
+      "label": "yellow",
+      "start_seconds": 0.24,
+      "end_seconds": 0.24,
+      "frames": [
+        {
+          "media_id": "079914af9a7e603c6341cd10268cc3fb",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+          "created_at": "2026-11-02T14:54:46.217732+00:00",
+          "schema_version": 1
+        }
+      ],
+      "analysis_sources": [
+        "session=1c1dee01;turn=2678b9737ae2b35947b7da5f125dcf50;request=1bf3a51fb9f39e9f7d507d62ec0276d8"
+      ],
+      "uncertain": true
+    },
+    {
+      "label": "red",
+      "start_seconds": 0.32,
+      "end_seconds": 0.32,
+      "frames": [
+        {
+          "media_id": "8e7f4e22957a379bf7795f8671db2e43",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "8e6c78df0c232f155ce54cc3de51239836e77d677949d4570acbaf25a879d0fb",
+          "created_at": "2026-11-02T14:54:46.246681+00:00",
+          "schema_version": 1
+        }
+      ],
+      "analysis_sources": [
+        "session=fe9736e5;turn=5d9a4b9367613fac3d4a3acded2e626e;request=9474560b391f13fe5445cfef39d00b2c"
+      ],
+      "uncertain": true
+    },
+    {
+      "label": "Unknown",
+      "start_seconds": 0.4,
+      "end_seconds": 0.4,
+      "frames": [
+        {
+          "media_id": "30d555fbf69121415c006c7f5391e83f",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "d7d4050642e678f5ca5f574fa77789a368a599a8fcedb7480221c7a80178567d",
+          "created_at": "2026-11-02T14:54:46.279394+00:00",
+          "schema_version": 1
+        }
+      ],
+      "analysis_sources": [
+        "session=dbef00c6;turn=8bf166a2415d42f9cd0ad560dfd8c791;request=96ec3960ec56e4c7bcc9d4dda36a0fa1"
+      ],
+      "uncertain": true
+    },
+    {
+      "label": "unknown",
+      "start_seconds": 0.48,
+      "end_seconds": 0.48,
+      "frames": [
+        {
+          "media_id": "9612d9422fdfa0b61e39c5726d41db85",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "031d23f3759b4b3d431ea840a29ff9584161ff8d60946591d3cf90484135b72b",
+          "created_at": "2026-11-02T14:54:46.313502+00:00",
+          "schema_version": 1
+        }
+      ],
+      "analysis_sources": [
+        "session=9ffc4b2e;turn=baca580a0c0a38b9013f11775becfc08;request=cc514d14a8a1eb0aee7037736c1cabbf"
+      ],
+      "uncertain": true
+    },
+    {
+      "label": "yellow",
+      "start_seconds": 0.56,
+      "end_seconds": 0.56,
+      "frames": [
+        {
+          "media_id": "7217d3d31037d9235b3681596b4c40b9",
+          "source": {
+            "session_id": "05131526",
+            "turn_id": "e880689c14fa996394c02eafcadf905a",
+            "kind": "input",
+            "request_id": null,
+            "tool_call_id": null,
+            "tool_name": null
+          },
+          "mime_type": "image/png",
+          "size_bytes": 157,
+          "version": "9764fad0f3ac8bf8eb9a7824835567a00d4739435ef9590a78bba4e8e0f756da",
+          "created_at": "2026-11-02T14:54:46.351009+00:00",
+          "schema_version": 1
+        }
+      ],
+      "analysis_sources": [
+        "session=2843a440;turn=1c4ec2c0afd77b328a58aba45fdb6df9;request=a1ebf1d1069465d68190d1e22c3e98b3"
+      ],
+      "uncertain": true
+    }
+  ],
+  "order_known": false,
+  "issues": [
+    "uncertain_frame_analysis"
+  ],
+  "expected_samples": 8,
+  "analyzed_samples": 8,
+  "coverage": "sampled_frames_only"
+}

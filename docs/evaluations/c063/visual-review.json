@@ -1,0 +1,33 @@
+{
+  "method": "Independent child agent opened and inspected all eight decoded PNGs using view_image; main agent did not view images. Pixel counts independently match inspection.",
+  "findings": "帧0/4完整纯红；1/5完整纯绿；2/6完整纯蓝；3/7完整纯黄，全部64×48，无截断或文字。",
+  "frames": [
+    "G:\\Myself\\Adam2\\.cache\\c063-playback\\frame-0.png",
+    "G:\\Myself\\Adam2\\.cache\\c063-playback\\frame-1.png",
+    "G:\\Myself\\Adam2\\.cache\\c063-playback\\frame-2.png",
+    "G:\\Myself\\Adam2\\.cache\\c063-playback\\frame-3.png",
+    "G:\\Myself\\Adam2\\.cache\\c063-playback\\frame-4.png",
+    "G:\\Myself\\Adam2\\.cache\\c063-playback\\frame-5.png",
+    "G:\\Myself\\Adam2\\.cache\\c063-playback\\frame-6.png",
+    "G:\\Myself\\Adam2\\.cache\\c063-playback\\frame-7.png"
+  ],
+  "source_pts": [
+    0,
+    80,
+    160,
+    240,
+    320,
+    400,
+    480,
+    560
+  ],
+  "time_base": "1/1000",
+  "label_accuracy": "case-insensitive exact one-color match; unknown counts wrong, original answers retained",
+  "observed_vs_correct": "漏帧只按未观察原帧索引计算；实时帧7虽被观察，但模型语义错误。",
+  "limitations": [
+    "真实短片回放，不是摄像头或桌面连续流",
+    "离线先跑，实时模型已预热；服务启动默认预热亦未关闭",
+    "小样本同色图不能证明通用视频理解；模型参数使用既有宿主默认值",
+    "仅load_image模型选工具使用MockTransport；全部11次图问为真实独立请求，无缓存答案替代或重试"
+  ]
+}
