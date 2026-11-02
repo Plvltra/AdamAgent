@@ -133,7 +133,8 @@ def test_main_creates_session_and_resumes(tmp_path, monkeypatch):
     entries = iter(["first", "/exit", "second", "/exit"])
 
     def interactive(*args, **kwargs):
-        return original_chat(*args, **kwargs, read=lambda _: next(entries), write=lambda _: None)
+        kwargs.update(read=lambda _: next(entries), write=lambda _: None)
+        return original_chat(*args, **kwargs)
 
     monkeypatch.setattr(cli, "chat", interactive)
     monkeypatch.setattr(sys, "argv", ["adam", "--config", str(config)])

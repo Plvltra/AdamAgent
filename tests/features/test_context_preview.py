@@ -241,7 +241,8 @@ def test_main_loads_context_limits_and_cli_shows_local_rejection(tmp_path, monke
     inputs = iter(["/context", "hello", "/exit"])
 
     def chat_with_input(*args, **kwargs):
-        return original_chat(*args, **kwargs, read=lambda _: next(inputs))
+        kwargs["read"] = lambda _: next(inputs)
+        return original_chat(*args, **kwargs)
 
     monkeypatch.setattr(cli, "chat", chat_with_input)
     monkeypatch.setattr(bootstrap.httpx, "Client", lambda **kwargs: http)
