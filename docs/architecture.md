@@ -3,7 +3,7 @@
 最近核对：2026-11-03
 
 主线同步基线：C07.3已完成；私有C分支同步固定main 771d9ed（B31.2），保留主线父子消息、提醒、终端和输入恢复，保留C媒体/浏览器/桌面/生成来源及取消边界。
-本次核对范围：C05.4播报身份控制器、取消等待及B27投递顺序；录音宿主接入和真实麦克风五轮仍待完成。
+本次核对范围：C05.4连续按键语音宿主，主线程会话/模型与独立录音线程分工，补充沿原B27；真实麦克风五轮仍待完成。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2864,3 +2864,18 @@ flowchart LR
 ~~~
 
 控制器仅依赖audio和contracts，以回调连接原应用；后台线程不访问会话JSONL。停止超时保留线程句柄并拒绝投递，旧身份立即失效；投递异常不补发模型或恢复旧声音。完整按键录音宿主尚未实现，图中宿主表示注入端口而非已完成的交互入口。4项新增及5项原朗读测试通过，原B27接受/消费日志有实际断言；真实五轮验收仍待办。见[实现范围](voice-interaction.md#c054-打断控制器工程进度未完成实机验收)。
+### C05.4 连续按键宿主接入
+
+~~~mermaid
+flowchart LR
+    VL_SCRIPT["scripts.voice_loop / 显式设备与本地ASR配置"] --> VL_HOST["application.voice_loop.VoiceLoop"]
+    VL_HOST --> VL_INPUT["唯一输入线程 / 按键、Microphone、SpeechInput确认"]
+    VL_INPUT --> VL_STOP["SpeechPlayback.close / 先停止旧声音"]
+    VL_INPUT --> VL_QUEUE["空闲时容量1队列 / capture_id"]
+    VL_QUEUE --> VL_MAIN["主线程VoiceConversation.send / 原SessionStore和模型"]
+    VL_INPUT --> VL_B27["活轮次app.submit_input / 原B27安全点"]
+    VL_B27 --> VL_RECEIPT["_media/voice_supplements / 绑定原草稿与接受回执"]
+    VL_MAIN --> VL_PLAY["确认未在录音 / 固定轮次播报"]
+~~~
+
+SessionStore不跨线程访问，原on_turn_started先建B27队列再向输入线程发布身份；输入线程只写独立草稿/补充回执，通过原线程安全接口投递。补充WAV在草稿目录保留，不伪造SessionMedia来源；消费事实以原_inputs为准。录音中主回复不自动播出，封口竞争拒绝而不改成下一轮补发。默认plan与原权限保持，不自动批准。2项实际宿主路径通过（2.96秒），静态检查和CLI入口通过；上节未接入宿主的描述为前一提交阶段，当前完整入口已实现。真实麦克风五轮仍待验收。
