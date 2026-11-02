@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B19.2.1 独立原生命令后端、执行约束与实际资源验收。
+本次核对范围：B19.2.2 显式授权输入快照、来源复查和 Linux 只读数据目录。
 
-核对结论：isolation 内增加独立原生命令 API、协议和可信 Linux 看守/执行入口；尚未连接 ToolRegistry 或挂载项目。只复用原固定 Bubblewrap 和允许追加拒绝项的 seccomp 构造，B14 的禁止再次执行策略保持。原不可回退、看守和运行时信任说明保留，新增 Landlock 与输出硬限额契约。
+核对结论：tool_calls.command_inputs 依赖原 PathPolicy，经 contracts.command_inputs 将字节交给 isolation；工具层没有反向导入 OS 实现。Linux 端验证后建立私有临时快照，再只读绑定 /work；B14 默认参数和权限边界保持。尚未接 ToolRegistry/批准，原不挂宿主目录及清理说明保留并补充快照契约。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -14,10 +14,15 @@
 
 ~~~mermaid
 flowchart LR
+    IC_SELECT["显式虚拟名到源路径映射"] --> IC_CAPTURE["tool_calls.command_inputs / 原 PathPolicy 与有界读取"]
+    IC_CAPTURE --> IC_FILES["contracts.command_inputs / 不可变字节与 SHA"]
+    IC_CAPTURE --> IC_SOURCE["CapturedInputs.sources / 宿主来源及批准后 verify"]
+    IC_FILES --> IC_API
     IC_CALL["显式 API 调用者 / 有界 argv"] --> IC_API["isolation.commands / IsolatedCommands"]
     IC_API --> IC_WIRE["command_protocol / 固定策略、请求与结果"]
     IC_WIRE --> IC_WSL["指定 WSL / linux_command 外部看守"]
-    IC_WSL --> IC_BWRAP["原 Bubblewrap / 只读空工作目录、namespace、seccomp"]
+    IC_WSL --> IC_TMP["全部数据校验 / 私有临时快照"]
+    IC_TMP --> IC_BWRAP["原 Bubblewrap / 只读快照、namespace、seccomp"]
     IC_BWRAP --> IC_GUARD["linux_command_guard / 资源硬限额与 Landlock"]
     IC_GUARD --> IC_ELF["选定原生 ELF / 单进程、无网络"]
     IC_ELF --> IC_WSL
@@ -25,7 +30,7 @@ flowchart LR
     IC_RESULT --> IC_API
 ~~~
 
-此阶段没有模型工具接入，原 CommandTools 宿主路径保持；项目输入和批准将在后续小步接入。见 [隔离策略与实测](runtime-isolation.md)。
+此阶段没有模型工具接入，原 CommandTools 宿主路径保持；文件输入已支持只读快照，批准将在后续小步接入。见 [隔离策略与实测](runtime-isolation.md)。
 
 ## B18 命令输出
 

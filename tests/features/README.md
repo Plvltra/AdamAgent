@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B19.2.2 授权输入快照 | 25项授权/变更/限额/路径/协议，相关117项通过；实际只读挂载和2MiB原字节摘要已验收 | [业务场景](test_command_input_snapshots.py)、[真实入口](../../scripts/isolated_input_acceptance.py) |
 | B19.2.1 原生命令隔离 | 21项参数/真实管道/故障/取消/无降级，相关75项通过；11项真实 WSL 命令证据另存，模型工具尚未接入 | [业务场景](test_isolated_commands.py)、[真实入口](../../scripts/isolated_command_acceptance.py) |
 | B18.3 长输出故障 | 3项独立宿主SIGINT/期限/进程树、重启及超额零副作用重放；相关71和26项通过 | [test_command_output_acceptance.py](test_command_output_acceptance.py)、[独立宿主](support/command_output_worker.py) |
 | B18.2 最终头尾预览 | 7项双流/附件配额/失败/字符预算，相关152项通过；停止反馈也不再只取前缀 | [test_command_output_preview.py](test_command_output_preview.py)、[重复失败](test_no_progress_loop.py) |

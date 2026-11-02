@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 
 from adam.contracts.cancellation import CancellationToken
+from adam.contracts.command_inputs import CommandInput
 from adam.contracts.errors import IsolationError
 from adam.isolation.backend import WslBubblewrap
 from adam.isolation.command_protocol import MAX_RESPONSE_BYTES, POLICY, request
@@ -63,7 +64,7 @@ class CommandIsolationResult:
 
 
 class IsolatedCommands:
-    """原生单进程命令：空只读 /work、无网络、固定资源上限；不读宿主项目。"""
+    """原生单进程命令：只读输入快照、无网络、固定资源上限；不直接读取宿主项目。"""
 
     def __init__(self, distribution: str = "Ubuntu") -> None:
         self.backend = WslBubblewrap(distribution)
@@ -90,19 +91,21 @@ class IsolatedCommands:
         argv: list[str] | tuple[str, ...],
         *,
         timeout_seconds: int = 5,
+        inputs: tuple[CommandInput, ...] = (),
         cancel: CancellationToken | None = None,
     ) -> CommandIsolationResult:
         """探测后运行原生 argv；失败抛 IsolationError，取消会关闭通道并回收启动器。
 
+        inputs 只接收已授权的有界字节快照，在 /work 中只读呈现。不传宿主来源路径，
         不安装程序，不执行 Windows 程序，不挂载项目目录，也不自动重试命令。
         """
         token = cancel or CancellationToken()
         token.check()
         try:
-            payload = request(argv, timeout_seconds)
+            payload = request(argv, timeout_seconds, inputs)
         except (ValueError, UnicodeError) as error:
             raise IsolationError(
-                "隔离命令参数无效；最多 128 项、64 KiB，期限为 1～5 秒。"
+                "隔离命令参数或输入无效；argv 最多128项/64KiB，输入最多16个/2MiB，期限1～5秒。"
             ) from error
         if not self.probe(cancel=token):
             raise IsolationError("原生命令隔离不可用，未运行命令；不回退宿主。")

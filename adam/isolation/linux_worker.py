@@ -163,10 +163,17 @@ def seccomp_filter(output_fd: int, *, extra_denied: tuple[str, ...] = ()) -> Non
         library.seccomp_release(context)
 
 
-def command(filter_fd: int, *, bootstrap: str = BOOTSTRAP) -> list[str]:
+def command(
+    filter_fd: int,
+    *,
+    bootstrap: str = BOOTSTRAP,
+    input_directory: str | None = None,
+) -> list[str]:
     """固定运行时挂载；不绑定工作目录、用户目录、Windows 盘符或宿主 socket。
 
     bootstrap 只能由可信宿主选择固定程序，不接受用户覆盖隔离启动步骤。
+    input_directory 只供可信命令启动器传入新建的字节快照目录，不接受模型路径；
+    B14 调用不传此参数，继续使用空工作目录。
     """
     args = [
         "/usr/bin/bwrap",
@@ -184,14 +191,13 @@ def command(filter_fd: int, *, bootstrap: str = BOOTSTRAP) -> list[str]:
         if not Path(name).exists():
             raise RuntimeError("runtime_mount_missing")
         args.extend(("--ro-bind", name, name))
+    args.extend(("--proc", "/proc", "--dev", "/dev"))
+    if input_directory is None:
+        args.extend(("--dir", "/work"))
+    else:
+        args.extend(("--ro-bind", input_directory, "/work"))
     args.extend(
         (
-            "--proc",
-            "/proc",
-            "--dev",
-            "/dev",
-            "--dir",
-            "/work",
             "--chdir",
             "/work",
             "--remount-ro",

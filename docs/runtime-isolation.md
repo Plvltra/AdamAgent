@@ -48,7 +48,7 @@ python -m scripts.isolation_acceptance --distribution Ubuntu --output isolation-
 
 ## B19.2.1 原生命令后端
 
-[IsolatedCommands](../adam/isolation/commands.py) 提供独立的 `probe()` 和 `run(argv)` API。它可以启动发行版中的原生 ELF 程序，例如 echo、ls 和 Python。此阶段尚未接入模型工具、终端批准或项目文件；原 run_command 仍在宿主执行，不能因新增 API 就称其已受沙箱保护。B19.2.2/3 将分别处理授权输入快照和工具接入。
+[IsolatedCommands](../adam/isolation/commands.py) 提供独立的 `probe()` 和 `run(argv)` API。它可以启动发行版中的原生 ELF 程序，例如 echo、ls 和 Python。此阶段尚未接入模型工具、终端批准或项目文件；原 run_command 仍在宿主执行，不能因新增 API 就称其已受沙箱保护。B19.2.2 已完成下节的授权输入快照；B19.2.3 工具接入仍待完成。
 
 新策略名为 `bubblewrap-native-single-process-v1`。它沿用固定 Bubblewrap 命名空间、只读运行时、空 `/work` 和 seccomp 拒绝项，保留 256 MiB 地址空间、2 秒 CPU、0 字节文件写入、32 个 FD；墙钟允许 1～5 秒，合计输出最多 64 KiB。命令必须是数组，不拼接 shell。可显式调用原生 shell 的内置操作，但 fork/线程仍禁止，普通构建和多进程命令不在此策略能力内。脚本文件不能直接作为入口，可显式用受支持解释器运行参数中的脚本。没有网络，没有项目挂载，不自动安装程序。
 
@@ -71,3 +71,22 @@ python -m scripts.isolated_command_acceptance --distribution Ubuntu --output nat
 报告的取消仅证明取消了“探测或命令”操作并返回中断，没有在该例确认用户 worker 已经启动或逐一核对 Linux PID。B19.3 仍须补执行中取消、强杀宿主、真实越界及进程身份清理验收。宿主路径案例因为 `/mnt` 不存在而拒绝，不冒称实际 PE 文件的执行白名单检验；PE/FD 入口组合留在 B19.3。
 
 [宿主业务测试](../tests/features/test_isolated_commands.py) 新增21项，使用真实管道子进程验证成功/非零、原输出不冒充协议、拒绝降级、参数限额、故障、取消及回收；[辅助启动器](../tests/features/support/isolated_command_launcher.py) 仅代替通信端，不能证明 OS 隔离。相关隔离、编排清理和架构共75项通过。Ruff、Pyright 和文档链接需随阶段检查，主线按 AGENTS.md 三级验证规则执行，B19结束后全量回归。所有验收付费模型请求为0。
+
+
+## B19.2.2 授权文件快照
+
+[capture_inputs](../adam/tool_calls/command_inputs.py) 接收显式映射，例如 `src/notes.txt` → 项目内原文件。虚拟名称是 `/work` 下的相对 POSIX 路径，拒绝绝对路径、反斜杠、`.`、`..`、规范化别名、重复和文件/目录前缀冲突。只读普通文件，不递归扫描目录；原 PathPolicy 对额外目录、凭据和程序保留目录的限制保持。
+
+输入最多16个，每个最多1MiB，合计最多2MiB；宿主可以降低单文件限制。返回不可变 [CommandInput](../adam/contracts/command_inputs.py) 和实际字节 SHA256，来源路径保留在宿主 CapturedInputs.sources，不送入隔离协议。捕获过程比较句柄前后和路径元数据，并重新读取核对整批版本；CapturedInputs.verify 可在批准后再次授权并完整核对内容，源改变或撤权就拒绝，不能悄悄把批准的旧快照替换成新文件。元数据检查不等于锁住外部编辑；后端执行的始终是已确认的不可变字节。
+
+宿主向可信 Linux 启动器发送受限 base64 数据和摘要，最大协议帧3MiB。Linux 端独立校验全部名称、摘要和配额后，才在自己的私有临时目录构造普通文件，只读绑定到 `/work`。没有宿主项目路径、符号链接、挂载参数或目录树传入；命令不能写回原文件。进程回收后才清理该次临时目录。B14 不传这个内部临时目录参数，保持原空工作目录和禁止再次执行的策略。
+
+此阶段还是 API：`IsolatedCommands.run(argv, inputs=captured.files)`。聊天工具、批准展示和持久日志由 B19.2.3 接入，调用者不能把自己构造的 CommandInput 当作授权。
+
+[业务验收](../tests/features/test_command_input_snapshots.py) 新增25项：字节/来源版本、权限和撤权、虚拟逃逸、受保护文件、前缀冲突、数量/单文件/总量、读取变化、取消及损坏数据拒绝；相关后端、编排和架构117项通过。实际 [快照验收入口](../scripts/isolated_input_acceptance.py) 和 [报告](evaluations/b19-inputs.json) 验证中文及 Windows CRLF 原字节、只出现选中文件、写入拒绝和宿主不可见、源变化拒绝，以及2MiB二进制边界摘要一致；没有调用模型。
+
+```powershell
+python -m scripts.isolated_input_acceptance --distribution Ubuntu --output isolated-input-result.json
+```
+
+首轮实际验收揭示了测试夹具把 Windows 换行假定为 LF，已改为比较捕获字节；后端本来就保留 CRLF，没有为测试更改输出。Ruff、545个文件格式、Pyright 和链接均须核对；本次主线25项专项通过，按 AGENTS.md 三级验证规则继续。

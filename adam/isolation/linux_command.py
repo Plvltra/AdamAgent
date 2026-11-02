@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from adam.contracts.command_inputs import CommandInput, validate_inputs
 from adam.isolation.command_protocol import (
     MAX_OUTPUT_BYTES,
     MAX_REQUEST_BYTES,
@@ -21,17 +22,39 @@ from adam.isolation.command_protocol import (
 from adam.isolation.linux_worker import command, kill_group, seccomp_filter
 
 
-def supervise(argv: list[str], timeout: int) -> dict[str, Any]:
-    """只读空 /work 内运行原生 argv；宿主断线会杀死进程，不接受进一步输入。
+def supervise(
+    argv: list[str],
+    timeout: int,
+    inputs: tuple[CommandInput, ...] = (),
+) -> dict[str, Any]:
+    """只读 /work 快照中运行原生 argv；宿主断线会杀死进程，不接受进一步输入。
 
     返回最多 64 KiB 已捕获双流。超限只表示已读到该边界，不声称取得程序最终尾部。
     """
     bootstrap = Path(__file__).with_name("linux_command_guard.py").read_text(encoding="utf-8")
     started = time.monotonic()
+    validate_inputs(inputs)
+    with tempfile.TemporaryDirectory(prefix="adam-command-input-") as directory:
+        for item in inputs:
+            path = Path(directory).joinpath(*item.name.split("/"))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(item.data)
+        return _execute(argv, timeout, bootstrap, started, directory)
+
+
+def _execute(
+    argv: list[str],
+    timeout: int,
+    bootstrap: str,
+    started: float,
+    directory: str,
+) -> dict[str, Any]:
+    """临时快照只读绑定；先杀死并回收用户进程，外层才删除自己的临时目录。"""
     with tempfile.TemporaryFile() as policy:
         seccomp_filter(policy.fileno(), extra_denied=("memfd_create",))
         process = subprocess.Popen(
-            command(policy.fileno(), bootstrap=bootstrap) + [json.dumps(argv, ensure_ascii=True)],
+            command(policy.fileno(), bootstrap=bootstrap, input_directory=directory)
+            + [json.dumps(argv, ensure_ascii=True)],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -93,8 +116,8 @@ def supervise(argv: list[str], timeout: int) -> dict[str, Any]:
 def main() -> int:
     """初始协议失败不启动进程；执行错误只回传固定类别，不回显宿主环境。"""
     try:
-        argv, timeout = read_request(sys.stdin.buffer.readline(MAX_REQUEST_BYTES + 1))
-        result = supervise(argv, timeout)
+        argv, timeout, inputs = read_request(sys.stdin.buffer.readline(MAX_REQUEST_BYTES + 1))
+        result = supervise(argv, timeout, inputs)
         print(json.dumps(result, ensure_ascii=True))
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
