@@ -2,7 +2,7 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B26～B28批次失败的CLI测试输入适配修复及B29局部回归记录；架构无变化。
+本次核对范围：B30.1 独立管道终端API及可选stdin/env启动参数；默认命令行为不变。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2047,3 +2047,15 @@ flowchart LR
 ~~~
 
 默认模式与子Agent不注册条件工具；来源会话/轮次由真实工具执行器绑定。恢复在持有会话锁时使遗留pending过期，不查询条件、不自动重发。原完整工具批次配对和请求预算保持。
+## B30.1 持久管道终端API
+
+~~~mermaid
+flowchart LR
+  Host[宿主协调调用方] --> TS[tool_calls.TerminalSessions]
+  TS --> Approval[TerminalRequest / 启动及逐次输入确认]
+  TS --> Start[processes.start_command / 可选stdin与批准env]
+  TS --> Capture[OutputCapture / B26字节游标]
+  TS --> Cleanup[processes.terminate_process / 进程树回收]
+~~~
+
+每个ID单独持有进程、输入写线程和输出捕获；默认命令仍关闭stdin并使用白名单环境。该步仅宿主API，聊天工具与持久来源记录待B30.2。详见[终端范围](persistent-terminals.md)。

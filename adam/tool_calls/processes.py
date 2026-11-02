@@ -30,8 +30,13 @@ def terminate_process(process: subprocess.Popen[bytes]) -> None:
     process.wait()
 
 
-def start_command(command: CommandRequest) -> subprocess.Popen[bytes]:
-    """启动已批准的命令；固定环境白名单、无shell、关闭stdin，调用者负责回收。"""
+def start_command(
+    command: CommandRequest, *, interactive: bool = False, environment: dict[str, str] | None = None
+) -> subprocess.Popen[bytes]:
+    """启动已批准的命令；默认白名单环境和关闭stdin，调用者负责回收。
+
+    interactive仅用于独立终端；environment必须是已向用户展示并批准的覆盖项。
+    """
     # 不继承 API 密钥等任意环境变量；保留 Windows/Python 启动需要的基础项。
     names = {
         "PATH",
@@ -48,12 +53,14 @@ def start_command(command: CommandRequest) -> subprocess.Popen[bytes]:
     }
     env = {key: value for key, value in os.environ.items() if key.upper() in names}
     env.update(PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
+    if environment:
+        env.update(environment)
     return subprocess.Popen(
         command.argv,
         cwd=command.cwd,
         env=env,
         shell=False,
-        stdin=subprocess.DEVNULL,
+        stdin=subprocess.PIPE if interactive else subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         start_new_session=os.name != "nt",
