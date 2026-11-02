@@ -1,0 +1,11 @@
+{
+  "phases": [
+    {
+      "phase": "stale"
+    }
+  ],
+  "approvals": [],
+  "scope": "Real application and Windows; scripted MockTransport model",
+  "error": "Traceback (most recent call last):\n  File \"G:\\Myself\\Adam2\\.cache\\c034-desktop\\verify.py\", line 105, in <module>\n    stale = phase('stale')\n            ^^^^^^^^^^^^^^\n  File \"G:\\Myself\\Adam2\\.cache\\c034-desktop\\verify.py\", line 86, in phase\n    with application(folder, respond, config, desktop_backend=backend, confirm_desktop=approve, cancel=token) as (app, store, bodies):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\zhangzhengxun\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\Lib\\contextlib.py\", line 137, in __enter__\n    return next(self.gen)\n           ^^^^^^^^^^^^^^\n  File \"G:\\Myself\\Adam2\\tests\\features\\test_browser_actions.py\", line 117, in application\n    app = build_application(\n          ^^^^^^^^^^^^^^^^^^\nTypeError: build_application() got an unexpected keyword argument 'cancel'\n",
+  "watcher_stopped": true
+}

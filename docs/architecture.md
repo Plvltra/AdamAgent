@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C03.3 解锁后真实失焦、取消和工具关闭恢复证据归档；核对 DesktopTools → WindowsDesktop → SessionMedia 及看守生命周期，架构无变化，图形与职责保持。
+本次核对范围：C03.4 正式应用读取字段、填写/保存、中断清理及独立文件读回证据；原应用 → DesktopTools → WindowsDesktop → SessionMedia 关系保持，架构无变化。C03局部22项通过（7.78秒）。
 
 本次同步验证：LLMClient 同时使用 ChatInputEncoder、Messages 适配器和 StreamWatch；没有移除双方协议/取消契约。相关双协议、多模态和流式停止51项通过（18.06秒），Ruff/Pyright通过。架构关系与双方实现一致，无重复标题或冲突标记；未跑全量。
 

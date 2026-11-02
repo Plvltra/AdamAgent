@@ -1,0 +1,92 @@
+{
+  "phases": [
+    {
+      "phase": "stale",
+      "source_read_from_observation": "16ea690e228e42f7b50ec25e590b005d",
+      "response": "STOP: {\"ok\": false, \"error\": \"Stale desktop observation; observe again\", \"no_progress\": {\"action\": \"continue\", \"repeats\": 1, \"fingerprint\": \"ad575efb4fa917512430f63664ca3f606b3a27290b766e830679ebeafebf8b0c\"}}",
+      "watcher_stopped": true,
+      "saved": false,
+      "dispatched": 0,
+      "uia_value": "Empty destination"
+    },
+    {
+      "phase": "cancel",
+      "source_read_from_observation": "16ea690e228e42f7b50ec25e590b005d",
+      "cancelled_in_save_approval": true,
+      "error": "KeyboardInterrupt: ",
+      "watcher_stopped_immediately_on_interrupt": true,
+      "old_reference_after_interrupt": "STOP: {\"ok\": false, \"error\": \"Stale desktop observation; observe again\", \"no_progress\": {\"action\": \"continue\", \"repeats\": 1, \"fingerprint\": \"36b0c52907e4248fa92ea7519b633a2d3f98b5f65e02f80a9bbce055decdcca8\"}}",
+      "watcher_stopped": true,
+      "saved": false,
+      "dispatched": 2,
+      "uia_value": "16ea690e228e42f7b50ec25e590b005d"
+    },
+    {
+      "phase": "recover",
+      "source_read_from_observation": "16ea690e228e42f7b50ec25e590b005d",
+      "response": "Phase complete; independently verify file.",
+      "watcher_stopped": true,
+      "saved": true,
+      "dispatched": 1,
+      "uia_value": "16ea690e228e42f7b50ec25e590b005d"
+    }
+  ],
+  "approvals": [
+    {
+      "phase": "cancel",
+      "plan": {
+        "handle": 31791240,
+        "process_id": 38600,
+        "version": "bbac82733c3149b0d300433338a047c8660f54156ecf11c63415a146b43eba3d:8f6225173b364d0b9c80ce8551d53f8b",
+        "operation": "fill",
+        "control": 2,
+        "value": "16ea690e228e42f7b50ec25e590b005d",
+        "point": null
+      }
+    },
+    {
+      "phase": "cancel",
+      "plan": {
+        "handle": 31791240,
+        "process_id": 38600,
+        "version": "63475c3ac0d98e3749dd726f2adb3759427f32b39c801f80b5a05dd88d5bc86c:7f8517bfb90749e39eee6303c84b4d3a",
+        "operation": "key",
+        "control": null,
+        "value": "TAB",
+        "point": null
+      }
+    },
+    {
+      "phase": "cancel",
+      "plan": {
+        "handle": 31791240,
+        "process_id": 38600,
+        "version": "06e4305ffda0669b364fb0f4afd6cf8d7f14e02a8e958726accc5629db6531c8:c77441d7905a40fcbf424124470ebe45",
+        "operation": "click",
+        "control": 3,
+        "value": null,
+        "point": null
+      }
+    },
+    {
+      "phase": "recover",
+      "plan": {
+        "handle": 31791240,
+        "process_id": 38600,
+        "version": "06e4305ffda0669b364fb0f4afd6cf8d7f14e02a8e958726accc5629db6531c8:cc5b1eefea284f3c8c198322dec94d82",
+        "operation": "click",
+        "control": 3,
+        "value": null,
+        "point": null
+      }
+    }
+  ],
+  "scope": "Real application and Windows; scripted MockTransport model",
+  "readback": {
+    "source_from_form_observation": "16ea690e228e42f7b50ec25e590b005d",
+    "uia_value": "16ea690e228e42f7b50ec25e590b005d",
+    "saved_value": "16ea690e228e42f7b50ec25e590b005d"
+  },
+  "passed": true,
+  "watcher_stopped": true
+}

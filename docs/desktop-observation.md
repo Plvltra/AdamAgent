@@ -63,3 +63,13 @@ Windows10+ 先查询 WTSInfoEx，必须明确活动且解锁，再查询线程�
 本批共4次批准、3次实际派发；独立 UIA ValuePattern 与文件均为 Only synthetic test data 12345，恢复后保存时间更新。独立视觉代理核图确认遮挡及最终测试窗口完整可见。自建窗口已退出、看守已停止。批准由已授权脚本回调确认，没有测试人工批准界面；close 指工具生命周期，不是销毁重建窗口；本次未主动锁屏，锁屏拒绝沿用此前真实证据。
 
 证据：[逐步记录](evaluations/c033/unlocked-report.json)、[独立读回](evaluations/c033/unlocked-readback.json)。原图、脚本及真实会话保留于 .cache/c033-unlocked-retry/。C03.3 完成，前文待验文字为历史状态；C03.4 综合验收仍单独待办。本次仅归档实机证据与文档，无 Python 改动，不重复运行 pytest；注释无需变更，架构已核对无结构变化。
+
+## C03.4 综合实机验收
+
+2026-11-02 独立测试窗生成随机源 Label，正式 desktop_observe 控件树读取其值后驱动 fill → TAB → 保存；没有把脚本已知值直接作为待填答案。实际源值、UIA ValuePattern 与保存文件均为 16ea690e228e42f7b50ec25e590b005d。原应用、工具批准、Windows UIA 和文件保存真实执行，模型 HTTP 使用脚本 MockTransport，不证明模型理解屏幕能力。
+
+过期观察在批准前拒绝，零派发、无文件；保存批准回调调用 _thread.interrupt_main 触发 KeyboardInterrupt，在 app.close 前已经记录看守停止，同一应用下一轮旧引用拒绝，文件仍不存在。新应用显式观察后才恢复保存。本批4次进入批准回调，其中中断回调未返回批准，成功派发3次；不声称硬中断已派发的原生动作。遮挡/失焦复用 [C03.3 实机恢复](#c033-解锁后恢复验收完成)，不重复制造相同验收。
+
+独立视觉代理核对三张图均为完整测试窗，源和输入值一致；保存成功另以文件核验。测试窗口均退出、看守停止。[报告](evaluations/c034/report.json)、[核图文字](evaluations/c034/visual-review.txt)、[计时](evaluations/c034/timing.json) 已归档，原图和脚本留 .cache/c034-desktop/。最终批次约5.64秒（目录创建至报告写入，不含准备及核图）。首次组装错误未发生桌面动作，保留 [失败记录](evaluations/c034/setup-failure.json)。
+
+C03 大项局部回归22项通过（7.78秒）：桌面观察、动作、停止三个业务文件。本次仅更新验收证据和文档，无生产 Python/注释改动；差异已审查，架构已核对无结构变化。未跑全量 pytest。

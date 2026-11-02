@@ -1,0 +1,3 @@
+独立视觉核对：已实际查看 stale.png、cancel.png、recover.png。窗口标题 Adam C034 Acceptance Test，源 Label 和 Edit/Save 均完整可见，无遮挡。stale 的 Edit 为 Empty destination；cancel/recover 的 Edit 与源 Label 均为 16ea690e228e42f7b50ec25e590b005d，按钮显示焦点框。仅为自建测试窗；截图不证明保存，保存由独立 UIA ValuePattern 和 clicked-value.txt 共同核验。
+中断通过保存批准回调内 _thread.interrupt_main() 触发真实 KeyboardInterrupt；在 app.send 捕获处、application context 关闭之前记录看守已停止，同一 app 下一轮旧引用返回 Stale desktop observation。之后新应用显式观察再保存。未声称硬中断原生动作，也不证明真实模型理解能力。总计4次批准回调进入（保存中断回调未返回批准），3次派发成功。遮挡沿用C03.3证据。
+脚本说明已核对：沿用原批准/观察约束，新增注释与真实 SIGINT 行为一致。生产、测试、文档未修改。首次组装 TypeError 保留 ../setup-failure.json，首次成功报告保留 ../report.json。
