@@ -407,3 +407,5 @@ B36.2：test_experience_validation.py验证新任务实际文件、错误答案�
 B36.3：test_experience_regression.py覆盖实际文件对照、反例推翻、环境变化及真实E4接受；章末4 passed（2.47秒）。
 
 B37.1：test_skill_proposal.py验证真实SkillCatalog兼容、原目标保留及新建/更新来源信息；1 passed（0.50秒）。
+
+B37.2：test_skill_release.py实际加载Skill/编辑文件后双集比较，覆盖显式拒绝/接受/回滚；1 passed（7.20秒），HTTP模拟不证明模型效果。

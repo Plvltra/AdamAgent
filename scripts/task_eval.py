@@ -15,7 +15,7 @@ import httpx
 from adam.application.conversation import Conversation
 from adam.bootstrap import build_application
 from adam.config.loader import load_config
-from adam.config.settings import AppConfig
+from adam.config.settings import AppConfig, SkillsConfig
 from adam.contracts.memory import MemorySelection
 from adam.llm.client import LLMClient
 from adam.session.diagnostics import read_report
@@ -37,10 +37,12 @@ def run_suite(
     max_known_tokens: int = 100000,
     prices_cny_per_million: tuple[float, float] | None = None,
     task_provider: TaskProvider | None = None,
+    skill_candidates: dict[str, Path] | None = None,
 ) -> dict[str, Any]:
     """在独立目录运行配置×任务×重复次数；未知用量或达到总额度后明确记not_run。
 
     task_provider由宿主提供固定任务/独立判据，缺省保留B31题集。
+    skill_candidates按配置名显式指定单个Skill，每次复制到独立只读技能来源。
     transport_factory仅用于离线HTTP工程验收；真实运行须live=True。不批准命令，
     文件编辑仅批准试验workspace内路径，不继承用户存储、扩展服务或额外目录权限。
     """
@@ -72,6 +74,8 @@ def run_suite(
         )
     ):
         raise ValueError("prices must be two finite nonnegative numbers")
+    if skill_candidates and skill_candidates.keys() - configs.keys():
+        raise ValueError("skill candidate config unknown")
     root.mkdir(parents=True, exist_ok=False)
     mode = "live_model" if live else "mock_http"
     matrix = [
@@ -96,6 +100,11 @@ def run_suite(
             "prices_cny_per_million": prices_cny_per_million,
             "configs": {
                 name: {
+                    "skill_candidate_sha256": hashlib.sha256(
+                        skill_candidates[name].read_bytes()
+                    ).hexdigest()
+                    if skill_candidates and name in skill_candidates
+                    else None,
                     "model": c.llm.model,
                     "protocol": c.llm.protocol,
                     "provider_fingerprint": hashlib.sha256(c.llm.base_url.encode()).hexdigest(),
@@ -137,6 +146,7 @@ def run_suite(
                     transport_factory,
                     prices_cny_per_million,
                     provider,
+                    (skill_candidates or {}).get(planned["config"]),
                 ),
             }
             spent += result["known_tokens"]
@@ -171,6 +181,7 @@ def _run_trial(
     transport_factory: Callable[[PreparedTask, str, int], httpx.MockTransport] | None,
     prices: tuple[float, float] | None,
     provider: TaskProvider,
+    skill_candidate: Path | None,
 ) -> dict[str, Any]:
     """每次重新组装真实应用，故障仍保留日志；费用只是显式单价的估算。"""
     started, reply, tools, identity = time.monotonic(), "", [], None
@@ -203,6 +214,12 @@ def _run_trial(
 
     try:
         task = provider.prepare(root, planned["case"])
+        skill_root = None
+        if skill_candidate is not None:
+            skill_root = (root / "skill_packages").absolute()
+            package = skill_root / skill_candidate.parent.name
+            package.mkdir(parents=True)
+            (package / "SKILL.md").write_bytes(skill_candidate.read_bytes())
         config = AppConfig(
             base.llm,
             task.sessions,
@@ -214,6 +231,7 @@ def _run_trial(
             reflection=base.reflection,
             tool_discovery=base.tool_discovery,
             memories_dir=task.memories,
+            skills=SkillsConfig(user_dir=skill_root),
         )
         transport = (
             transport_factory(task, planned["config"], planned["iteration"])
