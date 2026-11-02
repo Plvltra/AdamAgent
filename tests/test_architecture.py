@@ -95,6 +95,7 @@ def test_layer_does_not_import_forbidden_implementation(module, forbidden):
         ("video", {"video", "contracts"}),
         ("generation", {"generation", "contracts"}),
         ("audio", {"audio", "contracts"}),
+        ("mobile", {"mobile", "contracts"}),
         ("desktop", {"desktop", "contracts"}),
         ("interop", {"interop", "contracts"}),
         ("code_index", {"code_index", "contracts"}),

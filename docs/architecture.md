@@ -3,7 +3,7 @@
 最近核对：2026-11-03
 
 主线同步基线：C07.3已完成；私有C分支同步固定main 771d9ed（B31.2），保留主线父子消息、提醒、终端和输入恢复，保留C媒体/浏览器/桌面/生成来源及取消边界。
-本次核对范围：C05.4连续按键语音宿主，主线程会话/模型与独立录音线程分工，补充沿原B27；真实麦克风五轮仍待完成。
+本次核对范围：C10.1固定Android模拟器观察、设备输入租约、版本失效及测试APK；动作工具与导航仍待实现。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2879,3 +2879,18 @@ flowchart LR
 ~~~
 
 SessionStore不跨线程访问，原on_turn_started先建B27队列再向输入线程发布身份；输入线程只写独立草稿/补充回执，通过原线程安全接口投递。补充WAV在草稿目录保留，不伪造SessionMedia来源；消费事实以原_inputs为准。录音中主回复不自动播出，封口竞争拒绝而不改成下一轮补发。默认plan与原权限保持，不自动批准。2项实际宿主路径通过（2.96秒），静态检查和CLI入口通过；上节未接入宿主的描述为前一提交阶段，当前完整入口已实现。真实麦克风五轮仍待验收。
+## C10.1 Android观察
+
+~~~mermaid
+flowchart LR
+    MO_HOST["显式宿主 / adb路径、serial、隔离端口"] --> MO_OBS["mobile.observation.AndroidObserver"]
+    MO_OBS --> MO_LEASE["同serial FileLock / 设备输入租约"]
+    MO_OBS --> MO_ADB["固定ADB客户端 / 状态、UI、截图"]
+    MO_ADB --> MO_APP["隔离Android测试应用 / com.adam.practice"]
+    MO_OBS --> MO_VERSION["transport、boot、前台、旋转、XML与PNG版本"]
+    MO_OBS --> MO_PUBLISH["注入原SessionMedia.publish / 真实来源与截图引用"]
+    MO_VERSION --> MO_CHECK["require_current / 失败失效、重新观察"]
+~~~
+
+mobile仅依赖自身与contracts，与desktop/robotics分开；不添加万能执行接口或默认注册手机工具。观察前后核对同一状态和完整UI，取消/不稳定不发布；版本只认当前宿主，设备租约跨实例互斥。测试应用和离线构建脚本在tests/support/android_app及scripts/build_android_practice.py；包无网络/硬件权限，私有记录供后续动作独立查询。真实旋转解析依据和测试范围见[Android观察](mobile.md)。
+C10.1实机补证：正式AndroidObserver在API30测试应用完成竖/横两次观察及旧版本拒绝，经原SessionMedia发布2条来源；独立看图确认组件完整，原始失败和清理状态保留[报告](mobile.md#c101-模拟器实机结果)。测试7项+包边界1项通过；上述图与实现一致。

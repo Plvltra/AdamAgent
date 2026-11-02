@@ -1,0 +1,55 @@
+{
+  "session": "b6434b42",
+  "turn": "2c3c2fd7848d4a2b97b196c74ec9a28f",
+  "portrait": {
+    "rotation": 0,
+    "size": [
+      720,
+      1280
+    ],
+    "version": "1167d62103a6a2942aa736c29a4551800e9d4eb1af670f19403b6e498fd103a9",
+    "image": {
+      "media_id": "2e2eea501394a22f1480b6d04e5e999d",
+      "source": {
+        "session_id": "b6434b42",
+        "turn_id": "2c3c2fd7848d4a2b97b196c74ec9a28f",
+        "kind": "input",
+        "request_id": null,
+        "tool_call_id": null,
+        "tool_name": null
+      },
+      "mime_type": "image/png",
+      "size_bytes": 35796,
+      "version": "b71d879ccccbed985b8b0ee91576fc8fc6702ebbe89dd0a7d1658adbb1bf23f8",
+      "created_at": "2026-11-02T17:45:47.985553+00:00",
+      "schema_version": 1
+    }
+  },
+  "landscape": {
+    "rotation": 1,
+    "size": [
+      1280,
+      720
+    ],
+    "version": "d5ed5c283883450a64442d0a3cdc481b496361275a76c2c50b0390231b72f74e",
+    "image": {
+      "media_id": "9a300b123ddcfda79200f5c7c2bc318e",
+      "source": {
+        "session_id": "b6434b42",
+        "turn_id": "2c3c2fd7848d4a2b97b196c74ec9a28f",
+        "kind": "input",
+        "request_id": null,
+        "tool_call_id": null,
+        "tool_name": null
+      },
+      "mime_type": "image/png",
+      "size_bytes": 36010,
+      "version": "48cbe286aa946a8fee7dd5f045017e2f1bbde159aff577f748c92e08681aa441",
+      "created_at": "2026-11-02T17:45:57.832193+00:00",
+      "schema_version": 1
+    }
+  },
+  "old_version_rejection": "device or page changed; observe again",
+  "elapsed_seconds": 14.420998600005987,
+  "media_saved_events": 2
+}
