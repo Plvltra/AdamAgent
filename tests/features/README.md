@@ -9,6 +9,7 @@
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
 | C/B31同步与批次回归 | 补齐子图片私有目录和诊断媒体保护；C03/C06/C07批次全量3990项通过/2101.14秒，一次运行 | [元数据](../../docs/evaluations/c-batch-20261103/run-result.json)、[图片边界](test_image_input.py) |
+| C05.3 语音回复 | 5项合成/播放失败隔离、取消释放、重启不重播及保存失败；2.51秒通过，实际播放/取消/重开另留证 | [业务场景](test_speech_output.py)、[实机报告](../../docs/evaluations/c053/report.json) |
 | C05.2 确认语音对话 | 6项原应用提交/媒体绑定/重启去重/保存失败恢复/批准及会话隔离；4.71秒通过，模型HTTP模拟 | [业务场景](test_voice_conversation.py)、[范围](../../docs/voice-interaction.md#c052-确认文字接入原对话) |
 | C05.1 语音输入工程 | 11项录音生命周期、真实WAV/草稿/额度与ASR进程停止；0.69秒通过，麦克风实机成功路径待办 | [业务场景](test_speech_input.py)、[范围](../../docs/voice-interaction.md) |
 | C07.3 生成工具闭环 | 7项原应用生成/查询/重复/重启及存储故障；C07局部21项通过/8.25秒，真实Qwen闭环单独留证 | [业务场景](test_generation_tools.py)、[真实报告](../../docs/evaluations/c073/report.md) |

@@ -8,11 +8,16 @@ from pathlib import Path
 import httpx
 
 from adam.application.conversation import Conversation
+from adam.application.subagents.unit_budget import UnitBudget
 from adam.application.voice import VoiceConversation
+from adam.audio.adapters.windows_speech import WindowsSpeech
 from adam.audio.input import load_confirmed
+from adam.audio.output import SpeechOutput
 from adam.bootstrap import build_application
 from adam.cli.main import confirm_command, confirm_edit
 from adam.config.loader import load_config
+from adam.contracts.cancellation import CancellationToken
+from adam.contracts.consumption import Quantities
 from adam.llm.client import LLMClient
 from adam.session.media import MediaStore
 from adam.session.media_evidence import SessionMedia
@@ -28,6 +33,7 @@ def main() -> None:
     parser.add_argument("--drafts", type=Path, required=True)
     parser.add_argument("--capture-id", required=True)
     parser.add_argument("--session")
+    parser.add_argument("--speak", action="store_true", help="成功回答后朗读；Ctrl+C停止")
     args = parser.parse_args()
     config = load_config(args.config, args.llm_config)
     conversations: list[Conversation] = []
@@ -51,7 +57,29 @@ def main() -> None:
                 SessionMedia(store, MediaStore(store.root / "_media", max_bytes=16777216)),
                 partial(load_confirmed, args.drafts),
             )
-            print(json.dumps(voice.send(args.capture_id), ensure_ascii=False, indent=2))
+            result = voice.send(args.capture_id)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            if args.speak and result["state"] == "succeeded":
+                speech = SpeechOutput(
+                    store.root / "_media" / "speech_output",
+                    WindowsSpeech(),
+                    UnitBudget(Quantities(audio_ms=60000, calls=1)),
+                )
+                try:
+                    print(
+                        json.dumps(
+                            speech.speak(
+                                result["session_id"],
+                                result["turn_id"],
+                                result["reply"],
+                                cancel=CancellationToken(),
+                            ),
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                except (Exception, KeyboardInterrupt) as error:
+                    print("模型回答已成功；朗读未完成：" + type(error).__name__)
         finally:
             app.close()
 

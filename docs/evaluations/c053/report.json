@@ -1,0 +1,43 @@
+{
+  "backend": "Windows System.Speech / SoundPlayer",
+  "auditory_review": false,
+  "normal": {
+    "session_id": "acceptance",
+    "turn_id": "normal",
+    "playback_id": "24755bea824b7419aa2276a409c364d0",
+    "text_sha256": "8a0eba22657663fbe86fd3b35733d47a4a2520861d11eb59ac86c61dbe995c4a",
+    "model_state": "succeeded",
+    "state": "played",
+    "duration_ms": 2580,
+    "audio_sha256": "09cd193b2642cf7d304ecbd9a1ee1c6a28288a487276d4efe445d13b1cf1c004",
+    "error": null,
+    "cost": null,
+    "playback_started_seconds": 0.8910000000032596,
+    "elapsed_seconds": 4.2189999999973224
+  },
+  "budget": {
+    "members": [
+      {
+        "owner": "tts:24755bea824b7419aa2276a409c364d0",
+        "known": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "images": 0,
+          "audio_ms": 2580,
+          "calls": 1
+        },
+        "unknown_units": []
+      }
+    ],
+    "reserved": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "images": 0,
+      "audio_ms": 0,
+      "calls": 0
+    }
+  },
+  "cancel_result": "RequestInterrupted",
+  "cancel_wait_seconds": 0.01900000000459845,
+  "reopen_play": "succeeded"
+}

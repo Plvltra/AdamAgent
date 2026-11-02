@@ -3,7 +3,7 @@
 最近核对：2026-11-03
 
 主线同步基线：C07.3已完成；私有C分支同步固定main 771d9ed（B31.2），保留主线父子消息、提醒、终端和输入恢复，保留C媒体/浏览器/桌面/生成来源及取消边界。
-本次核对范围：C05.2确认草稿通过VoiceConversation接入原send及输入来源；保持原权限/批准，固定capture_id不补发。真实麦克风成功采集尚待设备恢复。
+本次核对范围：C05.3成功回答后显式朗读，独立合成/播放进程及回执；保持原模型轮次与权限，播放失败不重发。真实麦克风成功采集尚待设备恢复。
 
 本次同步验证：固定main 0bf79c2（B27.2.2）已纳入私有C分支。原后台、浏览器与桌面中断统一用ExitStack尝试全部清理；原中断保留，输入收尾与来源绑定分别保留，浏览器批准复用CLI唯一读取入口。定向130项中129项通过、1项Chrome favicon计数失败（201.88秒）；修正断言后该项通过（5.30秒），不是再次全跑。Ruff与Pyright通过。
 
@@ -2837,3 +2837,17 @@ flowchart LR
 ~~~
 
 脚本显式组合原应用和独立草稿加载器；audio不反向依赖application。语音回执先排他创建，再调用原send，模型只收到确认后的普通用户文字。输入来源绑定在原轮次回调之后、模型请求之前；重复身份只读原结果，未知也不重新派发。原成功历史可恢复丢失的收尾回执；跨会话查询拒绝。原模式、命令/编辑批准与模型计量保持。6项相关业务测试和定向静态检查通过；图中类、回调与保存位置已按实现核对。详见[语音交互](voice-interaction.md#c052-确认文字接入原对话)。
+## C05.3 独立朗读
+
+~~~mermaid
+flowchart LR
+    SO_CLI["scripts.voice_chat / 显式speak选项"] --> SO_RESULT["VoiceConversation / 原成功回答"]
+    SO_RESULT --> SO_OUT["audio.output.SpeechOutput / session与turn固定播放身份"]
+    SO_OUT --> SO_BUDGET["原UnitBudget / 预留和真实PCM时长"]
+    SO_OUT --> SO_ADAPTER["WindowsSpeech / 可取消有界进程"]
+    SO_ADAPTER --> SO_TTS["windows_speech.ps1 / System.Speech合成"]
+    SO_ADAPTER --> SO_PLAY["windows_speech.ps1 / SoundPlayer播放与释放"]
+    SO_OUT --> SO_FILES["_media/speech_output / WAV摘要和独立状态"]
+~~~
+
+audio仅依赖自身与contracts；脚本注入原额度，并只在成功回答后调用。音频记录是宿主朗读附件，不伪造工具或用户输入媒体来源。独立state记录失败/取消，model_state保留成功；同turn排他占用，重复或重启不重新合成/播报。固定worker通过文件取文字，退出释放资源；取消先回收工作进程再返回。原Conversation、模型请求和成功历史无结构变化。5项业务及1项依赖检查通过，实际设备播放/取消/重开已留[证据](evaluations/c053/report.json)，首音听感未验。

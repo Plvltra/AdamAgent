@@ -28,3 +28,14 @@ WhisperASR运行固定本地worker，使用CPU/int8、单束和显式语言；�
 load_confirmed核对确认状态、WAV格式、大小和SHA；VoiceConversation先在受保护的_media/voice_submissions排他占用capture_id，再沿原on_turn_started回调绑定真实轮次并发布SessionMedia。记录失败阻止模型请求；原回调在finally恢复。相同ID再次提交只查询原状态；会话不符或文字/录音变化拒绝。失败、取消或状态未知不自动补发，即使尚未产生模型请求也保持占用。成功历史可以修复最后一次回执保存失败，无法证实成功时保持unknown。再次运行脚本须显式恢复所属会话。
 
 6项业务测试通过（4.71秒）：编辑文字进入原请求、一次轮次/媒体读回、重启去重、未确认与录音变更拒绝、模型失败不重发、收尾写失败恢复、原命令批准拒绝及跨会话隔离。仅模拟远端模型HTTP，本地应用、媒体和会话存储实际执行；这不代替C05.4真实麦克风五轮验收。Ruff与定向Pyright通过；新增契约和原有说明已审查，未删除旧关键解释。按小项局部验证提交，未新增全量运行。
+## C05.3 合成与播放
+
+`python -m scripts.voice_chat ... --speak` 在原成功回答保存后朗读；Ctrl+C停止本次合成/播放。WindowsSpeech使用已安装的Microsoft Huihui Desktop，System.Speech输出16kHz单声道16位WAV，独立SoundPlayer进程播放。文字经UTF-8文件传给固定PowerShell脚本，不插入命令；取消和超时终止并等待自己的工作进程。默认不朗读，不下载模型或调用云服务。实现依据[System.Speech文档](https://learn.microsoft.com/en-us/dotnet/api/system.speech.synthesis.speechsynthesizer)；正常退出Dispose，强制取消由进程退出释放设备。
+
+SpeechOutput先排他占用session/turn，再合成、保存WAV及SHA、播放。独立记录位于受保护的_media/speech_output，记录playback_id、model_state和朗读state；重复同轮次只返回原记录，不重播或重新请求模型。旧进程留下synthesizing/playing只说明最后已知阶段，不证明仍在运行，也不自动恢复播报。朗读失败保持原成功模型历史。音频不伪造为用户input或工具MediaRef；这是宿主朗读附件，实际成功轮次由调用宿主绑定。
+
+文字上限1500字，音频上限60秒/16MiB，工作进程默认超时90秒。显式注入原UnitBudget预留60000音频毫秒和1次合成，按实际PCM帧数结算；失败无法取得完整输出时音频用量未知，费用无单价保持未知。playback_started_seconds是开始调用播放后端前的耗时，不冒充扬声器首音延迟。暂不分句流式播放；超长回答明确朗读失败，原文字回答不受影响。
+
+5项相关业务测试通过（2.51秒）：WAV及重启去重、合成/设备失败不重发原模型、取消释放和初始保存失败阻止合成；模型HTTP和设备边界显式模拟，本地原应用/成功历史/回执实际执行。音频包依赖边界1项通过（0.05秒），Ruff与定向Pyright通过。注释审查保留旧契约，新增失败/取消/进程说明已核对。
+
+[实机报告](evaluations/c053/report.json)：明确测试短句“这是语音回复测试。”，实际合成2580毫秒、调用1次，正常播放API完成；定时取消返回RequestInterrupted，触发至返回约19毫秒，再次播放API成功。报告中的model_state由测试宿主提供，不冒充真实LLM响应；原模型成功与播放失败隔离由上述业务测试验证。无人耳听感/扬声器首音验收，不把进程返回等同于听感。真实麦克风五轮和安全点打断仍留C05.4。
