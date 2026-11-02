@@ -170,7 +170,7 @@ def _run_trial(
     timing = PhaseTiming()
 
     def observe(conversation: Conversation) -> None:
-        """只记录生产选择器实际返回的身份，不推断模型是否采用这些记忆。"""
+        """记录工具耗时和生产选择器实际身份，不推断模型是否采用这些记忆。"""
         executor = conversation.tool_executor
         executor.execute = timing.wrap("tool", executor.execute)
         provider = conversation.memory_provider
@@ -242,6 +242,7 @@ def _run_trial(
         else {"passed": False, "reasons": ["fixture unavailable"]}
     )
     input_tokens, output_tokens, unknown = 0, 0, False
+    request_observations: list[dict[str, Any]] = []
     if task and identity:
         try:
             path = next(task.sessions.glob(f"*/*/*/{identity}.jsonl"))
@@ -249,6 +250,9 @@ def _run_trial(
             unknown = report["unknown_usage"]
             for turn in report["turns"]:
                 for request in turn["requests"]:
+                    request_observations.append(
+                        {"usage": request["usage"], "cache_usage": request.get("cache_usage")}
+                    )
                     usage = request["usage"]
                     if usage is None:
                         unknown = True
@@ -272,6 +276,8 @@ def _run_trial(
         "verification": check,
         "memory_selections": memory_selections,
         "phase_timing": timing.snapshot(),
+        "model": base.llm.model,
+        "request_observations": request_observations,
         "reply": reply,
         "tools": tools,
         "session_id": identity,

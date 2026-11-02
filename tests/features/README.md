@@ -389,3 +389,5 @@ B33.2：test_rubric_calibration.py覆盖六样本金标、误报/漏报/缺失�
 B33.3：test_rubric_contamination.py验证评分载荷、来源伪造、缺来源及交换后一致污染；B33章末三个文件6 passed（0.76秒）。
 
 B34.1：test_phase_timing.py覆盖真实应用阶段采集、首输出、实际文件操作失败和审批嵌套区间；2 passed（2.10秒）。
+
+B34.2：test_phase_report.py验收CLI、分布、缓存费用和未知；加真实入口定向共2 passed（2.09秒）。
