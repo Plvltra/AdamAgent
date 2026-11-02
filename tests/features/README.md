@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| C04.3 本地 OCR | 3 项真实后端：图片、混合 PDF 文本层/扫描页和原字节证据、模型缺失无媒体 | [test_ocr_input.py](test_ocr_input.py) |
 | C08.4 固定对照 | 3项：十次请求/失败保留/源更新/防覆盖、实际评分复核、缺引拒绝；真实五题文本1/5、图4/5完整通过 | [test_graph_evaluation.py](test_graph_evaluation.py) |
 | C08.3 图融合工具 | 10 项：源更新/删除/撤权/取消、混合候选、完整来源、主子调用和持久化 | [融合](test_graph_retrieval.py)、[工具](test_graph_tools.py)、[主子](test_graph_chat.py) |
 | C08.2 有界路径 | 4 项：两份原来源的两跳路径、无依据与跳数边界、节点/边超限、循环终止 | [test_graph_query.py](test_graph_query.py) |

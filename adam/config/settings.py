@@ -593,15 +593,20 @@ class BrowserConfig:
 
 @dataclass(frozen=True)
 class VisionConfig:
-    """可选本地图片解码；只增加输入能力，不升级模型或扩大读取授权。"""
+    """可选本地图片解码与 OCR；只增加输入能力，不升级模型或扩大读取授权。"""
 
     enabled: bool = False
     max_bytes: int = 10485760
     max_pixels: int = 16000000
     max_dimension: int = 8192
+    ocr_models: str | None = None
 
     def __post_init__(self) -> None:
         """TOML 与直接构造共用上限；像素额度不是解码进程的内存硬限制。"""
+        if self.ocr_models is not None and (
+            not isinstance(self.ocr_models, str) or not self.ocr_models.strip()
+        ):
+            raise ConfigError("vision.ocr_models 必须为本地模型目录字符串。")
         if type(self.enabled) is not bool:
             raise ConfigError("vision.enabled 必须是布尔值。")
         for name, maximum in (

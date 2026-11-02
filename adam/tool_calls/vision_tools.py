@@ -39,14 +39,19 @@ def register_vision(
     if not config.enabled:
         return registry, None
     tools = ImageTools(config, policy, media, registry.limits.max_result_chars)
-    return registry.extended(
+    registry = registry.extended(
         SPECS,
         {"load_image": tools.direct},
         capabilities={"load_image": ToolCapability.SESSION_STATE},
         interruptible_handlers={"load_image": tools.invoke},
         path_selectors={"load_image": lambda args: (Path(args["path"]),)},
         groups={"load_image": "vision"},
-    ), tools
+    )
+    if config.ocr_models is not None:
+        from adam.tool_calls.ocr_tools import register_ocr
+
+        registry, tools.ocr = register_ocr(registry, policy, media, Path(config.ocr_models), config)
+    return registry, tools
 
 
 class ImageTools:
@@ -64,10 +69,13 @@ class ImageTools:
         self._policy, self._media = policy, media
         self._max_result_chars = max_result_chars
         self._source: dict[str, str] | None = None
+        self.ocr: Any = None
 
     def bind_source(self, source: dict[str, str]) -> None:
         """由原执行器串行绑定当前工具身份；调用时仍由 SessionStore 校验活动来源。"""
         self._source = dict(source)
+        if self.ocr is not None:
+            self.ocr.bind_source(source)
 
     def direct(self, args: dict[str, Any], record: ExecutionRecorder | None) -> dict[str, Any]:
         """显式目录调用仍需真实来源，不能靠直接调用制造来源记录。"""

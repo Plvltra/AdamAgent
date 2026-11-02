@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C08.4 独立固定五题评估入口；生产图检索架构无变化，脚本复用 DocumentSearch、GraphSearch 和 LLMClient。
+本次核对范围：C04.3 OCR 主子工具接入、混合 PDF 与原页证据；新增下列 OCR 关系，既有模型问答与存储协议不变。
 
 核对结论：新增 scripts.web_evaluation 独立评估入口与对应关系图；生产对话、网络和存储职责保持。主子文件、文档、规则、Skill、提案及图片读取同时保护 _media 和 _mcp_media。图片路径授权不依赖可选规则开关，真实子任务回归确认拒绝后无媒体来源/正文副作用。当前同步 main 固定 446d767 的 B16.1～3；只读取已提交内容。C00.4 新增 contracts.consumption、config.consumption、context.consumption、session.consumption_log 与 subagents.unit_budget；复用原请求/摘要事件和 token 账本，不新增消费文件。启用时实际请求冻结单价与各单位预留，成员刷新/恢复同时维护单位快照；录制只增加可选配置/决策快照，旧文本录制格式保持。当前消费者工程验收完成，不把音频账本当作语音能力。C04.2 新增 application.image_questions、config.vision、contracts.vision、llm.local_vision、cli.image_question；bootstrap 只在显式独立入口组装回环模型，复用 ContextBuilder/RequestRunner 与 SessionAccount/SharedTokenBudget，subagents.account.restore_account 恢复既有子日志，不生成新任务。SessionLog 验证可选 image_question 来源及未知费用，旧文本格式不变；默认聊天/DeepSeek/主子工具链不升级。真实视觉首批严格 2/4、最终复验 3/4，均非全通过，不能当通用可靠布局能力；详见 [视觉问答](visual-question-answering.md)。C04.1 新增 vision.models/service/adapters.pillow 与 tool_calls.vision_tools；bootstrap 按 VisionConfig 注入原路径策略及主子独立 SessionMedia，Conversation 不新增图片工具分支或 SDK 依赖，默认模型不获视觉能力。C00.3 新增 contracts.model_input、application.media_input、llm.message_encoding 与 recording.media；复用 C00.2，不新增上传/解码能力。媒体字节只在模型发送边界编码及录制旁路冻结，Conversation 只编排通用输入预检与引用，不认识具体图片 SDK；默认客户端仍无视觉声明。C01.3 新增 web.evidence 与 tool_calls.web_sources，复用原工具/JSONL 边界。B12.2.2 新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用；B12.2.3 已接入显式知识入口与主子目录保护，B12.3 已验收竞争/中断边界。B12.2.1 的独立状态、锁外回调与落盘前来源/修订复核，以及 B11.3 的原文审计和冻结证据说明保留；生产聊天流程不新增最终回答拦截，来源与逐字引用有效不能证明语义正确。
 
@@ -2329,3 +2329,19 @@ flowchart LR
 提取只读取传入快照；同名 ID 不合并、冲突保留、超限整批失败，不自动发布 B12 知识。两跳由 query.query_paths 返回原边路径；graph_tools 借用原 DocumentSearch 注册主子只读查询；每次刷新，源代次不一致即失败。B17.1 页级 PDF API 与既有图保留。详见 [证据图](evidence-graph.md)。本次未删除既有 Python 注释；新增契约已核对。
 
 C08.4：scripts.graph_evaluation 读取固定临时语料，经 DocumentSearch/GraphSearch 组装两个输入，调用本地 LLMClient 并保存独立结果；review_result 核对精确 ID 和来源覆盖。无聊天或存储协议变化。按最新要求，小项相关验证立即提交，大项结束局部测试，累计几个大项再全量。
+
+
+## C04.3 本地 OCR
+
+~~~mermaid
+flowchart LR
+    OCR_V["vision_tools / 显式配置、主子来源"] --> OCR_T["ocr_tools / 原路径授权、结果限额"]
+    OCR_T --> OCR_A["vision.adapters.rapidocr / 本地模型、原生分数与像素坐标"]
+    OCR_T --> OCR_P["pdf_ocr / B17 文本层和含图页渲染"]
+    OCR_P --> OCR_D["documents.pdf / 有界提取"]
+    OCR_P --> OCR_A
+    OCR_T --> OCR_M["SessionMedia / 原图证据、真实来源"]
+    OCR_P --> OCR_M
+~~~
+
+OCR 仅由 vision.enabled 与 ocr_models 显式开启；注册与绑定复用主子原 ImageTools，不扩展默认模型能力。PDF 原文本层和 OCR 分开，图像结果绑定原字节版本；原生推理协作取消、失败可能保留先前页证据。配置位置参数保持原兼容性，缺失原生分数保持未知。使用与验收见 [本地 OCR](ocr.md)。

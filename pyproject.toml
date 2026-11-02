@@ -18,6 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 documents = ["fastembed>=0.9.1,<0.10"]
 vision = ["pillow>=13.0,<14"]
+ocr = ["pillow>=13.0,<14", "rapidocr==3.9.2", "onnxruntime>=1.31.1,<2", "pypdfium2>=5.14,<6"]
 browser = [
     "playwright>=1.58,<2",
 ]
