@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B18.3 长输出故障 | 3项独立宿主SIGINT/期限/进程树、重启及超额零副作用重放；相关71和26项通过 | [test_command_output_acceptance.py](test_command_output_acceptance.py)、[独立宿主](support/command_output_worker.py) |
 | B18.2 最终头尾预览 | 7项双流/附件配额/失败/字符预算，相关152项通过；停止反馈也不再只取前缀 | [test_command_output_preview.py](test_command_output_preview.py)、[重复失败](test_no_progress_loop.py) |
 | B18.1 命令头尾捕获 | 19项末尾真实报错、字节数量、UTF-8、未知结尾与快照；相关73项通过，最终预览待B18.2 | [test_command_output_capture.py](test_command_output_capture.py) |
 | B17.3.2 PDF 组合验收 | 5项真实文件/入口/配置场景，相关180项通过；313页原书索引与资源拒绝证据另存，未验证视觉或真实模型引用 | [test_pdf_acceptance.py](test_pdf_acceptance.py)、[真实入口](../../scripts/pdf_acceptance.py) |

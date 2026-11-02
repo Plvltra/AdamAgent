@@ -18,6 +18,13 @@ from adam.tool_calls.processes import terminate_process
 from adam.tool_calls.result_preview import encode_head_tail
 
 
+class _InterruptedCommand(BaseException):
+    """只在本模块传递清理后的输出，外部仍收到原 KeyboardInterrupt 或 EOFError。"""
+
+    def __init__(self, cause: KeyboardInterrupt | EOFError, result: dict[str, Any]) -> None:
+        self.cause, self.result = cause, result
+
+
 class CommandTools:
     def __init__(
         self,
@@ -60,8 +67,13 @@ class CommandTools:
         started = time.monotonic()
         try:
             result = self._run(command)
+        except _InterruptedCommand as error:
+            self._record(record, "command_finished", json.loads(self.encode_result(error.result)))
+            raise error.cause from None
         except (KeyboardInterrupt, EOFError):
-            self._record(record, "command_finished", self._result("interrupted", started))
+            # 启动或清理期间的中断未取得可靠捕获快照，不能把空字符串说成完整输出。
+            unknown = {**self._result("interrupted", started), "truncated": True}
+            self._record(record, "command_finished", unknown)
             raise
         # 命令事实日志保留有界预览；完整捕获结果交给外层附件处理，不在 JSONL 重复展开。
         self._record(record, "command_finished", json.loads(self.encode_result(result)))
@@ -114,7 +126,10 @@ class CommandTools:
         return CommandRequest((program, *argv[1:]), cwd, timeout)
 
     def _run(self, command: CommandRequest) -> dict[str, Any]:
-        """捕获有界输出；超时或取消时终止进程树并回收直接子进程。"""
+        """捕获有界输出；超时或取消时终止进程树并回收直接子进程。
+
+        已启动命令被中断时，用内部异常携带清理后的快照，供公开入口落盘再抛出原中断。
+        """
         started = time.monotonic()
         # 不继承 API 密钥等任意环境变量；保留 Windows/Python 启动需要的基础项。
         names = {
@@ -157,6 +172,7 @@ class CommandTools:
         for reader in readers:
             reader.start()
         status = "completed"
+        interruption: KeyboardInterrupt | EOFError | None = None
         try:
             deadline = time.monotonic() + command.timeout_seconds
             while process.poll() is None:
@@ -169,6 +185,9 @@ class CommandTools:
                     continue
         except subprocess.TimeoutExpired:
             status = "timed_out"
+            terminate_process(process)
+        except (KeyboardInterrupt, EOFError) as error:
+            status, interruption = "interrupted", error
             terminate_process(process)
         except BaseException:
             terminate_process(process)
@@ -187,6 +206,8 @@ class CommandTools:
             stderr=err.text,
             truncated=out.truncated or err.truncated,
         )
+        if interruption is not None:
+            raise _InterruptedCommand(interruption, result) from interruption
         return result
 
     @staticmethod

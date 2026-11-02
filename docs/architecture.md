@@ -2,9 +2,9 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B18.2 命令、附件及重复失败反馈的最终头尾预览。
+本次核对范围：B18.3 命令取消后的输出快照、来源持久与实际进程故障验收。
 
-核对结论：新增 result_preview.encode_head_tail 供命令、ToolArtifacts 与 progress_output 共用。ToolInvocation 为反馈重编码提供宿主原文本，避免反复剪掉尾部；状态、来源和停止结论仍由原流程确定。附件保存先于预览，配额和原字节完整性语义保持。原不修改动作/正文及优先状态说明均保留。
+核对结论：现有模块依赖保持。CommandTools 在实际取消清理后以内部载体返回捕获快照，公开入口先写命令事实再抛出原中断；新内部异常不暴露给 CLI。没有可靠快照时明确不完整，日志故障仍停止。新增独立宿主测试复用原应用、进程清理、执行报告与录制重放；原权限及清理说明保留。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -19,6 +19,8 @@ flowchart LR
     CMD_BUFFER --> CMD_SNAPSHOT["CapturedOutput / 一致计数、EOF、UTF-8与头尾"]
     CMD_SNAPSHOT --> CMD_RESULT["原命令结果与有界 command_finished"]
     CMD_RESULT --> CMD_ART["ToolArtifacts / 原附件先保存"]
+    CMD_RUN --> CMD_CANCEL["取消 / 原进程树清理 / 捕获快照"]
+    CMD_CANCEL --> CMD_INTERRUPTED["command_finished 留证后抛出原中断"]
     CMD_RESULT --> CMD_PREVIEW["result_preview / 实际 JSON 预算与两端文本"]
     CMD_ART --> CMD_PREVIEW
     CMD_PROGRESS["progress_output / 原结果文本与宿主重复失败观察"] --> CMD_PREVIEW
