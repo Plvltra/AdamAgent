@@ -1,0 +1,141 @@
+{
+  "checked_at": "2026-11-01T14:26:27.587675+00:00",
+  "scope": "B19.2.1 real WSL native command backend; no project input or chat integration",
+  "distribution": "Ubuntu",
+  "capability_probe": true,
+  "cases": [
+    {
+      "name": "native_echo",
+      "passed": true,
+      "exit_code": 0,
+      "reason": "exited",
+      "stdout": "native-command-ok\n",
+      "stderr": "",
+      "captured_bytes": 18,
+      "duration_ms": 48,
+      "policy": "bubblewrap-native-single-process-v1"
+    },
+    {
+      "name": "empty_workspace",
+      "passed": true,
+      "exit_code": 0,
+      "reason": "exited",
+      "stdout": "",
+      "stderr": "",
+      "captured_bytes": 0,
+      "duration_ms": 43,
+      "policy": "bubblewrap-native-single-process-v1"
+    },
+    {
+      "name": "nonzero",
+      "passed": true,
+      "exit_code": 1,
+      "reason": "exited",
+      "stdout": "",
+      "stderr": "",
+      "captured_bytes": 0,
+      "duration_ms": 37,
+      "policy": "bubblewrap-native-single-process-v1"
+    },
+    {
+      "name": "runtime_script_denied",
+      "passed": true,
+      "exit_code": 1,
+      "reason": "exited",
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 101, in <module>\n  File \"<string>\", line 95, in main\n  File \"<string>\", line 41, in native_executable\nRuntimeError: native_elf_required\n",
+      "captured_bytes": 195,
+      "duration_ms": 39,
+      "policy": "bubblewrap-native-single-process-v1"
+    },
+    {
+      "name": "host_program_denied",
+      "passed": true,
+      "exit_code": 1,
+      "reason": "exited",
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 101, in <module>\n  File \"<string>\", line 95, in main\n  File \"<string>\", line 36, in native_executable\n  File \"/usr/lib/python3.8/pathlib.py\", line 1181, in resolve\n    s = self._flavour.resolve(self, strict=strict)\n  File \"/usr/lib/python3.8/pathlib.py\", line 363, in resolve\n    return _resolve(base, str(path)) or sep\n  File \"/usr/lib/python3.8/pathlib.py\", line 347, in _resolve\n    target = accessor.readlink(newpath)\n  File \"/usr/lib/python3.8/pathlib.py\", line 452, in readlink\n    return os.readlink(path)\nFileNotFoundError: [Errno 2] No such file or directory: '/mnt'\n",
+      "captured_bytes": 635,
+      "duration_ms": 43,
+      "policy": "bubblewrap-native-single-process-v1"
+    },
+    {
+      "name": "wall_limit",
+      "passed": true,
+      "exit_code": -9,
+      "reason": "wall_limit",
+      "stdout": "",
+      "stderr": "",
+      "captured_bytes": 0,
+      "duration_ms": 1007,
+      "policy": "bubblewrap-native-single-process-v1"
+    },
+    {
+      "name": "closed_streams",
+      "passed": true,
+      "exit_code": -9,
+      "reason": "wall_limit",
+      "stdout": "",
+      "stderr": "",
+      "captured_bytes": 0,
+      "duration_ms": 1007,
+      "policy": "bubblewrap-native-single-process-v1"
+    },
+    {
+      "name": "cpu_limit",
+      "passed": true,
+      "exit_code": 137,
+      "reason": "exited",
+      "stdout": "",
+      "stderr": "",
+      "captured_bytes": 0,
+      "duration_ms": 2006,
+      "policy": "bubblewrap-native-single-process-v1"
+    },
+    {
+      "name": "memory_limit",
+      "passed": true,
+      "exit_code": 1,
+      "reason": "exited",
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nMemoryError\n",
+      "captured_bytes": 86,
+      "duration_ms": 44,
+      "policy": "bubblewrap-native-single-process-v1"
+    },
+    {
+      "name": "output_limit",
+      "passed": true,
+      "exit_code": -9,
+      "reason": "output_limit",
+      "stdout": "<omitted from report>",
+      "stderr": "",
+      "captured_bytes": 65536,
+      "duration_ms": 43,
+      "policy": "bubblewrap-native-single-process-v1"
+    },
+    {
+      "name": "environment",
+      "passed": true,
+      "exit_code": 0,
+      "reason": "exited",
+      "stdout": "{\"PATH\": \"/usr/bin:/bin\", \"LANG\": \"C.UTF-8\", \"HOME\": \"/nonexistent\", \"PWD\": \"/work\"}\n",
+      "stderr": "",
+      "captured_bytes": 85,
+      "duration_ms": 51,
+      "policy": "bubblewrap-native-single-process-v1"
+    }
+  ],
+  "cancellation": {
+    "scope": "cancels capability-or-command operation; no active-worker identity assertion",
+    "interrupted": true,
+    "duration_ms": 1094
+  },
+  "paid_model_requests": 0,
+  "limitations": [
+    "single process",
+    "read-only empty workspace",
+    "no network",
+    "x86_64 WSL only"
+  ]
+}

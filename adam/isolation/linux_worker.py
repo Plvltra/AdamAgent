@@ -129,8 +129,8 @@ print(json.dumps(checks, sort_keys=True))
 """
 
 
-def seccomp_filter(output_fd: int) -> None:
-    """用本机 libseccomp 生成 BPF；缺少必要调用名或导出失败时拒绝启动。"""
+def seccomp_filter(output_fd: int, *, extra_denied: tuple[str, ...] = ()) -> None:
+    """生成 BPF；调用者只能追加拒绝项，缺少必要调用名或导出失败时拒绝启动。"""
     library = ctypes.CDLL("libseccomp.so.2")
     library.seccomp_init.argtypes = [ctypes.c_uint32]
     library.seccomp_init.restype = ctypes.c_void_p
@@ -150,7 +150,7 @@ def seccomp_filter(output_fd: int) -> None:
     if not context:
         raise RuntimeError("seccomp_init_failed")
     try:
-        for name in DENIED:
+        for name in (*DENIED, *extra_denied):
             number = library.seccomp_syscall_resolve_name(name.encode("ascii"))
             if number == -1 or library.seccomp_rule_add(
                 context, 0x00050000 | errno.EPERM, number, 0

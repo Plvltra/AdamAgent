@@ -2,13 +2,30 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B18.3 命令取消后的输出快照、来源持久与实际进程故障验收。
+本次核对范围：B19.2.1 独立原生命令后端、执行约束与实际资源验收。
 
-核对结论：现有模块依赖保持。CommandTools 在实际取消清理后以内部载体返回捕获快照，公开入口先写命令事实再抛出原中断；新内部异常不暴露给 CLI。没有可靠快照时明确不完整，日志故障仍停止。新增独立宿主测试复用原应用、进程清理、执行报告与录制重放；原权限及清理说明保留。
+核对结论：isolation 内增加独立原生命令 API、协议和可信 Linux 看守/执行入口；尚未连接 ToolRegistry 或挂载项目。只复用原固定 Bubblewrap 和允许追加拒绝项的 seccomp 构造，B14 的禁止再次执行策略保持。原不可回退、看守和运行时信任说明保留，新增 Landlock 与输出硬限额契约。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B19.2.1 原生命令隔离 API
+
+~~~mermaid
+flowchart LR
+    IC_CALL["显式 API 调用者 / 有界 argv"] --> IC_API["isolation.commands / IsolatedCommands"]
+    IC_API --> IC_WIRE["command_protocol / 固定策略、请求与结果"]
+    IC_WIRE --> IC_WSL["指定 WSL / linux_command 外部看守"]
+    IC_WSL --> IC_BWRAP["原 Bubblewrap / 只读空工作目录、namespace、seccomp"]
+    IC_BWRAP --> IC_GUARD["linux_command_guard / 资源硬限额与 Landlock"]
+    IC_GUARD --> IC_ELF["选定原生 ELF / 单进程、无网络"]
+    IC_ELF --> IC_WSL
+    IC_WSL --> IC_RESULT["有界双流、真实退出与停止原因"]
+    IC_RESULT --> IC_API
+~~~
+
+此阶段没有模型工具接入，原 CommandTools 宿主路径保持；项目输入和批准将在后续小步接入。见 [隔离策略与实测](runtime-isolation.md)。
 
 ## B18 命令输出
 
