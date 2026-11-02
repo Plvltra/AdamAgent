@@ -2,13 +2,15 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B16.2 语义目录接入 list_tools、主子后端组装和原执行记录。
+本次核对范围：B16.3 二十工具候选评估脚本、失败环境与真实模型报告。
 
-核对结论：bootstrap 为主/子 ToolDiscovery 分别注入本地 FastEmbedBackend，list_tools 使用 SemanticToolRanker 并返回实际排序来源。查询仍不改变选择，discover/固定请求名单与原权限检查保持。分页预算含元信息，记录和重放复用原工具边界。原完整分页、不截断和无副作用说明已保留并扩展。
+核对结论：生产架构无变化；新增离线评估入口复用真实注册目录、list_tools/discover_tools 和本地向量适配器，记录候选、Schema 字节、权限及耗时。教学工具不能执行，不增加聊天入口。原发现/执行和注释契约保留，新增脚本说明固定题目、降级和计量边界。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 ## B16 语义工具目录与运行时接入
+
+[B16.3 评估脚本](../scripts/tool_discovery_eval.py) 使用二十项教学目录经过同一发现链路，模型与目录预先固定，实际记录与失败证据见[对照报告](tool-discovery-evaluation.md)。生产调用关系保持下图。
 
 ~~~mermaid
 flowchart LR
