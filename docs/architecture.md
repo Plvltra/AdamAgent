@@ -2,13 +2,28 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B22.2.3.2 DeletePlan、创建撤销批准与UndoService原独立日志。
+本次核对范围：B22.3.1 create_file生产注册、原模式/路径/批准及Hook诊断来源。
 
-核对结论：原UndoService从成功创建检查点经plan_restore生成DeletePlan，CLI明确显示删除差异；apply_restore复核当前路径/版本后删除，原替换仍委派apply。独立undo日志的target/after可保留None缺失，结果保存失败保持unknown。未新增模型删除入口，创建生产注册仍待B22.3；原版本/批准/注释契约已扩展。
+核对结论：factory将create_file注册为editing/EDIT_FILE，经原发现、参数、模式、路径、Hook及批准进入EditTools；子任务仍交回主任务。诊断匹配复用FILE_EDIT_TOOLS，三个独立示例同步支持创建。原检查点/撤销/录制不另造链路；注释说明已同步，模型仍没有通用删除入口。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B22.3.1 生产创建工具
+
+~~~mermaid
+flowchart LR
+    FC_MODEL["原工具发现 / create_file说明"] --> FC_REG["factory / editing与EDIT_FILE"]
+    FC_REG --> FC_GATE["原参数、模式、路径、前置Hook"]
+    FC_GATE --> FC_CREATE["EditTools.create_file / 固定创建计划"]
+    FC_CREATE --> FC_EXEC["原execute_plan / 批准、日志和发布"]
+    FC_EXEC --> FC_AFTER["原后置Hook / 版本化诊断"]
+    FC_AFTER --> FC_DIAG["match_edit / FILE_EDIT_TOOLS与来源核对"]
+    FC_REG --> FC_CHILD["子Agent / approval_required"]
+~~~
+
+模型读取实际版本后可继续替换，用户通过原undo恢复原内容再撤销创建；离线重放不重建或修改源文件。三个仓库Hook示例纳入创建，用户自己的脚本不会自动修改。见 [创建边界与验收](file-creation.md)。
 
 ## B22.2.3.2 撤销创建
 
@@ -35,7 +50,7 @@ flowchart LR
     FC_EXEC --> FC_APPLY["apply_create / 原子发布"]
 ~~~
 
-创建可由显式宿主注册后执行和留痕；生产工具工厂尚未开放，创建撤销下一步接入。
+创建由生产工具工厂注册，执行和留痕复用原链路；成功创建可通过原UndoService批准撤销。
 
 ## B22.2.2 新文件原子发布
 
@@ -47,7 +62,7 @@ flowchart LR
     FC_LINK --> FC_UNLINK["只清理临时名字 / 不改共享属性"]
 ~~~
 
-本步是显式宿主API，调用方仍负责批准与执行日志；模型创建尚未接入。实际文件系统支持和边界见 [文件创建](file-creation.md)。
+apply_create由原execute_plan在批准与开始记录后调用，调用方仍负责批准与执行日志。实际文件系统支持和边界见 [文件创建](file-creation.md)。
 
 ## B22.2.1 缺失状态检查点
 
@@ -58,7 +73,7 @@ flowchart LR
     FC_SESSION["SessionLog / 父工具类型校验"] --> FC_LEDGER
 ~~~
 
-本步可显式保存缺失快照，但尚未把创建计划接入SessionStore写入链或模型工具。原plan_restore拒绝将缺失快照恢复为空文件，创建撤销待后续。
+创建计划已经接入SessionStore写入链；plan_restore将缺失快照转换为DeletePlan，避免将原缺失错误恢复为空文件。
 
 ## B22.1 新文件规划与批准
 
@@ -72,7 +87,7 @@ flowchart LR
     FC_CONTRACT --> FC_CONFIRM
 ~~~
 
-宿主可显式调用创建批准，尚未连接创建发布或模型工具；批准不锁定路径，不能代替发布时的不覆盖保证。见 [创建契约](file-creation.md)。
+创建批准已连接生产工具与发布；批准不锁定路径，不能代替发布时的不覆盖保证。见 [创建契约](file-creation.md)。
 
 ## B21.2 显式正则搜索
 

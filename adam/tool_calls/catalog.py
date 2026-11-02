@@ -60,6 +60,12 @@ SPECS = {
         {"path": PATH, "name": ("string", "唯一名称或完整符号ID"), **PAGING},
         ["path", "name"],
     ),
+    "create_file": schema(
+        "创建尚不存在的UTF-8文本文件，父目录必须已存在。完整内容作为diff逐次批准后写入；"
+        "拒绝覆盖同名文件，已有文件请先read_file再用replace_text。允许空文件，不自动创建目录。",
+        {"path": PATH, "content": ("string", "完整文本，CRLF转LF；大小受文本文件字节上限限制")},
+        ["path", "content"],
+    ),
     "replace_text": schema(
         "修改已有UTF-8文件的一处精确匹配。先read_file取得version，用户确认diff后才写入；拒绝后停止。",
         {

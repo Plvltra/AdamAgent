@@ -49,10 +49,12 @@ def create_tool_registry(
     # 命令批准后的进程不受只读路径规则限制；只读工具在适配器中检查路径。
     handlers["run_command"] = commands.run_command
     handlers["replace_text"] = edits.replace_text
+    handlers["create_file"] = edits.create_file
     if delegated:
         # 不调用审批回调，也不构造修改计划或启动程序；将需要人工授权的工作交回主 Agent。
         handlers["run_command"] = _needs_parent
         handlers["replace_text"] = _needs_parent
+        handlers["create_file"] = _needs_parent
     return ToolRegistry(
         SPECS,
         handlers,
@@ -73,11 +75,13 @@ def create_tool_registry(
             **dict.fromkeys(("git_status", "git_diff", "git_log"), "git"),
             **dict.fromkeys(("code_structure", "find_definitions", "find_references"), "code"),
             "replace_text": "editing",
+            "create_file": "editing",
             "run_command": "commands",
         },
         capabilities={
             **dict.fromkeys(readers, ToolCapability.READ_ONLY),
             "replace_text": ToolCapability.EDIT_FILE,
+            "create_file": ToolCapability.EDIT_FILE,
             "run_command": ToolCapability.RUN_PROCESS,
         },
         path_selectors={
@@ -88,6 +92,7 @@ def create_tool_registry(
                 if delegated
                 else {
                     "replace_text": lambda args: (Path(args["path"]),),
+                    "create_file": lambda args: (Path(args["path"]),),
                     "run_command": lambda args: (Path(args.get("cwd", ".")),),
                 }
             ),

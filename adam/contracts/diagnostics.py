@@ -5,6 +5,8 @@ import re
 from dataclasses import asdict, dataclass
 from typing import Any, Literal, cast
 
+from adam.contracts.execution import FILE_EDIT_TOOLS
+
 DiagnosticStatus = Literal["passed", "failed", "stale", "unavailable"]
 Severity = Literal["error", "warning", "info"]
 
@@ -76,7 +78,7 @@ def parse_diagnostics(value: object) -> DiagnosticReport:
 def match_edit(report: DiagnosticReport, tool_name: str, result: object) -> None:
     """报告必须对应本次已成功编辑的路径与目标版本；不从检查器声明推断文件当前状态。"""
     if (
-        tool_name not in {"replace_text", "apply_proposal"}
+        tool_name not in FILE_EDIT_TOOLS
         or not isinstance(result, dict)
         or result.get("status") != "applied"
         or result.get("path") != report.path

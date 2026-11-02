@@ -1,4 +1,4 @@
-"""B22.2.3.1：测试宿主注册创建入口，穿过真实执行器和JSONL；生产目录尚不开放。"""
+"""B22.2.3.1：显式测试注册穿过真实执行器和JSONL；B22.3另验证生产注册默认拒绝。"""
 
 import json
 from hashlib import sha256
@@ -177,7 +177,7 @@ def test_last_moment_collision_is_logged_without_overwrite(creation_chat, monkey
     assert output["ok"] is False and output["status"] == "conflict"
 
 
-def test_creation_counts_as_edit_attempt_and_is_not_exposed_by_production_factory(tmp_path):
+def test_creation_counts_as_edit_attempt_and_production_factory_defaults_to_denial(tmp_path):
     from adam.contracts.errors import BudgetError
 
     budget = ToolBudget(max_edit_attempts=1)
@@ -185,7 +185,8 @@ def test_creation_counts_as_edit_attempt_and_is_not_exposed_by_production_factor
     assert budget.edit_attempts == 1
     with pytest.raises(BudgetError):
         budget.consume("replace_text")
-    assert all(
-        item["function"]["name"] != "create_file"
-        for item in create_tool_registry(tmp_path).definitions()
-    )
+    # B22.3开放生产注册后，原“不提前暴露”边界变为必须有编辑能力和默认拒绝批准。
+    registry = create_tool_registry(tmp_path)
+    assert registry.capability("create_file") is ToolCapability.EDIT_FILE
+    result = json.loads(registry.execute("create_file", '{"path":"new.txt","content":"x"}'))
+    assert result["status"] == "denied" and not (tmp_path / "new.txt").exists()

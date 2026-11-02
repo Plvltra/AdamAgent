@@ -79,6 +79,12 @@ class EditTools:
         """先校验路径、旧版本与唯一替换，再交给共同的批准和写入流程。"""
         return self.execute_plan(self.prepare(args), record)
 
+    def create_file(
+        self, args: dict[str, Any], record: Callable[[str, dict[str, Any]], None] | None = None
+    ) -> dict[str, Any]:
+        """检查缺失目标与完整内容，再复用批准、检查点及不覆盖发布流程。"""
+        return self.execute_plan(self.prepare_create(args), record)
+
     def execute_plan(
         self,
         plan: EditPlan | CreatePlan,

@@ -4,7 +4,7 @@
 
 | 示例 | 行为 | 检查范围 |
 | --- | --- | --- |
-| before_protect_directory.py | 拒绝 replace_text / apply_proposal 修改指定目录，模板保护 vendor 和 generated | 专用编辑工具；run_command 和其他工具仍按原有权限及审批处理 |
+| before_protect_directory.py | 拒绝 replace_text / apply_proposal / create_file 修改或创建指定目录内的文件，模板保护 vendor 和 generated | 专用编辑工具；run_command 和其他工具仍按原有权限及审批处理 |
 | after_python_syntax.py | 成功编辑工作目录内的 .py 后，核对实际文件版本并用 ast.parse 检查语法 | 最多1 MiB；不导入或执行目标代码，不证明运行结果正确 |
 
 前置通过仍要经过原有工具权限和人工批准。后置检查发现语法错误时，修改已经发生：退出码非零会产生提示与失败审计，原编辑结果保持 applied，不自动撤销或重做。
@@ -14,7 +14,7 @@
 1. 在主 config.toml 中合入本目录 config.toml 的 hooks 表，替换已有同名表，避免 TOML 重复定义。
 2. 模板路径假设工具工作目录就是 Adam 仓库根目录；确认后把 enabled 改为 true。
 3. 在其他项目运行时，把两个 argv 的解释器和脚本路径改为绝对路径。检查器的 cwd 仍是本次工具工作目录；vendor/generated 也相对于这个目录。
-4. 启动 Adam，在练习目录里准备已有 Python 文件，再要求读取并修改；专用工具不负责创建新文件。
+4. 启动 Adam，在练习目录要求创建新的 Python 文件，或读取并修改已有文件；新建入口只接受不存在的目标和已存在的父目录。
 
 完整配置、错误和恢复语义见 [Hooks 契约](../../docs/lifecycle-hooks.md)。修改模板不会自动改写用户配置。
 
@@ -43,6 +43,8 @@ T11.2 的 apply_proposal 在 Hook 前核对 path 与真实候选完全一致，�
 提案业务验收见 [test_proposal_application.py](../../tests/features/test_proposal_application.py)，包含前置拒绝、后置失败保留实际修改，以及伪造路径在 Hook 前拒绝。
 仅按工具名称编写的个人检查器需要自行将新入口纳入策略；项目升级不会改写用户脚本。
 
+
+B22.3.1将create_file纳入三个仓库示例，语法错误仍不回滚已经创建的文件；[创建业务测试](../../tests/features/test_file_creation_loop.py)运行真实示例验证目录拒绝与两种语法报告。用户自有检查器仍须显式检查新工具名称。
 
 ## B20.1 新的结构化示例
 

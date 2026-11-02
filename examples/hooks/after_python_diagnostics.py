@@ -18,7 +18,10 @@ def inspect_python(data: dict[str, Any]) -> dict[str, Any]:
     ):
         raise ValueError("requires after_tool version 1")
     tool, result = data["tool"], data["result"]
-    if tool["name"] not in {"replace_text", "apply_proposal"} or result.get("status") != "applied":
+    if (
+        tool["name"] not in {"replace_text", "apply_proposal", "create_file"}
+        or result.get("status") != "applied"
+    ):
         return {"version": 1, "note": "未发生专用文件修改，跳过 Python 语法检查"}
     path = result["path"]
     expected = result["after_version"]

@@ -1,4 +1,4 @@
-"""前置 Hook 示例：限制 replace_text / apply_proposal 修改用户指定目录，不替代命令审批或文件权限。"""
+"""前置 Hook 示例：限制专用工具修改或创建指定目录内的文件，不替代命令审批或文件权限。"""
 
 import argparse
 import json
@@ -16,7 +16,7 @@ def decide(data: dict[str, Any], protected: list[str]) -> dict[str, Any]:
     ):
         raise ValueError("requires before_tool version 1")
     tool = data["tool"]
-    if tool["name"] not in {"replace_text", "apply_proposal"}:
+    if tool["name"] not in {"replace_text", "apply_proposal", "create_file"}:
         return {"version": 1, "decision": "allow", "reason": "此示例只检查专用文件编辑"}
     workspace = Path(data["workspace"]).resolve()
     target = (workspace / tool["arguments"]["path"]).resolve()
