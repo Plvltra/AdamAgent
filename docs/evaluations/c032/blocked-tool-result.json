@@ -1,0 +1,11 @@
+[
+  {
+    "ok": false,
+    "error": "工具执行失败：文件编码、访问权限、Git或参数格式无效。",
+    "no_progress": {
+      "action": "continue",
+      "repeats": 1,
+      "fingerprint": "a718b9b4109627c3580887e1ba2b52cc14e62a093e375b3bc77afc9a1580ebb3"
+    }
+  }
+]

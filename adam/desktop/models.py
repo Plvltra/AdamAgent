@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from adam.contracts.cancellation import CancellationToken
+from adam.contracts.desktop import DesktopApproval
 from adam.contracts.media import MediaRef
 
 
@@ -65,4 +66,12 @@ class Observation:
 class DesktopBackend(Protocol):
     def observe(self, cancel: CancellationToken) -> DesktopFrame:
         """只观察宿主绑定目标，不自动激活或切换窗口。"""
+        ...
+
+
+class DesktopActionBackend(DesktopBackend, Protocol):
+    def perform(
+        self, plan: DesktopApproval, expected: DesktopFrame, cancel: CancellationToken
+    ) -> None:
+        """复检目标后派发一个已批准动作；派发后失败须报告未知结果，不重试。"""
         ...

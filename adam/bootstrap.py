@@ -38,6 +38,7 @@ from adam.config.settings import AppConfig, ArtifactConfig, DocumentConfig, Perm
 from adam.contracts.browser import BrowserApproval
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.delegation import ChildAgent, ChildRun
+from adam.contracts.desktop import DesktopApproval
 from adam.contracts.execution import ExecutionMode, ToolCapability
 from adam.contracts.memory import MemorySelection
 from adam.contracts.models import CommandRequest, FileChangePlan
@@ -47,6 +48,7 @@ from adam.contracts.proposals import ProposalOwner
 from adam.contracts.rules import RuleSelection
 from adam.contracts.terminals import TerminalRequest
 from adam.contracts.verification import TaskVerifier
+from adam.desktop.models import DesktopActionBackend
 from adam.documents.embedding import FastEmbedBackend
 from adam.hooks.runner import HookRunner
 from adam.isolation.backend import WslBubblewrap
@@ -70,6 +72,7 @@ from adam.tool_calls.command_tools import CommandTools
 from adam.tool_calls.browser_tools import register_browser
 from adam.tool_calls.delegation_tools import SPECS as DELEGATION_SPECS
 from adam.tool_calls.delegation_tools import encode_results, handlers, register_progress
+from adam.tool_calls.desktop_tools import register_desktop
 from adam.tool_calls.diagnostic_files import DiagnosticFiles
 from adam.tool_calls.discovery_tools import register_discovery
 from adam.tool_calls.document_tools import register_documents
@@ -115,6 +118,8 @@ def build_application(
     confirm_edit: Callable[[FileChangePlan], bool] | None = None,
     confirm_terminal: Callable[[TerminalRequest], bool] | None = None,
     confirm_browser: Callable[[BrowserApproval], bool] | None = None,
+    desktop_backend: DesktopActionBackend | None = None,
+    confirm_desktop: Callable[[DesktopApproval], bool] | None = None,
     on_tool: Callable[[str], None] | None = None,
     on_notice: Callable[[str], None] | None = None,
     on_plan: Callable[[PlanReport], None] | None = None,
@@ -142,6 +147,7 @@ def build_application(
     live_input显式启用运行中输入；cancel须与主HTTP适配器共享，默认聊天保持原路径。
     主子媒体预检各自只借用所属 SessionMedia，默认模型无视觉声明时明确拒绝。
     网页工具按次创建/关闭独立连接；禁用时不加载其后端。
+    桌面仅由宿主显式注入目标及逐次批准，子任务不继承桌面或批准；默认不注册。
     浏览器按会话延迟创建，逐次确认确切动作；子任务不注册浏览器、不继承主审批。
     图片加载沿原主子读取范围，完整解码后发布各自媒体引用；不隐式发送给模型。
     启用子任务、MCP 或浏览器的调用方须在释放主会话锁前调用 application.close；
@@ -297,6 +303,14 @@ def build_application(
                 store, MediaStore(media_dir, max_bytes=config.browser.max_download_bytes)
             ),
         )
+        desktop = None
+        if desktop_backend is not None:
+            registry, desktop = register_desktop(
+                registry,
+                desktop_backend,
+                SessionMedia(store, MediaStore(media_dir)),
+                confirm_desktop,
+            )
         registry, images = register_vision(
             registry,
             config.vision,
@@ -452,6 +466,8 @@ def build_application(
             terminal_tools.bind_source(link)
             if trigger_tools:
                 trigger_tools.bind_source(link)
+            if desktop:
+                desktop.bind_source(link)
             if browser:
                 browser.bind_source(link)
             if images:

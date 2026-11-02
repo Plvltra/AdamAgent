@@ -7,7 +7,7 @@ from dataclasses import asdict
 
 from adam.contracts.cancellation import CancellationToken
 from adam.contracts.media import MediaRef, MediaSource
-from adam.desktop.models import DesktopBackend, Observation
+from adam.desktop.models import DesktopBackend, DesktopFrame, Observation
 
 
 class DesktopObserver:
@@ -23,10 +23,13 @@ class DesktopObserver:
         cancel.check()
         frame = self.backend.observe(cancel)
         cancel.check()
-        metadata = asdict(frame)
-        metadata.pop("png")
-        digest = hashlib.sha256(
-            json.dumps(metadata, sort_keys=True).encode() + frame.png
-        ).hexdigest()
+        digest = frame_version(frame)
         image = self.publish(source, frame.png, "image/png")
         return Observation(digest, frame, image)
+
+
+def frame_version(frame: DesktopFrame) -> str:
+    """身份、树、几何和截图共同确定版本；像素变化也使旧观察失效。"""
+    metadata = asdict(frame)
+    metadata.pop("png")
+    return hashlib.sha256(json.dumps(metadata, sort_keys=True).encode() + frame.png).hexdigest()

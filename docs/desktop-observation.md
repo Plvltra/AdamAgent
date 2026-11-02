@@ -1,6 +1,6 @@
 # Windows 桌面观察
 
-C03.1 提供 `adam.desktop.adapters.windows.WindowsDesktop(handle, process_id)` 与 `DesktopObserver(backend, media.publish)`，调用方显式选定独立测试窗口并传入真实 MediaSource。安装可选依赖 `uv sync --extra desktop`。当前是宿主 API，普通聊天工具和动作接入在 C03.2；不会枚举或自动激活用户日常窗口。
+C03.1 提供 `adam.desktop.adapters.windows.WindowsDesktop(handle, process_id)` 与 `DesktopObserver(backend, media.publish)`，调用方显式选定独立测试窗口并传入真实 MediaSource。安装可选依赖 `uv sync --extra desktop`。C03.1 是宿主观察 API；C03.2 通过显式组装接入普通聊天工具，见下节。不会枚举或自动激活用户日常窗口。
 
 适配器使用 [pywinauto UI Automation](https://github.com/pywinauto/pywinauto) 获取树及截图，默认最多 200 个控件、1600 万像素。截图与树保留窗口句柄、进程、UIA runtime ID、物理屏幕矩形、DPI、标题和节点父索引。内容字符串有界，不把窗口标题或屏幕文字视为授权。截图经原 SessionMedia 发布，Observation 的完整版本由身份、几何、树和 PNG 共同计算。
 
@@ -17,3 +17,19 @@ C03.1 提供 `adam.desktop.adapters.windows.WindowsDesktop(handle, process_id)` 
 
 
 独立第二批实际控件缩放通过：测试窗执行 WinForms Scale(1.25) 并同步字体，标签从 [238,241,434,258] 变为 [246,249,491,269]，文本框从 [238,286,628,307] 变为 [246,305,732,330]；两控件截图中心分别映射到 [368,259]、[489,317]，与 UIA 物理矩形中心一致。独立视觉代理已查看前后图确认放大且未裁切。DPI 始终 96，本项证明应用内缩放而非系统跨 DPI；见 [缩放证据](evaluations/c031/scaled-window.json)，原图在 `.cache/c031-scale/`。
+
+
+## C03.2 有界动作
+
+宿主调用 `build_application(..., desktop_backend=WindowsDesktop(handle, pid), confirm_desktop=callback)` 后，原工具目录出现 `desktop_observe` 与 `desktop_action`；默认没有桌面工具，子任务不继承目标或批准回调。CLI 暂不自动选择桌面目标，显式宿主绑定避免从模型参数获得任意窗口权限。
+
+观察输出包含窗口、控件树、截图媒体和唯一 version；每次新观察均使旧动作引用失效，即使像素相同也不能重复。动作使用 `operation=click/fill/key`，click 优先 UIA Invoke，控件不支持时在原控件点击；fill 只接受有界字面文本，不把 `{ENTER}` 等作为键盘指令；无控件 click 使用截图像素点，转换为本次物理屏幕坐标。快捷键只允许 TAB、SHIFT+TAB、ENTER、ESC、CTRL+A，不接收任意键盘脚本。
+
+原执行器处理发现、固定请求名单、模式、Hook、额度和真实来源；动作在 plan 中拒绝。宿主收到不可变 DesktopApproval，缺失回调或拒绝即停止本轮。批准后复检完整帧（包括 PNG）和当前会话，原生派发前再核对窗口、目标控件身份和位置。像素闪烁也可能使完整帧不同，此时拒绝并要求新观察，不放宽成盲点。
+
+动作后重新观察并保存新证据；dispatched 仅证明调用派发，不证明保存成功。原生调用或后续观察异常成为 EXECUTION_UNKNOWN，不能自动重试；输出超限不截断控件树，已保存媒体可能保留。共享输入租约、锁屏和持续停止在 C03.3，不提前宣称已实现。
+
+8 项工具闭环验证覆盖 fill/坐标click/固定key、批准来源与动作后观察、拒批/plan/批准期间变化、未知结果停止、旧版本重复拒绝；与架构依赖共37项通过。观察模块原4项已通过，未重复全量。模拟仅替换桌面端口和远端模型传输，真实 Windows 动作另留实机证据。
+
+
+C03.2 实机状态（2026-11-02）：尚未通过。正式工具循环在第一个观察时拒绝非前台目标，0 次批准、0 次派发；独立 UIA ValuePattern 仍读到原文本。视觉代理确认实际截图为壁纸而非测试窗。可见启动、自身激活和前台返回值排查后仍未恢复；同会话存在 LogonUI，可能与锁屏/桌面隔离相关，但不把进程存在当作完整原因证明。两个自建测试进程已关闭，未盲重试任何派发。非图像证据见 [工具拒绝](evaluations/c032/blocked-tool-result.json)、[独立读回](evaluations/c032/blocked-readback.json)。真实 fill/key/click 待可交互桌面恢复后补验，C03.2 暂不勾选完成。
