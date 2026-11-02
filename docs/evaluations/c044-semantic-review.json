@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-11-02",
+  "evidence_manifest": "G:\\Myself\\Adam2\\.cache\\c044-quality\\fixtures\\manifest.json",
+  "evidence_results": "G:\\Myself\\Adam2\\.cache\\c044-quality\\run1\\results.json",
+  "method": "Independently viewed all five vision_image files with view_image, compared actual answer text against visible facts and question, and compared OCR polygons against image geometry and fixed glyph boxes. No model rerun, fixture change, or production change.",
+  "decision_rule": "requested_facts_pass tests amount and order relation; semantic_pass additionally rejects an unsupported asserted currency. OCR coordinate pass means correct line coverage with no obvious displacement, not tight glyph segmentation.",
+  "cases": [
+    {
+      "semantic_pass": false,
+      "coordinate_reason": "All three OCR boxes fully enclose the corresponding visible lines; approximately 5-9 px outward margins explain IoU below 1, without line confusion or displacement.",
+      "iou": [
+        0.6510093167701864,
+        0.669382801664355,
+        0.6639285714285714
+      ],
+      "image": "fixtures/image.png",
+      "reason": "Amount 128.50 and order A-731 below it are correct, but actual answer asserts $128.50. The image contains no currency sign or currency text, so the added dollar denomination is unsupported.",
+      "id": "image",
+      "ocr_coordinate_pass": true,
+      "requested_facts_pass": true
+    },
+    {
+      "semantic_pass": true,
+      "coordinate_reason": "All three boxes cover the correct text lines; small outward margins are similar to original image, no obvious displacement.",
+      "iou": [
+        0.6538521522145976,
+        0.6672235023041475,
+        0.6639285714285714
+      ],
+      "image": "fixtures/clear_scan.png",
+      "reason": "Visible amount is 128.50 and the line directly below is Order A-731. Actual answer gives both correctly without unsupported denomination.",
+      "id": "clear_scan",
+      "ocr_coordinate_pass": true,
+      "requested_facts_pass": true
+    },
+    {
+      "semantic_pass": true,
+      "coordinate_reason": "Boxes fully enclose the appropriate three blurred lines and halos. Lower IoU is caused by wider 6-16 px padding against pre-blur glyph extents, not obvious displacement.",
+      "iou": [
+        0.5236370449010179,
+        0.534616449736915,
+        0.5156726768377253
+      ],
+      "image": "fixtures/blurred_scan.png",
+      "reason": "Visible text is blurred but amount 128.50 and Order A-731 remain recognizable, with order below amount. Decimal point is weak; fixed source truth corroborates it. Answer gives both facts correctly.",
+      "id": "blurred_scan",
+      "ocr_coordinate_pass": true,
+      "requested_facts_pass": true
+    },
+    {
+      "semantic_pass": true,
+      "coordinate_reason": "Order polygon x=98..161 y=54..370, Total x=215..283 y=51..372, heading x=339..400 y=57..292 all enclose their correct columns in original 450x1000 coordinates. No missing rotation mapping or swapped left/right. Wider padding accounts for IoU.",
+      "iou": [
+        0.5849319846529474,
+        0.5306487080813634,
+        0.5602772754671489
+      ],
+      "image": "fixtures/rotated_90.png",
+      "reason": "Stored image is physically rotated clockwise. Order A-731 is the left column, Total 128.50 center, INVOICE right. Counterclockwise upright reading places Order below Total, exactly as required by the question. Actual answer is correct; it does not claim order lies right in stored coordinates.",
+      "id": "rotated_90",
+      "ocr_coordinate_pass": true,
+      "requested_facts_pass": true
+    },
+    {
+      "semantic_pass": true,
+      "coordinate_reason": "Page 2 OCR declares rendered_page_pixels, 1000x450, consistent with reference render. All three polygons fully cover the correct visible lines with small padding. OCR render hash differs from reference render hash, so this is geometry/visual concordance, not a claim of byte-identical render.",
+      "iou": [
+        0.6258396775638155,
+        0.6837662337662338,
+        0.6617228286663502
+      ],
+      "image": "fixtures/mixed-page-2.png",
+      "reason": "Viewed fixed PDF page 2 render: Total 128.50 and Order A-731 below are both intact and readable. Actual answer is correct.",
+      "id": "mixed_pdf",
+      "ocr_coordinate_pass": true,
+      "requested_facts_pass": true
+    }
+  ],
+  "summary": {
+    "ocr_coordinate_pass": 5,
+    "obvious_ocr_displacements": 0,
+    "strict_semantic_fail": 1,
+    "limitation": "One simple invoice repeated across five input variants; this inspection is not general document or model-quality validation.",
+    "strict_semantic_pass": 4,
+    "requested_facts_pass": 5
+  }
+}

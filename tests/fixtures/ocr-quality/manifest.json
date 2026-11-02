@@ -1,0 +1,272 @@
+{
+  "version": 1,
+  "truth_source": "Existing invoice fixture; fixed before any OCR/model evaluation.",
+  "box_convention": "Original input pixels, top-left origin, xyxy half-open; source glyph extents. Blurred image retains pre-blur source extents, not fuzzy halo extents.",
+  "cases": [
+    {
+      "id": "image",
+      "kind": "image",
+      "path": "image.png",
+      "sha256": "d34c478aaec79ffd35fd3e21a1eb25b633c1b51e3e66af11c7b10469617ad432",
+      "vision_image": "image.png",
+      "vision_sha256": "d34c478aaec79ffd35fd3e21a1eb25b633c1b51e3e66af11c7b10469617ad432",
+      "size": [
+        1000,
+        450
+      ],
+      "lines": [
+        {
+          "text": "INVOICE",
+          "box": [
+            65,
+            60,
+            280,
+            99
+          ]
+        },
+        {
+          "text": "Total 128.50",
+          "box": [
+            61,
+            180,
+            358,
+            219
+          ]
+        },
+        {
+          "text": "Order A-731",
+          "box": [
+            62,
+            300,
+            348,
+            339
+          ]
+        }
+      ],
+      "question": "What is the total amount, and what is the order ID on the line below it?",
+      "expected_answer": "Total: 128.50; order ID: A-731.",
+      "generation_parameters": {
+        "copy_source": "invoice.png"
+      },
+      "visual_inspection": "All three lines are sharp and fully readable. Fixed boxes match original glyph extents."
+    },
+    {
+      "id": "clear_scan",
+      "kind": "clear_scan",
+      "path": "clear_scan.png",
+      "sha256": "fc01071992221fa93f616d2b177dedba228237cb7ecf7804313d3b921037489e",
+      "vision_image": "clear_scan.png",
+      "vision_sha256": "fc01071992221fa93f616d2b177dedba228237cb7ecf7804313d3b921037489e",
+      "size": [
+        1000,
+        450
+      ],
+      "lines": [
+        {
+          "text": "INVOICE",
+          "box": [
+            65,
+            60,
+            280,
+            99
+          ]
+        },
+        {
+          "text": "Total 128.50",
+          "box": [
+            61,
+            180,
+            358,
+            219
+          ]
+        },
+        {
+          "text": "Order A-731",
+          "box": [
+            62,
+            300,
+            348,
+            339
+          ]
+        }
+      ],
+      "question": "What is the total amount, and what is the order ID on the line below it?",
+      "expected_answer": "Total: 128.50; order ID: A-731.",
+      "generation_parameters": {
+        "gray_multiplier": 0.94,
+        "noise_uniform_integer": [
+          -3,
+          3
+        ],
+        "seed": 4404
+      },
+      "visual_inspection": "All three lines are fully readable on light gray mildly noisy background. Geometry unchanged."
+    },
+    {
+      "id": "blurred_scan",
+      "kind": "blurred_scan",
+      "path": "blurred_scan.png",
+      "sha256": "f06b7b5f1c85415e380a65ee61e3c4465e831ba78ab8d560a9ca9235d28026e1",
+      "vision_image": "blurred_scan.png",
+      "vision_sha256": "f06b7b5f1c85415e380a65ee61e3c4465e831ba78ab8d560a9ca9235d28026e1",
+      "size": [
+        1000,
+        450
+      ],
+      "lines": [
+        {
+          "text": "INVOICE",
+          "box": [
+            65,
+            60,
+            280,
+            99
+          ]
+        },
+        {
+          "text": "Total 128.50",
+          "box": [
+            61,
+            180,
+            358,
+            219
+          ]
+        },
+        {
+          "text": "Order A-731",
+          "box": [
+            62,
+            300,
+            348,
+            339
+          ]
+        }
+      ],
+      "question": "What is the total amount, and what is the order ID on the line below it?",
+      "expected_answer": "Total: 128.50; order ID: A-731.",
+      "generation_parameters": {
+        "source": "clear_scan.png",
+        "downsample": [
+          250,
+          112
+        ],
+        "gaussian_radius": 1.2,
+        "blur_passes": 1,
+        "resample": "BILINEAR",
+        "upsample": [
+          1000,
+          450
+        ]
+      },
+      "visual_inspection": "All three lines are recognizable but visibly blurred; decimal point in 128.50 is weak. Truth comes from source, not an inference from blur. Boxes denote pre-blur geometry; halos extend outside."
+    },
+    {
+      "id": "rotated_90",
+      "kind": "rotated_90",
+      "path": "rotated_90.png",
+      "sha256": "86763a424ac53934f15ce7a54ab2be563e3efe55479fafe4ae2200d9dcdaa5cc",
+      "vision_image": "rotated_90.png",
+      "vision_sha256": "86763a424ac53934f15ce7a54ab2be563e3efe55479fafe4ae2200d9dcdaa5cc",
+      "size": [
+        450,
+        1000
+      ],
+      "lines": [
+        {
+          "text": "INVOICE",
+          "box": [
+            351,
+            65,
+            390,
+            280
+          ]
+        },
+        {
+          "text": "Total 128.50",
+          "box": [
+            231,
+            61,
+            270,
+            358
+          ]
+        },
+        {
+          "text": "Order A-731",
+          "box": [
+            111,
+            62,
+            150,
+            348
+          ]
+        }
+      ],
+      "question": "The text is rotated. After reading it upright, what is the total amount, and what is the order ID on the line below it?",
+      "expected_answer": "Total: 128.50; order ID: A-731.",
+      "generation_parameters": {
+        "source": "image.png",
+        "physical_clockwise_degrees": 90,
+        "exif_rotation": false
+      },
+      "visual_inspection": "Pixels are physically rotated clockwise, size 450x1000. All glyphs are intact. Order line is left, total center, heading right in stored coordinates."
+    },
+    {
+      "id": "mixed_pdf",
+      "kind": "mixed_pdf",
+      "path": "mixed.pdf",
+      "sha256": "54dd2d81edc8c40a8d10d1ee7d9fa27bd3015e0f4b4927223c5812c662c1629a",
+      "vision_image": "mixed-page-2.png",
+      "vision_sha256": "b5b3374ab0f817796a00af7b26fb47ca840c2440b95da53952845341d401a26b",
+      "size": [
+        1000,
+        450
+      ],
+      "lines": [
+        {
+          "text": "INVOICE",
+          "box": [
+            65,
+            60,
+            280,
+            99
+          ]
+        },
+        {
+          "text": "Total 128.50",
+          "box": [
+            61,
+            180,
+            358,
+            219
+          ]
+        },
+        {
+          "text": "Order A-731",
+          "box": [
+            62,
+            300,
+            348,
+            339
+          ]
+        }
+      ],
+      "question": "What is the total amount, and what is the order ID on the line below it?",
+      "expected_answer": "Total: 128.50; order ID: A-731.",
+      "generation_parameters": {
+        "copy_source": "mixed.pdf",
+        "vision_page": 2,
+        "render_dpi": 144,
+        "renderer": "pdftoppm",
+        "page_1_native_text": "TEXT LAYER PAGE 1\nOriginal digital text must be preserved."
+      },
+      "visual_inspection": "PDF page 2 render shows all three invoice lines, no cropping. Page 1 render shows both native text lines fully. Poppler emitted display-font mapping warnings without visible missing text."
+    }
+  ],
+  "extra_evidence": {
+    "pdf_page_1_render": "mixed-page-1.png"
+  },
+  "inspection": {
+    "method": "view_image inspected each of 4 standalone images and both rendered PDF pages",
+    "ocr_or_model_run": false,
+    "truth_fixed_before_evaluation": true
+  }
+}

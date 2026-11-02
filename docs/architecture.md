@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：C04.3 OCR 主子工具接入、混合 PDF 与原页证据；新增下列 OCR 关系，既有模型问答与存储协议不变。
+本次核对范围：C04.4 固定 OCR/视觉评估脚本与真实证据；生产架构无结构变化，复用 read_ocr、load_image 和 open_image_questions。
 
 核对结论：新增 scripts.web_evaluation 独立评估入口与对应关系图；生产对话、网络和存储职责保持。主子文件、文档、规则、Skill、提案及图片读取同时保护 _media 和 _mcp_media。图片路径授权不依赖可选规则开关，真实子任务回归确认拒绝后无媒体来源/正文副作用。当前同步 main 固定 446d767 的 B16.1～3；只读取已提交内容。C00.4 新增 contracts.consumption、config.consumption、context.consumption、session.consumption_log 与 subagents.unit_budget；复用原请求/摘要事件和 token 账本，不新增消费文件。启用时实际请求冻结单价与各单位预留，成员刷新/恢复同时维护单位快照；录制只增加可选配置/决策快照，旧文本录制格式保持。当前消费者工程验收完成，不把音频账本当作语音能力。C04.2 新增 application.image_questions、config.vision、contracts.vision、llm.local_vision、cli.image_question；bootstrap 只在显式独立入口组装回环模型，复用 ContextBuilder/RequestRunner 与 SessionAccount/SharedTokenBudget，subagents.account.restore_account 恢复既有子日志，不生成新任务。SessionLog 验证可选 image_question 来源及未知费用，旧文本格式不变；默认聊天/DeepSeek/主子工具链不升级。真实视觉首批严格 2/4、最终复验 3/4，均非全通过，不能当通用可靠布局能力；详见 [视觉问答](visual-question-answering.md)。C04.1 新增 vision.models/service/adapters.pillow 与 tool_calls.vision_tools；bootstrap 按 VisionConfig 注入原路径策略及主子独立 SessionMedia，Conversation 不新增图片工具分支或 SDK 依赖，默认模型不获视觉能力。C00.3 新增 contracts.model_input、application.media_input、llm.message_encoding 与 recording.media；复用 C00.2，不新增上传/解码能力。媒体字节只在模型发送边界编码及录制旁路冻结，Conversation 只编排通用输入预检与引用，不认识具体图片 SDK；默认客户端仍无视觉声明。C01.3 新增 web.evidence 与 tool_calls.web_sources，复用原工具/JSONL 边界。B12.2.2 新增 documents.knowledge_review，通过 contracts.ModelClient 发起一次显式审查并保存独立请求记录；不依赖 HTTP 实现、聊天历史或应用层。生命周期在返回后复核来源，模型请求成功不等于意见采用；B12.2.3 已接入显式知识入口与主子目录保护，B12.3 已验收竞争/中断边界。B12.2.1 的独立状态、锁外回调与落盘前来源/修订复核，以及 B11.3 的原文审计和冻结证据说明保留；生产聊天流程不新增最终回答拦截，来源与逐字引用有效不能证明语义正确。
 
@@ -2345,3 +2345,5 @@ flowchart LR
 ~~~
 
 OCR 仅由 vision.enabled 与 ocr_models 显式开启；注册与绑定复用主子原 ImageTools，不扩展默认模型能力。PDF 原文本层和 OCR 分开，图像结果绑定原字节版本；原生推理协作取消、失败可能保留先前页证据。配置位置参数保持原兼容性，缺失原生分数保持未知。使用与验收见 [本地 OCR](ocr.md)。
+
+C04.4：scripts.ocr_visual_evaluation 仅为显式离线验收编排，复用上述 OCR 工具及 C04.2 问答工厂；几何匹配、字符距离与人工语义判读分别记录，不增加生产调用关系。新评分契约已审查，未删除既有说明。
