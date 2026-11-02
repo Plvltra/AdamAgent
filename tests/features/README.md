@@ -8,6 +8,7 @@
 
 | 功能点 | 要验收的业务结果 | 测试文件 |
 | --- | --- | --- |
+| B21.1.1 文件查询基础 | 真实稳定排序、权限、来源变化、扫描限制与取消；18项新增、相关40项通过，尚未改变聊天工具 | [扫描场景](test_query_inventory.py)、[游标校验](../test_file_query_cursor.py) |
 | B20.3 诊断组合故障 | 5项真实输出超限、检查取消、日志fsync失败及幂等恢复；相关148项通过，成功修复沿用B20.2 | [故障场景](test_diagnostic_faults.py)、[修复闭环](test_diagnostic_request.py) |
 | B20.2.2 诊断请求与重放 | 11项HTTP/实际编辑/日志/来源/预算/旧录制及2项契约新增；相关153项通过 | [业务场景](test_diagnostic_request.py)、[上下文边界](../test_diagnostic_context.py) |
 | B20.2.1 诊断选择与版本观察 | 7项真实编辑/版本/权限/容量/故障与16项契约；相关100项通过，模型接入待下一步 | [业务场景](test_diagnostic_selection.py)、[契约](../test_diagnostic_context.py) |

@@ -2,13 +2,24 @@
 
 最近核对：2026-11-02
 
-本次核对范围：B20.3 诊断输出超限、真实检查进程取消、日志fsync故障与重启。
+本次核对范围：B21.1.1 查询游标与受限目录清单的独立 API。
 
-核对结论：架构无变化，保留原图和生产代码。新增组合测试使用真实编辑、Hook进程和文件写入，在输出、取消及fsync边界注入故障；保存失败不能改写原编辑事实，恢复不重跑。新增说明已对照实际异常、进程回收与日志状态审查，没有删除既有注释。
+核对结论：新增 contracts.file_query 与 tool_calls.query_scan，提供查询/版本游标和授权目录清单。当前仅独立 API 与测试调用，FileTools 仍使用原查询；图中不宣称已经接入聊天。新增源码及说明已逐项审查，没有删除既有注释。
 
 本文描述已实现代码。版本任务见 [练手 TODO](agent-practice-todo.md)，日志格式见 [会话执行轨迹](session-tracing.md)。
 
 [PDF 组合验收入口](../scripts/pdf_acceptance.py) 读取显式原文件，建立临时资料副本，调用 DocumentIndex → DocumentSearch → 原 read_pdf 工具，再修改副本核对版本拒绝；输出仅元数据。它不扫描整个原目录、不改原件、不调用付费模型，见 [验收结果](pdf-perception.md)。
+
+## B21.1.1 查询基础
+
+~~~mermaid
+flowchart LR
+    FQ_SCAN["capture_inventory / 受限稳定扫描"] --> FQ_POLICY["PathPolicy / 每次路径授权"]
+    FQ_SCAN --> FQ_INVENTORY["QueryInventory / 元数据版本"]
+    FQ_INVENTORY --> FQ_CONTRACT["contracts.file_query / 摘要与游标"]
+~~~
+
+当前尚无 FileTools 到上述 API 的生产调用；文本内容版本、页大小和实际工具接入留给 B21.1.2。见 [查询范围](file-search.md)。
 
 ## B20.2.2 诊断进入请求
 
