@@ -433,3 +433,5 @@ B40.3：test_private_task_boundaries.py 实际双子模型与文件验证冲突/
 B41.1：test_role_profiles.py 检查宿主模型/请求上限、只读角色实际拒绝编辑、执行者仍需批准且遵守plan模式；2 passed（1.00秒）。
 
 B41.2：test_role_handoff.py 覆盖真实角色工具越权拒绝、执行批准、无关历史不复制、模式变化拒绝、API失败/重复执行拒绝及遗留状态恢复；3 passed（4.98秒）。
+
+B41.3：test_role_comparison.py 经实际Skill加载、工具编辑和角色移交对照两任务，并验证调查用完请求后不发执行请求；B41章末含架构29 passed（12.19秒）。
