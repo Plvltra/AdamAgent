@@ -1,0 +1,10 @@
+# 宿主显式调用 load_roles；模型 ID 需要属于宿主提供的允许目录。
+[roles.investigator]
+model = "deepseek-chat"
+tools = ["read_file", "search_text", "list_directory"]
+max_model_requests = 4
+
+[roles.executor]
+model = "deepseek-chat"
+tools = ["read_file", "replace_text", "create_file", "run_command"]
+max_model_requests = 8

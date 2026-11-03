@@ -429,3 +429,5 @@ B40.1：test_private_workspaces.py 使用两个实际Git副本验证主项目不
 B40.2：test_private_merge.py 验证子HTTP→副本真实双文件编辑→主项目保持不变→逐文件批准合并→独立验收→关闭清理；1 passed（6.94秒），原委派权限场景1 passed（2.53秒）。
 
 B40.3：test_private_task_boundaries.py 实际双子模型与文件验证冲突/非冲突、越界/取消；test_private_recovery.py 验证独立进程强杀后清理与原项目嵌套规则。章末含既有委派和架构38 passed（47.65秒）。
+
+B41.1：test_role_profiles.py 检查宿主模型/请求上限、只读角色实际拒绝编辑、执行者仍需批准且遵守plan模式；2 passed（1.00秒）。

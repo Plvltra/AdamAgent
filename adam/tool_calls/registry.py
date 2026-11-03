@@ -110,6 +110,35 @@ class ToolRegistry:
             groups={**self._groups, **(groups or {})},
         )
 
+    def restricted(
+        self, names: frozenset[str], capabilities: frozenset[ToolCapability]
+    ) -> "ToolRegistry":
+        """宿主收窄可见及可执行工具；保留路径检查、审批、模式与并发处理契约。
+
+        配置包含未知工具或越过能力上限时直接拒绝，不静默授予，也不只隐藏说明。
+        """
+        if names - self._specs.keys() or any(
+            self.capability(name) not in capabilities for name in names
+        ):
+            raise ValueError("角色工具不存在或超出能力上限。")
+        return ToolRegistry(
+            {key: value for key, value in self._specs.items() if key in names},
+            {key: value for key, value in self._handlers.items() if key in names},
+            self.limits,
+            {key: value for key, value in self._encoders.items() if key in names},
+            {key: value for key, value in self._validators.items() if key in names},
+            path_selectors={
+                key: value for key, value in self._path_selectors.items() if key in names
+            },
+            guard=self._guard,
+            capabilities={key: value for key, value in self._capabilities.items() if key in names},
+            mode_provider=self._mode_provider,
+            parallel_handlers={
+                key: value for key, value in self._parallel_handlers.items() if key in names
+            },
+            groups={key: value for key, value in self._groups.items() if key in names},
+        )
+
     def guarded(self, guard: ExecutionGuard) -> "ToolRegistry":
         """给整个目录设置执行前检查；保留路径声明，后续扩展也继承检查。"""
         if self._guard is not None:
