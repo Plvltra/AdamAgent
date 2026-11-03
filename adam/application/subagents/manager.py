@@ -266,6 +266,56 @@ class SubagentManager:
             "main_estimate": main_estimate,
         }
 
+    def dispatch_budgeted(
+        self,
+        tasks: tuple[tuple[str, str], ...],
+        *,
+        independent_tasks: int,
+        child_estimate: int,
+        main_estimate: int,
+    ) -> dict[str, Any]:
+        """宿主按当前预算有界派发，每次启动前重新观察；不扩额、不隐式排队。
+
+        调用前须绑定真实主轮请求来源。估算只做调度建议，子请求仍使用原共享账本
+        的原子预留；不能把两次快照之间的额度视为已经锁定或承诺给本次派发。
+        """
+        if not tasks or len(tasks) > 32:
+            raise ToolError("一次预算派发需要1到32个候选任务。")
+        for name, task in tasks:
+            self._validate_task(task)
+            if not name.strip() or len(name) > 80 or any(ord(char) < 32 for char in name):
+                raise ToolError("子任务名称无效。")
+        initial = self.recommend_delegation(independent_tasks, child_estimate, main_estimate)
+        dispatch_id = secrets.token_hex(8)
+        state: dict[str, Any] = {
+            "dispatch_id": dispatch_id,
+            "source": dict(self._source),
+            "initial": initial,
+            "checks": [],
+            "spawned": [],
+            "status": "checking",
+        }
+        index = self._index_required()
+        index.save_dispatch(dispatch_id, state)
+        try:
+            for name, task in tasks[: initial["children"]]:
+                decision = self.recommend_delegation(
+                    independent_tasks, child_estimate, main_estimate
+                )
+                state["checks"].append(decision)
+                index.save_dispatch(dispatch_id, state)
+                if decision["action"] != "delegate":
+                    break
+                state["spawned"].append(self.spawn(name, task))
+                index.save_dispatch(dispatch_id, state)
+            state["status"] = "dispatched" if state["spawned"] else "not_dispatched"
+        except BaseException as error:
+            state.update(status="failed", error=type(error).__name__)
+            index.save_dispatch(dispatch_id, state)
+            raise
+        index.save_dispatch(dispatch_id, state)
+        return state
+
     def private_workspace(
         self, agent_id: str, run_id: str
     ) -> tuple[PrivateWorkspaces, PrivateCopy]:

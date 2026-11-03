@@ -73,6 +73,23 @@ class DelegationStore:
                 setattr(run, name, value)
             self.put(agent)
 
+    def save_dispatch(self, dispatch_id: str, data: dict[str, Any]) -> None:
+        """保存宿主派发决策与实际运行ID；失败阻止继续派发，不重放已启动任务。"""
+        if len(dispatch_id) != 16 or any(char not in "0123456789abcdef" for char in dispatch_id):
+            raise ValueError("invalid dispatch id")
+        with self._lock:
+            root = self.root / "dispatches"
+            temporary = root / f"{dispatch_id}.tmp"
+            try:
+                root.mkdir(exist_ok=True)
+                with temporary.open("w", encoding="utf-8") as stream:
+                    json.dump(data, stream, ensure_ascii=False)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, root / f"{dispatch_id}.json")
+            except OSError as error:
+                raise StorageError("委派决策保存失败；未继续派发。") from error
+
     def _save(self, agents: dict[str, ChildAgent]) -> None:
         """索引只保存受控配置与任务内容，不写模型连接配置或 API 密钥。"""
         temporary = self.path.with_suffix("." + secrets.token_hex(8) + ".tmp")

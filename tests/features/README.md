@@ -437,3 +437,5 @@ B41.2：test_role_handoff.py 覆盖真实角色工具越权拒绝、执行批准
 B41.3：test_role_comparison.py 经实际Skill加载、工具编辑和角色移交对照两任务，并验证调查用完请求后不发执行请求；B41章末含架构29 passed（12.19秒）。
 
 B42.1：test_delegation_policy.py 参数化8项覆盖简单/独立任务、在途预留、主任务余量、未知和待回收优先；8 passed（0.15秒）。
+
+B42.2：test_budgeted_dispatch.py 在真实工具阶段注入共享预留/未知成员，验证旧建议失效及过低估算不能发出实际子HTTP请求；3 passed（4.35秒）。
