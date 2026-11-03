@@ -318,7 +318,7 @@
 
 ### B42 预算感知委派
 
-- [ ] B42.1：复用 B04 可靠预算和待收集状态，提供有界委派策略和决定理由。
+- [x] B42.1：复用 B04 可靠预算和待收集状态，提供有界委派策略和决定理由。
 - [ ] B42.2：结合共享预留与硬上限，预算不足或未知时保守处理，不自动扩额。
 - [ ] B42.3：简单/复杂任务“自己做/委派”对照、失败与回收验收，报告真实效果待验证项。
 
@@ -656,3 +656,5 @@ B41.1：roles.example.toml + load_roles 定义调查者/执行者，模型和请
 B41.2：宿主角色绑定固定模型/收窄目录，RoleHandoff 保存明确任务、背景、已保存调查回答和双方会话；同权限同模式才移交，失败/恢复不重发。模拟HTTP真实应用3 passed（4.98秒），Ruff/Pyright通过。
 
 B41.3：scripts.role_eval 在修复/正确反例上对照实际单Agent+Skill与角色移交，独立文件验收并合计双方用量；请求/额度不足不启动执行者，失败保留分母。章末含架构29 passed（12.19秒）。Mock两方案均2/2，single 5请求60token、handoff 9请求108token；真实质量收益待验收，默认单Agent+Skill。B41～B42为最后不足3章批次，结束做一次最终全量。
+
+B42.1：复用TokenState与SessionAccount共享消费/预留快照，宿主recommend_delegation提供self/delegate/collect/wait/stop及理由；保留主任务估算额度、先收集旧结果、未知不按零。8 passed（0.15秒），Ruff/Pyright通过；实际派发重查留B42.2。

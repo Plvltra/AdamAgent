@@ -13,6 +13,7 @@ from typing import Any
 from adam.application.conversation import Conversation
 from adam.application.subagents.account import SessionAccount
 from adam.application.subagents.budget import SharedTokenBudget
+from adam.application.subagents.delegation_policy import choose_delegation
 from adam.application.subagents.exploration import ExplorationGroup
 from adam.application.subagents.mailbox import RunMailbox
 from adam.application.subagents.workspaces import PrivateCopy, PrivateWorkspaces
@@ -229,6 +230,41 @@ class SubagentManager:
                 break
             time.sleep(0.05)
         return self._results(ids)
+
+    def recommend_delegation(
+        self, independent_tasks: int, child_estimate: int, main_estimate: int
+    ) -> dict[str, Any]:
+        """宿主查询当前共享额度及待收集状态；返回有理由的建议，不启动子任务。"""
+        self._poll()
+        if self._session_id is None:
+            raise ToolError("主会话尚未绑定，不能判断委派额度。")
+        tokens = self.account(self._session_id).snapshot()
+        uncollected = sum(
+            agent.agent_id not in self._active
+            and bool(agent.runs)
+            and agent.runs[-1].parent_turn_id == self._turn_id
+            and agent.runs[-1].run_id not in self._delivered
+            for agent in self._index_required().agents()
+        )
+        decision = choose_delegation(
+            tokens,
+            independent_tasks=independent_tasks,
+            active=len(self._active),
+            uncollected=uncollected,
+            free_creation_slots=max(0, self.limits.max_created_per_turn - self._created),
+            max_concurrent=self.limits.max_concurrent,
+            child_estimate=child_estimate,
+            main_estimate=main_estimate,
+        )
+        return {
+            **asdict(decision),
+            "tokens": tokens.as_record(),
+            "active": len(self._active),
+            "uncollected": uncollected,
+            "independent_tasks": independent_tasks,
+            "child_estimate": child_estimate,
+            "main_estimate": main_estimate,
+        }
 
     def private_workspace(
         self, agent_id: str, run_id: str

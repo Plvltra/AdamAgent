@@ -2,7 +2,7 @@
 
 最近核对：2026-11-03
 
-本次核对范围：B41.3 角色与单Agent+Skill同任务对照；运行时架构无变化，新增离线/显式真实评估入口。
+本次核对范围：B42.1 共享预算快照与有界委派建议，尚未改变实际派发入口。
 
 核对结论：SubagentManager持有每运行RunMailbox，子工具经宿主绑定的publish回调报告，父工具按run/游标收集；双向状态写独立快照，EventQueue回调保存接受/消费事实。子运行恢复以原日志/索引为准，不重建执行邮箱。
 
@@ -2223,3 +2223,17 @@ flowchart LR
 每个角色沿用自己的真实会话日志和原额度；移交记录保存目标用量，整体成本比较需合计双方，不声称共用一个额度账本。API错误/取消保留失败，重启将遗留running标记interrupted，不自动重发；已执行记录不可重复执行，用户核对副作用后可显式新建任务。目标成功回答与移交记录分开落盘，记录写入故障不被当成已确认成功。
 
 B41.3：scripts.role_eval 复用B31固定任务与独立文件判据，为两方案各创建独立目录。单Agent显式加载真实Skill，角色链使用RoleHandoff；调查请求/token从执行预算扣除，未知或耗尽时不启动下一阶段。comparison.json保留每项失败、已知用量及总用量未知标记。当前Mock报告不代表真实效果，详见[角色对照](role-comparison.md)。
+
+## B42.1 预算感知委派建议
+
+```mermaid
+flowchart LR
+    Manager[SubagentManager.recommend_delegation] --> Account[SessionAccount / SharedTokenBudget]
+    Account --> Tokens[TokenState / 已知消费 / 在途预留 / 未知状态]
+    Manager --> Pending[当前轮活任务 / 未收集结果 / 剩余创建数]
+    Tokens --> Policy[choose_delegation]
+    Pending --> Policy
+    Policy --> Decision[self / delegate / collect / wait / stop + 理由]
+```
+
+独立任务数量与主/子请求估算由宿主明确提供，不根据任务文本长度猜难度。建议先收集已完成结果，再评估已知剩余额度；为主任务保留估算空间，子数量同时受独立任务数、并发和创建上限约束。未知消费/预留不按零计算。该接口不预留、不派发、不替代实际请求原子预留；B42.2接入派发前重查，避免把快照当作独占额度。
