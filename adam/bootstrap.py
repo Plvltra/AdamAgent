@@ -108,6 +108,7 @@ def build_application(
     observe_conversation: Callable[[Conversation], None] | None = None,
     verifier: TaskVerifier | None = None,
     private_children: bool = False,
+    delegation_dispatch: Callable[[SubagentManager, str, str], dict[str, Any]] | None = None,
     role: RoleProfile | None = None,
     live_input: bool = False,
     cancel: CancellationToken | None = None,
@@ -121,6 +122,7 @@ def build_application(
     observe_conversation 在组装完成后安装宿主观察接口；不从配置或模型加载回调。
     verifier仅供宿主显式选择可信验收器，不继承给子Agent。
     private_children由宿主显式开启辅助子任务私有副本编辑；命令仍禁止，主项目需另行审批合并。
+    delegation_dispatch仅由宿主接入预算新建策略；在真实工具阶段调用，不能由模型提供代码。
     role仅由可信配置加载；固定同一连接配置的模型并收窄请求数和工具，不替换路径权限。
     live_input显式启用运行中输入；cancel须与主HTTP适配器共享，默认聊天保持原路径。
     启用子任务或 MCP 的调用方须在释放主会话锁前调用 application.close；
@@ -312,7 +314,10 @@ def build_application(
             )
             registry = registry.extended(
                 DELEGATION_SPECS,
-                handlers(manager),
+                handlers(
+                    manager,
+                    spawn=partial(delegation_dispatch, manager) if delegation_dispatch else None,
+                ),
                 {"wait_agents": encode_results},
                 capabilities=dict.fromkeys(DELEGATION_SPECS, ToolCapability.DELEGATE),
                 groups=dict.fromkeys(DELEGATION_SPECS, "agents"),

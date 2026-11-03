@@ -439,3 +439,5 @@ B41.3：test_role_comparison.py 经实际Skill加载、工具编辑和角色移�
 B42.1：test_delegation_policy.py 参数化8项覆盖简单/独立任务、在途预留、主任务余量、未知和待回收优先；8 passed（0.15秒）。
 
 B42.2：test_budgeted_dispatch.py 在真实工具阶段注入共享预留/未知成员，验证旧建议失效及过低估算不能发出实际子HTTP请求；3 passed（4.35秒）。
+
+B42.3：test_delegation_comparison.py 对照简单/独立任务，检验真实预算工具来源、主子用量合计、未知子消费/失败收尾和分母保留。章末39项通过，3项旧接法改用正式delegation_dispatch后通过（4.48秒），合计42场景；不重复跑其余已通过项。

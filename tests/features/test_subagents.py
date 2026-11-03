@@ -33,7 +33,14 @@ def outputs(body):
 
 @contextmanager
 def application(
-    tmp_path, parent_handler, child_handler, *, config=None, notices=None, confirm_edit=None
+    tmp_path,
+    parent_handler,
+    child_handler,
+    *,
+    config=None,
+    notices=None,
+    confirm_edit=None,
+    delegation_dispatch=None,
 ):
     """每个子模型在所属线程创建独立 HTTP；所有写入落在测试临时目录。"""
     config = config or AppConfig(
@@ -63,6 +70,7 @@ def application(
             LLMClient(config.llm, http),
             tmp_path,
             child_client_factory=child_client,
+            delegation_dispatch=delegation_dispatch,
             confirm_command=reject_approval,
             confirm_edit=confirm_edit or reject_approval,
             on_notice=(notices if notices is not None else []).append,

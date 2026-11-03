@@ -63,10 +63,13 @@ SPECS = {
 }
 
 
-def handlers(service: DelegationTools) -> dict[str, ToolHandler]:
-    """只转换已校验参数；身份、生命周期和准入统一交给调度器。"""
+def handlers(
+    service: DelegationTools, *, spawn: Callable[[str, str], dict[str, Any]] | None = None
+) -> dict[str, ToolHandler]:
+    """转换已校验参数；宿主可替换新建策略，身份与实际准入仍交给调度器。"""
+    spawn = spawn or service.spawn
     return {
-        "spawn_agent": lambda args, _: service.spawn(args["name"], args["task"]),
+        "spawn_agent": lambda args, _: spawn(args["name"], args["task"]),
         "send_message": lambda args, _: service.send(args["agent_id"], args["task"]),
         "message_agent": lambda args, _: service.message(
             args["agent_id"], args["run_id"], args["message_id"], args["text"]

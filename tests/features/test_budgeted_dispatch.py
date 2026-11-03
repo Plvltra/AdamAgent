@@ -33,10 +33,8 @@ def test_dispatch_rechecks_real_reservations_and_hard_admission(tmp_path, mode):
             )
         return httpx.Response(200, json=answer("bounded dispatch finished"))
 
-    def dispatch(name, task):
-        manager = app._conversation.delegation
-        # 测试把spawn工具绑定到宿主策略，在真实请求结算后、工具阶段运行。
-        manager.spawn = original_spawn
+    def dispatch(manager, name, task):
+        # 经正式宿主策略入口，在真实请求结算后、工具阶段运行。
         assert manager.recommend_delegation(2, 1000, 1000)["action"] == "delegate"
         tasks = (("worker", "read a.txt and report"),)
         if mode == "unknown":
@@ -67,9 +65,7 @@ def test_dispatch_rechecks_real_reservations_and_hard_admission(tmp_path, mode):
         assert child_calls == 0
         return result
 
-    with application(tmp_path, parent, child) as (app, store):
-        original_spawn = app._conversation.delegation.spawn
-        app._conversation.delegation.spawn = dispatch
+    with application(tmp_path, parent, child, delegation_dispatch=dispatch) as (app, store):
         try:
             app.send("consider bounded delegation")
         except BudgetError:
