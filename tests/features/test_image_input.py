@@ -480,7 +480,17 @@ def test_child_loads_in_own_namespace_and_parent_cannot_read_its_reference(tmp_p
 
 @pytest.mark.parametrize(
     "directory",
-    ["_media", "_mcp_media", "_background", "_inputs", "_triggers", "_terminals", "_subagents"],
+    [
+        "_media",
+        "_mcp_media",
+        "_background",
+        "_inputs",
+        "_triggers",
+        "_terminals",
+        "_subagents",
+        "_private",
+        "_handoffs",
+    ],
 )
 @pytest.mark.parametrize("rules_enabled", [True, False])
 def test_child_image_loading_cannot_republish_reserved_media(tmp_path, directory, rules_enabled):

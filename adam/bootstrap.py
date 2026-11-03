@@ -711,6 +711,7 @@ def _open_child(
     文档源固定为主应用配置；检索仍按子任务自身的读取权限逐个检查。
     网页读取继承可信开关与网络策略，每次工具调用独占并关闭连接。
     图片加载继承子任务读取授权，媒体保存在子任务独立命名空间，不共享主图片引用。
+    普通子任务禁止读取私有副本根；私有子任务沿自身工作区路径授权，不封禁其工作区祖先。
     Hooks 继承用户配置，使用子任务取消令牌；后置故障提示带子任务 ID。
     普通辅助任务可保存读取提案但不能应用；宿主私有副本任务仅可直接编辑副本，命令仍禁止。
     """
@@ -747,6 +748,8 @@ def _open_child(
                 checkpoints_dir.parent / "_terminals",
                 checkpoints_dir.parent / "_inputs",
                 checkpoints_dir.parent / "_subagents",
+                *((checkpoints_dir.parent / "_private",) if agent.source_workspace is None else ()),
+                checkpoints_dir.parent / "_handoffs",
             ),
         )
         registry = register_documents(
@@ -766,6 +769,8 @@ def _open_child(
                 checkpoints_dir.parent / "_terminals",
                 checkpoints_dir.parent / "_inputs",
                 checkpoints_dir.parent / "_subagents",
+                *((checkpoints_dir.parent / "_private",) if agent.source_workspace is None else ()),
+                checkpoints_dir.parent / "_handoffs",
             ),
             check_cancel=cancel.check,
             knowledge_dir=knowledge_dir,
@@ -793,6 +798,12 @@ def _open_child(
                     checkpoints_dir.parent / "_triggers",
                     checkpoints_dir.parent / "_terminals",
                     checkpoints_dir.parent / "_subagents",
+                    *(
+                        (checkpoints_dir.parent / "_private",)
+                        if agent.source_workspace is None
+                        else ()
+                    ),
+                    checkpoints_dir.parent / "_handoffs",
                 ),
             ),
             SessionMedia(
@@ -821,6 +832,8 @@ def _open_child(
                 checkpoints_dir.parent / "_terminals",
                 checkpoints_dir.parent / "_inputs",
                 checkpoints_dir.parent / "_subagents",
+                *((checkpoints_dir.parent / "_private",) if agent.source_workspace is None else ()),
+                checkpoints_dir.parent / "_handoffs",
             ),
         )
         rules = (
@@ -842,6 +855,12 @@ def _open_child(
                     checkpoints_dir.parent / "_terminals",
                     checkpoints_dir.parent / "_inputs",
                     checkpoints_dir.parent / "_subagents",
+                    *(
+                        (checkpoints_dir.parent / "_private",)
+                        if agent.source_workspace is None
+                        else ()
+                    ),
+                    checkpoints_dir.parent / "_handoffs",
                 ),
             )
             if config.rules.enabled
@@ -876,6 +895,12 @@ def _open_child(
                         checkpoints_dir.parent / "_terminals",
                         checkpoints_dir.parent / "_inputs",
                         checkpoints_dir.parent / "_subagents",
+                        *(
+                            (checkpoints_dir.parent / "_private",)
+                            if agent.source_workspace is None
+                            else ()
+                        ),
+                        checkpoints_dir.parent / "_handoffs",
                     ),
                 ),
                 config.tool_limits,
@@ -965,6 +990,12 @@ def _open_child(
                             checkpoints_dir.parent / "_terminals",
                             checkpoints_dir.parent / "_inputs",
                             checkpoints_dir.parent / "_subagents",
+                            *(
+                                (checkpoints_dir.parent / "_private",)
+                                if agent.source_workspace is None
+                                else ()
+                            ),
+                            checkpoints_dir.parent / "_handoffs",
                         ),
                     ),
                     config.tool_limits.max_text_file_bytes,
