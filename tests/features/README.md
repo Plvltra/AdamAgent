@@ -492,3 +492,5 @@ C/B27同步验证（固定main 0bf79c2）：桌面停止、浏览器生命周期
 C/B40同步（固定main 014c331）：可信收尾验收、探索组、消费、媒体输入、清理、语音宿主及架构交叉局部回归137 passed / 58.31秒；Ruff/定向Pyright通过。52个C提交全部重放，未运行全量。C05真实麦克风验收因用户确认没有设备保留待办。
 
 C/B41同步及C05收尾（2026-11-03）：固定main 144543e，53个既有C提交全部保留。私有副本/角色移交与消费/媒体/架构局部106 passed / 68.73秒；子图片保留目录18 passed / 45.23秒；私有编辑合法路径4 passed / 28.69秒。新增_private/_handoffs参数分支，旧分支不删除；普通子任务禁止访问，宿主私有子任务按自身工作区授权。Ruff及生产代码定向Pyright通过；曾额外对不在项目类型检查范围的旧测试文件运行Pyright，报26个既有可选session/故意非法参数错误，未扩大修改测试类型。C05局部28 passed / 8.96秒；用户明确无需真实麦克风实测，本次按实现完成，设备质量与首音数据未验证。未跑全量，批次2/3。
+
+main整合前复验（固定B交付10eef68之后的C分支）：test_delegation_policy、test_delegation_comparison、test_role_comparison、test_consumption_loop、test_consumption_evidence及test_architecture合计83 passed / 37.06秒，Ruff/定向Pyright通过。本次未重复全量，麦克风仍按用户要求免实测。
