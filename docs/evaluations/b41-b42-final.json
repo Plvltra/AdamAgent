@@ -1,0 +1,21 @@
+{
+  "source_commit": "41c0dfb7142fab21f9e8261b0ee4f67ecf840236",
+  "command": "python -m pytest -q",
+  "snapshot": "G:\\Agent\\tmp\\b41-b42-41c0dfb",
+  "result": "passed",
+  "passed": 3127,
+  "failed": 0,
+  "duration_seconds": 1567.69,
+  "checked_at": "2026-11-03T11:03:04.0267299+08:00",
+  "scope": "B41-B42 final batch; complete repository pytest",
+  "limitations": [
+    "Mock HTTP verifies local engineering behavior, not real model quality.",
+    "No paid model API was invoked."
+  ],
+  "delivery_audit": {
+    "leaf_tasks_with_matching_commit_title": 149,
+    "local_document_links_checked": 609,
+    "missing_local_document_links": 0,
+    "code_changes_after_test_commit": 0
+  }
+}
