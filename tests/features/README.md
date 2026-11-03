@@ -431,3 +431,5 @@ B40.2：test_private_merge.py 验证子HTTP→副本真实双文件编辑→主�
 B40.3：test_private_task_boundaries.py 实际双子模型与文件验证冲突/非冲突、越界/取消；test_private_recovery.py 验证独立进程强杀后清理与原项目嵌套规则。章末含既有委派和架构38 passed（47.65秒）。
 
 B41.1：test_role_profiles.py 检查宿主模型/请求上限、只读角色实际拒绝编辑、执行者仍需批准且遵守plan模式；2 passed（1.00秒）。
+
+B41.2：test_role_handoff.py 覆盖真实角色工具越权拒绝、执行批准、无关历史不复制、模式变化拒绝、API失败/重复执行拒绝及遗留状态恢复；3 passed（4.98秒）。

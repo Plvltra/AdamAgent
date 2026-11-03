@@ -11,6 +11,7 @@ from adam.application.memories import MemoryService
 from adam.application.modes import ModeController
 from adam.application.running_inputs import RunningInputs
 from adam.application.undo import UndoService
+from adam.config.roles import RoleProfile
 from adam.context.builder import RequestContext
 from adam.contracts.checkpoints import UndoResult
 from adam.contracts.errors import AgentError, LLMError
@@ -50,6 +51,8 @@ class AgentApplication:
         skills: SkillProvider | None = None,
         modes: ModeController | None = None,
         undo: UndoService | None = None,
+        role: RoleProfile | None = None,
+        handoff_boundary: tuple[str, ...] = (),
     ) -> None:
         self._close_resources = close_resources
         self._running_inputs = running_inputs
@@ -61,6 +64,8 @@ class AgentApplication:
         self._skills = skills
         self._modes = modes
         self._undo = undo
+        self.role = role
+        self.handoff_boundary = handoff_boundary
         self._experiences = ExperienceService(store, memories) if memories else None
         self._models: dict[str, str | None] | None = None
 
@@ -106,6 +111,8 @@ class AgentApplication:
 
     def select_model(self, model: str) -> None:
         """校验并切换后续模型，不修改配置或历史；已知目录不含该 ID 时保持原值。"""
+        if self.role and model != self.role.model:
+            raise AgentError("角色模型已由宿主固定，不能在会话中扩大模型范围。")
         if self._models is not None and model not in self._models:
             raise AgentError("模型 ID 不在服务端目录中，未切换；请使用服务商支持的 API 模型 ID。")
         self._conversation.model = model
