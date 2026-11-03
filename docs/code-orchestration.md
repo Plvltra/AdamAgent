@@ -2,7 +2,7 @@
 
 已实现独立 API：`IsolatedOrchestrator.run(code, invoke)`。Python 脚本在 [B19.1 隔离后端](runtime-isolation.md) 中运行，通过 `call_tool(name, arguments)` 请求宿主，脚本的 `result` 变量成为最后的有界返回值。循环、列表筛选和聚合都在 worker 内完成，中间工具结果不必逐项回传给模型。
 
-B14.2 已将 execute_code 接入主/子应用、原工具执行链、共享额度、来源与录制。默认关闭，显式开启后仍需实际隔离后端。B14.3 的越权、超额、中断及真实进程故障组合验收尚未完成。
+B14.2 已将 execute_code 接入主/子应用、原工具执行链、共享额度、来源与录制。默认关闭，显式开启后仍需实际隔离后端。B14.3 的越权、超额、中断及真实进程故障组合验收已完成；真实 WSL/Bubblewrap 报告与宿主管道测试见本文 B14.3 节，真实模型编排效果仍需单独评估。
 
 ## 模块职责
 
@@ -129,4 +129,4 @@ B14.2.2 新增 17 项场景；与嵌套、隔离 API、子任务、录制、计�
 python -m scripts.orchestration_fault_acceptance --distribution Ubuntu --output rpc-faults-result.json
 ```
 
-[宿主管道测试](../tests/features/test_orchestration_cleanup.py) 新增 8 项：成功、EOF、残帧、坏帧、尾部杂字、启动器异常退出、取消、回调存储异常。它用真实 Python 子进程和管道替换 Linux 启动器，验证生产宿主清理和异常传播；不能代替上面的 OS 验收。与协议、隔离、嵌套、工具循环和架构共 112 项通过；Ruff、Pyright 和文档链接已检查，主线提交门禁仍运行全量 pytest。
+[宿主管道测试](../tests/features/test_orchestration_cleanup.py) 新增 8 项：成功、EOF、残帧、坏帧、尾部杂字、启动器异常退出、取消、回调存储异常。它用真实 Python 子进程和管道替换 Linux 启动器，验证生产宿主清理和异常传播；不能代替上面的 OS 验收。与协议、隔离、嵌套、工具循环和架构共 112 项通过；Ruff、Pyright 和文档链接已检查，当前验证与提交频率以 AGENTS.md 的轻量验证规则为准。

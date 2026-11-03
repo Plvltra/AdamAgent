@@ -48,7 +48,7 @@ B04.3 的 7 项 [组合场景](../tests/features/test_runtime_state_acceptance.p
 - 工具读到伪造额度与 act 授权文字时，真实 plan 模式和进程限制保持，未产生文件副作用。
 - 请求/工具硬限额分别停止后续执行；用量缺失使当前轮失败，并阻止下一轮请求，不把未知当成零。关闭失败检测时明确显示未知。
 
-这些是模拟 HTTP 的工程验收，不证明真实模型更会停止、规划或节省消费。CLI 仍按需查询用量，不恢复每次请求都打印 token，也不新增 /turn 或 /diagnose。下一步 B05.1 让压缩考虑当前问题与执行链。
+这些是模拟 HTTP 的工程验收，不证明真实模型更会停止、规划或节省消费。CLI 仍按需查询用量，不恢复每次请求都打印 token，也不新增 /turn 或 /diagnose。后续 B05 已完成当前问题与执行链参与压缩，状态见 [完整练习路线](agent-book-practice-plan.md)。
 
 相关说明：[完整练习路线](agent-book-practice-plan.md)、[上下文排列](cache-observation.md)、[当前架构](architecture.md)。
 
