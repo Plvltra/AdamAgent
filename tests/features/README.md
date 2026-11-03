@@ -427,3 +427,5 @@ B39.3：扩展test_exploration_group.py与test_exploration_dispatch.py覆盖并�
 B40.1：test_private_workspaces.py 使用两个实际Git副本验证主项目不变、规则/记忆身份、权限收窄、脏源拒绝及清理路径篡改；2 passed（8.80秒）。
 
 B40.2：test_private_merge.py 验证子HTTP→副本真实双文件编辑→主项目保持不变→逐文件批准合并→独立验收→关闭清理；1 passed（6.94秒），原委派权限场景1 passed（2.53秒）。
+
+B40.3：test_private_task_boundaries.py 实际双子模型与文件验证冲突/非冲突、越界/取消；test_private_recovery.py 验证独立进程强杀后清理与原项目嵌套规则。章末含既有委派和架构38 passed（47.65秒）。
