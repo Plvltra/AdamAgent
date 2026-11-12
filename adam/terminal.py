@@ -36,3 +36,5 @@ def show_failure(error: AgentError, write: Callable[[str], None] = print) -> Non
     if error.partial_reply is not None:
         write(role_prefix("assistant", unsaved=True) + error.partial_reply)
     write(error.user_message)
+    for note in error.user_notes:
+        write(note)

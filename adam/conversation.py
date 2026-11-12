@@ -6,7 +6,7 @@ from time import monotonic_ns
 from typing import Any
 
 from adam.config import AgentConfig
-from adam.errors import BudgetError, EndReason, TurnSaveError
+from adam.errors import AgentError, BudgetError, EndReason, TurnSaveError
 from adam.llm import Completion, LLMClient, LLMError
 from adam.outcome import ExecutionOutcome, RequestResult, TurnCommit
 from adam.persistence import Session, SessionStore, StorageError
@@ -212,4 +212,7 @@ class Conversation:
             save()
         except Exception:
             # 磁盘持续不可写时无法再可靠记录终态；附注不带原始系统或服务端详情。
-            original.add_note("执行状态保存失败，日志可能仍显示进行中；未自动重试。")
+            note = "执行状态保存失败，日志可能仍显示进行中；未自动重试。"
+            original.add_note(note)
+            if isinstance(original, AgentError) and note not in original.user_notes:
+                original.user_notes.append(note)

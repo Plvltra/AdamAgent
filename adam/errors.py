@@ -30,6 +30,7 @@ class AgentError(Exception):
     """可向用户展示的已知失败；不负责恢复或重试。
 
     user_message 必须是受控的业务说明，不直接采用原始系统异常或远端响应正文。
+    user_notes 只放可公开的补充说明，不能直接复制底层异常附注。
     partial_reply 仅用于已生成但未保存的回答；界面无需根据底层异常类型选择展示方式。
     """
 
@@ -46,6 +47,7 @@ class AgentError(Exception):
         """保留受控提示及结构化原因；http_status 仅供 HTTP 失败记录。"""
         super().__init__(user_message)
         self.user_message = user_message
+        self.user_notes: list[str] = []
         self.partial_reply = partial_reply
         self.reason = reason if reason is not None else type(self).reason
         self.http_status = http_status

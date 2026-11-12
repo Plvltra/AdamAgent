@@ -2,9 +2,9 @@
 
 最近核对：2026-11-12
 
-本次核对范围：迭代1·工单01的结构化原因、请求/轮次计时、v5结束记录和严格读取，以及 persistence 包的目录归属、RequestResult/TurnCommit 参数对象与必填结束结果；outcome.py 保留独立，CLI 展示接口不变。排期见 [迭代工单看板](iteration-board.md)。
+本次核对范围：迭代1·工单02的回答保存失败与失败状态保存失败提示。排期见 [迭代工单看板](iteration-board.md)。
 
-核对结论：Conversation 计时、决定结束结果并组织收尾，ExecutionOutcome 分类及校验结束信息，RequestResult/TurnCommit 承载请求结果和完整轮次提交；persistence 包集中 SessionStore 文件存取和 SessionLog 日志解析，保留 v5 行为。成功仍以完整消息提交为准，失败日志不进入有效历史；开发诊断入口和自动中断恢复尚未实施。
+核对结论：模块结构及依赖图不变。Conversation 保留最初异常，并通过 AgentError.user_notes 补充受控说明；terminal.show_failure 展示未保存回答、主错误与补充说明，不直接输出底层异常附注。存储校验、回滚和有效历史规则保持不变；开发诊断入口与自动恢复仍待后续工单。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -71,7 +71,7 @@ flowchart TD
 | --- | --- | --- |
 | [__main__.py](../adam/__main__.py) | 程序入口 | 将 `python -m adam` 交给 CLI 启动 |
 | [cli.py](../adam/cli.py) | `main`、`chat`、`handle_command` | 组装组件，处理输入和斜杠指令，展示结果与错误，取得命令确认 |
-| [terminal.py](../adam/terminal.py) | `role_prefix`、`show_failure` | 展示角色样式、业务失败说明及未保存回答；不判断具体底层错误类型 |
+| [terminal.py](../adam/terminal.py) | `role_prefix`、`show_failure` | 展示角色样式、业务失败说明、受控附注及未保存回答；不判断具体底层错误类型 |
 | [errors.py](../adam/errors.py) | `EndReason`、`AgentError`、`BudgetError`、`TurnSaveError` | 定义稳定原因、受控提示、可选 HTTP 状态码及未保存回答；界面仍使用原展示契约 |
 | [outcome.py](../adam/outcome.py) | `ExecutionOutcome`、`RequestResult`、`TurnCommit` | 结束信息与提交数据契约，按异常分类并校验状态与原因；不计时、不访问文件、不重试 |
 | [config.py](../adam/config.py) | `AppConfig`、`LLMConfig`、`AgentConfig` | 加载并校验运行配置，区分整体应用、模型连接及对话循环额度 |

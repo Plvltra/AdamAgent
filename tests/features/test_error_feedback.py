@@ -10,7 +10,7 @@ import pytest
 import adam.cli as cli
 from adam.config import AgentConfig, LLMConfig
 from adam.conversation import Conversation
-from adam.errors import AgentError
+from adam.errors import AgentError, TurnSaveError
 from adam.llm import LLMClient
 from adam.persistence import SessionStore, StorageError
 
@@ -124,11 +124,25 @@ def test_api_failure_is_reported_once_without_remote_body(tmp_path):
     assert "private-server-detail" not in "\n".join(output)
 
 
-def test_final_answer_disk_failure_is_visible_without_retry(tmp_path, monkeypatch):
-    """在实际消息提交的 fsync 边界注入失败，验证回滚、回答保留与统一终端提示。"""
+@pytest.mark.parametrize("fail_status_save", [False, True])
+def test_final_answer_disk_failure_is_visible_without_retry(
+    tmp_path, monkeypatch, fail_status_save
+):
+    """在消息提交及可选的失败状态 fsync 处注入故障，回答和原错误均须保留。"""
     root = tmp_path / "sessions"
     requests = []
     output = []
+    errors = []
+    real_send = Conversation.send
+
+    def capture_error(self, text):
+        try:
+            return real_send(self, text)
+        except TurnSaveError as error:
+            errors.append(error)
+            raise
+
+    monkeypatch.setattr(Conversation, "send", capture_error)
     with make_client(requests) as http, SessionStore(root) as store:
         session_id = store.create_session("test", "")
         path = next(root.glob("*/*/*/*.jsonl"))
@@ -137,8 +151,11 @@ def test_final_answer_disk_failure_is_visible_without_retry(tmp_path, monkeypatc
 
         def fail_commit_once(fd):
             last = json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
-            if last["type"] == "turn_completed" and not failures:
-                failures.append(True)
+            kind = last["type"]
+            if kind not in failures and (
+                kind == "turn_completed" or (fail_status_save and kind == "turn_finished")
+            ):
+                failures.append(kind)
                 raise OSError("private-disk-detail")
             return real_fsync(fd)
 
@@ -153,7 +170,15 @@ def test_final_answer_disk_failure_is_visible_without_retry(tmp_path, monkeypatc
             write=output.append,
             workspace=tmp_path,
         )
-    assert failures == [True] and len(requests) == 1
+        assert store.load_messages(session_id) == []
+    assert failures == (
+        ["turn_completed", "turn_finished"] if fail_status_save else ["turn_completed"]
+    )
+    assert len(requests) == 1
+    assert len(errors) == 1 and isinstance(errors[0].__cause__, StorageError)
+    assert errors[0].partial_reply == "done"
+    assert str(errors[0]) == "本轮保存失败，未加入历史；未自动重新请求模型。"
+    assert any("状态保存失败" in line for line in output) is fail_status_save
     assert any("未保存" in line and "done" in line for line in output)
     assert any("本轮保存失败" in line for line in output)
     assert "private-disk-detail" not in "\n".join(output)
@@ -164,8 +189,13 @@ def test_final_answer_disk_failure_is_visible_without_retry(tmp_path, monkeypatc
         assert not any(event["type"] == "turn_completed" for event in events)
         request = next(e["payload"] for e in events if e["type"] == "request_finished")
         assert request["status"] == "succeeded"
-        assert events[-1]["type"] == "turn_finished"
-        assert events[-1]["payload"]["status"] == "failed"
+        if fail_status_save:
+            assert events[-1]["type"] == "request_finished"
+            assert not any(event["type"] == "turn_finished" for event in events)
+        else:
+            assert events[-1]["type"] == "turn_finished"
+            assert events[-1]["payload"]["status"] == "failed"
+            assert events[-1]["payload"]["reason"] == "answer_save_failed"
 
 
 @pytest.mark.parametrize("phase", ["initial", "answer"])
