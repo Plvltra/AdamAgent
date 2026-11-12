@@ -12,7 +12,8 @@ import adam.terminal as terminal
 from adam.cli import chat
 from adam.config import AgentConfig, LLMConfig
 from adam.llm import LLMClient
-from adam.storage import SessionStore
+from adam.outcome import ExecutionOutcome, RequestResult
+from adam.persistence import SessionStore
 from adam.terminal import role_prefix
 
 
@@ -147,7 +148,9 @@ def test_usage_unknown_preserves_known_total_without_request(tmp_path):
         session_id = store.create_session("usage", "")
         turn_id = store.start_turn(session_id, "usage")
         known = store.start_request(session_id, turn_id, "test")
-        store.finish_request(session_id, turn_id, known, (10, 5))
+        store.finish_request(
+            session_id, turn_id, known, RequestResult((10, 5), ExecutionOutcome.success())
+        )
         store.start_request(session_id, turn_id, "test")
         chat(
             LLMClient(LLMConfig("https://example.test", "test", "secret"), http),

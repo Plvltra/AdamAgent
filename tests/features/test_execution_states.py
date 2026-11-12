@@ -8,8 +8,8 @@ import pytest
 from adam.config import LLMConfig
 from adam.conversation import Conversation
 from adam.llm import LLMClient, LLMError
-from adam.session_log import parse_log
-from adam.storage import SessionStore, StorageError
+from adam.persistence import SessionStore, StorageError
+from adam.persistence.session_log import parse_log
 from adam.tool_calls import ToolRegistry
 
 

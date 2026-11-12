@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from adam.errors import AgentError
+from adam.errors import AgentError, EndReason
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,8 @@ class ToolLimits:
 
 class ToolError(AgentError):
     """可以安全回传给模型的工具参数或权限错误。"""
+
+    reason = EndReason.TOOL_ERROR
 
 
 class PathPolicy:

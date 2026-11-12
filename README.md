@@ -104,8 +104,8 @@ system_prompt = "你是 Adam，一个友好的编程助手。"
 模块架构图与职责边界见 [当前系统架构](docs/architecture.md)。
 
 - `adam/config.py`：用户目录、TOML 加载与校验。
-- `adam/storage.py`：JSONL 读写与会话锁。
-- `adam/session_log.py`：事件格式与轮次、请求、工具关联校验。
+- `adam/persistence/store.py`：JSONL 读写与会话锁。
+- `adam/persistence/session_log.py`：事件格式与轮次、请求、工具关联校验。
 - `adam/conversation.py`：加载历史、请求模型、保存成功轮次。
 - `adam/cli.py`：命令、输入循环和错误展示。
 - `adam/terminal.py`：角色标签、颜色、纯文本退化及统一失败展示。

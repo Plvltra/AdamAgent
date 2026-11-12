@@ -2,9 +2,9 @@
 
 最近核对：2026-11-12
 
-本次核对范围：全量细化48张工单的动机、具体用例、预期表现、验收与边界；仅文档变动，运行时架构无变化。未来排期见 [迭代工单看板](iteration-board.md)，下图仍仅描述已实现系统。
+本次核对范围：迭代1·工单01的结构化原因、请求/轮次计时、v5结束记录和严格读取，以及 persistence 包的目录归属、RequestResult/TurnCommit 参数对象与必填结束结果；outcome.py 保留独立，CLI 展示接口不变。排期见 [迭代工单看板](iteration-board.md)。
 
-核对结论：模块依赖无新增；Conversation.send 管理轮次收尾，_run_turn 组织模型与工具循环；SessionStore 保存终态，SessionLog 校验转换并重建状态。格式升级 v4。结束原因、耗时、开发诊断入口和自动中断恢复尚未实施。
+核对结论：Conversation 计时、决定结束结果并组织收尾，ExecutionOutcome 分类及校验结束信息，RequestResult/TurnCommit 承载请求结果和完整轮次提交；persistence 包集中 SessionStore 文件存取和 SessionLog 日志解析，保留 v5 行为。成功仍以完整消息提交为准，失败日志不进入有效历史；开发诊断入口和自动中断恢复尚未实施。
 
 本文按模块说明职责和协作关系，不展开函数实现。版本任务和完成状态见 [练手 TODO](agent-practice-todo.md)，事件格式见 [会话执行轨迹](session-tracing.md)。
 
@@ -18,7 +18,7 @@ flowchart TD
     CLI --> CONFIG["config.py<br/>加载与校验配置"]
     CLI --> TERMINAL["terminal.py<br/>角色样式与统一失败展示"]
     CLI --> CONV["conversation.py<br/>轮次收尾、模型—工具循环"]
-    CLI -->|"会话列表、历史与用量查询"| STORE["storage.py<br/>会话持久化与读取"]
+    CLI -->|"会话列表、历史与用量查询"| STORE["persistence/store.py<br/>会话持久化与读取"]
 
     CONV --> LLM["llm.py<br/>访问模型服务"]
     CLI -->|"查询模型目录"| LLM
@@ -31,7 +31,12 @@ flowchart TD
     CONV --> STORE
     EXEC -->|"保存执行记录"| STORE
     STORE --> FILE["会话 JSONL 文件"]
-    STORE --> LOG["session_log.py<br/>校验关联与状态、整理历史与用量"]
+    STORE --> LOG["persistence/session_log.py<br/>校验关联与状态、整理历史与用量"]
+    CONV --> OUTCOME["outcome.py<br/>结束结果、提交数据与校验"]
+    STORE --> OUTCOME
+    LOG --> OUTCOME
+    OUTCOME --> ERROR["errors.py<br/>公共失败契约与稳定原因"]
+    LLM --> ERROR
 
     LLM -.->|"校验模型消息"| PROTOCOL["protocol.py<br/>消息与完整轮次的共同规则"]
     STORE -.->|"校验待保存轮次"| PROTOCOL
@@ -67,13 +72,14 @@ flowchart TD
 | [__main__.py](../adam/__main__.py) | 程序入口 | 将 `python -m adam` 交给 CLI 启动 |
 | [cli.py](../adam/cli.py) | `main`、`chat`、`handle_command` | 组装组件，处理输入和斜杠指令，展示结果与错误，取得命令确认 |
 | [terminal.py](../adam/terminal.py) | `role_prefix`、`show_failure` | 展示角色样式、业务失败说明及未保存回答；不判断具体底层错误类型 |
-| [errors.py](../adam/errors.py) | `AgentError`、`BudgetError`、`TurnSaveError` | 定义可展示的失败说明和可选未保存回答，保持界面错误接口稳定 |
+| [errors.py](../adam/errors.py) | `EndReason`、`AgentError`、`BudgetError`、`TurnSaveError` | 定义稳定原因、受控提示、可选 HTTP 状态码及未保存回答；界面仍使用原展示契约 |
+| [outcome.py](../adam/outcome.py) | `ExecutionOutcome`、`RequestResult`、`TurnCommit` | 结束信息与提交数据契约，按异常分类并校验状态与原因；不计时、不访问文件、不重试 |
 | [config.py](../adam/config.py) | `AppConfig`、`LLMConfig`、`AgentConfig` | 加载并校验运行配置，区分整体应用、模型连接及对话循环额度 |
 | [conversation.py](../adam/conversation.py) | `Conversation` | 管理当前会话，组织历史、模型请求、工具循环、额度检查和最终回答提交；分别记录请求与轮次终态 |
 | [llm.py](../adam/llm.py) | `LLMClient`、`Completion` | 访问模型服务，将一次请求转换为模型消息和用量；模型消息也可能是工具请求 |
 | [protocol.py](../adam/protocol.py) | `validate_assistant`、`validate_turn` | 定义合法助手消息和完整轮次的约束，检查工具请求与结果配对 |
-| [storage.py](../adam/storage.py) | `SessionStore`、`Session`、`Message` | 管理会话文件、锁和读写，提供会话身份及已提交消息 |
-| [session_log.py](../adam/session_log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，重建请求与轮次状态、有效历史及用量；自身不访问文件 |
+| [persistence/store.py](../adam/persistence/store.py) | `SessionStore`、`Session`、`Message` | 管理会话文件、锁和读写，提供会话身份及已提交消息 |
+| [persistence/session_log.py](../adam/persistence/session_log.py) | `SessionLog` | 解释日志事件，校验轮次、请求和工具关联，重建请求与轮次状态、有效历史及用量；自身不访问文件 |
 | [tool_calls/executor.py](../adam/tool_calls/executor.py) | `ToolExecutor` | 组织工具执行，将轨迹关联到轮次与请求，并形成回传模型的工具消息 |
 | [tool_calls/registry.py](../adam/tool_calls/registry.py) | `ToolRegistry` | 提供模型可见的工具说明，校验参数、分派调用并统一结果格式 |
 | [tool_calls/file_tools.py](../adam/tool_calls/file_tools.py) | `FileTools` | 文件系统查询、搜索与读取能力 |
@@ -83,7 +89,12 @@ flowchart TD
 
 `adam/__init__.py` 与 `adam/tool_calls/__init__.py` 是包入口，后者集中导出工具接口；它们不承担独立的业务流程。
 
+`adam/persistence/__init__.py` 对外导出会话存取接口；包内 `store.py` 负责文件与锁，`session_log.py` 负责日志解析和状态还原。`outcome.py` 保留在包外，供执行流程与持久化共同使用，不因归档而依赖文件存储。
+
 ## 关键职责边界
+
+- **执行结果与存储：** Conversation 显式构造 RequestResult 和 TurnCommit；SessionStore 的 finish_request/commit_turn 不再默认成功。请求用量与终态同批追加，消息与完成标记同批追加，finish_turn 仍禁止绕过消息提交标记成功。append_turn 仅作为导入已完成普通问答的便捷入口，显式使用成功且耗时未知的结果。
+- **保存失败：** Conversation._save_completed_turn 保留 StorageError 到 TurnSaveError 的转换，让终端仍能展示已生成但未保存的回答。
 
 - **交互与流程：** CLI 处理用户怎样操作；`Conversation` 处理普通输入背后的会话流程。斜杠指令可以直接完成查询，不必请求模型。
 - **流程与模型：** `Conversation` 决定何时请求、执行或停止；`LLMClient` 完成一次模型通信。一次用户输入可以触发多次模型请求。
@@ -92,7 +103,7 @@ flowchart TD
 - **配置与执行：** 配置对象描述权限、额度和限制，各业务模块负责实际执行检查。
 - **失败处理：** 可反馈的工具错误交回模型；命令日志无法可靠保存等错误会终止本轮。已知失败实现 AgentError 契约，CLI 委托 terminal.show_failure 展示；终端 IO 故障和意外程序错误不会被当成业务失败吞掉。
 
-当前已有轮次、请求和工具关联留痕，以及独立的请求/轮次状态。结束原因、耗时、独立开发诊断入口和自动中断恢复仍属于后续任务，不计划增加轮次诊断聊天命令。上下文裁剪与流式响应也尚未实现，不应在现有架构图中画成已接入的组件。
+当前已有轮次、请求和工具关联留痕、独立终态，以及请求/轮次原因与耗时。独立开发诊断入口和自动中断恢复仍属于后续任务，不计划增加轮次诊断聊天命令。上下文裁剪与流式响应也尚未实现，不应在现有架构图中画成已接入的组件。
 
 ## 公开错误契约
 
@@ -104,14 +115,18 @@ flowchart TD
     CLI --> TERM["terminal.py<br/>show_failure"]
     TERM --> ERROR
     CONV["conversation.py"] --> ERROR
+    CONV --> OUTCOME["outcome.py"]
+    OUTCOME --> ERROR
+    STORE["persistence/store.py"] --> OUTCOME
+    LOG["persistence/session_log.py"] --> OUTCOME
     CONFIG["config.py"] --> ERROR
     LLM["llm.py"] --> ERROR
-    STORE["storage.py"] --> ERROR
+    STORE["persistence/store.py"] --> ERROR
     POLICY["tool_calls/policy.py"] --> ERROR
     COMMAND["tool_calls/command_tools.py"] --> ERROR
 ```
 
-- AgentError 只提供受控的 user_message 与可选 partial_reply，不决定恢复或重试。展示层使用这两个字段，不逐个匹配具体异常。
+- AgentError 提供受控 user_message、可选 partial_reply，以及用于落盘的 reason/http_status，不决定恢复或重试。展示层仍只使用前两个字段，不逐个匹配具体异常。
 - ConfigError、LLMError、StorageError、SessionNotFoundError、ToolError 和 CommandLogError 仍由各模块定义，但都实现公共契约。预算使用 BudgetError，回答未保存使用 TurnSaveError；新增业务错误类型无需增加 CLI 分支。
 - 原始 HTTP 异常和响应错误由模型模块转换。原始 OSError 仅在 SessionStore 的实际文件/锁操作边界转为 StorageError，保留原因链且不直接展示系统异常文本。
 - Conversation 在最终回答或其用量无法保存时转为 TurnSaveError，保留回答。ToolExecutor 将命令记录的存储或关联失败转为 CommandLogError，确保它不会被工具注册表当作可修正参数错误继续执行。

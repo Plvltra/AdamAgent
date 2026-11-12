@@ -6,7 +6,9 @@ from datetime import datetime
 
 import pytest
 
-from adam.storage import SessionNotFoundError, SessionStore, StorageError
+from adam.outcome import ExecutionOutcome, RequestResult, TurnCommit
+from adam.persistence import SessionNotFoundError, SessionStore, StorageError
+from adam.persistence.session_log import parse_log
 
 
 def test_roundtrip_layout_and_isolation(tmp_path):
@@ -111,7 +113,7 @@ def test_lock_switch_and_process_release(tmp_path):
         first.select_session(b)
     code = """import sys,time
 from pathlib import Path
-from adam.storage import SessionStore
+from adam.persistence import SessionStore
 store=SessionStore(Path(sys.argv[1]))
 store.select_session(sys.argv[2])
 print('locked', flush=True)
@@ -132,7 +134,7 @@ time.sleep(30)
 
 
 def test_id_collision_and_missing_session(tmp_path, monkeypatch):
-    import adam.storage as storage
+    import adam.persistence.store as storage
 
     ids = iter(["aaaaaaaa", "aaaaaaaa", "bbbbbbbb"])
     monkeypatch.setattr(storage.secrets, "token_hex", lambda _: next(ids))
@@ -161,18 +163,30 @@ def test_invalid_state_transition_keeps_log_unchanged(tmp_path, action):
         session_id = store.create_session("states", "")
         turn_id = store.start_turn(session_id, "question")
         request_id = store.start_request(session_id, turn_id, "test")
-        store.finish_request(session_id, turn_id, request_id, (1, 2), status="failed")
+        store.finish_request(
+            session_id,
+            turn_id,
+            request_id,
+            RequestResult((1, 2), ExecutionOutcome.failure(ValueError(), None)),
+        )
         if action in {"duplicate_turn", "request_after_finished_turn"}:
-            store.finish_turn(session_id, turn_id, "failed")
+            store.finish_turn(session_id, turn_id, ExecutionOutcome.failure(ValueError(), None))
         path = next(tmp_path.glob("*/*/*/*.jsonl"))
         original = path.read_bytes()
         with pytest.raises(ValueError):
             if action == "duplicate_request":
-                store.finish_request(session_id, turn_id, request_id, (1, 2))
+                store.finish_request(
+                    session_id,
+                    turn_id,
+                    request_id,
+                    RequestResult((1, 2), ExecutionOutcome.success()),
+                )
             elif action == "duplicate_turn":
-                store.finish_turn(session_id, turn_id, "interrupted")
+                store.finish_turn(
+                    session_id, turn_id, ExecutionOutcome.failure(KeyboardInterrupt(), None)
+                )
             elif action == "success_without_messages":
-                store.finish_turn(session_id, turn_id, "succeeded")
+                store.finish_turn(session_id, turn_id, ExecutionOutcome.success())
             elif action == "request_after_finished_turn":
                 store.start_request(session_id, turn_id, "test")
             elif action == "tool_after_failed_request":
@@ -188,14 +202,90 @@ def test_invalid_state_transition_keeps_log_unchanged(tmp_path, action):
                     },
                 )
             else:
-                store.append_messages(
+                store.commit_turn(
                     session_id,
                     turn_id,
-                    [
-                        {"role": "user", "content": "question"},
-                        {"role": "assistant", "content": "done"},
-                    ],
+                    TurnCommit(
+                        [
+                            {"role": "user", "content": "question"},
+                            {"role": "assistant", "content": "done"},
+                        ],
+                        ExecutionOutcome.success(),
+                    ),
                 )
         assert path.read_bytes() == original
         assert store.usage(session_id) == (3, False)
+        assert store.load_messages(session_id) == []
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"duration_ms": -1},
+        {"duration_ms": True},
+        {"duration_ms": "1"},
+        {"reason": "api_http_error"},
+        {"reason": "unknown"},
+        {"http_status": 503},
+        {"error_message": "not successful"},
+        {"reason": "interrupted"},
+        None,
+    ],
+)
+def test_v5_rejects_invalid_or_missing_end_details(tmp_path, change):
+    """坏记录不得被默默接受为成功历史，读取也不得改写它。"""
+    with SessionStore(tmp_path) as store:
+        session_id = store.create_session("test", "")
+        store.append_turn(session_id, "q", "a")
+    path = next(tmp_path.glob("*/*/*/*.jsonl"))
+    events = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    assert events[0]["payload"]["version"] == 5
+    if change is None:
+        del events[-1]["payload"]["duration_ms"]
+    else:
+        events[-1]["payload"].update(change)
+    raw = ("\n".join(json.dumps(e) for e in events) + "\n").encode()
+    path.write_bytes(raw)
+    with pytest.raises(ValueError):
+        parse_log(path.read_bytes(), session_id)
+    assert path.read_bytes() == raw
+
+
+@pytest.mark.parametrize("usage", [(2, 3), None])
+@pytest.mark.parametrize("succeeded", [True, False])
+def test_request_result_preserves_usage_independently_of_status(tmp_path, usage, succeeded):
+    """实际写入再读取，成功与失败都不能改变已知或未知用量的含义。"""
+    outcome = (
+        ExecutionOutcome.success(12) if succeeded else ExecutionOutcome.failure(ValueError(), 12)
+    )
+    with SessionStore(tmp_path) as store:
+        session_id = store.create_session("result", "")
+        turn_id = store.start_turn(session_id, "question")
+        request_id = store.start_request(session_id, turn_id, "test")
+        store.finish_request(session_id, turn_id, request_id, RequestResult(usage, outcome))
+        assert store.usage(session_id) == ((5, False) if usage else (0, True))
+        event = store.load_events(session_id)[-1]
+        assert event["type"] == "request_finished"
+        assert event["payload"]["status"] == outcome.status
+        assert event["payload"]["duration_ms"] == 12
+        assert store.load_messages(session_id) == []
+
+
+@pytest.mark.parametrize("error", [ValueError(), KeyboardInterrupt()])
+def test_turn_commit_rejects_unsuccessful_result_without_writing(tmp_path, error):
+    """失败或中断结果不能配上消息伪装成成功历史，拒绝时原日志不变。"""
+    with SessionStore(tmp_path) as store:
+        session_id = store.create_session("commit", "")
+        turn_id = store.start_turn(session_id, "question")
+        messages = [
+            {"role": "user", "content": "question"},
+            {"role": "assistant", "content": "answer"},
+        ]
+        path = next(tmp_path.glob("*/*/*/*.jsonl"))
+        before = path.read_bytes()
+        with pytest.raises(ValueError, match="successful outcome"):
+            store.commit_turn(
+                session_id, turn_id, TurnCommit(messages, ExecutionOutcome.failure(error, 1))
+            )
+        assert path.read_bytes() == before
         assert store.load_messages(session_id) == []

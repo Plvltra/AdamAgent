@@ -1,8 +1,9 @@
-"""JSONL v4 事件校验与状态投影；诊断记录和有效模型历史分别归并。"""
+"""JSONL v5 事件校验与状态投影；诊断记录和有效模型历史分别归并。"""
 
 import json
 from typing import Any
 
+from adam.outcome import ExecutionOutcome
 from adam.protocol import validate_turn
 
 
@@ -27,14 +28,14 @@ def decode_records(raw: bytes) -> list[dict[str, Any]]:
 
 
 def parse_log(raw: bytes, session_id: str) -> "SessionLog":
-    """校验 v4 元信息及全部事件；不完整诊断记录可读，半个成功消息块不可读。"""
+    """校验 v5 元信息及全部事件；不完整诊断记录可读，半个成功消息块不可读。"""
     entries = decode_records(raw)
     meta = entries[0]
     data = meta["payload"]
     if (
         meta["type"] != "session_meta"
         or type(data.get("version")) is not int
-        or data["version"] != 4
+        or data["version"] != 5
     ):
         raise UnsupportedLogVersionError("unsupported session version")
     if data.get("id") != session_id or not all(
@@ -150,7 +151,8 @@ class SessionLog:
             or status not in {"succeeded", "failed", "interrupted"}
         ):
             raise ValueError("invalid request transition")
-        request["status"] = status
+        outcome = ExecutionOutcome.from_payload(payload, status)
+        request.update(status=status, **outcome.details())
 
     def _finish_turn(self, kind: str, payload: dict[str, Any]) -> None:
         """失败或中断关闭诊断轮次；成功只能由完整消息块的提交标记产生。"""
@@ -158,7 +160,8 @@ class SessionLog:
         status = payload.get("status")
         if status not in {"failed", "interrupted"}:
             raise ValueError("invalid turn transition")
-        self.turns[turn_id]["status"] = status
+        outcome = ExecutionOutcome.from_payload(payload, status)
+        self.turns[turn_id].update(status=status, **outcome.details())
 
     def _apply_tool(self, kind: str, payload: dict[str, Any]) -> None:
         """工具 ID 在轮次内唯一；结束记录必须与开始时的请求和轮次一致。"""
@@ -269,8 +272,9 @@ class SessionLog:
                     raise ValueError("mismatched tool output")
         if seen != set(turn_tools):
             raise ValueError("uncommitted tool trace")
+        outcome = ExecutionOutcome.from_payload(payload, "succeeded")
         self.messages.extend((turn_id, message) for message in self._pending_messages)
-        self.turns[turn_id]["status"] = "succeeded"
+        self.turns[turn_id].update(status="succeeded", **outcome.details())
         self._pending_messages = []
         self._pending_turn = ""
 

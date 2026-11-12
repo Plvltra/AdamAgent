@@ -2,12 +2,14 @@
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal
+from time import monotonic_ns
+from typing import Any
 
 from adam.config import AgentConfig
-from adam.errors import BudgetError, TurnSaveError
+from adam.errors import BudgetError, EndReason, TurnSaveError
 from adam.llm import Completion, LLMClient, LLMError
-from adam.storage import Session, SessionStore, StorageError
+from adam.outcome import ExecutionOutcome, RequestResult, TurnCommit
+from adam.persistence import Session, SessionStore, StorageError
 from adam.tool_calls import ToolRegistry
 from adam.tool_calls.executor import ToolExecutor
 
@@ -51,23 +53,27 @@ class Conversation:
         已知失败遵循 AgentError 契约：预算问题为 BudgetError，模型问题为 LLMError；
         回答生成后保存失败为携带 partial_reply 的 TurnSaveError。
         请求与轮次分别收尾；用户中断记 interrupted，其余异常记 failed，再原样传播。
+        整轮从输入落盘后计时，到最终收尾写入前结束，包含中间请求、工具与日志耗时。
         工具诊断写入失败或未知命令状态为 StorageError；命令日志写入或关联失败
         为 CommandLogError，均停止本轮。意外的程序错误继续向上传播。
         """
         session = self.session or self.new(text[:40])
         turn_id = self.store.start_turn(session.session_id, text)
+        started_ns = monotonic_ns()
         try:
-            return self._run_turn(session, turn_id, text)
+            turn = self._run_turn(session, turn_id, text)
+            outcome = ExecutionOutcome.success(self._elapsed_ms(started_ns))
+            return self._save_completed_turn(session.session_id, turn_id, turn, outcome)
         except BaseException as error:
-            status = self._failure_status(error)
+            outcome = ExecutionOutcome.failure(error, self._elapsed_ms(started_ns))
             self._save_failure(
-                lambda: self.store.finish_turn(session.session_id, turn_id, status),
+                lambda: self.store.finish_turn(session.session_id, turn_id, outcome),
                 error,
             )
             raise
 
-    def _run_turn(self, session: Session, turn_id: str, text: str) -> str:
-        """运行已登记轮次的模型与工具循环；只有完整消息提交成功才返回回答。"""
+    def _run_turn(self, session: Session, turn_id: str, text: str) -> list[dict[str, Any]]:
+        """运行已登记轮次并返回完整待提交消息；成功历史仍由 send 收尾保存。"""
         if any(
             item["status"] == "unknown" for item in self.store.load_executions(session.session_id)
         ):
@@ -83,13 +89,13 @@ class Conversation:
             turn.append(result.message)
             calls = result.message.get("tool_calls") or []
             if not calls:
-                return self._save_completed_turn(session.session_id, turn_id, turn)
+                return turn
 
             self._check_tool_budget(session.session_id, step, calls, seen_call_ids)
             turn.extend(self.tool_executor.execute(session.session_id, turn_id, request_id, calls))
             seen_call_ids.update(call["id"] for call in calls)
 
-        raise BudgetError("达到本轮请求上限。")
+        raise BudgetError("达到本轮请求上限。", reason=EndReason.REQUEST_LIMIT)
 
     def _load_context(self, session: Session) -> list[dict[str, Any]]:
         """组装系统提示与完整历史，保留工具调用和服务商推理字段。"""
@@ -103,9 +109,15 @@ class Conversation:
         """用量未知或累计额度耗尽时停止，避免静默漏记后继续请求。"""
         tokens, unknown = self.store.usage(session_id)
         if unknown:
-            raise BudgetError("会话预算统计不完整（用量未知或请求中断）；请新建会话，不自动重发。")
+            raise BudgetError(
+                "会话预算统计不完整（用量未知或请求中断）；请新建会话，不自动重发。",
+                reason=EndReason.USAGE_UNKNOWN,
+            )
         if tokens >= self.limits.max_session_tokens:
-            raise BudgetError("会话 token 额度已用完，请提高配置额度或新建会话。")
+            raise BudgetError(
+                "会话 token 额度已用完，请提高配置额度或新建会话。",
+                reason=EndReason.SESSION_LIMIT,
+            )
 
     def _request_with_usage(
         self, session_id: str, turn_id: str, messages: list[dict[str, Any]]
@@ -116,35 +128,44 @@ class Conversation:
         turn_id 指向已记录的用户输入；有效响应先记请求成功，缺少用量时整轮仍停止。
         中断或未知用量会阻止继续消费。最终回答记账失败时保留回答供终端显示；
         失败收尾不遮蔽原始异常，尚未实现崩溃后的自动状态修复。
+        请求耗时只测模型调用及响应解析，不包含请求开始和结算记录的写入。
         """
         self._check_session_budget(session_id)
+        tools = self.tool_registry.definitions()
         request_id = self.store.start_request(session_id, turn_id, self.model)
+        # 计时不包含开始记录和结算写入，工具说明在登记请求前准备。
+        started_ns = monotonic_ns()
         try:
             result = self.client.complete(
                 messages,
                 model=self.model,
-                tools=self.tool_registry.definitions(),
+                tools=tools,
                 max_tokens=self.limits.max_output_tokens,
             )
         except BaseException as error:
             usage = error.usage if isinstance(error, LLMError) else None
-            status = self._failure_status(error)
+            outcome = ExecutionOutcome.failure(error, self._elapsed_ms(started_ns))
             self._save_failure(
                 lambda: self.store.finish_request(
-                    session_id, turn_id, request_id, usage, status=status
+                    session_id, turn_id, request_id, RequestResult(usage, outcome)
                 ),
                 error,
             )
             raise
 
+        outcome = ExecutionOutcome.success(self._elapsed_ms(started_ns))
         try:
-            self.store.finish_request(session_id, turn_id, request_id, result.usage)
+            self.store.finish_request(
+                session_id, turn_id, request_id, RequestResult(result.usage, outcome)
+            )
         except StorageError as error:
             if not result.message.get("tool_calls"):
                 raise TurnSaveError(result.message["content"]) from error
             raise
         if result.usage is None:
-            raise LLMError("API未返回可靠用量；预算统计不完整，本轮停止。")
+            raise LLMError(
+                "API未返回可靠用量；预算统计不完整，本轮停止。", reason=EndReason.USAGE_UNKNOWN
+            )
         return request_id, result
 
     def _check_tool_budget(
@@ -153,28 +174,36 @@ class Conversation:
         """执行整批工具前检查额度及重复 ID；step 为从零开始的模型请求序号。"""
         # 没有下一次模型请求额度时，不执行无法用于生成最终回答的工具。
         if step + 1 >= self.limits.max_model_requests:
-            raise BudgetError("达到本轮模型请求次数上限，工具链未加入有效历史。")
+            raise BudgetError(
+                "达到本轮模型请求次数上限，工具链未加入有效历史。", reason=EndReason.REQUEST_LIMIT
+            )
         if len(seen_ids) + len(calls) > self.limits.max_tool_calls:
-            raise BudgetError("达到本轮工具调用次数上限，工具链未加入有效历史。")
+            raise BudgetError(
+                "达到本轮工具调用次数上限，工具链未加入有效历史。", reason=EndReason.TOOL_LIMIT
+            )
         self._check_session_budget(session_id)
         if any(call["id"] in seen_ids for call in calls):
             raise LLMError("模型重复使用工具调用ID，本轮停止。")
 
     def _save_completed_turn(
-        self, session_id: str, turn_id: str, turn: list[dict[str, Any]]
+        self,
+        session_id: str,
+        turn_id: str,
+        turn: list[dict[str, Any]],
+        outcome: ExecutionOutcome,
     ) -> str:
         """提交包含工具轨迹的完整轮次并返回最终文本；保存失败时携带原回答。"""
         reply = turn[-1]["content"]
         try:
-            self.store.append_messages(session_id, turn_id, turn)
+            self.store.commit_turn(session_id, turn_id, TurnCommit(turn, outcome))
         except StorageError as error:
             raise TurnSaveError(reply) from error
         return reply
 
     @staticmethod
-    def _failure_status(error: BaseException) -> Literal["failed", "interrupted"]:
-        """区分普通失败与 KeyboardInterrupt / SystemExit 等进程退出信号。"""
-        return "failed" if isinstance(error, Exception) else "interrupted"
+    def _elapsed_ms(started_ns: int) -> int:
+        """计算单调时钟经过的整毫秒；不受系统日期或时区调整影响。"""
+        return (monotonic_ns() - started_ns) // 1_000_000
 
     @staticmethod
     def _save_failure(save: Callable[[], None], original: BaseException) -> None:

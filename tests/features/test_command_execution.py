@@ -10,7 +10,8 @@ from adam.cli import chat, confirm_command
 from adam.config import LLMConfig
 from adam.conversation import Conversation
 from adam.llm import LLMClient, LLMError
-from adam.storage import SessionStore, StorageError
+from adam.outcome import ExecutionOutcome, RequestResult
+from adam.persistence import SessionStore, StorageError
 from adam.tool_calls import ToolLimits, ToolRegistry
 from adam.tool_calls.command_tools import CommandLogError, CommandRequest
 
@@ -247,7 +248,9 @@ def test_unknown_execution_blocks_replay_after_restart(project, tmp_path):
         session_id = store.create_session("test", "")
         turn_id = store.start_turn(session_id, "run command")
         request_id = store.start_request(session_id, turn_id, "test")
-        store.finish_request(session_id, turn_id, request_id, (0, 0))
+        store.finish_request(
+            session_id, turn_id, request_id, RequestResult((0, 0), ExecutionOutcome.success())
+        )
         link = {"turn_id": turn_id, "request_id": request_id, "tool_call_id": "t"}
         store.append_tool_event(
             session_id,

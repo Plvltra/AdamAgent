@@ -10,7 +10,7 @@ import pytest
 from adam.cli import chat as run_chat
 from adam.config import LLMConfig
 from adam.llm import LLMClient
-from adam.storage import SessionStore
+from adam.persistence import SessionStore
 
 
 def chat(client, system_prompt, **kwargs):

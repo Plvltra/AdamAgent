@@ -9,7 +9,8 @@ from adam.config import AgentConfig, LLMConfig
 from adam.conversation import Conversation
 from adam.errors import BudgetError
 from adam.llm import LLMClient, LLMError
-from adam.storage import SessionStore, StorageError
+from adam.outcome import ExecutionOutcome, TurnCommit
+from adam.persistence import SessionStore, StorageError
 from adam.tool_calls import ToolRegistry
 
 
@@ -211,15 +212,18 @@ def test_storage_rejects_broken_tool_chain_and_old_format(tmp_path):
         turn_id = store.start_turn(session_id, "hi")
         call = tool_response([("a", "read_file", "{}")])["choices"][0]["message"]
         with pytest.raises(ValueError):
-            store.append_messages(
+            store.commit_turn(
                 session_id,
                 turn_id,
-                [
-                    {"role": "user", "content": "hi"},
-                    call,
-                    {"role": "tool", "tool_call_id": "wrong", "content": "x"},
-                    {"role": "assistant", "content": "done"},
-                ],
+                TurnCommit(
+                    [
+                        {"role": "user", "content": "hi"},
+                        call,
+                        {"role": "tool", "tool_call_id": "wrong", "content": "x"},
+                        {"role": "assistant", "content": "done"},
+                    ],
+                    ExecutionOutcome.success(),
+                ),
             )
         assert store.load_messages(session_id) == []
         path = next(tmp_path.glob("*/*/*/*.jsonl"))

@@ -13,7 +13,7 @@ from adam.config import AgentConfig, adam_home, load_config
 from adam.conversation import Conversation
 from adam.errors import AgentError
 from adam.llm import LLMClient
-from adam.storage import SessionStore, valid_session_id
+from adam.persistence import SessionStore, valid_session_id
 from adam.terminal import role_prefix, show_failure
 from adam.tool_calls import PermissionConfig, ToolLimits, ToolRegistry
 from adam.tool_calls.command_tools import CommandRequest

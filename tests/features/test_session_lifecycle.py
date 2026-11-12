@@ -8,7 +8,7 @@ import httpx
 from adam.cli import chat, main
 from adam.config import LLMConfig
 from adam.llm import LLMClient
-from adam.storage import SessionStore, StorageError
+from adam.persistence import SessionStore, StorageError
 
 
 def make_client(requests):
@@ -83,10 +83,10 @@ def test_save_failure_shows_reply_and_does_not_retry(tmp_path, monkeypatch):
     with SessionStore(path) as store:
         session_id = store.create_session("A", "")
 
-    def fail_save(*args):
+    def fail_save(*args, **kwargs):
         raise StorageError("保存失败")
 
-    monkeypatch.setattr(SessionStore, "append_messages", fail_save)
+    monkeypatch.setattr(SessionStore, "commit_turn", fail_save)
     requests = []
     output = []
     with make_client(requests) as http, SessionStore(path) as store:
@@ -154,7 +154,7 @@ def test_usage_save_failure_shows_unsaved_answer_and_preserves_unknown_budget(
     requests = []
     output = []
 
-    def fail_usage(*args):
+    def fail_usage(*args, **kwargs):
         raise StorageError("用量记录保存失败")
 
     monkeypatch.setattr(SessionStore, "finish_request", fail_usage)

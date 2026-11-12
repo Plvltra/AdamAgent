@@ -6,15 +6,22 @@ from typing import Any
 import httpx
 
 from adam.config import LLMConfig
-from adam.errors import AgentError
+from adam.errors import AgentError, EndReason
 from adam.protocol import validate_assistant
 
 
 class LLMError(AgentError):
     """模型通信或响应失败；已取得的用量仍由会话流程结算。"""
 
-    def __init__(self, message: str, usage: tuple[int, int] | None = None) -> None:
-        super().__init__(f"模型请求错误：{message}")
+    def __init__(
+        self,
+        message: str,
+        usage: tuple[int, int] | None = None,
+        *,
+        reason: EndReason = EndReason.INVALID_RESPONSE,
+        http_status: int | None = None,
+    ) -> None:
+        super().__init__(f"模型请求错误：{message}", reason=reason, http_status=http_status)
         self.usage = usage
 
 
@@ -102,12 +109,18 @@ class LLMClient:
                 timeout=self.config.timeout_seconds,
             )
         except httpx.TimeoutException:
-            raise LLMError("请求超时；用量未知，未自动重试。") from None
+            raise LLMError(
+                "请求超时；用量未知，未自动重试。", reason=EndReason.API_TIMEOUT
+            ) from None
         except httpx.RequestError:
-            raise LLMError("网络连接失败；用量未知。") from None
+            raise LLMError("网络连接失败；用量未知。", reason=EndReason.API_CONNECTION) from None
         # 不回显远端响应正文或原始异常，其中可能包含凭据。
         if not 200 <= response.status_code < 300:
-            raise LLMError(f"HTTP {response.status_code}：请求失败；用量未知，未自动重试。")
+            raise LLMError(
+                f"HTTP {response.status_code}：请求失败；用量未知，未自动重试。",
+                reason=EndReason.API_HTTP_ERROR,
+                http_status=response.status_code,
+            )
         if (
             response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
             == "text/event-stream"

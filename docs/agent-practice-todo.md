@@ -1,6 +1,6 @@
 # Adam Agent 渐进练手 TODO
 
-更新日期：2026-11-11
+更新日期：2026-11-12
 
 围绕 Adam 编程助手，主线必做、进阶选做；每周十几个小时。开发者设计和实现核心，AI 解释概念、审查方案与协助排错。
 
@@ -10,8 +10,8 @@
 - `[x]` 表示有实现与对应验证依据；`[ ]` 表示尚待实现或验收。个人理解与真实模型评估单独列出，不用自动化通过代替。
 - 部分完成的任务拆开记录，不以整段勾选掩盖缺项；实现顺序可以交叉，但提前完成后续功能不代表前置阶段完成。
 - 当前：V1.1/V1.2 已实现；V1.3 部分完成；V2.1/V2.2 基础功能已实现；V2.3 未完成；V4.2 通用命令部分提前完成。
-- **当前 dev 已有请求/轮次状态；下一步是工单 01：结束原因与耗时。** 后续按新看板跨模块迭代，不再按旧版本顺序逐个做完；本次规划不改变任何功能完成状态。
-- 存储采用 JSONL v4，不再安排 SQLite、ORM 或数据库迁移。JavaScript 编排不是必做前置；命令采用通用接口，不再安排预置 pytest/Ruff 工具。
+- **当前 dev 已实现工单01：请求/轮次结束原因与耗时；下一步是工单02：回答保存失败处理。** 后续按新看板跨模块迭代，不再按旧版本顺序逐个做完；本次规划不改变任何功能完成状态。
+- 存储采用 JSONL v5，不再安排 SQLite、ORM 或数据库迁移。JavaScript 编排不是必做前置；命令采用通用接口，不再安排预置 pytest/Ruff 工具。
 - 会话累计 token 限额是消费限制，不等于 V3 的单次请求上下文预算。
 
 ## 依据与能力地图
@@ -64,7 +64,7 @@
 - [x] 会话文件锁、ID 冲突检查、跨进程锁释放。
 - [x] 临时目录测试覆盖重开、会话隔离、损坏与保存故障。
 
-依据：`adam/storage.py`、`tests/test_storage.py`。突然终止的半轮不能当作数据库事务自动回滚。
+依据：`adam/persistence/store.py`、`tests/test_storage.py`。突然终止的半轮不能当作数据库事务自动回滚。
 
 ### V1.2 接入终端会话
 
@@ -96,17 +96,17 @@
 
 本次已有用量与保存规则继续适用：request_usage 独立结算已知 token，未知用量阻止续聊；失败轮次不进入有效历史，最终回答保存失败时仍展示未保存回答。request_usage 不等于请求成功；tool_finished 仅表示取得返回结果，业务成功还需看 output。
 
-依据：`adam/conversation.py`、`adam/storage.py`、`adam/session_log.py`、`adam/tool_calls/executor.py`、`tests/features/test_execution_trace.py`。详细事件示例见 [会话执行轨迹](session-tracing.md)。
+依据：`adam/conversation.py`、`adam/persistence/store.py`、`adam/persistence/session_log.py`、`adam/tool_calls/executor.py`、`tests/features/test_execution_trace.py`。详细事件示例见 [会话执行轨迹](session-tracing.md)。
 
-#### V1.3.2 请求/轮次状态与结束原因（状态已实现）
+#### V1.3.2 请求/轮次状态与结束原因（工单01已实现）
 
 - [x] 第 2 项：分别保存轮次和请求的进行中、成功、失败、中断状态；一次请求成功不代表整轮成功。可捕获中断已收尾，强杀后的遗留状态归第 5、6 项。
-- [ ] 第 3 项：记录请求与轮次耗时、受控错误类别，区分 API 错误、预算耗尽、程序中断、回答保存失败。
+- [x] 第 3 项／工单01：记录请求与轮次耗时及受控错误类别，区分 HTTP、超时、连接失败、预算、用量未知、程序中断等；已有回答保存失败沿用原契约分类，工单02仍单独待办。
 - [x] 将用量是否已知作为独立维度；不记录密钥或原始敏感响应。
 - [x] 补充状态转换测试，验证成功、失败、预算停止和保存失败不会混淆；非法转换不污染日志，状态日志失败不覆盖原始异常。
-- [x] 状态格式升级 v4，旧 v1/v2/v3 拒绝读取，不迁移、不删除。
+- [x] 格式升级 v5，结束字段必填；旧 v1～v4 不兼容、不迁移。按用户授权清理本机旧JSONL；程序本身不自动删除用户数据。
 
-状态测试入口：`tests/features/test_execution_states.py`、`tests/features/test_execution_trace.py`、`tests/features/test_error_feedback.py`、`tests/test_storage.py`。第 3 项结束原因与耗时尚未实现。第 2 项验证：新增 18 个用例，全量 **167 passed in 26.12s**；Ruff、格式检查、Pyright 通过。
+状态测试入口：`tests/features/test_execution_states.py`、`tests/features/test_execution_trace.py`、`tests/features/test_error_feedback.py`、`tests/test_storage.py`。工单01新增 `tests/features/test_execution_outcomes.py` 验证原因及计时；最新验收见工单看板。第 2 项验证：新增 18 个用例，全量 **167 passed in 26.12s**；Ruff、格式检查、Pyright 通过。
 
 #### V1.3.3 诊断查询与重启处理
 

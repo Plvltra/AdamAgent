@@ -4,7 +4,7 @@ import secrets
 from collections.abc import Callable
 from typing import Any
 
-from adam.storage import SessionStore, StorageError
+from adam.persistence import SessionStore, StorageError
 from adam.tool_calls.command_tools import CommandLogError
 from adam.tool_calls.registry import ToolRegistry
 

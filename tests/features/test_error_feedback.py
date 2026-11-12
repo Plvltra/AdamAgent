@@ -12,7 +12,7 @@ from adam.config import AgentConfig, LLMConfig
 from adam.conversation import Conversation
 from adam.errors import AgentError
 from adam.llm import LLMClient
-from adam.storage import SessionStore, StorageError
+from adam.persistence import SessionStore, StorageError
 
 
 def make_client(requests, *, fail_request=False):

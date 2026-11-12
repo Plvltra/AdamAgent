@@ -8,7 +8,8 @@ import pytest
 from adam.config import LLMConfig
 from adam.conversation import Conversation
 from adam.llm import LLMClient, LLMError
-from adam.storage import SessionStore, StorageError
+from adam.outcome import ExecutionOutcome, RequestResult, TurnCommit
+from adam.persistence import SessionStore, StorageError
 from adam.tool_calls import ToolRegistry
 from adam.tool_calls.command_tools import CommandLogError
 
@@ -106,7 +107,16 @@ def test_read_tool_trace_survives_and_success_uses_original_turn(tmp_path, last_
         if last_request_fails:
             assert completed == [] and store.load_messages(session_id) == []
             assert events[-1]["type"] == "turn_finished"
-            assert events[-1]["payload"] == {"turn_id": turn_id, "status": "failed"}
+            outcome = events[-1]["payload"]
+            assert outcome == {
+                "turn_id": turn_id,
+                "status": "failed",
+                "reason": "api_http_error",
+                "duration_ms": outcome["duration_ms"],
+                "error_message": "模型请求错误：HTTP 503：请求失败；用量未知，未自动重试。",
+                "http_status": 503,
+            }
+            assert type(outcome["duration_ms"]) is int and outcome["duration_ms"] >= 0
             assert store.usage(session_id) == (12, True)
         else:
             assert len(completed) == 1 and completed[0]["payload"]["turn_id"] == turn_id
@@ -212,9 +222,13 @@ def test_invalid_associations_are_rejected_before_writing(tmp_path, invalid_acti
         first = store.start_turn(session_id, "first")
         second = store.start_turn(session_id, "second")
         request = store.start_request(session_id, first, "test")
-        store.finish_request(session_id, first, request, (1, 2))
+        store.finish_request(
+            session_id, first, request, RequestResult((1, 2), ExecutionOutcome.success())
+        )
         other_request = store.start_request(session_id, first, "test")
-        store.finish_request(session_id, first, other_request, (0, 0))
+        store.finish_request(
+            session_id, first, other_request, RequestResult((0, 0), ExecutionOutcome.success())
+        )
         link = {"turn_id": first, "request_id": request, "tool_call_id": "tool1"}
         store.append_tool_event(
             session_id,
@@ -226,7 +240,9 @@ def test_invalid_associations_are_rejected_before_writing(tmp_path, invalid_acti
             {"role": "assistant", "content": "done"},
         ]
         if invalid_action == "duplicate_completion":
-            store.append_messages(session_id, second, plain_messages)
+            store.commit_turn(
+                session_id, second, TurnCommit(plain_messages, ExecutionOutcome.success())
+            )
         if invalid_action == "wrong_usage_turn":
             request = store.start_request(session_id, first, "test")
         path = next(tmp_path.rglob(f"{session_id}.jsonl"))
@@ -236,7 +252,9 @@ def test_invalid_associations_are_rejected_before_writing(tmp_path, invalid_acti
             if invalid_action == "unknown_turn":
                 store.start_request(session_id, "missing", "test")
             elif invalid_action == "wrong_usage_turn":
-                store.finish_request(session_id, second, request, (1, 2))
+                store.finish_request(
+                    session_id, second, request, RequestResult((1, 2), ExecutionOutcome.success())
+                )
             elif invalid_action == "unknown_request":
                 store.append_tool_event(
                     session_id,
@@ -244,7 +262,9 @@ def test_invalid_associations_are_rejected_before_writing(tmp_path, invalid_acti
                     {**link, "request_id": "missing", "name": "file_info", "arguments": "{}"},
                 )
             elif invalid_action == "duplicate_usage":
-                store.finish_request(session_id, first, request, (1, 2))
+                store.finish_request(
+                    session_id, first, request, RequestResult((1, 2), ExecutionOutcome.success())
+                )
             elif invalid_action == "duplicate_tool_id":
                 store.append_tool_event(
                     session_id,
@@ -258,13 +278,18 @@ def test_invalid_associations_are_rejected_before_writing(tmp_path, invalid_acti
                     {**link, "request_id": other_request, "output": '{"ok":true}'},
                 )
             elif invalid_action == "input_mismatch":
-                store.append_messages(
+                store.commit_turn(
                     session_id,
                     second,
-                    [{"role": "user", "content": "wrong"}, plain_messages[-1]],
+                    TurnCommit(
+                        [{"role": "user", "content": "wrong"}, plain_messages[-1]],
+                        ExecutionOutcome.success(),
+                    ),
                 )
             elif invalid_action == "duplicate_completion":
-                store.append_messages(session_id, second, plain_messages)
+                store.commit_turn(
+                    session_id, second, TurnCommit(plain_messages, ExecutionOutcome.success())
+                )
             else:
                 store.append_command_event(
                     session_id,
@@ -300,7 +325,7 @@ def test_unfinished_turn_is_readable_and_does_not_imply_unknown_usage(tmp_path):
         )
 
 
-@pytest.mark.parametrize("version", [1, 2, 3])
+@pytest.mark.parametrize("version", [1, 2, 3, 4])
 def test_old_session_is_rejected_without_rewriting(tmp_path, version):
     with SessionStore(tmp_path) as store:
         session_id = store.create_session("old", "")

@@ -25,7 +25,7 @@
 - 确认不是系统沙箱，进程拥有当前账户权限；读取工具的路径授权不限制命令内部行为。
 - 超时/取消时尽力清理进程树并回收直接子进程，不保证处理主动脱离进程树的进程。
 
-阅读顺序：command_tools.py → registry.py → executor.py → conversation.py → storage.py / session_log.py；终端确认入口在 cli.py。
+阅读顺序：command_tools.py → registry.py → executor.py → conversation.py → persistence/store.py / persistence/session_log.py；终端确认入口在 cli.py。
 关联规则和失败示例见 [会话执行轨迹](session-tracing.md)。
 测试见 tests/features/test_command_execution.py：不同程序、脚本参数、工作目录、失败、拒绝、超时、输出截断及恢复。
 
